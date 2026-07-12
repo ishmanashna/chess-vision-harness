@@ -1,0 +1,449 @@
+{
+  "version": 1,
+  "rating_source": {
+    "ccrl": "https://computerchess.org.uk/ccrl/404/",
+    "ccrl_list_date": "2026-07-11",
+    "stockfish": "UCI_Elo via UCI_LimitStrength (official, floor 1320)",
+    "stockfish_harness": "Stockfish UCI_Elo tier + play harness (depth, movetime, noise) — calibrate effective ELO",
+    "patricia": "Patricia 5.0 UCI_Elo + Skill_Level (engine sparring scale; v2 calibration via elo_calibration/)"
+  },
+  "matching": {
+    "sigma_elo": 400,
+    "min_weight": 0.08
+  },
+  "opponents": [
+    {
+      "id": "random",
+      "display_name": "Random mover",
+      "type": "random",
+      "elo": 250,
+      "rating_source": "builtin",
+      "rating_note": "Uniform random legal move each turn; effective ELO via calibration"
+    },
+    {
+      "id": "patricia:500",
+      "display_name": "Patricia 5",
+      "type": "uci_elo",
+      "elo": 500,
+      "binary": "bin/opponents/patricia_v2.exe",
+      "uci_elo": 500,
+      "skill_level": 1,
+      "rating_source": "patricia_uci",
+      "rating_note": "Engine sparring ELO (Patricia Skill_Level 1 + UCI_Elo 500); not FIDE human"
+    },
+    {
+      "id": "patricia:800",
+      "display_name": "Patricia 5",
+      "type": "uci_elo",
+      "elo": 800,
+      "binary": "bin/opponents/patricia_v2.exe",
+      "uci_elo": 800,
+      "skill_level": 2,
+      "rating_source": "patricia_uci",
+      "rating_note": "Engine sparring ELO (Patricia Skill_Level 2 + UCI_Elo 800); not FIDE human"
+    },
+    {
+      "id": "minimalchess-0.2",
+      "display_name": "MinimalChess 0.2",
+      "type": "uci",
+      "elo": 909,
+      "binary": "bin/opponents/minimalchess-0.2.exe",
+      "rating_source": "ccrl",
+      "ccrl_name": "MinimalChess 0.2 64-bit"
+    },
+    {
+      "id": "patricia:1000",
+      "display_name": "Patricia 5",
+      "type": "uci_elo",
+      "elo": 1000,
+      "binary": "bin/opponents/patricia_v2.exe",
+      "uci_elo": 1000,
+      "skill_level": 3,
+      "rating_source": "patricia_uci",
+      "rating_note": "Engine sparring ELO (Patricia Skill_Level 3 + UCI_Elo 1000); not FIDE human"
+    },
+    {
+      "id": "toledo",
+      "display_name": "Toledo Nanochess",
+      "type": "uci",
+      "elo": 1017,
+      "command": ["node", "bin/opponents/toledo-uci.js"],
+      "rating_source": "ccrl",
+      "ccrl_name": "Toledo Nanochess Jan/11/2010"
+    },
+    {
+      "id": "patricia:1200",
+      "display_name": "Patricia 5",
+      "type": "uci_elo",
+      "elo": 1200,
+      "binary": "bin/opponents/patricia_v2.exe",
+      "uci_elo": 1200,
+      "skill_level": 4,
+      "rating_source": "patricia_uci",
+      "rating_note": "Engine sparring ELO (Patricia Skill_Level 4 + UCI_Elo 1200); not FIDE human"
+    },
+    {
+      "id": "minimalchess-0.3",
+      "display_name": "MinimalChess 0.3",
+      "type": "uci",
+      "elo": 1439,
+      "binary": "bin/opponents/minimalchess-0.3/minimalchess-0.3.exe",
+      "rating_source": "ccrl",
+      "ccrl_name": "MinimalChess 0.3 64-bit"
+    },
+    {
+      "id": "stockfish-handicap:blitz50",
+      "display_name": "Stockfish 17.1 (blitz 50ms)",
+      "type": "stockfish_harness",
+      "elo": 700,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 50ms per move — effective ELO via calibration",
+      "harness": {
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "stockfish-handicap:blitz100",
+      "display_name": "Stockfish 17.1 (blitz 100ms)",
+      "type": "stockfish_harness",
+      "elo": 850,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 100ms per move — effective ELO via calibration",
+      "harness": {
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth6",
+      "display_name": "Stockfish 17.1 (depth 6)",
+      "type": "stockfish_harness",
+      "elo": 900,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 6 — effective ELO via calibration",
+      "harness": {
+        "depth": 6,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth8",
+      "display_name": "Stockfish 17.1 (depth 8)",
+      "type": "stockfish_harness",
+      "elo": 1000,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 8 — effective ELO via calibration",
+      "harness": {
+        "depth": 8,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth10",
+      "display_name": "Stockfish 17.1 (depth 10)",
+      "type": "stockfish_harness",
+      "elo": 1100,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 10 — effective ELO via calibration",
+      "harness": {
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth12",
+      "display_name": "Stockfish 17.1 (depth 12)",
+      "type": "stockfish_harness",
+      "elo": 1200,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 12 — effective ELO via calibration",
+      "harness": {
+        "depth": 12,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise5",
+      "display_name": "Stockfish 17.1 (5% noise)",
+      "type": "stockfish_harness",
+      "elo": 1250,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 5% random-move noise — effective ELO via calibration",
+      "harness": {
+        "movetime_ms": 100,
+        "random_move_pct": 0.05
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise10",
+      "display_name": "Stockfish 17.1 (10% noise)",
+      "type": "stockfish_harness",
+      "elo": 1180,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 10% random-move noise — effective ELO via calibration",
+      "harness": {
+        "movetime_ms": 100,
+        "random_move_pct": 0.1
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth4",
+      "display_name": "Stockfish 17.1 (depth 4)",
+      "type": "stockfish_harness",
+      "elo": 200,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 4 — bridges patricia/random gap",
+      "harness": {
+        "depth": 4,
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise20",
+      "display_name": "Stockfish 17.1 (20% noise)",
+      "type": "stockfish_harness",
+      "elo": 100,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 20% random-move noise — bridges patricia/random gap",
+      "harness": {
+        "movetime_ms": 100,
+        "random_move_pct": 0.2
+      }
+    },
+    {
+      "id": "stockfish-handicap:blitz200",
+      "display_name": "Stockfish 17.1 (blitz 200ms)",
+      "type": "stockfish_harness",
+      "elo": 1050,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 200ms per move — bridges minimalchess/stockfish:0 gap",
+      "harness": {
+        "movetime_ms": 200
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth14",
+      "display_name": "Stockfish 17.1 (depth 14)",
+      "type": "stockfish_harness",
+      "elo": 1150,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 capped at depth 14 — bridges minimalchess/stockfish:0 gap",
+      "harness": {
+        "depth": 14,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish:0",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1320,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:1",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1414,
+      "uci_elo": 1414,
+      "skill_level": 1,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:2",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1507,
+      "uci_elo": 1507,
+      "skill_level": 2,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:3",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1600,
+      "uci_elo": 1600,
+      "skill_level": 3,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:4",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1694,
+      "uci_elo": 1694,
+      "skill_level": 4,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:5",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1788,
+      "uci_elo": 1788,
+      "skill_level": 5,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:6",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1881,
+      "uci_elo": 1881,
+      "skill_level": 6,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:7",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 1974,
+      "uci_elo": 1974,
+      "skill_level": 7,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:8",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2068,
+      "uci_elo": 2068,
+      "skill_level": 8,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:9",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2162,
+      "uci_elo": 2162,
+      "skill_level": 9,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:10",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2255,
+      "uci_elo": 2255,
+      "skill_level": 10,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:11",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2348,
+      "uci_elo": 2348,
+      "skill_level": 11,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:12",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2442,
+      "uci_elo": 2442,
+      "skill_level": 12,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:13",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2536,
+      "uci_elo": 2536,
+      "skill_level": 13,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:14",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2629,
+      "uci_elo": 2629,
+      "skill_level": 14,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:15",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2722,
+      "uci_elo": 2722,
+      "skill_level": 15,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:16",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2816,
+      "uci_elo": 2816,
+      "skill_level": 16,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:17",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 2910,
+      "uci_elo": 2910,
+      "skill_level": 17,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:18",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 3003,
+      "uci_elo": 3003,
+      "skill_level": 18,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:19",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 3096,
+      "uci_elo": 3096,
+      "skill_level": 19,
+      "rating_source": "stockfish_uci"
+    },
+    {
+      "id": "stockfish:20",
+      "display_name": "Stockfish 17.1",
+      "type": "stockfish",
+      "elo": 3190,
+      "uci_elo": 3190,
+      "skill_level": 20,
+      "rating_source": "stockfish_uci"
+    }
+  ]
+}

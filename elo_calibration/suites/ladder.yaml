@@ -1,0 +1,44 @@
+name: ladder
+defaults:
+  movetime_ms: 100
+  max_plies: 200
+  k_factor: 32
+  initial_elo_non_stockfish: 500
+openings: [startpos]
+round_robin:
+  opponents:
+    - random
+    - patricia:500
+    - patricia:800
+    - patricia:1000
+    - patricia:1200
+    - minimalchess-0.2
+    - toledo
+    - minimalchess-0.3
+    - stockfish-handicap:blitz50
+    - stockfish-handicap:blitz100
+    - stockfish-handicap:depth6
+    - stockfish-handicap:depth8
+    - stockfish-handicap:depth10
+    - stockfish-handicap:depth12
+    - stockfish-handicap:noise10
+    - stockfish-handicap:noise5
+  games_per_pair: 20
+  colors: alternate
+pairs:
+  - white: patricia:500
+    black: stockfish:0
+    games: 20
+    colors: alternate
+  - white: stockfish-handicap:depth6
+    black: stockfish:0
+    games: 20
+    colors: alternate
+  - white: stockfish-handicap:blitz50
+    black: stockfish:0
+    games: 20
+    colors: alternate
+  - white: minimalchess-0.2
+    black: stockfish-handicap:depth6
+    games: 10
+    colors: alternate

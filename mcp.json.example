@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "chess-vision-harness": {
+      "command": "python",
+      "args": ["-m", "chess_harness.mcp_server"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  }
+}

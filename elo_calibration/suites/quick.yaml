@@ -1,0 +1,28 @@
+name: quick
+defaults:
+  movetime_ms: 100
+  max_plies: 200
+  k_factor: 32
+  initial_elo_non_stockfish: 500
+openings: [startpos]
+pairs:
+  - white: patricia:800
+    black: stockfish:0
+    games: 20
+    colors: alternate
+  - white: patricia:500
+    black: patricia:800
+    games: 10
+    colors: alternate
+  - white: patricia:500
+    black: minimalchess-0.2
+    games: 10
+    colors: alternate
+  - white: stockfish-handicap:blitz50
+    black: stockfish:0
+    games: 10
+    colors: alternate
+  - white: stockfish-handicap:depth6
+    black: stockfish-handicap:blitz50
+    games: 10
+    colors: alternate

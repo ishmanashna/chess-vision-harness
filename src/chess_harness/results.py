@@ -1,0 +1,172 @@
+"""
+Results handling for Chess Vision Harness.
+"""
+
+import json
+from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from .elo import ELOLadder
+from .opponents import get_catalog
+from .paths import resolve_base_dir
+
+
+class ResultsManager:
+    """Manages results.jsonl and provides aggregation."""
+
+    def __init__(self, base_dir: Optional[str] = None):
+        self.base_dir = Path(base_dir) if base_dir else resolve_base_dir()
+        self.results_file = self.base_dir / "results.jsonl"
+
+    def append_result(self, result: Dict[str, Any]) -> bool:
+        try:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            with open(self.results_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(result) + "\n")
+            return True
+        except OSError:
+            return False
+
+    def get_result_for_game(self, game_id: str) -> Optional[Dict[str, Any]]:
+        """Return the results.jsonl entry for a game, if recorded."""
+        for result in reversed(self.load_results()):
+            if result.get("game_id") == game_id:
+                return result
+        return None
+
+    def load_results(self) -> List[Dict[str, Any]]:
+        results = []
+        if not self.results_file.exists():
+            return results
+        try:
+            with open(self.results_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        results.append(json.loads(line))
+        except (OSError, json.JSONDecodeError):
+            pass
+        return results
+
+    def aggregate_by_opponent(self) -> Dict[str, Dict[str, Any]]:
+        results = self.load_results()
+        stats: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"wins": 0, "draws": 0, "losses": 0, "total": 0}
+        )
+        for result in results:
+            key = result.get("opponent_id") or (
+                f"stockfish:{result['skill']}" if result.get("skill") is not None else None
+            )
+            agent_color = result.get("agent_color")
+            game_result = result.get("result")
+            if key is None or agent_color is None or game_result is None:
+                continue
+            stats[key]["total"] += 1
+            if game_result == "1/2-1/2":
+                stats[key]["draws"] += 1
+            elif (agent_color == "WHITE" and game_result == "1-0") or (
+                agent_color == "BLACK" and game_result == "0-1"
+            ):
+                stats[key]["wins"] += 1
+            else:
+                stats[key]["losses"] += 1
+        return dict(stats)
+
+    def aggregate_by_skill(self) -> Dict[int, Dict[str, Any]]:
+        results = self.load_results()
+        skill_stats: Dict[int, Dict[str, Any]] = defaultdict(
+            lambda: {"wins": 0, "draws": 0, "losses": 0, "total": 0}
+        )
+        for result in results:
+            skill = result.get("skill")
+            agent_color = result.get("agent_color")
+            game_result = result.get("result")
+            if skill is None or agent_color is None or game_result is None:
+                continue
+            skill_stats[skill]["total"] += 1
+            if game_result == "1/2-1/2":
+                skill_stats[skill]["draws"] += 1
+            elif (agent_color == "WHITE" and game_result == "1-0") or (
+                agent_color == "BLACK" and game_result == "0-1"
+            ):
+                skill_stats[skill]["wins"] += 1
+            else:
+                skill_stats[skill]["losses"] += 1
+        return dict(skill_stats)
+
+    def count_by_model(self) -> Dict[str, int]:
+        """Count finished games per canonical model id."""
+        from .models import ModelRegistry
+
+        counts: Dict[str, int] = defaultdict(int)
+        registry = ModelRegistry()
+        for result in self.load_results():
+            model_id = registry.normalize_result_model(result.get("model_name"))
+            if model_id:
+                counts[model_id] += 1
+        return dict(counts)
+
+    def calculate_winrate(self, skill: Optional[int] = None) -> float:
+        results = self.load_results()
+        if skill is not None:
+            results = [r for r in results if r.get("skill") == skill]
+        if not results:
+            return 0.0
+        wins = 0.0
+        total = 0
+        for result in results:
+            agent_color = result.get("agent_color")
+            game_result = result.get("result")
+            if agent_color is None or game_result is None:
+                continue
+            total += 1
+            if game_result == "1/2-1/2":
+                wins += 0.5
+            elif (agent_color == "WHITE" and game_result == "1-0") or (
+                agent_color == "BLACK" and game_result == "0-1"
+            ):
+                wins += 1
+        return wins / total if total > 0 else 0.0
+
+    def get_summary(self) -> Dict[str, Any]:
+        results = self.load_results()
+        wins = draws = losses = 0
+        for result in results:
+            agent_color = result.get("agent_color")
+            game_result = result.get("result")
+            if agent_color is None or game_result is None:
+                continue
+            if game_result == "1/2-1/2":
+                draws += 1
+            elif (agent_color == "WHITE" and game_result == "1-0") or (
+                agent_color == "BLACK" and game_result == "0-1"
+            ):
+                wins += 1
+            else:
+                losses += 1
+
+        ladder = ELOLadder(base_dir=str(self.base_dir))
+        catalog = get_catalog()
+        by_opponent = self.aggregate_by_opponent()
+        opponent_summary = {}
+        for oid, stats in by_opponent.items():
+            try:
+                opp = catalog.get(oid)
+                opponent_summary[oid] = {
+                    **stats,
+                    "label": opp.format_label(),
+                    "elo": opp.elo,
+                }
+            except ValueError:
+                opponent_summary[oid] = {**stats, "label": oid, "elo": None}
+
+        return {
+            "total_games": len(results),
+            "wins": wins,
+            "draws": draws,
+            "losses": losses,
+            "winrate": round(self.calculate_winrate(), 3),
+            "leaderboard": ladder.get_leaderboard(),
+            "by_opponent": opponent_summary,
+        }

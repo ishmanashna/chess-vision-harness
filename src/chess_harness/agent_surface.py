@@ -1,0 +1,92 @@
+"""Agent-safe API surfaces — no FEN, moves, or position leaks."""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Dict, Optional
+
+
+def debug_state_enabled(debug_param: Optional[str] = None) -> bool:
+    """Full internal state only when operator enables debug."""
+    if debug_param == "1":
+        return os.getenv("CHESS_HARNESS_DEBUG", "").lower() in ("1", "true", "yes")
+    return False
+
+
+def _agent_outcome(agent_color: str, result: Optional[str]) -> Dict[str, str]:
+    from .board_controller import BoardController
+
+    return BoardController.agent_outcome(agent_color, result or "")
+
+
+def agent_safe_status(state: Dict[str, Any], board_path: str, persp: Dict[str, Any]) -> Dict[str, Any]:
+    """CLI/MCP status — metadata only, no position."""
+    in_progress = state.get("status") == "in_progress"
+    response: Dict[str, Any] = {
+        "ok": True,
+        "game_id": state.get("game_id"),
+        "result": state.get("result"),
+        "move_count": len(state.get("moves", [])),
+        "board_path": board_path,
+        **persp,
+    }
+    if not in_progress and state.get("last_move_uci"):
+        response["last_move"] = state["last_move_uci"]
+    return response
+
+
+def agent_safe_board(state: Dict[str, Any], board_path: str, persp: Dict[str, Any]) -> Dict[str, Any]:
+    response: Dict[str, Any] = {
+        "ok": True,
+        "game_id": state.get("game_id"),
+        "board_path": board_path,
+    }
+    if state.get("result"):
+        response["result"] = state["result"]
+        response.update(_agent_outcome(state["agent_color"], state["result"]))
+    else:
+        response["your_turn"] = persp.get("your_turn", False)
+    return response
+
+
+def agent_safe_spectator_state(
+    state: Dict[str, Any],
+    *,
+    revision: str,
+    summary: str,
+    elo_change: str,
+    end_reason_label: Optional[str],
+    engine_label: str,
+    agent_outcome: Optional[Dict[str, str]],
+    eval_ui: Dict[str, Any],
+    agent_elo: Optional[int],
+    engine_elo: Optional[int],
+    game_over: bool,
+    board_path: str,
+) -> Dict[str, Any]:
+    """Public spectator API — no FEN or move list."""
+    return {
+        "game_id": state.get("game_id"),
+        "revision": revision,
+        "summary": summary,
+        "status": state.get("status"),
+        "agent_color": state.get("agent_color"),
+        "your_turn": state.get("status") == "in_progress" and not game_over,
+        "game_over": game_over,
+        "result": state.get("result"),
+        "move_count": len(state.get("moves", [])),
+        "opponent_id": state.get("opponent_id"),
+        "opponent_label": state.get("opponent_label"),
+        "opponent_elo": state.get("opponent_elo"),
+        "model_name": state.get("model_name"),
+        "model_display_name": state.get("model_display_name"),
+        "agent_elo": agent_elo,
+        "engine_elo": engine_elo,
+        "engine_label": engine_label,
+        "elo_change": elo_change,
+        "end_reason_label": end_reason_label,
+        "agent_outcome": agent_outcome,
+        "eval_ui": eval_ui,
+        "board_path": board_path,
+        "board_url": f"/g/{state.get('game_id')}/board.png",
+    }

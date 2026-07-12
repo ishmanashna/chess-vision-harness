@@ -1,0 +1,24 @@
+.chess_harness/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+.cursor/
+*.log
+
+# Engine binaries (download via scripts/fetch_opponents.py)
+bin/**/*.exe
+bin/stockfish*
+stockfish/
+
+# Local model registry (copy from models.json.example)
+models.json
+
+# Calibration run output (suites write here)
+elo_calibration/results/**
+!elo_calibration/results/.gitkeep
