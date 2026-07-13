@@ -6,8 +6,8 @@ Engine-vs-engine ladder. **No LLM agents**, no board images, no MCP.
 
 1. **Schedules** games from YAML suites (`suites/quick.yaml`, etc.).
 2. **Stockfish tiers are anchors** — `stockfish:0` stays at 1320, `stockfish:5` at 1788, etc.
-3. **Everything else starts at 500** — Patricia, MinimalChess, Toledo, etc. Catalog labels are hints; calibration discovers strength by playing games.
-4. **After each game**, floating engines get ELO gains/losses (K=32 by default). You see ratings evolve game-by-game in `games.jsonl` and stabilize over many games.
+3. **Everything else starts at 500** — harness rungs, inverse_sf, MinimalChess, `random`, etc. Catalog labels are hints; calibration discovers strength by playing games.
+4. **After each game**, floating engines get ELO gains/losses (sliding K: 64 / 48 / 24). You see ratings evolve game-by-game in `games.jsonl` and stabilize over many games.
 5. **Stockfish harness** — per-game `black_harness` / `white_harness` can set `depth`, `movetime_ms`, `random_move_pct` to test weakened reference opponents (see `suites/stockfish-harness.yaml`).
 
 Output is **advisory** for updating `opponents.json` labels after review.
