@@ -38,12 +38,12 @@ Spectator is **not** for agents — API is redacted unless `CHESS_HARNESS_DEBUG=
 
 Engine-vs-engine ladder — **no agents**:
 
-- Non-Stockfish opponents start at ELO **500**, update per game (K=32).
+- Non-Stockfish opponents start at ELO **500**, update per game (sliding K).
 - `stockfish:N` tiers are **anchors** (fixed catalog UCI ELO).
-- `stockfish-handicap:*` = Stockfish with depth/time/noise harness — calibrated like Patricia.
+- `stockfish-handicap:*` = Stockfish with depth/time/noise harness — calibrated like other floaters.
 - Output: `results/<suite>/games.jsonl`, `ratings.json`, `summary.md` — advisory for `opponents.json`.
 
-Example finding: `patricia:1200` scored 75% vs `stockfish:0` in a 20-game probe; fitted ELO still climbing (500→956) — catalog labels need calibration, not blind trust.
+Example finding: a mislabeled harness rung can beat `stockfish:0` often while fitted ELO is still climbing (500→900+) — catalog labels need calibration, not blind trust.
 
 ### 4. Operator tooling
 
@@ -92,8 +92,7 @@ Matrix of opponents × colors × N games; each subagent gets its own `game_id`; 
 
 - Agent at ~500 ELO gets ~500-strength opponents by default (not `stockfish:0` at 1320).
 - No FEN/position leaks on agent API surface (tests in `test_agent_surface.py`).
-- Patricia tiers use `Skill_Level` + `UCI_Elo` (not default skill 21).
-- Calibration produces sensible ordering (e.g. `patricia:500` < `patricia:800` over many games).
+- Calibration produces sensible ordering (e.g. `noise10` weaker than `noise5` over many games).
 - Spectator shows correct orientation and labels when agent plays Black.
 - PGN imports on Lichess.
 

@@ -2,7 +2,7 @@
 
 1. Ensure spectator is running: `python play.py serve --force` (enables debug for operator UI).
 2. Inscribe model if needed: `python play.py models inscribe composer-2.5 --name "Composer 2.5"`.
-3. Start game as operator or let subagent run `python play.py new --model composer-2.5 --opponent patricia:500`.
+3. Start game as operator or let subagent run `python play.py new --model composer-2.5 --opponent stockfish-handicap:noise17`.
 4. Paste subagent prompt from `AGENTS.md` with `{game_id}`, `{model_id}`, `{board_path}` filled in.
 5. Subagent uses **only** `python play.py move/status/board` or MCP `chess_*` — no Shell `curl`, no Read on `state.json`.
 6. After game: `python play.py game audit <id>`; if clean, keep result; else delete game dir and result row.
