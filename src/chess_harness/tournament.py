@@ -11,6 +11,7 @@ import chess
 
 from .board_controller import BoardController
 from .game_manager import GameManager
+from .opponents import get_catalog
 from .paths import resolve_base_dir
 from .results import ResultsManager
 
@@ -33,6 +34,14 @@ class TournamentManager:
     ) -> Dict[str, Any]:
         if agent_colors is None:
             agent_colors = ["white", "black"]
+
+        catalog = get_catalog()
+        for opponent_id in opponents:
+            opp = catalog.get(opponent_id)
+            if not opp.enabled:
+                raise ValueError(f"Opponent '{opponent_id}' is disabled")
+            if not catalog._is_playable(opp):
+                raise ValueError(f"Opponent '{opponent_id}' is not playable")
 
         manifest = {
             "created_at": datetime.now().isoformat(),

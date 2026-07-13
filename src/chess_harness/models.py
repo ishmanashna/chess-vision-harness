@@ -109,6 +109,21 @@ class ModelRegistry:
     def is_inscribed(self, model_id: str) -> bool:
         return self.get(model_id) is not None
 
+    def is_enabled(self, model_id: str) -> bool:
+        model = self.get(model_id)
+        return bool(model.get("enabled", True)) if model else False
+
+    def set_enabled(self, model_id: str, enabled: bool) -> Dict[str, Any]:
+        model = self.get(model_id)
+        if model is None:
+            raise ValueError(f"Model '{model_id}' is not inscribed")
+        if enabled:
+            model.pop("enabled", None)
+        else:
+            model["enabled"] = False
+        self._save()
+        return dict(model)
+
     def inscribe(self, model_id: str, name: Optional[str] = None) -> Dict[str, Any]:
         if not self.validate_id_format(model_id):
             raise ValueError(
@@ -152,10 +167,20 @@ class ModelRegistry:
             ref = MODEL_ALIASES[ref]
 
         if self.is_inscribed(ref):
+            if not self.is_enabled(ref):
+                raise ValueError(
+                    f"Model '{ref}' is disabled. "
+                    "Enable with: python play.py models enable <id>"
+                )
             return ref
 
         for model in self.list_models():
             if model.get("name", "").lower() == ref.lower():
+                if not model.get("enabled", True):
+                    raise ValueError(
+                        f"Model '{ref}' is disabled. "
+                        "Enable with: python play.py models enable <id>"
+                    )
                 return model["id"]
 
         raise ValueError(self._unknown_model_message(ref))
@@ -193,5 +218,8 @@ def format_model_list(registry: ModelRegistry) -> str:
     lines = ["Inscribed models:"]
     for model in models:
         elo = model.get("elo", AGENT_START_ELO)
-        lines.append(f"  {model['id']}: {model.get('name', model['id'])} ({round(elo)} ELO)")
+        disabled = "" if model.get("enabled", True) else " [disabled]"
+        lines.append(
+            f"  {model['id']}: {model.get('name', model['id'])} ({round(elo)} ELO){disabled}"
+        )
     return "\n".join(lines)

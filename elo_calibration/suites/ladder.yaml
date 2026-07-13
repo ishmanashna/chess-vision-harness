@@ -1,44 +1,34 @@
-name: ladder
-defaults:
-  movetime_ms: 100
-  max_plies: 200
-  k_factor: 32
-  initial_elo_non_stockfish: 500
-openings: [startpos]
-round_robin:
-  opponents:
-    - random
-    - patricia:500
-    - patricia:800
-    - patricia:1000
-    - patricia:1200
-    - minimalchess-0.2
-    - toledo
-    - minimalchess-0.3
-    - stockfish-handicap:blitz50
-    - stockfish-handicap:blitz100
-    - stockfish-handicap:depth6
-    - stockfish-handicap:depth8
-    - stockfish-handicap:depth10
-    - stockfish-handicap:depth12
-    - stockfish-handicap:noise10
-    - stockfish-handicap:noise5
-  games_per_pair: 20
-  colors: alternate
-pairs:
-  - white: patricia:500
-    black: stockfish:0
-    games: 20
-    colors: alternate
-  - white: stockfish-handicap:depth6
-    black: stockfish:0
-    games: 20
-    colors: alternate
-  - white: stockfish-handicap:blitz50
-    black: stockfish:0
-    games: 20
-    colors: alternate
-  - white: minimalchess-0.2
-    black: stockfish-handicap:depth6
-    games: 10
-    colors: alternate
+name: ladder
+defaults:
+  movetime_ms: 100
+  max_plies: 200
+  k_factor: 48
+  initial_elo_non_stockfish: 500
+openings: [startpos]
+round_robin:
+  opponents:
+    - random
+    - stockfish-handicap:noise5
+    - stockfish-handicap:noise10
+    - stockfish-handicap:noise17
+    - stockfish-handicap:noise30
+    - minimalchess-0.2:noise15
+    - minimalchess-0.2:noise30
+    - inverse-sf:exclude-top1-d8
+    - inverse-sf:worst-d6
+    - inverse-sf:bottom5-d6
+  games_per_pair: 20
+  colors: alternate
+pairs:
+  - white: stockfish-handicap:noise10
+    black: stockfish:0
+    games: 20
+    colors: alternate
+  - white: inverse-sf:worst-d6
+    black: random
+    games: 20
+    colors: alternate
+  - white: minimalchess-0.2:noise15
+    black: stockfish-handicap:noise17
+    games: 10
+    colors: alternate

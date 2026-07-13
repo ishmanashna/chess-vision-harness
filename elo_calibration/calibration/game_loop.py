@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import chess
 
-from .engine_player import EnginePlayer
+from .engine_player import EnginePlayer, release_all_engines
 from .play_config import MatchConfig
 
 
@@ -24,5 +24,4 @@ def play_game(match: MatchConfig) -> str:
             return board.result(claim_draw=True) or "1/2-1/2"
         return "1/2-1/2"
     finally:
-        white.release()
-        black.release()
+        release_all_engines()

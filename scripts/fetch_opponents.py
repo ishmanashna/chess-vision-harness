@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download Stockfish and opponent engine binaries into bin/."""
+"""Download Stockfish and MinimalChess binaries into bin/."""
 
 from __future__ import annotations
 
@@ -38,22 +38,14 @@ STOCKFISH_ASSETS = {
     },
 }
 
-OPPONENT_DOWNLOADS = [
+MINIMALCHESS_DOWNLOADS = [
     {
         "url": "https://github.com/lithander/MinimalChessEngine/releases/download/v0.2/MinimalChess.0.2.Windows.zip",
-        "kind": "minimalchess-0.2",
+        "version": "0.2",
     },
     {
         "url": "https://github.com/lithander/MinimalChessEngine/releases/download/v0.3/MinimalChess.0.3.Windows.zip",
-        "kind": "minimalchess-0.3",
-    },
-    {
-        "url": "https://github.com/Adam-Kulju/Patricia/releases/download/5/patricia_v2.exe",
-        "dest": OPP_DIR / "patricia_v2.exe",
-    },
-    {
-        "url": "https://raw.githubusercontent.com/ecrucru/toledo-uci/master/toledo-uci.js",
-        "dest": OPP_DIR / "toledo-uci.js",
+        "version": "0.3",
     },
 ]
 
@@ -64,9 +56,19 @@ def _download(url: str, dest: Path) -> None:
     urllib.request.urlretrieve(url, dest)
 
 
+def _find_binary(root: Path, pattern: str) -> Path:
+    matches = sorted(root.rglob(pattern))
+    if not matches:
+        raise FileNotFoundError(f"No binary matching {pattern!r} under {root}")
+    return matches[0]
+
+
 def _install_minimalchess(zip_path: Path, version: str) -> None:
     if version == "0.2":
         out = OPP_DIR / "minimalchess-0.2.exe"
+        if out.exists():
+            print(f"  skip {out.relative_to(ROOT)} (exists)")
+            return
         with zipfile.ZipFile(zip_path) as zf:
             exe = next(n for n in zf.namelist() if n.endswith(".exe"))
             with zf.open(exe) as src, open(out, "wb") as dst:
@@ -75,13 +77,16 @@ def _install_minimalchess(zip_path: Path, version: str) -> None:
         return
 
     out_dir = OPP_DIR / "minimalchess-0.3"
+    target = out_dir / "minimalchess-0.3.exe"
+    if target.exists():
+        print(f"  skip {target.relative_to(ROOT)} (exists)")
+        return
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(out_dir)
     exe = next(out_dir.rglob("*.exe"))
-    target = out_dir / "minimalchess-0.3.exe"
     if exe != target:
         if target.exists():
             target.unlink()
@@ -90,13 +95,6 @@ def _install_minimalchess(zip_path: Path, version: str) -> None:
     if pst_src and pst_src.parent != out_dir:
         shutil.move(str(pst_src), str(out_dir / "pst"))
     print(f"  -> {target.relative_to(ROOT)}")
-
-
-def _find_binary(root: Path, pattern: str) -> Path:
-    matches = sorted(root.rglob(pattern))
-    if not matches:
-        raise FileNotFoundError(f"No binary matching {pattern!r} under {root}")
-    return matches[0]
 
 
 def _install_stockfish(tmp: Path) -> None:
@@ -133,43 +131,25 @@ def _install_stockfish(tmp: Path) -> None:
     print(f"  -> {dest.relative_to(ROOT)}")
 
 
-def _install_opponents(tmp: Path) -> None:
+def _install_minimalchess_all(tmp: Path) -> None:
     if platform.system() != "Windows":
-        print("  skip tiny Windows opponent binaries on non-Windows (Patricia, MinimalChess)")
-        print("  Toledo UCI wrapper still fetched (requires Node.js)")
-        item = OPPONENT_DOWNLOADS[-1]
-        dest = item["dest"]
-        if not dest.exists():
-            _download(item["url"], dest)
-            print(f"  -> {dest.relative_to(ROOT)}")
+        print("  skip MinimalChess on non-Windows (Windows builds only)")
         return
-
-    for item in OPPONENT_DOWNLOADS:
-        if "kind" in item:
-            zip_path = tmp / f"{item['kind']}.zip"
-            _download(item["url"], zip_path)
-            version = item["kind"].split("-")[-1]
-            _install_minimalchess(zip_path, version)
-        else:
-            dest: Path = item["dest"]
-            if dest.exists():
-                print(f"  skip {dest.relative_to(ROOT)} (exists)")
-                continue
-            _download(item["url"], dest)
-            print(f"  -> {dest.relative_to(ROOT)}")
+    OPP_DIR.mkdir(parents=True, exist_ok=True)
+    for item in MINIMALCHESS_DOWNLOADS:
+        zip_path = tmp / f"minimalchess-{item['version']}.zip"
+        _download(item["url"], zip_path)
+        _install_minimalchess(zip_path, item["version"])
 
 
 def main() -> int:
     BIN_DIR.mkdir(parents=True, exist_ok=True)
-    OPP_DIR.mkdir(parents=True, exist_ok=True)
     print("Downloading engine binaries...")
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
         _install_stockfish(tmp)
-        _install_opponents(tmp)
-
+        _install_minimalchess_all(tmp)
     print("Done. Run: python play.py opponents verify")
-    print("Stockfish is GPL-3.0 — see NOTICE.md")
     return 0
 
 

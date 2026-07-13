@@ -1,24 +1,24 @@
-name: stockfish-harness
-defaults:
-  movetime_ms: 100
-  max_plies: 200
-  k_factor: 32
-  initial_elo_non_stockfish: 500
-openings: [startpos]
-pairs:
-  - white: patricia:500
-    black: stockfish:0
-    games: 20
-    colors: alternate
-    black_harness:
-      movetime_ms: 50
-      depth: 8
-      random_move_pct: 0
-  - white: patricia:500
-    black: stockfish:0
-    games: 20
-    colors: alternate
-    black_harness:
-      movetime_ms: 100
-      depth: 6
-      random_move_pct: 0.05
+name: stockfish-harness
+defaults:
+  movetime_ms: 100
+  max_plies: 200
+  k_factor: 48
+  initial_elo_non_stockfish: 500
+openings: [startpos]
+pairs:
+  - white: stockfish-handicap:noise10
+    black: stockfish:0
+    games: 20
+    colors: alternate
+    black_harness:
+      movetime_ms: 50
+      depth: 8
+      random_move_pct: 0
+  - white: stockfish-handicap:noise17
+    black: stockfish:0
+    games: 20
+    colors: alternate
+    black_harness:
+      movetime_ms: 100
+      depth: 6
+      random_move_pct: 0.05

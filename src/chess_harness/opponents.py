@@ -33,7 +33,7 @@ LaunchCommand = Union[str, List[str]]
 class Opponent:
     id: str
     display_name: str
-    type: str  # "uci" | "uci_elo" | "stockfish" | "stockfish_harness" | "random"
+    type: str  # "uci" | "uci_elo" | "uci_harness" | "stockfish" | "stockfish_harness" | "inverse_sf" | "random"
     elo: int
     binary: Optional[str] = None
     command: Optional[List[str]] = None
@@ -42,7 +42,9 @@ class Opponent:
     rating_source: str = "ccrl"
     ccrl_name: Optional[str] = None
     harness: Optional[Dict[str, Any]] = None
+    inverse: Optional[Dict[str, Any]] = None
     rating_note: Optional[str] = None
+    enabled: bool = True
 
     def format_label(self) -> str:
         """Public label for spectator/PGN, e.g. 'MinimalChess 0.2 (909)'."""
@@ -83,7 +85,9 @@ def _parse_opponent(raw: Dict[str, Any]) -> Opponent:
         rating_source=raw.get("rating_source", "ccrl"),
         ccrl_name=raw.get("ccrl_name"),
         harness=raw.get("harness"),
+        inverse=raw.get("inverse"),
         rating_note=raw.get("rating_note"),
+        enabled=bool(raw.get("enabled", True)),
     )
 
 
@@ -109,12 +113,45 @@ class OpponentCatalog:
             raise ValueError(f"Unknown opponent: {opponent_id}")
         return self._by_id[opponent_id]
 
+    def try_get(self, opponent_id: str) -> Optional[Opponent]:
+        return self._by_id.get(opponent_id)
+
     def list_opponents(self) -> List[Opponent]:
         return list(self.opponents)
 
+    def list_eligible_opponents(self) -> List[Opponent]:
+        return [o for o in self.opponents if self.is_eligible(o)]
+
+    def is_eligible(self, opp: Opponent) -> bool:
+        return opp.enabled and self._is_playable(opp)
+
+    def set_enabled(self, opponent_id: str, enabled: bool) -> Opponent:
+        found = False
+        for raw in self._data.get("opponents", []):
+            if raw.get("id") == opponent_id:
+                if enabled:
+                    raw.pop("enabled", None)
+                else:
+                    raw["enabled"] = False
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Unknown opponent: {opponent_id}")
+        self.path.write_text(json.dumps(self._data, indent=2) + "\n", encoding="utf-8")
+        self._reload_from_disk()
+        reload_catalog()
+        return self.get(opponent_id)
+
+    def _reload_from_disk(self) -> None:
+        self._data = self._load()
+        self.opponents = [_parse_opponent(o) for o in self._data.get("opponents", [])]
+        self._by_id = {o.id: o for o in self.opponents}
+
     def reference_opponents(self) -> List[Opponent]:
         """Subset for spectator reference table (spread across ELO range)."""
-        tiny = [o for o in self.opponents if o.type in ("uci", "uci_elo", "stockfish_harness", "random")]
+        tiny = [o for o in self.opponents if o.type in (
+            "uci", "uci_elo", "uci_harness", "stockfish_harness", "inverse_sf", "random"
+        )]
         stockfish = [o for o in self.opponents if o.type == "stockfish"]
         # Sample stockfish at 0, 5, 10, 15, 20
         sf_ids = {f"stockfish:{s}" for s in (0, 5, 10, 15, 20)}
@@ -140,7 +177,7 @@ class OpponentCatalog:
 
         weights: List[float] = []
         for opp in self.opponents:
-            if not self._is_playable(opp):
+            if not self.is_eligible(opp):
                 weights.append(0.0)
                 continue
             delta = abs(ladder_elo_for_opponent(opp, calibration) - agent_elo)
@@ -148,12 +185,12 @@ class OpponentCatalog:
 
         if not any(w > 0 for w in weights):
             # Fall back to stockfish tiers only (tiny binaries missing)
-            playable = [o for o in self.opponents if o.type == "stockfish"]
+            playable = [o for o in self.opponents if o.type == "stockfish" and o.enabled]
             if not playable:
                 raise RuntimeError("No playable opponents in catalog")
             weights = []
             for opp in self.opponents:
-                if opp.type != "stockfish":
+                if opp.type != "stockfish" or not opp.enabled:
                     weights.append(0.0)
                 else:
                     delta = abs(ladder_elo_for_opponent(opp, calibration) - agent_elo)
@@ -167,7 +204,9 @@ class OpponentCatalog:
             return True
         if opp.type in ("stockfish", "stockfish_harness"):
             return True
-        if opp.type in ("uci", "uci_elo"):
+        if opp.type == "inverse_sf":
+            return True
+        if opp.type in ("uci", "uci_elo", "uci_harness"):
             if opp.command:
                 script = Path(opp.command[-1])
                 if not script.is_absolute():
@@ -185,18 +224,22 @@ class OpponentCatalog:
     ) -> str:
         """Resolve explicit opponent, legacy skill int, or ELO-weighted default."""
         if opponent_id:
-            self.get(opponent_id)  # validate
+            opp = self.get(opponent_id)
+            if not opp.enabled:
+                raise ValueError(f"Opponent '{opponent_id}' is disabled")
             return opponent_id
         if skill is not None:
             if skill < 0:
                 raise ValueError(
                     "Negative Stockfish skills are removed. "
-                    "Use a catalog opponent below 1320 ELO (e.g. patricia:500, minimalchess-0.2)."
+                    "Use a catalog opponent below 1320 ELO (e.g. stockfish-handicap:noise17, random)."
                 )
             if skill > STOCKFISH_SKILL_MAX:
                 raise ValueError(f"Skill level must be 0–{STOCKFISH_SKILL_MAX}")
             oid = f"stockfish:{skill}"
-            self.get(oid)
+            opp = self.get(oid)
+            if not opp.enabled:
+                raise ValueError(f"Opponent '{oid}' is disabled")
             return oid
         return self.select_by_elo(agent_elo).id
 
@@ -209,6 +252,11 @@ def get_catalog() -> OpponentCatalog:
     if _catalog is None:
         _catalog = OpponentCatalog()
     return _catalog
+
+
+def reload_catalog() -> None:
+    global _catalog
+    _catalog = None
 
 
 def opponent_elo_from_result(game: Dict[str, Any], catalog: Optional[OpponentCatalog] = None) -> Optional[int]:

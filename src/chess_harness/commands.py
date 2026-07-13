@@ -124,8 +124,37 @@ def cmd_list() -> None:
 def cmd_opponents_list() -> None:
     catalog = get_catalog()
     for opp in catalog.list_opponents():
-        playable = "ok" if catalog._is_playable(opp) else "missing binary"
-        print(f"  {opp.id}: {opp.format_label()} [{opp.type}, {playable}]")
+        if not opp.enabled:
+            status = "disabled"
+        elif catalog._is_playable(opp):
+            status = "ok"
+        else:
+            status = "missing binary"
+        print(f"  {opp.id}: {opp.format_label()} [{opp.type}, {status}]")
+
+
+def cmd_opponents_set_enabled(opponent_id: str, enabled: bool) -> int:
+    catalog = get_catalog()
+    try:
+        opp = catalog.set_enabled(opponent_id, enabled)
+        state = "enabled" if opp.enabled else "disabled"
+        print(f"Opponent {opp.id}: {state}")
+        return 0
+    except ValueError as e:
+        print(str(e))
+        return 1
+
+
+def cmd_models_set_enabled(model_id: str, enabled: bool) -> int:
+    registry = ModelRegistry()
+    try:
+        entry = registry.set_enabled(model_id, enabled)
+        state = "enabled" if entry.get("enabled", True) else "disabled"
+        print(f"Model {entry['id']}: {state}")
+        return 0
+    except ValueError as e:
+        print(str(e))
+        return 1
 
 
 def cmd_opponents_verify() -> int:
@@ -226,6 +255,12 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
 
     os.environ.setdefault("CHESS_HARNESS_DEBUG", "1")
     ensure_port_available(host, port, force=force)
+    from .engine_cleanup import kill_orphaned_harness_processes
+
+    killed = kill_orphaned_harness_processes()
+    if killed:
+        parts = ", ".join(f"{name}={count}" for name, count in killed.items())
+        print(f"Cleaned up leftover processes from a previous session ({parts})")
     write_spectator_meta(host, port)
     atexit.register(remove_spectator_meta)
 
@@ -238,9 +273,14 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
 
 
 def cmd_serve_stop(port: int = 8765) -> None:
+    from .engine_cleanup import kill_orphaned_harness_processes
     from .serve_utils import stop_spectator
 
     stop_spectator(port)
+    killed = kill_orphaned_harness_processes()
+    if killed:
+        for name, count in killed.items():
+            print(f"Killed orphaned {name}: {count}")
 
 
 def cmd_tournament_create(

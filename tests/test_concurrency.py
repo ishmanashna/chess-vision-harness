@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import threading
 from threading import Thread
 
 import pytest
@@ -14,17 +15,19 @@ from chess_harness.game_manager import GameBusyError, GameManager
 
 def test_game_lock_blocks_second_acquirer(tmp_path, monkeypatch):
     gm = GameManager(base_dir=str(tmp_path / "chess_harness"))
-    monkeypatch.setattr(gm, "LOCK_TIMEOUT", 0.3)
+    monkeypatch.setattr(GameManager, "LOCK_TIMEOUT", 0.25)
 
     results: list[str] = []
+    holder_ready = threading.Event()
 
     def holder():
         with gm.game_lock("lock1"):
             results.append("held")
-            time.sleep(0.6)
+            holder_ready.set()
+            time.sleep(0.5)
 
     def waiter():
-        time.sleep(0.1)
+        assert holder_ready.wait(timeout=2.0)
         try:
             with gm.game_lock("lock1"):
                 results.append("acquired")

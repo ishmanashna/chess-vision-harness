@@ -34,12 +34,12 @@ class ChessHarnessMCP:
             model_schema["enum"] = model_ids
 
         opponent_ids = [
-            o.id for o in get_catalog().list_opponents() if get_catalog()._is_playable(o)
+            o.id for o in get_catalog().list_eligible_opponents()
         ]
         opponent_schema: Dict[str, Any] = {
             "type": "string",
             "description": (
-                "Catalog opponent id (e.g. patricia:500, stockfish:5). "
+                "Catalog opponent id (e.g. stockfish-handicap:noise17, stockfish:5). "
                 "Omit for ELO-weighted random opponent."
             ),
         }

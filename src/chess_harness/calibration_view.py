@@ -43,6 +43,7 @@ def merge_calibration_ratings(*, max_age_sec: Optional[float] = MERGE_CACHE_TTL_
 
     root = _results_root()
     merged: Dict[str, Dict[str, Any]] = {}
+    catalog = get_catalog()
     if root.exists():
         for ratings_file in root.glob("*/ratings.json"):
             try:
@@ -55,13 +56,17 @@ def merge_calibration_ratings(*, max_age_sec: Optional[float] = MERGE_CACHE_TTL_
                 games = int(games_played.get(oid, 0))
                 prev = merged.get(oid)
                 if prev is None or games > prev.get("games", 0):
+                    try:
+                        anchor = catalog.get(oid).type == "stockfish"
+                    except ValueError:
+                        anchor = False
                     merged[oid] = {
                         "id": oid,
                         "elo": round(float(elo)),
                         "elo_exact": round(float(elo), 2),
                         "games": games,
                         "suite": suite,
-                        "anchor": False,
+                        "anchor": anchor,
                     }
     if max_age_sec is not None:
         _MERGE_CACHE = (now, merged)
@@ -123,6 +128,8 @@ def build_ladder_rating_table(
     cal = calibration if calibration is not None else merge_calibration_ratings()
     rows: List[Dict[str, Any]] = []
     for opp in catalog.list_opponents():
+        if not opp.enabled:
+            continue
         if opp.type == "stockfish":
             rows.append(
                 {
@@ -133,7 +140,7 @@ def build_ladder_rating_table(
                     "catalog_elo": opp.elo,
                 }
             )
-        elif opp.type in ("uci", "uci_elo", "stockfish_harness", "random"):
+        elif opp.type in ("uci", "uci_elo", "uci_harness", "stockfish_harness", "inverse_sf", "random"):
             row = cal.get(opp.id, {})
             games = int(row.get("games", 0)) if row else 0
             display = calibrated_elo_for(opp, cal)
@@ -145,6 +152,7 @@ def build_ladder_rating_table(
                     "anchor": False,
                     "catalog_elo": opp.elo,
                     "uncalibrated": games == 0,
+                    "enabled": opp.enabled,
                 }
             )
     rows.sort(key=lambda r: (r.get("anchor", False), -r.get("elo", 0)))
@@ -165,6 +173,9 @@ def enrich_rating_table_activity(
         if copy.get("anchor"):
             copy["playing"] = 0
             copy["activity"] = "anchor"
+        elif not copy.get("enabled", True):
+            copy["playing"] = 0
+            copy["activity"] = "disabled"
         else:
             playing = int(in_flight.get(copy["id"], 0)) if active else 0
             copy["playing"] = playing
@@ -192,6 +203,8 @@ def get_calibration_status() -> Dict[str, Any]:
                 "recent_games": cont.get("recent_games", [])[-30:],
                 "updated_at": cont.get("updated_at"),
                 "process_pool_workers": cont.get("process_pool_workers"),
+                "pairing_mode": cont.get("pairing_mode"),
+                "fixed_opponent_id": cont.get("fixed_opponent_id"),
             }
 
     cont = mgr.status_payload()
@@ -237,6 +250,10 @@ def get_calibration_status() -> Dict[str, Any]:
         "rating_table": rating_table,
         "recent_games": recent[-30:],
         "updated_at": cont.get("updated_at"),
+        "pairing_mode": cont.get("pairing_mode"),
+        "fixed_opponent_id": cont.get("fixed_opponent_id"),
+        "pairing_opponents": cont.get("pairing_opponents", []),
+        "calibratable_engines": cont.get("calibratable_engines", []),
     }
     if running:
         _STATUS_CACHE = (now, payload)
@@ -255,16 +272,19 @@ def split_opponent_ladder_calibrated(
 ]:
     """Returns (engines, stockfish harness, stockfish anchors)."""
     cal = calibration if calibration is not None else merge_calibration_ratings()
-    engine_types = ("uci", "uci_elo", "random")
+    engine_types = ("uci", "uci_elo", "uci_harness", "random")
+    harness_types = ("stockfish_harness", "inverse_sf")
     engines: List[tuple[Opponent, Optional[int], int]] = []
     harness: List[tuple[Opponent, Optional[int], int]] = []
     for opp in catalog.list_opponents():
+        if not opp.enabled:
+            continue
         row = cal.get(opp.id, {})
         games = int(row.get("games", 0)) if row else 0
         entry = (opp, ladder_elo_for_opponent(opp, cal), games)
         if opp.type in engine_types:
             engines.append(entry)
-        elif opp.type == "stockfish_harness":
+        elif opp.type in harness_types:
             harness.append(entry)
     sort_floating = lambda t: (t[1] is None, -(t[1] or 0))
     engines.sort(key=sort_floating)

@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from chess_harness.opponents import Opponent, get_catalog
+from chess_harness.rating_math import k_factor, update_elo as rating_update_elo
 
 DEFAULT_FLOATING_ELO = 500.0
-DEFAULT_K_FACTOR = 32
+DEFAULT_K_FACTOR = 48
 
 
 def expected_score(white_elo: float, black_elo: float) -> float:
@@ -98,7 +99,8 @@ class CalibrationLadder:
 
         if not is_anchor(white_opp):
             exp = expected_score(white_elo, black_elo)
-            after = white_elo + self.k_factor * (white_score - exp)
+            k = k_factor(self.games_played[white_id])
+            after = white_elo + k * (white_score - exp)
             updates.append(
                 RatingUpdate(
                     opponent_id=white_id,
@@ -113,7 +115,8 @@ class CalibrationLadder:
 
         if not is_anchor(black_opp):
             exp = expected_score(black_elo, white_elo)
-            after = black_elo + self.k_factor * ((1.0 - white_score) - exp)
+            k = k_factor(self.games_played[black_id])
+            after = black_elo + k * ((1.0 - white_score) - exp)
             updates.append(
                 RatingUpdate(
                     opponent_id=black_id,
@@ -155,10 +158,24 @@ class CalibrationLadder:
     def anchor_players(self) -> List[str]:
         return sorted(oid for oid in self.ratings if is_anchor(self._opponent(oid)))
 
+    def prune_removed_opponents(self) -> List[str]:
+        """Drop ladder rows for opponent ids no longer in the catalog."""
+        catalog = self._catalog()
+        removed: List[str] = []
+        for oid in list(self.ratings):
+            if catalog.try_get(oid) is None:
+                self.ratings.pop(oid, None)
+                self.games_played.pop(oid, None)
+                removed.append(oid)
+        return removed
+
     def rating_table(self) -> List[Dict[str, Any]]:
         rows = []
+        catalog = self._catalog()
         for oid in sorted(self.ratings):
-            opp = self._opponent(oid)
+            opp = catalog.try_get(oid)
+            if opp is None:
+                continue
             rows.append(
                 {
                     "id": oid,

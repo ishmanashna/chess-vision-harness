@@ -17,8 +17,8 @@ from calibration.resilient_game import play_game_resilient  # noqa: E402
 
 def test_play_game_resilient_skips_on_persistent_timeout():
     match = MatchConfig(
-        white_id="patricia:500",
-        black_id="patricia:800",
+        white_id="stockfish-handicap:noise17",
+        black_id="stockfish-handicap:noise22",
         white=PlayConfig(),
         black=PlayConfig(),
     )

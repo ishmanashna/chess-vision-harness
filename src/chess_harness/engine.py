@@ -9,10 +9,14 @@ import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Union
 
+from .inverse_sf import play_inverse_sf_move
 from .opponents import Opponent, stockfish_skill_to_elo
 from .paths import resolve_stockfish
 
 LaunchCommand = Union[str, List[str]]
+
+STOCKFISH_RATED_POOL = "__stockfish_rated__"
+STOCKFISH_EVAL_POOL = "__stockfish_eval__"
 
 
 class EngineProtocol(Protocol):
@@ -27,10 +31,61 @@ class EngineProtocol(Protocol):
 
 
 def _is_patricia(opponent: Opponent) -> bool:
-    if opponent.rating_source == "patricia_uci":
-        return True
+    """Legacy: Patricia used Skill_Level UCI option (no longer in catalog)."""
     binary = opponent.binary or ""
     return "patricia" in binary.lower()
+
+
+def _adapter_pool_key(opponent: Opponent) -> str:
+    """One subprocess per binary/launch command (not per catalog id)."""
+    if opponent.type in ("stockfish", "stockfish_harness"):
+        return STOCKFISH_RATED_POOL
+    if opponent.type == "inverse_sf":
+        return STOCKFISH_EVAL_POOL
+    if opponent.type == "random":
+        return "random"
+    launch = opponent.resolve_launch_command()
+    if isinstance(launch, list):
+        parts = []
+        for part in launch:
+            p = Path(part)
+            parts.append(str(p.resolve() if p.suffix in {".exe", ".js"} else part))
+        return "|".join(parts)
+    return str(Path(launch).resolve())
+
+
+def force_terminate_uci_engine(engine: Any) -> None:
+    """Best-effort UCI shutdown; always try to kill the child process (Windows-safe)."""
+    if engine is None:
+        return
+    try:
+        engine.quit()
+    except Exception:
+        pass
+    try:
+        engine.terminate()
+    except Exception:
+        pass
+    for attr in ("process", "_process", "proc"):
+        proc = getattr(engine, attr, None)
+        if proc is not None:
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+            except Exception:
+                pass
+            return
+    transport = getattr(engine, "_transport", None)
+    if transport is not None:
+        for attr in ("_popen", "process", "_process"):
+            proc = getattr(transport, attr, None)
+            if proc is not None:
+                try:
+                    if proc.poll() is None:
+                        proc.kill()
+                except Exception:
+                    pass
+                return
 
 
 def configure_opponent_strength(engine, opponent: Opponent) -> Dict[str, Any]:
@@ -62,7 +117,11 @@ def configure_opponent_strength(engine, opponent: Opponent) -> Dict[str, Any]:
         engine.configure(cfg)
         return cfg
 
-    # plain uci — no strength options
+    if opponent.type == "inverse_sf":
+        engine.configure({"UCI_LimitStrength": False})
+        return {"UCI_LimitStrength": False, "inverse": dict(opponent.inverse or {})}
+
+    # plain uci / uci_harness — no strength options
     return {}
 
 
@@ -109,12 +168,9 @@ class UciEngineAdapter:
 
     def quit(self):
         if self.engine is not None:
-            try:
-                self.engine.quit()
-            except Exception:
-                pass
-            finally:
-                self.engine = None
+            engine = self.engine
+            self.engine = None
+            force_terminate_uci_engine(engine)
 
     def __del__(self):
         self.quit()
@@ -204,71 +260,73 @@ class EvalEngineAdapter(UciEngineAdapter):
 
 
 class OpponentEngineManager:
-    """Spawn or reconfigure opponent engines per catalog entry."""
+    """Spawn or reconfigure opponent engines; release() tears down all subprocesses."""
 
     def __init__(self, *, uci_timeout: float = 10.0):
         self.uci_timeout = uci_timeout
         self._current_id: Optional[str] = None
-        self._adapter: Optional[UciEngineAdapter] = None
+        self._adapters: Dict[str, UciEngineAdapter] = {}
         self._current_opponent: Optional[Opponent] = None
 
-    def get_adapter(self, opponent: Opponent) -> UciEngineAdapter:
-        if self._current_id == opponent.id and self._adapter is not None:
-            return self._adapter
-
-        self.release()
-
+    def _spawn_adapter(self, opponent: Opponent) -> UciEngineAdapter:
         if opponent.type in ("stockfish", "stockfish_harness"):
             skill = opponent.skill_level if opponent.skill_level is not None else 0
             uci_elo = opponent.uci_elo if opponent.uci_elo is not None else opponent.elo
-            self._adapter = RatedUciOpponentAdapter(
+            return RatedUciOpponentAdapter(
                 resolve_stockfish(),
                 uci_elo=uci_elo,
                 skill_level=skill,
                 opponent=opponent,
                 uci_timeout=self.uci_timeout,
             )
-        elif opponent.type == "uci_elo":
+        if opponent.type == "inverse_sf":
+            adapter = EvalEngineAdapter(resolve_stockfish())
+            configure_opponent_strength(adapter.engine, opponent)
+            return adapter
+        if opponent.type == "uci_elo":
             uci_elo = opponent.uci_elo if opponent.uci_elo is not None else opponent.elo
             launch = opponent.resolve_launch_command()
-            if isinstance(launch, list):
-                script = launch[-1]
-            else:
-                script = launch
+            script = launch[-1] if isinstance(launch, list) else launch
             if not Path(script).exists():
                 raise RuntimeError(
                     f"Opponent binary not found: {script}. "
                     f"Run scripts/fetch_opponents.py to download engines."
                 )
-            self._adapter = RatedUciOpponentAdapter(
+            return RatedUciOpponentAdapter(
                 launch, uci_elo=uci_elo, skill_level=opponent.skill_level, opponent=opponent,
                 uci_timeout=self.uci_timeout,
             )
-        elif opponent.type == "uci":
+        if opponent.type in ("uci", "uci_harness"):
             launch = opponent.resolve_launch_command()
-            if isinstance(launch, list):
-                script = launch[-1]
-            else:
-                script = launch
+            script = launch[-1] if isinstance(launch, list) else launch
             if not Path(script).exists():
                 raise RuntimeError(
                     f"Opponent binary not found: {script}. "
                     f"Run scripts/fetch_opponents.py to download engines."
                 )
-            self._adapter = UciEngineAdapter(launch, uci_timeout=self.uci_timeout)
-        elif opponent.type == "random":
+            return UciEngineAdapter(launch, uci_timeout=self.uci_timeout)
+        raise ValueError(f"Unknown opponent type: {opponent.type}")
+
+    def get_adapter(self, opponent: Opponent) -> UciEngineAdapter:
+        if opponent.type == "random":
             raise ValueError("Random opponents do not use UCI adapters")
-        else:
-            raise ValueError(f"Unknown opponent type: {opponent.type}")
+
+        pool_key = _adapter_pool_key(opponent)
+        adapter = self._adapters.get(pool_key)
+        if adapter is None:
+            adapter = self._spawn_adapter(opponent)
+            self._adapters[pool_key] = adapter
 
         self._current_id = opponent.id
         self._current_opponent = opponent
-        return self._adapter
+        if opponent.type in ("stockfish", "stockfish_harness", "uci_elo", "inverse_sf"):
+            configure_opponent_strength(adapter.engine, opponent)
+        return adapter
 
     def release(self):
-        if self._adapter is not None:
-            self._adapter.quit()
-            self._adapter = None
+        for adapter in self._adapters.values():
+            adapter.quit()
+        self._adapters.clear()
         self._current_id = None
         self._current_opponent = None
 
@@ -281,6 +339,11 @@ class OpponentEngineManager:
     ):
         if opponent.type == "random":
             move = random.choice(list(board.legal_moves))
+            return chess.engine.PlayResult(move, None)
+
+        if opponent.type == "inverse_sf":
+            adapter = self.get_adapter(opponent)
+            move = play_inverse_sf_move(adapter.engine, board, opponent.inverse)
             return chess.engine.PlayResult(move, None)
 
         adapter = self.get_adapter(opponent)

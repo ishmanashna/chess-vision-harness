@@ -7,9 +7,11 @@ Only the agent's ELO changes.
 """
 
 import json
+import math
 from pathlib import Path
 from typing import Dict, List, Optional
-import math
+
+from .rating_math import k_factor, update_elo as rating_update_elo
 
 from .models import AGENT_START_ELO, ModelRegistry
 
@@ -48,7 +50,7 @@ LEGACY_SKILL_ELO = {
 
 ENGINE_DISPLAY_NAME = "Stockfish 17.1"
 
-K_FACTOR = 32
+K_FACTOR = 48
 
 
 def format_stockfish_label(skill: int, engine_name: str = ENGINE_DISPLAY_NAME) -> str:
@@ -64,9 +66,8 @@ def expected_score(agent_elo: float, opponent_elo: float) -> float:
     return 1.0 / (1.0 + math.pow(10, (opponent_elo - agent_elo) / 400.0))
 
 
-def update_elo(agent_elo: float, opponent_elo: float, score: float) -> float:
-    exp = expected_score(agent_elo, opponent_elo)
-    return agent_elo + K_FACTOR * (score - exp)
+def update_elo(agent_elo: float, opponent_elo: float, score: float, *, games_played: int = 32) -> float:
+    return rating_update_elo(agent_elo, opponent_elo, score, games_played=games_played)
 
 
 def _score_from_result(result: str, agent_color: str) -> float:
@@ -123,7 +124,13 @@ class ELOLadder:
         agent_elo = self.registry.get_elo(canonical)
         elo_before = round(agent_elo)
         score = _score_from_result(result, agent_color)
-        new_elo = update_elo(agent_elo, opponent_elo, score)
+        from .results import ResultsManager
+
+        games_before = ResultsManager(base_dir=str(self.base_dir)).count_by_model().get(canonical, 0)
+        # Result row is usually appended before record_game; don't count current game twice.
+        if games_before > 0:
+            games_before -= 1
+        new_elo = update_elo(agent_elo, opponent_elo, score, games_played=games_before)
         elo_after = round(new_elo)
         self.registry.set_elo(canonical, round(new_elo, 1))
         return {
@@ -153,6 +160,7 @@ class ELOLadder:
             return None
 
         ratings: Dict[str, float] = {}
+        game_counts: Dict[str, int] = {}
         try:
             with open(results_file, encoding="utf-8") as f:
                 for line in f:
@@ -171,9 +179,11 @@ class ELOLadder:
                     agent_elo = ratings.get(canonical, float(AGENT_START_ELO))
                     elo_before = round(agent_elo)
                     score = _score_from_result(result, color)
-                    new_elo = update_elo(agent_elo, opponent_elo, score)
+                    games_before = game_counts.get(canonical, 0)
+                    new_elo = update_elo(agent_elo, opponent_elo, score, games_played=games_before)
                     elo_after = round(new_elo)
                     ratings[canonical] = round(new_elo, 1)
+                    game_counts[canonical] = games_before + 1
 
                     if game.get("game_id") == game_id:
                         return {
@@ -198,6 +208,7 @@ class ELOLadder:
                     "name": model.get("name", model_id),
                     "elo": round(model.get("elo", AGENT_START_ELO)),
                     "games": game_counts.get(model_id, 0),
+                    "enabled": model.get("enabled", True),
                 }
             )
         board.sort(key=lambda x: -x["elo"])

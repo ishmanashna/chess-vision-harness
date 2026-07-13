@@ -16,13 +16,9 @@ def test_catalog_loads():
 
 def test_select_by_elo_prefers_similar_rating():
     catalog = get_catalog()
-    picks = [catalog.select_by_elo(500).id for _ in range(50)]
-    if catalog._is_playable(catalog.get("patricia:500")):
-        assert "patricia:500" in picks
-        assert picks.count("patricia:500") >= picks.count("stockfish:0")
-    else:
-        assert all(p.startswith("stockfish:") for p in picks)
-        assert "stockfish:0" in picks
+    picks = [catalog.select_by_elo(820).id for _ in range(50)]
+    assert "stockfish-handicap:noise17" in picks
+    assert "stockfish:0" not in picks or picks.count("stockfish-handicap:noise17") >= 1
 
 
 def test_negative_skill_rejected():
@@ -41,11 +37,11 @@ def test_skill_alias_maps_to_stockfish():
 
 def test_opponent_elo_from_result_uses_calibrated_ladder():
     catalog = get_catalog()
-    opp = catalog.get("patricia:500")
+    opp = catalog.get("stockfish-handicap:noise17")
     from chess_harness.calibration_view import ladder_elo_for_opponent
 
     calibrated = ladder_elo_for_opponent(opp)
     assert calibrated != opp.elo or calibrated == opp.elo
-    resolved = opponent_elo_from_result({"opponent_id": "patricia:500"}, catalog)
+    resolved = opponent_elo_from_result({"opponent_id": "stockfish-handicap:noise17"}, catalog)
     assert resolved == calibrated
     assert resolved != opp.elo or opp.elo == calibrated

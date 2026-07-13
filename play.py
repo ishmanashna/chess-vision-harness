@@ -153,8 +153,18 @@ def main():
                 print("Usage: python play.py models uninscribe <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_models_uninscribe(args[2]))
+        elif args[1] == "disable":
+            if len(args) < 3:
+                print("Usage: python play.py models disable <id>")
+                sys.exit(1)
+            sys.exit(commands.cmd_models_set_enabled(args[2], False))
+        elif args[1] == "enable":
+            if len(args) < 3:
+                print("Usage: python play.py models enable <id>")
+                sys.exit(1)
+            sys.exit(commands.cmd_models_set_enabled(args[2], True))
         else:
-            print("Usage: python play.py models list|inscribe <id>|uninscribe <id>")
+            print("Usage: python play.py models list|inscribe <id>|uninscribe <id>|disable <id>|enable <id>")
             sys.exit(1)
 
     elif args[0] == "harness":
@@ -171,8 +181,18 @@ def main():
             commands.cmd_opponents_list()
         elif args[1] == "verify":
             sys.exit(commands.cmd_opponents_verify())
+        elif args[1] == "disable":
+            if len(args) < 3:
+                print("Usage: python play.py opponents disable <id>")
+                sys.exit(1)
+            sys.exit(commands.cmd_opponents_set_enabled(args[2], False))
+        elif args[1] == "enable":
+            if len(args) < 3:
+                print("Usage: python play.py opponents enable <id>")
+                sys.exit(1)
+            sys.exit(commands.cmd_opponents_set_enabled(args[2], True))
         else:
-            print("Usage: python play.py opponents list|verify")
+            print("Usage: python play.py opponents list|verify|disable <id>|enable <id>")
             sys.exit(1)
 
     elif args[0] == "tournament":
