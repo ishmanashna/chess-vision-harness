@@ -21,6 +21,11 @@ stockfish/
 # Local model registry (copy from models.json.example)
 models.json
 
-# Calibration run output (suites write here)
+# Calibration output — track ratings + game log for restore (binaries stay gitignored)
 elo_calibration/results/**
 !elo_calibration/results/.gitkeep
+!elo_calibration/results/merged_ratings.json
+!elo_calibration/results/continuous/
+elo_calibration/results/continuous/**
+!elo_calibration/results/continuous/ratings.json
+!elo_calibration/results/continuous/games.jsonl

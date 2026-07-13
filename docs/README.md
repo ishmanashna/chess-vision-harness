@@ -10,6 +10,8 @@
 | [`architecture.md`](../architecture.md) | Maintainers | Code layout and data flow |
 | [`docs/ladder-coverage-plan.md`](ladder-coverage-plan.md) | Maintainers | Active ladder mission (1320 → −600) |
 | [`docs/future-work-roadmap.md`](future-work-roadmap.md) | Maintainers | Product direction (API, agent vs agent, …) |
+| [`docs/plans/architecture-maturity.md`](plans/architecture-maturity.md) | Maintainers | Pre-roadmap refactor plan (blocks feature work) |
+| [`docs/plans/README.md`](plans/README.md) | Maintainers | Per-feature implementation plans |
 | [`docs/ladder-improvement-plan.md`](ladder-improvement-plan.md) | Archive | Superseded planning notes (July 2026) |
 | [`docs/opponent-benchmark.md`](opponent-benchmark.md) | Archive | One-off move-time benchmark snapshot |
 | [`elo_calibration/README.md`](../elo_calibration/README.md) | Operators | Batch engine calibration CLI |

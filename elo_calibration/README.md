@@ -34,7 +34,7 @@ python elo_calibration/scripts/run_calibration.py --suite quick --reset-ratings 
 
 Reports: `elo_calibration/results/<suite>/summary.md`, `ratings.json`, `games.jsonl`.
 
-**Note:** `elo_calibration/results/` is gitignored — each clone starts fresh.
+**Note:** `elo_calibration/results/` is gitignored except **`merged_ratings.json`**, **`continuous/ratings.json`**, and **`continuous/games.jsonl`** — commit those to restore calibration after clone. Per-suite `quick/` / `ladder/` outputs stay local.
 
 **Spectator continuous calibration** (`python play.py serve` → `/calibration`): per-engine Start/Stop, parallel games, writes to `results/continuous/`. Do not run the batch CLI and spectator calibration at the same time.
 
