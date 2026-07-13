@@ -323,7 +323,7 @@ class BoardController:
                     "opponent_elo": opponent_ladder_elo,
                     "opponent_label": engine_label,
                     "skill": opponent.skill_level
-                    if opponent.type in ("stockfish", "stockfish_harness")
+                    if opponent.type in ("stockfish", "stockfish_harness", "inverse_sf")
                     else None,
                     "model_name": model_id,
                     "model_display_name": display_name,

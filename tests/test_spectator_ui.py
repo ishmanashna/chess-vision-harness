@@ -49,10 +49,12 @@ def test_leaderboard_uses_opponent_catalog():
 
     html = render_leaderboard_html(ELOLadder(base_dir=str(resolve_base_dir())))
     assert "Opponent Ladder" in html
-    assert "patricia:500" in html
-    assert "minimalchess-0.2" in html
-    assert "stockfish-handicap:blitz50" in html
+    assert "stockfish-handicap:noise17" in html
+    assert "random" in html
+    assert "minimalchess-0.2:noise15" in html
     assert "Stockfish handicaps" in html
     assert "stockfish:0" in html
+    assert "patricia" not in html.lower()
+    assert "stockfish-handicap:blitz50" not in html
     assert "Skill -5" not in html
     assert "Stockfish Reference" not in html

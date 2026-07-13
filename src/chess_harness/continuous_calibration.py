@@ -38,6 +38,16 @@ MAX_PARALLEL_GAMES = 100
 SAVE_DEBOUNCE_SEC = 1.0
 PROCESS_POOL_WORKERS = max(1, min(os.cpu_count() or 4, MAX_PARALLEL_GAMES))
 
+PAIRING_MODES = ("floaters", "random", "anchors", "fixed")
+DEFAULT_PAIRING_MODE = "floaters"
+
+
+def normalize_pairing_mode(mode: str) -> str:
+    m = (mode or DEFAULT_PAIRING_MODE).strip().lower()
+    if m not in PAIRING_MODES:
+        raise ValueError(f"pairing_mode must be one of: {', '.join(PAIRING_MODES)}")
+    return m
+
 
 def clamp_parallel(parallel: int) -> int:
     return max(1, min(MAX_PARALLEL_GAMES, int(parallel)))
@@ -67,17 +77,32 @@ def display_elo(opp: Opponent, calibration: Dict[str, Dict[str, Any]]) -> float:
     return float(opp.elo if opp.elo else DEFAULT_FLOATING_ELO)
 
 
-def pick_similar_opponent(
+def pick_opponent(
     focus_id: str,
     catalog: Optional[OpponentCatalog] = None,
     calibration: Optional[Dict[str, Dict[str, Any]]] = None,
     *,
+    pairing_mode: str = DEFAULT_PAIRING_MODE,
+    fixed_opponent_id: Optional[str] = None,
     rng: Optional[random.Random] = None,
     sigma_elo: Optional[float] = None,
     min_weight: Optional[float] = None,
 ) -> str:
-    """Random playable opponent near focus calibrated ELO, never the focus engine itself."""
+    """Pick an opponent for continuous calibration under the global pairing mode."""
+    mode = normalize_pairing_mode(pairing_mode)
     cat = catalog or get_catalog()
+
+    if mode == "fixed":
+        oid = (fixed_opponent_id or "").strip()
+        if not oid:
+            raise RuntimeError("No fixed opponent selected")
+        if oid == focus_id:
+            raise RuntimeError(f"Cannot pair {focus_id} with itself")
+        opp = cat.get(oid)
+        if not opp.enabled or not cat._is_playable(opp):
+            raise RuntimeError(f"Fixed opponent not playable: {oid}")
+        return oid
+
     cal = calibration if calibration is not None else merge_calibration_ratings()
     focus = cat.get(focus_id)
     focus_elo = display_elo(focus, cal)
@@ -94,20 +119,50 @@ def pick_similar_opponent(
     for opp in cat.list_opponents():
         if opp.id == focus_id:
             continue
-        if is_anchor(opp):
+        if not opp.enabled:
             continue
         if not cat._is_playable(opp):
             continue
-        opp_elo = display_elo(opp, cal)
-        delta = abs(opp_elo - focus_elo)
-        weights.append(max(floor_w, math.exp(-delta / sigma)))
+        if mode == "floaters" and is_anchor(opp):
+            continue
+        if mode == "anchors" and not is_anchor(opp):
+            continue
         candidates.append(opp)
+        if mode == "floaters":
+            opp_elo = display_elo(opp, cal)
+            delta = abs(opp_elo - focus_elo)
+            weights.append(max(floor_w, math.exp(-delta / sigma)))
+        else:
+            weights.append(1.0)
 
     if not candidates:
-        raise RuntimeError(f"No calibration opponents available for {focus_id}")
+        raise RuntimeError(f"No calibration opponents available for {focus_id} ({mode})")
 
     r = rng or random.Random()
+    if mode == "floaters":
+        return r.choices(candidates, weights=weights, k=1)[0].id
     return r.choices(candidates, weights=weights, k=1)[0].id
+
+
+def pick_similar_opponent(
+    focus_id: str,
+    catalog: Optional[OpponentCatalog] = None,
+    calibration: Optional[Dict[str, Dict[str, Any]]] = None,
+    *,
+    rng: Optional[random.Random] = None,
+    sigma_elo: Optional[float] = None,
+    min_weight: Optional[float] = None,
+) -> str:
+    """Backward-compatible alias: ELO-weighted floaters only."""
+    return pick_opponent(
+        focus_id,
+        catalog,
+        calibration,
+        pairing_mode="floaters",
+        rng=rng,
+        sigma_elo=sigma_elo,
+        min_weight=min_weight,
+    )
 
 
 def play_config_for(opponent_id: str, catalog: Optional[OpponentCatalog] = None) -> PlayConfig:
@@ -128,6 +183,10 @@ def play_config_for(opponent_id: str, catalog: Optional[OpponentCatalog] = None)
 def build_random_match(focus_id: str, opponent_id: str, *, rng: Optional[random.Random] = None) -> MatchConfig:
     r = rng or random.Random()
     cat = get_catalog()
+    for oid in (focus_id, opponent_id):
+        opp = cat.get(oid)
+        if not opp.enabled or not cat._is_playable(opp):
+            raise ValueError(f"Opponent not playable for calibration: {oid}")
     if r.random() < 0.5:
         white_id, black_id = focus_id, opponent_id
     else:
@@ -143,8 +202,26 @@ def build_random_match(focus_id: str, opponent_id: str, *, rng: Optional[random.
 
 
 def can_continuously_calibrate(opponent_id: str, catalog: Optional[OpponentCatalog] = None) -> bool:
-    opp = (catalog or get_catalog()).get(opponent_id)
-    return not is_anchor(opp)
+    cat = catalog or get_catalog()
+    opp = cat.get(opponent_id)
+    if is_anchor(opp):
+        return False
+    return opp.enabled and cat._is_playable(opp)
+
+
+def list_calibratable_engine_ids(catalog: Optional[OpponentCatalog] = None) -> List[str]:
+    cat = catalog or get_catalog()
+    return [o.id for o in cat.list_opponents() if can_continuously_calibrate(o.id, cat)]
+
+
+def list_pairing_opponent_choices(catalog: Optional[OpponentCatalog] = None) -> List[Dict[str, str]]:
+    cat = catalog or get_catalog()
+    choices: List[Dict[str, str]] = []
+    for opp in cat.list_opponents():
+        if not opp.enabled or not cat._is_playable(opp):
+            continue
+        choices.append({"id": opp.id, "label": opp.format_label()})
+    return choices
 
 
 class ContinuousCalibrationManager:
@@ -163,11 +240,44 @@ class ContinuousCalibrationManager:
         self._executor: Optional[ProcessPoolExecutor] = None
         self._dirty = False
         self._flush_task: Optional[asyncio.Task] = None
+        self._pairing_mode = DEFAULT_PAIRING_MODE
+        self._fixed_opponent_id: Optional[str] = "stockfish:0"
+
+    def pairing_mode(self) -> str:
+        return self._pairing_mode
+
+    def fixed_opponent_id(self) -> Optional[str]:
+        return self._fixed_opponent_id
+
+    def set_pairing_mode(self, mode: str) -> str:
+        self._pairing_mode = normalize_pairing_mode(mode)
+        return self._pairing_mode
+
+    def set_fixed_opponent(self, opponent_id: str) -> str:
+        cat = get_catalog()
+        opp = cat.get(opponent_id)
+        if not opp.enabled or not cat._is_playable(opp):
+            raise ValueError(f"Opponent not playable: {opponent_id}")
+        self._fixed_opponent_id = opponent_id
+        return opponent_id
 
     def _ensure_executor(self) -> ProcessPoolExecutor:
         if self._executor is None:
-            self._executor = ProcessPoolExecutor(max_workers=PROCESS_POOL_WORKERS)
+            self._executor = ProcessPoolExecutor(
+                max_workers=PROCESS_POOL_WORKERS,
+                max_tasks_per_child=1,
+            )
         return self._executor
+
+    async def _shutdown_executor(self) -> None:
+        if self._executor is not None:
+            loop = asyncio.get_running_loop()
+            executor = self._executor
+            self._executor = None
+            await loop.run_in_executor(
+                None,
+                lambda: executor.shutdown(wait=True, cancel_futures=True),
+            )
 
     def _load_ladder(self) -> CalibrationLadder:
         """Seed from best-known ratings across all suites (never reset to 500 if ladder data exists)."""
@@ -184,6 +294,7 @@ class ContinuousCalibrationManager:
                 if saved_games > ladder.games_played.get(oid, 0):
                     ladder.ratings[oid] = elo
                     ladder.games_played[oid] = saved_games
+        ladder.prune_removed_opponents()
         return ladder
 
     def _persist_ladder(self) -> None:
@@ -222,9 +333,18 @@ class ContinuousCalibrationManager:
     def running_engines(self) -> Set[str]:
         return set(self._active_engines)
 
+    async def start_all(self, *, parallel: int = 1) -> List[str]:
+        started: List[str] = []
+        for engine_id in list_calibratable_engine_ids():
+            if self.is_running(engine_id):
+                continue
+            await self.start(engine_id, parallel=parallel)
+            started.append(engine_id)
+        return started
+
     async def start(self, engine_id: str, *, parallel: int = 1) -> None:
         if not can_continuously_calibrate(engine_id):
-            raise ValueError(f"Cannot continuously calibrate anchor engine: {engine_id}")
+            raise ValueError(f"Cannot continuously calibrate engine: {engine_id}")
         if self.is_running(engine_id):
             return
         workers = clamp_parallel(parallel)
@@ -249,14 +369,25 @@ class ContinuousCalibrationManager:
                 task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        if not self._active_engines:
+            await self._shutdown_executor()
 
-    async def stop_all(self) -> None:
-        for engine_id in list(self._active_engines):
+    async def stop_running_engines(self) -> List[str]:
+        """Stop all continuous loops and tear down the process pool."""
+        stopped = list(self._active_engines)
+        for engine_id in stopped:
             await self.stop(engine_id)
         await self._flush_saves_now()
-        if self._executor is not None:
-            self._executor.shutdown(wait=False, cancel_futures=True)
-            self._executor = None
+        await self._shutdown_executor()
+        return stopped
+
+    async def stop_all(self) -> List[str]:
+        stopped = list(self._active_engines)
+        for engine_id in stopped:
+            await self.stop(engine_id)
+        await self._flush_saves_now()
+        await self._shutdown_executor()
+        return stopped
 
     def _bump_in_flight(self, white_id: str, black_id: str, delta: int) -> None:
         for oid in (white_id, black_id):
@@ -306,7 +437,12 @@ class ContinuousCalibrationManager:
         try:
             while not stop.is_set():
                 try:
-                    opponent_id = pick_similar_opponent(engine_id, rng=rng)
+                    opponent_id = pick_opponent(
+                        engine_id,
+                        pairing_mode=self._pairing_mode,
+                        fixed_opponent_id=self._fixed_opponent_id,
+                        rng=rng,
+                    )
                 except RuntimeError:
                     await asyncio.sleep(2.0)
                     continue
@@ -382,6 +518,10 @@ class ContinuousCalibrationManager:
         running = self.running_engines()
         return {
             "mode": "continuous",
+            "pairing_mode": self._pairing_mode,
+            "fixed_opponent_id": self._fixed_opponent_id,
+            "pairing_opponents": list_pairing_opponent_choices(),
+            "calibratable_engines": list_calibratable_engine_ids(),
             "active": bool(running),
             "continuous_engines": sorted(running),
             "parallel_by_engine": dict(self._parallel),
@@ -406,7 +546,7 @@ class ContinuousCalibrationManager:
                 copy["activity"] = "anchor"
             else:
                 eid = copy["id"]
-                copy["can_calibrate"] = True
+                copy["can_calibrate"] = bool(copy.get("enabled", True))
                 copy["continuous"] = eid in running
                 copy["parallel"] = int(self._parallel.get(eid, 1))
                 playing = int(in_flight.get(eid, 0))
@@ -415,6 +555,8 @@ class ContinuousCalibrationManager:
                     copy["activity"] = "playing"
                 elif copy["continuous"]:
                     copy["activity"] = "continuous"
+                elif not copy.get("enabled", True):
+                    copy["activity"] = "disabled"
                 else:
                     copy["activity"] = "idle"
             enriched.append(copy)

@@ -12,21 +12,21 @@ from chess_harness.opponents import Opponent, get_catalog
 
 def test_catalog_has_handicap_stockfish():
     catalog = get_catalog()
-    blitz = catalog.get("stockfish-handicap:blitz50")
-    depth = catalog.get("stockfish-handicap:depth6")
-    depth10 = catalog.get("stockfish-handicap:depth10")
-    assert blitz.type == "stockfish_harness"
-    assert blitz.harness == {"movetime_ms": 50}
-    assert depth.harness["depth"] == 6
-    assert depth10.harness["depth"] == 10
+    noise3 = catalog.get("stockfish-handicap:noise3")
+    depth = catalog.get("stockfish-handicap:depth4")
+    noise10 = catalog.get("stockfish-handicap:noise10")
+    assert noise3.type == "stockfish_harness"
+    assert noise3.harness == {"movetime_ms": 50, "random_move_pct": 0.03}
+    assert depth.harness["depth"] == 2
+    assert noise10.harness["random_move_pct"] == 0.1
 
 
 def test_configure_includes_harness_snapshot():
-    opp = get_catalog().get("stockfish-handicap:depth6")
+    opp = get_catalog().get("stockfish-handicap:depth4")
     engine = MagicMock()
     cfg = configure_opponent_strength(engine, opp)
     assert cfg["UCI_Elo"] == 1320
-    assert cfg["harness"]["depth"] == 6
+    assert cfg["harness"]["depth"] == 2
 
 
 def test_play_opponent_move_uses_depth_limit():

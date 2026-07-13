@@ -89,6 +89,7 @@ async def _lifespan(_app: FastAPI):
     yield
     task.cancel()
     await get_continuous_calibration().stop_all()
+    _get_controller().opponent_mgr.release()
     remove_spectator_meta()
     global _engine
     if _engine is not None:
@@ -392,6 +393,36 @@ async def calibration_continuous_start(engine_id: str, parallel: int = Query(1, 
 async def calibration_continuous_stop(engine_id: str):
     await get_continuous_calibration().stop(engine_id)
     return {"ok": True, "engine_id": engine_id, "running": False}
+
+
+@app.post("/api/calibration/pairing-mode")
+async def calibration_set_pairing_mode(mode: str = Query(...)):
+    try:
+        pairing_mode = get_continuous_calibration().set_pairing_mode(mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"ok": True, "pairing_mode": pairing_mode}
+
+
+@app.post("/api/calibration/start-all")
+async def calibration_start_all(parallel: int = Query(1, ge=1, le=100)):
+    started = await get_continuous_calibration().start_all(parallel=parallel)
+    return {"ok": True, "started": started, "count": len(started), "parallel": parallel}
+
+
+@app.post("/api/calibration/stop-all")
+async def calibration_stop_all():
+    stopped = await get_continuous_calibration().stop_all()
+    return {"ok": True, "stopped": stopped, "count": len(stopped)}
+
+
+@app.post("/api/calibration/fixed-opponent")
+async def calibration_set_fixed_opponent(opponent: str = Query(...)):
+    try:
+        opponent_id = get_continuous_calibration().set_fixed_opponent(opponent)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"ok": True, "fixed_opponent_id": opponent_id}
 
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)

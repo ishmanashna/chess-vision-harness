@@ -20,12 +20,17 @@ def play_match_worker(payload: dict) -> dict:
     from calibration.play_config import match_from_dict
 
     match = match_from_dict(payload)
-    result = play_game(match)
-    return {
-        "white_id": match.white_id,
-        "black_id": match.black_id,
-        "result": result,
-    }
+    try:
+        result = play_game(match)
+        return {
+            "white_id": match.white_id,
+            "black_id": match.black_id,
+            "result": result,
+        }
+    finally:
+        from calibration.engine_player import release_all_engines
+
+        release_all_engines()
 
 
 def play_resilient_match_worker(payload: dict) -> dict:
@@ -46,9 +51,14 @@ def play_resilient_match_worker(payload: dict) -> dict:
     from calibration.resilient_game import play_game_resilient
 
     match = match_from_dict(payload)
-    result = play_game_resilient(match)
-    return {
-        "white_id": match.white_id,
-        "black_id": match.black_id,
-        "result": result,
-    }
+    try:
+        result = play_game_resilient(match)
+        return {
+            "white_id": match.white_id,
+            "black_id": match.black_id,
+            "result": result,
+        }
+    finally:
+        from calibration.engine_player import release_all_engines
+
+        release_all_engines()

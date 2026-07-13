@@ -13,9 +13,10 @@ from .opponents import Opponent, OpponentCatalog, get_catalog
 
 RATING_SOURCE_LABELS = {
     "ccrl": "CCRL",
-    "patricia_uci": "Patricia UCI",
     "stockfish_uci": "Stockfish UCI",
     "stockfish_harness": "Stockfish harness",
+    "inverse_sf": "Inverse Stockfish",
+    "uci_harness": "UCI harness",
     "builtin": "Built-in",
 }
 
@@ -24,16 +25,22 @@ def rating_source_label(source: str) -> str:
     return RATING_SOURCE_LABELS.get(source, source)
 
 
+def opponent_status(catalog: OpponentCatalog, opp: Opponent) -> str:
+    if not opp.enabled:
+        return "disabled"
+    return "ready" if catalog._is_playable(opp) else "missing"
+
+
 def split_opponent_ladder(
     catalog: OpponentCatalog,
 ) -> Tuple[List[Opponent], List[Opponent]]:
     """Legacy split — prefer split_opponent_ladder_calibrated."""
-    floating_types = ("uci", "uci_elo", "stockfish_harness", "random")
+    floating_types = ("uci", "uci_elo", "uci_harness", "stockfish_harness", "inverse_sf", "random")
     sub1320 = sorted(
-        [o for o in catalog.list_opponents() if o.type in floating_types],
+        [o for o in catalog.list_opponents() if o.enabled and o.type in floating_types],
         key=lambda o: o.elo,
     )
-    stockfish = [o for o in catalog.list_opponents() if o.type == "stockfish"]
+    stockfish = [o for o in catalog.list_opponents() if o.enabled and o.type == "stockfish"]
     return sub1320, stockfish
 
 
@@ -46,7 +53,8 @@ def format_agent_leaderboard_cli(ladder: ELOLadder) -> str:
         label = entry["name"] if entry.get("name") != entry["model"] else entry["model"]
         games = entry.get("games", 0)
         g = f"{games} game" + ("" if games == 1 else "s")
-        lines.append(f"  {i}. {label} ({entry['model']}): {entry['elo']} ELO — {g}")
+        disabled = "" if entry.get("enabled", True) else " [disabled]"
+        lines.append(f"  {i}. {label} ({entry['model']}): {entry['elo']} ELO — {g}{disabled}")
     return "\n".join(lines)
 
 
@@ -56,9 +64,9 @@ def format_opponent_ladder_cli(catalog: OpponentCatalog | None = None) -> str:
     engines, harness, anchors = split_opponent_ladder_calibrated(cat, calibration)
 
     lines = ["", "Opponent ladder (calibrated ELO where available):"]
-    lines.append("  Engines (calibrated):")
+    lines.append("  Other engines (MinimalChess, random):")
     for opp, cal_elo, games in engines:
-        status = "ready" if cat._is_playable(opp) else "missing"
+        status = opponent_status(cat, opp)
         elo_txt = f"{cal_elo}*" if games == 0 and opp.type != "stockfish" else str(cal_elo)
         g = f", {games} cal games" if games else ""
         lines.append(
@@ -67,7 +75,7 @@ def format_opponent_ladder_cli(catalog: OpponentCatalog | None = None) -> str:
         )
     lines.append("  Stockfish handicaps (skill 0, calibrated):")
     for opp, cal_elo, games in harness:
-        status = "ready" if cat._is_playable(opp) else "missing"
+        status = opponent_status(cat, opp)
         elo_txt = f"{cal_elo}*" if games == 0 else str(cal_elo)
         g = f", {games} cal games" if games else ""
         lines.append(
@@ -100,8 +108,13 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
         )
 
     def floating_row(opp: Opponent, cal_elo: Optional[int], games: int) -> str:
-        playable = catalog._is_playable(opp)
-        status = '<span class="ok">ready</span>' if playable else '<span class="miss">missing</span>'
+        status_key = opponent_status(catalog, opp)
+        if status_key == "ready":
+            status = '<span class="ok">ready</span>'
+        elif status_key == "disabled":
+            status = '<span class="miss">disabled</span>'
+        else:
+            status = '<span class="miss">missing</span>'
         uncalibrated = games == 0 and opp.type != "stockfish"
         display = f"{cal_elo}*" if uncalibrated else str(cal_elo)
         catalog_note = (
@@ -152,7 +165,7 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
     {spectator_tabs("ladder")}
     {agent_block}
     <h2>Opponent Ladder — Calibrated</h2>
-    <h3>Engines (Patricia, tiny UCI)</h3>
+    <h3>Other engines (MinimalChess, random)</h3>
     <table><tr><th>ID</th><th>Name</th><th>Calibrated</th><th>Catalog</th><th>Cal games</th><th>Source</th><th>Status</th></tr>{engine_rows}</table>
     <h3>Stockfish handicaps (skill 0, calibrated)</h3>
     <table><tr><th>ID</th><th>Name</th><th>Calibrated</th><th>Catalog</th><th>Cal games</th><th>Source</th><th>Status</th></tr>{harness_rows}</table>
@@ -199,14 +212,33 @@ def render_calibration_html() -> str:
     .cal-par{{width:3em;padding:4px 6px;font-size:.85em;border:1px solid #ccc;border-radius:4px;text-align:center}}
     .cal-par:disabled{{background:#f5f5f5;color:#888}}
     .status-meta{{margin:0 0 12px;color:#888;font-size:.85em;min-height:1em}}
+    .cal-toolbar{{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 16px;padding:12px 14px;background:#fff;border:1px solid #e4e2da;border-radius:8px;max-width:920px}}
+    .cal-toolbar label{{font-size:.85em;font-weight:600;color:#555}}
+    .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid #ccc;border-radius:4px;background:#fff}}
+    .cal-btn.primary{{border-color:#3d6ea8;background:#3d6ea8;color:#fff}}
+    .cal-legend{{font-size:.8em;color:#888;margin:0 0 8px}}
     </style></head><body>
     <h1>Engine Calibration</h1>
     {spectator_tabs("calibration")}
+    <div class="cal-toolbar">
+      <label for="pairing-mode">Opponent pairing</label>
+      <select id="pairing-mode" onchange="onPairingModeChange(this.value)">
+        <option value="floaters">Among floaters (ELO-weighted)</option>
+        <option value="random">Random (any opponent)</option>
+        <option value="anchors">Only vs Stockfish anchors</option>
+        <option value="fixed">Fixed opponent</option>
+      </select>
+      <label for="fixed-opponent">Play against</label>
+      <select id="fixed-opponent" disabled onchange="setFixedOpponent(this.value)"></select>
+      <button class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
+      <button class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
+    </div>
     <div id="status-meta" class="status-meta"></div>
     <h2>Calibrated ratings</h2>
     <table id="rating-table"><tr><th>ID</th><th>Calibrated ELO</th><th>Games</th><th>Activity</th><th></th></tr>
     <tr><td colspan="5" class="empty">No calibration data yet.</td></tr></table>
     <h2>Recent games</h2>
+    <p class="cal-legend">Green = ELO gain · Orange = ELO loss (per engine updated after that game)</p>
     <div id="game-feed" class="game-feed"></div>
     <script>
     function esc(s){{return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}}
@@ -219,6 +251,40 @@ def render_calibration_html() -> str:
       const inp=document.querySelector('input.cal-par[data-eid="'+id+'"]');
       if(inp&&!inp.disabled&&inp.value)return inp.value;
       return String(fallback);
+    }}
+    async function setPairingMode(mode){{
+      try{{
+        await fetch('/api/calibration/pairing-mode?mode='+encodeURIComponent(mode),{{method:'POST'}});
+      }}catch(e){{}}
+    }}
+    function onPairingModeChange(mode){{
+      const fix=document.getElementById('fixed-opponent');
+      if(fix)fix.disabled=(mode!=='fixed');
+      setPairingMode(mode);
+    }}
+    async function setFixedOpponent(opponent){{
+      if(!opponent)return;
+      try{{
+        await fetch('/api/calibration/fixed-opponent?opponent='+encodeURIComponent(opponent),{{method:'POST'}});
+      }}catch(e){{}}
+    }}
+    async function startAllEngines(btn){{
+      if(btn)btn.disabled=true;
+      try{{
+        await fetch('/api/calibration/start-all?parallel=1',{{method:'POST'}});
+      }}finally{{
+        if(btn)btn.disabled=false;
+        refresh();
+      }}
+    }}
+    async function stopAllEngines(btn){{
+      if(btn)btn.disabled=true;
+      try{{
+        await fetch('/api/calibration/stop-all',{{method:'POST'}});
+      }}finally{{
+        if(btn)btn.disabled=false;
+        refresh();
+      }}
     }}
     async function setContinuous(id,start,btn){{
       if(btn)btn.disabled=true;
@@ -236,8 +302,22 @@ def render_calibration_html() -> str:
         const r=await fetch('/api/calibration/status');
         const d=await r.json();
         let meta='';
-        if(d.skipped_games)meta+=d.skipped_games+' games skipped (timeout)';
+        if(d.pairing_mode)meta+='Pairing: '+d.pairing_mode;
+        if(d.pairing_mode==='fixed'&&d.fixed_opponent_id)meta+=(meta?' · ':'')+'vs '+d.fixed_opponent_id;
+        if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
         document.getElementById('status-meta').textContent=meta;
+        const modeSel=document.getElementById('pairing-mode');
+        if(modeSel&&d.pairing_mode){{
+          modeSel.value=d.pairing_mode;
+          const fix=document.getElementById('fixed-opponent');
+          if(fix)fix.disabled=(d.pairing_mode!=='fixed');
+        }}
+        const fixSel=document.getElementById('fixed-opponent');
+        if(fixSel&&(d.pairing_opponents||[]).length){{
+          const cur=fixSel.value||d.fixed_opponent_id||'';
+          fixSel.innerHTML=(d.pairing_opponents||[]).map(o=>'<option value="'+esc(o.id)+'">'+esc(o.id)+'</option>').join('');
+          if(cur)fixSel.value=cur;
+        }}
         const rt=document.getElementById('rating-table');
         const rows=(d.rating_table||[]).map(row=>{{
           const elo=row.uncalibrated?`<span class="catalog">${{row.elo}}*</span>`:`<strong>${{row.elo}}</strong>`;
@@ -246,6 +326,8 @@ def render_calibration_html() -> str:
             activity=`<span class="playing-badge">${{row.playing}} game${{row.playing===1?'':'s'}} live</span>`;
           }}else if(row.continuous){{
             activity='<span class="playing-badge">running</span>';
+          }}else if(row.activity==='disabled'||row.enabled===false){{
+            activity='<span class="idle-badge">disabled</span>';
           }}
           let ctrl='';
           if(row.can_calibrate){{

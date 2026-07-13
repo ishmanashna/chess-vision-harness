@@ -1,10 +1,16 @@
 # Opponent binaries
 
-Engine binaries are **not committed to git**. Install with:
+Only **Stockfish** is required. Install with:
 
 ```bash
 python scripts/fetch_opponents.py
 python play.py opponents verify
+```
+
+Legacy third-party engines (Patricia, MinimalChess, Toledo) were removed from the ladder. If old binaries remain:
+
+```bash
+python scripts/remove_legacy_opponent_binaries.py
 ```
 
 ## Layout (after fetch)
@@ -13,25 +19,20 @@ python play.py opponents verify
 bin/
   stockfish-windows-x86-64.exe   # Windows — Stockfish 17.1 (GPL-3)
   stockfish                      # Linux/macOS — from fetch script
-  opponents/
-    patricia_v2.exe
-    minimalchess-0.2.exe
-    minimalchess-0.3/minimalchess-0.3.exe
-    toledo-uci.js                # requires Node.js
 ```
 
-Catalog: `opponents.json` at project root.
+Catalog: `opponents.json` at project root (Stockfish harness + inverse modes only).
 
 ## Platform notes
 
-| OS | Stockfish | Tiny engines |
-|----|-----------|--------------|
-| Windows | Auto-download (sf_17.1 avx2 zip) | Auto-download |
-| Linux | Auto-download (ubuntu avx2 tar) or `apt install stockfish` | Set `STOCKFISH_PATH`; Patricia/MinimalChess are Windows builds |
-| macOS | Auto-download (macos avx2 tar) | Windows `.exe` opponents not available |
+| OS | Stockfish |
+|----|-----------|
+| Windows | Auto-download (sf_17.1 avx2 zip) |
+| Linux | Auto-download (ubuntu avx2 tar) or `apt install stockfish` |
+| macOS | Auto-download (macos avx2 tar) |
 
 Override with `STOCKFISH_PATH` if you use a system install.
 
 ## Licenses
 
-See `bin/opponents/LICENSES.md` and root `NOTICE.md`.
+See root `NOTICE.md` (Stockfish GPL-3).

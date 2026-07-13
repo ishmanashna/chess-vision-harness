@@ -32,8 +32,8 @@ def cal_results(tmp_path, monkeypatch):
     (suite_a / "ratings.json").write_text(
         json.dumps(
             {
-                "ratings": {"patricia:1200": 956.2, "minimalchess-0.2": 520.0},
-                "games_played": {"patricia:1200": 20, "minimalchess-0.2": 2},
+                "ratings": {"stockfish-handicap:noise17": 956.2, "stockfish-handicap:noise30": 520.0},
+                "games_played": {"stockfish-handicap:noise17": 20, "stockfish-handicap:noise30": 2},
             }
         ),
         encoding="utf-8",
@@ -43,8 +43,8 @@ def cal_results(tmp_path, monkeypatch):
     (suite_b / "ratings.json").write_text(
         json.dumps(
             {
-                "ratings": {"patricia:1200": 980.0, "minimalchess-0.2": 510.0},
-                "games_played": {"patricia:1200": 5, "minimalchess-0.2": 10},
+                "ratings": {"stockfish-handicap:noise17": 980.0, "stockfish-handicap:noise30": 510.0},
+                "games_played": {"stockfish-handicap:noise17": 5, "stockfish-handicap:noise30": 10},
             }
         ),
         encoding="utf-8",
@@ -64,10 +64,10 @@ def cal_results(tmp_path, monkeypatch):
 
 def test_merge_picks_suite_with_most_games(cal_results):
     merged = merge_calibration_ratings(max_age_sec=None)
-    assert merged["patricia:1200"]["elo"] == 956
-    assert merged["patricia:1200"]["games"] == 20
-    assert merged["minimalchess-0.2"]["elo"] == 510
-    assert merged["minimalchess-0.2"]["games"] == 10
+    assert merged["stockfish-handicap:noise17"]["elo"] == 956
+    assert merged["stockfish-handicap:noise17"]["games"] == 20
+    assert merged["stockfish-handicap:noise30"]["elo"] == 510
+    assert merged["stockfish-handicap:noise30"]["games"] == 10
 
 
 def test_merge_prefers_suite_with_most_games(cal_results):
@@ -76,8 +76,8 @@ def test_merge_prefers_suite_with_most_games(cal_results):
         json.dumps(
             {
                 "ratings": {
-                    "patricia:1200": {
-                        "id": "patricia:1200",
+                    "stockfish-handicap:noise17": {
+                        "id": "stockfish-handicap:noise17",
                         "elo": 500,
                         "games": 1,
                         "anchor": False,
@@ -88,8 +88,8 @@ def test_merge_prefers_suite_with_most_games(cal_results):
         encoding="utf-8",
     )
     merged = merge_calibration_ratings(max_age_sec=None)
-    assert merged["patricia:1200"]["elo"] == 956
-    assert merged["patricia:1200"]["games"] == 20
+    assert merged["stockfish-handicap:noise17"]["elo"] == 956
+    assert merged["stockfish-handicap:noise17"]["games"] == 20
 
 
 def test_stale_merged_file_does_not_hide_suite_data(cal_results):
@@ -99,8 +99,8 @@ def test_stale_merged_file_does_not_hide_suite_data(cal_results):
         json.dumps(
             {
                 "ratings": {
-                    "patricia:1200": {
-                        "id": "patricia:1200",
+                    "stockfish-handicap:noise17": {
+                        "id": "stockfish-handicap:noise17",
                         "elo": 1000,
                         "games": 99,
                         "anchor": False,
@@ -111,8 +111,8 @@ def test_stale_merged_file_does_not_hide_suite_data(cal_results):
         encoding="utf-8",
     )
     merged = merge_calibration_ratings(max_age_sec=None)
-    assert merged["patricia:1200"]["elo"] == 956
-    assert merged["patricia:1200"]["games"] == 20
+    assert merged["stockfish-handicap:noise17"]["elo"] == 956
+    assert merged["stockfish-handicap:noise17"]["games"] == 20
 
 
 def test_calibrated_elo_stockfish_uses_catalog():
@@ -123,14 +123,14 @@ def test_calibrated_elo_stockfish_uses_catalog():
 
 def test_ladder_elo_prefers_calibration_over_catalog(cal_results):
     catalog = get_catalog()
-    opp = catalog.get("patricia:1200")
+    opp = catalog.get("stockfish-handicap:noise17")
     assert opp.elo != 956
     assert ladder_elo_for_opponent(opp) == 956
 
 
 def test_ladder_elo_uncalibrated_floater_uses_default(cal_results):
     catalog = get_catalog()
-    opp = catalog.get("stockfish-handicap:blitz50")
+    opp = catalog.get("stockfish-handicap:noise3")
     assert ladder_elo_for_opponent(opp, {}) == 500
 
 
@@ -138,9 +138,9 @@ def test_get_calibration_status_idle(cal_results):
     status = get_calibration_status()
     assert status["active"] is False
     assert status["workers"] == 0
-    assert any(r["id"] == "patricia:1200" for r in status["rating_table"])
-    assert any(r["id"] == "stockfish-handicap:blitz50" for r in status["rating_table"])
-    harness = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:blitz50")
+    assert any(r["id"] == "stockfish-handicap:noise17" for r in status["rating_table"])
+    assert any(r["id"] == "stockfish-handicap:noise3" for r in status["rating_table"])
+    harness = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise3")
     assert harness["uncalibrated"] is True
     assert harness["playing"] == 0
     assert harness["activity"] == "idle"
@@ -148,9 +148,9 @@ def test_get_calibration_status_idle(cal_results):
 
 def test_enrich_rating_table_activity_playing():
     rows = enrich_rating_table_activity(
-        [{"id": "patricia:800", "elo": 720, "games": 5, "anchor": False}],
+        [{"id": "stockfish-handicap:noise22", "elo": 720, "games": 5, "anchor": False}],
         active=True,
-        in_flight_by_engine={"patricia:800": 2},
+        in_flight_by_engine={"stockfish-handicap:noise22": 2},
     )
     assert rows[0]["playing"] == 2
     assert rows[0]["activity"] == "playing"
@@ -164,8 +164,8 @@ def test_get_calibration_status_live(cal_results):
         "scheduled": 20,
         "completed": 3,
         "in_progress": 4,
-        "in_flight_by_engine": {"patricia:1200": 1, "stockfish:0": 1},
-        "rating_table": [{"id": "patricia:1200", "elo": 900, "games": 3, "anchor": False}],
+        "in_flight_by_engine": {"stockfish-handicap:noise17": 1, "stockfish:0": 1},
+        "rating_table": [{"id": "stockfish-handicap:noise17", "elo": 900, "games": 3, "anchor": False}],
         "recent_games": [{"game_index": 1, "white": "a", "black": "b", "result": "1-0"}],
         "updated_at": "2026-01-01T00:00:00+00:00",
     }

@@ -11,9 +11,11 @@ venv/
 .cursor/
 *.log
 
-# Engine binaries (download via scripts/fetch_opponents.py)
+# Opponent binaries (download via scripts/fetch_opponents.py)
 bin/**/*.exe
 bin/stockfish*
+bin/opponents/**
+!bin/opponents/LICENSES.md
 stockfish/
 
 # Local model registry (copy from models.json.example)

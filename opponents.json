@@ -4,8 +4,9 @@
     "ccrl": "https://computerchess.org.uk/ccrl/404/",
     "ccrl_list_date": "2026-07-11",
     "stockfish": "UCI_Elo via UCI_LimitStrength (official, floor 1320)",
-    "stockfish_harness": "Stockfish UCI_Elo tier + play harness (depth, movetime, noise) — calibrate effective ELO",
-    "patricia": "Patricia 5.0 UCI_Elo + Skill_Level (engine sparring scale; v2 calibration via elo_calibration/)"
+    "stockfish_harness": "Stockfish UCI_Elo tier + play harness (depth, movetime, noise) \u2014 calibrate effective ELO",
+    "inverse_sf": "Stockfish eval + inverse move selection \u2014 calibrate effective ELO (sub-random band)",
+    "uci_harness": "UCI engine + play harness (depth, movetime, noise) \u2014 calibrate effective ELO"
   },
   "matching": {
     "sigma_elo": 400,
@@ -21,159 +22,6 @@
       "rating_note": "Uniform random legal move each turn; effective ELO via calibration"
     },
     {
-      "id": "patricia:500",
-      "display_name": "Patricia 5",
-      "type": "uci_elo",
-      "elo": 500,
-      "binary": "bin/opponents/patricia_v2.exe",
-      "uci_elo": 500,
-      "skill_level": 1,
-      "rating_source": "patricia_uci",
-      "rating_note": "Engine sparring ELO (Patricia Skill_Level 1 + UCI_Elo 500); not FIDE human"
-    },
-    {
-      "id": "patricia:800",
-      "display_name": "Patricia 5",
-      "type": "uci_elo",
-      "elo": 800,
-      "binary": "bin/opponents/patricia_v2.exe",
-      "uci_elo": 800,
-      "skill_level": 2,
-      "rating_source": "patricia_uci",
-      "rating_note": "Engine sparring ELO (Patricia Skill_Level 2 + UCI_Elo 800); not FIDE human"
-    },
-    {
-      "id": "minimalchess-0.2",
-      "display_name": "MinimalChess 0.2",
-      "type": "uci",
-      "elo": 909,
-      "binary": "bin/opponents/minimalchess-0.2.exe",
-      "rating_source": "ccrl",
-      "ccrl_name": "MinimalChess 0.2 64-bit"
-    },
-    {
-      "id": "patricia:1000",
-      "display_name": "Patricia 5",
-      "type": "uci_elo",
-      "elo": 1000,
-      "binary": "bin/opponents/patricia_v2.exe",
-      "uci_elo": 1000,
-      "skill_level": 3,
-      "rating_source": "patricia_uci",
-      "rating_note": "Engine sparring ELO (Patricia Skill_Level 3 + UCI_Elo 1000); not FIDE human"
-    },
-    {
-      "id": "toledo",
-      "display_name": "Toledo Nanochess",
-      "type": "uci",
-      "elo": 1017,
-      "command": ["node", "bin/opponents/toledo-uci.js"],
-      "rating_source": "ccrl",
-      "ccrl_name": "Toledo Nanochess Jan/11/2010"
-    },
-    {
-      "id": "patricia:1200",
-      "display_name": "Patricia 5",
-      "type": "uci_elo",
-      "elo": 1200,
-      "binary": "bin/opponents/patricia_v2.exe",
-      "uci_elo": 1200,
-      "skill_level": 4,
-      "rating_source": "patricia_uci",
-      "rating_note": "Engine sparring ELO (Patricia Skill_Level 4 + UCI_Elo 1200); not FIDE human"
-    },
-    {
-      "id": "minimalchess-0.3",
-      "display_name": "MinimalChess 0.3",
-      "type": "uci",
-      "elo": 1439,
-      "binary": "bin/opponents/minimalchess-0.3/minimalchess-0.3.exe",
-      "rating_source": "ccrl",
-      "ccrl_name": "MinimalChess 0.3 64-bit"
-    },
-    {
-      "id": "stockfish-handicap:blitz50",
-      "display_name": "Stockfish 17.1 (blitz 50ms)",
-      "type": "stockfish_harness",
-      "elo": 700,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 50ms per move — effective ELO via calibration",
-      "harness": {
-        "movetime_ms": 50
-      }
-    },
-    {
-      "id": "stockfish-handicap:blitz100",
-      "display_name": "Stockfish 17.1 (blitz 100ms)",
-      "type": "stockfish_harness",
-      "elo": 850,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 100ms per move — effective ELO via calibration",
-      "harness": {
-        "movetime_ms": 100
-      }
-    },
-    {
-      "id": "stockfish-handicap:depth6",
-      "display_name": "Stockfish 17.1 (depth 6)",
-      "type": "stockfish_harness",
-      "elo": 900,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 6 — effective ELO via calibration",
-      "harness": {
-        "depth": 6,
-        "movetime_ms": 100
-      }
-    },
-    {
-      "id": "stockfish-handicap:depth8",
-      "display_name": "Stockfish 17.1 (depth 8)",
-      "type": "stockfish_harness",
-      "elo": 1000,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 8 — effective ELO via calibration",
-      "harness": {
-        "depth": 8,
-        "movetime_ms": 100
-      }
-    },
-    {
-      "id": "stockfish-handicap:depth10",
-      "display_name": "Stockfish 17.1 (depth 10)",
-      "type": "stockfish_harness",
-      "elo": 1100,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 10 — effective ELO via calibration",
-      "harness": {
-        "depth": 10,
-        "movetime_ms": 100
-      }
-    },
-    {
-      "id": "stockfish-handicap:depth12",
-      "display_name": "Stockfish 17.1 (depth 12)",
-      "type": "stockfish_harness",
-      "elo": 1200,
-      "uci_elo": 1320,
-      "skill_level": 0,
-      "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 12 — effective ELO via calibration",
-      "harness": {
-        "depth": 12,
-        "movetime_ms": 100
-      }
-    },
-    {
       "id": "stockfish-handicap:noise5",
       "display_name": "Stockfish 17.1 (5% noise)",
       "type": "stockfish_harness",
@@ -181,7 +29,7 @@
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 5% random-move noise — effective ELO via calibration",
+      "rating_note": "Stockfish skill 0 with 5% random-move noise \u2014 effective ELO via calibration",
       "harness": {
         "movetime_ms": 100,
         "random_move_pct": 0.05
@@ -195,7 +43,7 @@
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 10% random-move noise — effective ELO via calibration",
+      "rating_note": "Stockfish skill 0 with 10% random-move noise \u2014 effective ELO via calibration",
       "harness": {
         "movetime_ms": 100,
         "random_move_pct": 0.1
@@ -209,10 +57,10 @@
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 4 — bridges patricia/random gap",
+      "rating_note": "Stockfish skill 0 depth 2 \u2014 retuned for low ladder",
       "harness": {
-        "depth": 4,
-        "movetime_ms": 50
+        "depth": 2,
+        "movetime_ms": 15
       }
     },
     {
@@ -223,37 +71,690 @@
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 20% random-move noise — bridges patricia/random gap",
+      "rating_note": "Stockfish skill 0 with 20% random-move noise — bridges harness/random gap",
       "harness": {
         "movetime_ms": 100,
         "random_move_pct": 0.2
-      }
+      },
+      "enabled": false
     },
     {
-      "id": "stockfish-handicap:blitz200",
-      "display_name": "Stockfish 17.1 (blitz 200ms)",
+      "id": "stockfish-handicap:noise25",
+      "display_name": "Stockfish 17.1 (25% noise)",
       "type": "stockfish_harness",
-      "elo": 1050,
+      "elo": 50,
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 with 200ms per move — bridges minimalchess/stockfish:0 gap",
+      "rating_note": "Stockfish skill 0 with 25% random-move noise \u2014 low ladder gap filler",
       "harness": {
-        "movetime_ms": 200
-      }
+        "movetime_ms": 100,
+        "random_move_pct": 0.25
+      },
+      "enabled": false
     },
     {
-      "id": "stockfish-handicap:depth14",
-      "display_name": "Stockfish 17.1 (depth 14)",
+      "id": "stockfish-handicap:noise15",
+      "display_name": "Stockfish 17.1 (15% noise)",
       "type": "stockfish_harness",
-      "elo": 1150,
+      "elo": 150,
       "uci_elo": 1320,
       "skill_level": 0,
       "rating_source": "stockfish_harness",
-      "rating_note": "Stockfish skill 0 capped at depth 14 — bridges minimalchess/stockfish:0 gap",
+      "rating_note": "Stockfish skill 0 with 15% random-move noise \u2014 low ladder gap filler",
       "harness": {
+        "movetime_ms": 100,
+        "random_move_pct": 0.15
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise12",
+      "display_name": "Stockfish 17.1 (12% noise)",
+      "type": "stockfish_harness",
+      "elo": 220,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Stockfish skill 0 with 12% random-move noise \u2014 low ladder gap filler",
+      "harness": {
+        "movetime_ms": 100,
+        "random_move_pct": 0.12
+      }
+    },
+    {
+      "id": "stockfish-handicap:depth4-noise10",
+      "display_name": "Stockfish 17.1 (depth 2 + 10% noise)",
+      "type": "stockfish_harness",
+      "elo": 350,
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "rating_note": "Depth 4 with 10% noise \u2014 low ladder gap filler between noise10 and depth4",
+      "harness": {
+        "depth": 2,
+        "movetime_ms": 15,
+        "random_move_pct": 0.1
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise3",
+      "display_name": "Stockfish 17.1 (3% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 1250,
+      "rating_note": "Stockfish skill 0 with 3% random-move noise \u2014 3% random-move noise \u2014 upper ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.03
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise4",
+      "display_name": "Stockfish 17.1 (4% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 1220,
+      "rating_note": "Stockfish skill 0 with 4% random-move noise \u2014 4% random-move noise \u2014 upper ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.04
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise6",
+      "display_name": "Stockfish 17.1 (6% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 1180,
+      "rating_note": "Stockfish skill 0 with 6% random-move noise \u2014 6% random-move noise \u2014 upper ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.06
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise17",
+      "display_name": "Stockfish 17.1 (17% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 820,
+      "rating_note": "Stockfish skill 0 with 17% random-move noise \u2014 17% random-move noise \u2014 mid ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.17
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise22",
+      "display_name": "Stockfish 17.1 (22% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 720,
+      "rating_note": "Stockfish skill 0 with 22% random-move noise \u2014 22% random-move noise \u2014 mid ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.22
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise28",
+      "display_name": "Stockfish 17.1 (28% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 620,
+      "rating_note": "Stockfish skill 0 with 28% random-move noise \u2014 28% random-move noise \u2014 mid ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.28
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise30",
+      "display_name": "Stockfish 17.1 (30% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 480,
+      "rating_note": "Stockfish skill 0 with 30% random-move noise \u2014 30% random-move noise \u2014 lower ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.3
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise32",
+      "display_name": "Stockfish 17.1 (32% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 520,
+      "rating_note": "Stockfish skill 0 with 32% random-move noise \u2014 32% random-move noise \u2014 mid ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.32
+      },
+      "enabled": false
+    },
+    {
+      "id": "stockfish-handicap:noise36",
+      "display_name": "Stockfish 17.1 (36% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 460,
+      "rating_note": "Stockfish skill 0 with 36% random-move noise \u2014 36% random-move noise \u2014 lower ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.36
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise38",
+      "display_name": "Stockfish 17.1 (38% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 420,
+      "rating_note": "Stockfish skill 0 with 38% random-move noise \u2014 38% random-move noise \u2014 lower ladder",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.38
+      }
+    },
+    {
+      "id": "inverse-sf:exclude-top1",
+      "display_name": "Inverse SF (exclude top1)",
+      "type": "inverse_sf",
+      "elo": 300,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode exclude_top1 depth 10 \u2014 target ~300 ELO",
+      "inverse": {
+        "mode": "exclude_top1",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:exclude-top2",
+      "display_name": "Inverse SF (exclude top2)",
+      "type": "inverse_sf",
+      "elo": 200,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode exclude_top2 depth 10 \u2014 target ~200 ELO",
+      "inverse": {
+        "mode": "exclude_top2",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:second-worst",
+      "display_name": "Inverse SF (second worst)",
+      "type": "inverse_sf",
+      "elo": 100,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode second_worst depth 10 \u2014 target ~100 ELO",
+      "inverse": {
+        "mode": "second_worst",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:exclude-top3",
+      "display_name": "Inverse SF (exclude top3)",
+      "type": "inverse_sf",
+      "elo": 0,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode exclude_top3 depth 10 \u2014 target ~0 ELO",
+      "inverse": {
+        "mode": "exclude_top3",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:bottom-half",
+      "display_name": "Inverse SF (bottom half)",
+      "type": "inverse_sf",
+      "elo": -100,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode bottom_half depth 10 \u2014 target ~\u2212100 ELO",
+      "inverse": {
+        "mode": "bottom_half",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:bottom5",
+      "display_name": "Inverse SF (bottom5)",
+      "type": "inverse_sf",
+      "elo": -200,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode bottom5 depth 10 \u2014 target ~\u2212200 ELO",
+      "inverse": {
+        "mode": "bottom5",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d8",
+      "display_name": "Inverse SF (worst d8)",
+      "type": "inverse_sf",
+      "elo": -300,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode worst depth 8 \u2014 target ~\u2212300 ELO",
+      "inverse": {
+        "mode": "worst",
+        "depth": 8,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d10",
+      "display_name": "Inverse SF (worst d10)",
+      "type": "inverse_sf",
+      "elo": -400,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode worst depth 10 \u2014 target ~\u2212400 ELO",
+      "inverse": {
+        "mode": "worst",
+        "depth": 10,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d12",
+      "display_name": "Inverse SF (worst d12)",
+      "type": "inverse_sf",
+      "elo": -500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode worst depth 12 \u2014 target ~\u2212500 ELO",
+      "inverse": {
+        "mode": "worst",
+        "depth": 12,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d14",
+      "display_name": "Inverse SF (worst d14)",
+      "type": "inverse_sf",
+      "elo": -600,
+      "rating_source": "inverse_sf",
+      "rating_note": "Stockfish eval inverse mode worst depth 14 \u2014 target ~\u2212600 ELO",
+      "inverse": {
+        "mode": "worst",
         "depth": 14,
         "movetime_ms": 100
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise40",
+      "display_name": "Stockfish 17.1 (40% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 400,
+      "rating_note": "Stockfish skill 0 \u2014 40% noise \u2014 mid gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.4
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise42",
+      "display_name": "Stockfish 17.1 (42% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 350,
+      "rating_note": "Stockfish skill 0 \u2014 42% noise \u2014 mid gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.42
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise45",
+      "display_name": "Stockfish 17.1 (45% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 300,
+      "rating_note": "Stockfish skill 0 \u2014 45% noise \u2014 mid gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.45
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise48",
+      "display_name": "Stockfish 17.1 (48% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 220,
+      "rating_note": "Stockfish skill 0 \u2014 48% noise \u2014 mid gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.48
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise52",
+      "display_name": "Stockfish 17.1 (depth 1 + 52% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 30,
+      "rating_note": "Stockfish skill 0 \u2014 52% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.52,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise58",
+      "display_name": "Stockfish 17.1 (depth 1 + 57% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -20,
+      "rating_note": "Stockfish skill 0 \u2014 58% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.58,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise62",
+      "display_name": "Stockfish 17.1 (depth 1 + 62% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -60,
+      "rating_note": "Stockfish skill 0 \u2014 62% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.62,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise68",
+      "display_name": "Stockfish 17.1 (depth 1 + 68% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -120,
+      "rating_note": "Stockfish skill 0 \u2014 68% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.68,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise74",
+      "display_name": "Stockfish 17.1 (depth 1 + 74% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -200,
+      "rating_note": "Stockfish skill 0 \u2014 74% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.74,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise80",
+      "display_name": "Stockfish 17.1 (depth 1 + 80% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -300,
+      "rating_note": "Stockfish skill 0 \u2014 80% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.8,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise86",
+      "display_name": "Stockfish 17.1 (depth 1 + 86% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -420,
+      "rating_note": "Stockfish skill 0 \u2014 86% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.86,
+        "depth": 1
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise92",
+      "display_name": "Stockfish 17.1 (depth 1 + 92% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -550,
+      "rating_note": "Stockfish skill 0 \u2014 92% noise + depth 1 \u2014 sub-random",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.92,
+        "depth": 1
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d4",
+      "display_name": "Inverse SF (worst d4)",
+      "type": "inverse_sf",
+      "elo": -80,
+      "rating_source": "inverse_sf",
+      "rating_note": "Inverse worst depth 4 \u2014 ~sub-random shallow worst",
+      "inverse": {
+        "mode": "worst",
+        "depth": 4,
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d6",
+      "display_name": "Inverse SF (worst d6)",
+      "type": "inverse_sf",
+      "elo": -180,
+      "rating_source": "inverse_sf",
+      "rating_note": "Inverse worst depth 6 \u2014 ~sub-random shallow worst",
+      "inverse": {
+        "mode": "worst",
+        "depth": 6,
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "inverse-sf:bottom5-d4",
+      "display_name": "Inverse SF (bottom5 d4)",
+      "type": "inverse_sf",
+      "elo": -250,
+      "rating_source": "inverse_sf",
+      "rating_note": "Inverse bottom5 depth 4 \u2014 ~sub-random bottom-5 at depth 4",
+      "inverse": {
+        "mode": "bottom5",
+        "depth": 4,
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "inverse-sf:third-worst-d6",
+      "display_name": "Inverse SF (third worst d6)",
+      "type": "inverse_sf",
+      "elo": -350,
+      "rating_source": "inverse_sf",
+      "rating_note": "Inverse third_worst depth 6 \u2014 ~sub-random third-worst",
+      "inverse": {
+        "mode": "third_worst",
+        "depth": 6,
+        "movetime_ms": 50
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise11",
+      "display_name": "Stockfish 17.1 (11% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 1020,
+      "rating_note": "Stockfish skill 0 \u2014 11% noise \u2014 upper gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.11
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise14",
+      "display_name": "Stockfish 17.1 (14% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 880,
+      "rating_note": "Stockfish skill 0 \u2014 14% noise \u2014 upper gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.14
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise26",
+      "display_name": "Stockfish 17.1 (26% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 630,
+      "rating_note": "Stockfish skill 0 \u2014 26% noise \u2014 mid gap fill",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.26
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise39",
+      "display_name": "Stockfish 17.1 (39% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 475,
+      "rating_note": "Stockfish skill 0 \u2014 39% noise \u2014 bridge noise38\u2192noise40",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.39
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise89",
+      "display_name": "Stockfish 17.1 (depth 1 + 89% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": -485,
+      "rating_note": "Stockfish skill 0 \u2014 89% noise + depth 1 \u2014 bridge noise86\u2192noise92",
+      "harness": {
+        "movetime_ms": 30,
+        "random_move_pct": 0.89,
+        "depth": 1
+      }
+    },
+    {
+      "id": "minimalchess-0.2",
+      "display_name": "MinimalChess 0.2",
+      "type": "uci",
+      "elo": 909,
+      "binary": "bin/opponents/minimalchess-0.2.exe",
+      "rating_source": "ccrl",
+      "ccrl_name": "MinimalChess 0.2 64-bit",
+      "enabled": false
+    },
+    {
+      "id": "minimalchess-0.3",
+      "display_name": "MinimalChess 0.3",
+      "type": "uci",
+      "elo": 1439,
+      "binary": "bin/opponents/minimalchess-0.3/minimalchess-0.3.exe",
+      "rating_source": "ccrl",
+      "ccrl_name": "MinimalChess 0.3 64-bit",
+      "enabled": false
+    },
+    {
+      "id": "minimalchess-0.2:noise15",
+      "display_name": "MinimalChess 0.2 (15% noise)",
+      "type": "uci_harness",
+      "elo": 850,
+      "binary": "bin/opponents/minimalchess-0.2.exe",
+      "rating_source": "uci_harness",
+      "rating_note": "Backup mid-ladder if SF noise17 overlaps",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.15
+      }
+    },
+    {
+      "id": "minimalchess-0.2:noise30",
+      "display_name": "MinimalChess 0.2 (30% noise)",
+      "type": "uci_harness",
+      "elo": 500,
+      "binary": "bin/opponents/minimalchess-0.2.exe",
+      "rating_source": "uci_harness",
+      "rating_note": "Backup lower ladder if SF noise30 overlaps",
+      "harness": {
+        "movetime_ms": 50,
+        "random_move_pct": 0.3
       }
     },
     {

@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 import chess
 import chess.engine
 
-from .engine_player import EnginePlayer
+from .engine_player import EnginePlayer, release_all_engines
 from .play_config import MatchConfig
 
 CALIBRATION_UCI_TIMEOUT = 45.0
@@ -44,8 +44,7 @@ def play_game_resilient(
             return board.result(claim_draw=True) or "1/2-1/2"
         return "1/2-1/2"
     finally:
-        white.release()
-        black.release()
+        release_all_engines()
 
 
 def _play_move_resilient(
@@ -60,7 +59,7 @@ def _play_move_resilient(
         try:
             return current.play(board), current
         except MOVE_ERRORS:
-            current.release()
+            release_all_engines()
             if attempt + 1 >= max_move_retries:
                 return None, current
             current = EnginePlayer(current.opponent_id, current.config, uci_timeout=uci_timeout)

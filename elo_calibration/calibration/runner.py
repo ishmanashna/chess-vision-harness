@@ -24,6 +24,21 @@ from .report import write_report
 from .worker import play_match_worker
 
 
+def _catalog_opponent_enabled(opponent_id: str) -> bool:
+    try:
+        from chess_harness.opponents import get_catalog
+
+        return get_catalog().get(opponent_id).enabled
+    except (ValueError, ImportError):
+        return True
+
+
+def _match_playable(match: MatchConfig) -> bool:
+    return _catalog_opponent_enabled(match.white_id) and _catalog_opponent_enabled(
+        match.black_id
+    )
+
+
 def _load_suite(path: Path) -> Dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
@@ -77,7 +92,7 @@ def build_schedule(suite: Dict[str, Any], *, seed: int = 42) -> List[MatchConfig
 
     rr = suite.get("round_robin")
     if rr:
-        opponents = rr["opponents"]
+        opponents = [o for o in rr["opponents"] if _catalog_opponent_enabled(o)]
         games_per_pair = int(rr.get("games_per_pair", 1))
         alternate = rr.get("colors") == "alternate"
         for i, a in enumerate(opponents):
@@ -96,14 +111,14 @@ def build_schedule(suite: Dict[str, Any], *, seed: int = 42) -> List[MatchConfig
                         )
                     )
 
-    return schedule
+    return [m for m in schedule if _match_playable(m)]
 
 
 def _init_ladder(suite: Dict[str, Any], schedule: List[MatchConfig]) -> CalibrationLadder:
     defaults = suite.get("defaults", {})
     ladder = CalibrationLadder(
         floating_start=float(defaults.get("initial_elo_non_stockfish", 500)),
-        k_factor=int(defaults.get("k_factor", 32)),
+        k_factor=int(defaults.get("k_factor", 48)),
     )
     for match in schedule:
         ladder.ensure_player(match.white_id)
