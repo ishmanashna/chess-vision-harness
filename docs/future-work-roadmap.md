@@ -1,38 +1,43 @@
 # Future work roadmap
 
-Refined from product direction (not implementation specs). Estimates assume one developer who knows this repo.
+Product direction and locked decisions. **Implementation plans** live in [`plans/`](plans/README.md) — one file per feature.
 
 ## North star
 
-A **public, community-style chess vision benchmark**: agents connect to **our API**, play rated games against the calibrated ladder, and results feed a shared leaderboard. More agents in the pool → more accurate, comparable ratings — a collective effort, not a private toy.
+A **public, community-style chess vision benchmark**: agents connect to **our API**, play rated games against the calibrated ladder, and results feed a shared leaderboard. More agents in the pool → more accurate, comparable ratings.
 
-**Home server for now** (always-on on your hardware). Reliability goals: don’t lose games/ratings, don’t melt the box, don’t let abuse burn your connection or CPU.
+**Home server for now.** Reliability: don't lose games/ratings, don't melt the box, don't let abuse burn your connection or CPU.
 
 ---
 
 ## Core idea: one API, many clients
 
-Inbound (#1) and “native benchmark” (#4) are **not two separate products**. They share one play surface:
+Inbound (#1) and native benchmark (#4) share one play surface:
 
 | Client | Who runs it |
 |--------|-------------|
-| **External agents** | Anyone on the internet — their code pulls board PNG + FEN, posts moves |
-| **Our batch runner** | Harness-owned client that calls LLM provider APIs and uses the **same** inscribe/play/move API |
-| **Browser human** | Spectator UI for you, friends, and demos |
-
-Outbound benchmark = **our official agent client** of the public API, with pinned configs and exportable results — not a hidden second code path.
+| **External agents** | Anyone — board PNG + move POST |
+| **Our batch runner** | Harness-owned LLM client, same API |
+| **Browser human** | Spectator UI for demos and casual play |
 
 ---
 
-## Features
+## Features → plans
 
-| # | Goal | What you want |
-|---|------|----------------|
-| 1 | **Public agent API (inbound)** | REST/MCP-style: register agent, start game, `GET` board + FEN, `POST` moves; games → ladder/PGN archive. Open to anyone who finds it. |
-| 4 | **Native LLM benchmark (outbound client)** | Adapter layer calling provider APIs; parse UCI/SAN; batch suite (N games × opponents); pinned configs; leaderboard JSON/CSV. Same API as #1. |
-| 2 | **Agent vs agent** | Two inscribed models on one board — fun to watch **and** useful for model-vs-model ranking. |
-| 3 | **Browser human vs agent** | You, friends/guests, and demo/streaming use cases on the same spectator. |
-| — | **Live viewing** | Others watch games live in the browser (moves + board refresh). |
+| # | Goal | Plan |
+|---|------|------|
+| — | **Architecture maturity (do first)** | [`plans/architecture-maturity.md`](plans/architecture-maturity.md) |
+| 1 | Public agent API (inbound) | [`plans/public-agent-api.md`](plans/public-agent-api.md) |
+| 4 | Native LLM benchmark (outbound) | [`plans/native-llm-benchmark.md`](plans/native-llm-benchmark.md) |
+| 2 | Agent vs agent | [`plans/agent-vs-agent.md`](plans/agent-vs-agent.md) |
+| 3 | Browser human vs agent | [`plans/human-vs-agent.md`](plans/human-vs-agent.md) |
+| — | Live viewing | [`plans/live-game-streaming.md`](plans/live-game-streaming.md) |
+| — | Home server / abuse / backup | [`plans/home-server-ops.md`](plans/home-server-ops.md) |
+
+**Prerequisites (parallel where possible):**
+
+- [`plans/architecture-maturity.md`](plans/architecture-maturity.md) — GameService, config split, event bus (~4–6 weeks)
+- [`ladder-coverage-plan.md`](ladder-coverage-plan.md) — calibration 1320 → −600, ≤100 ELO gaps, rungs below random
 
 ---
 
@@ -40,16 +45,14 @@ Outbound benchmark = **our official agent client** of the public API, with pinne
 
 | Topic | Choice |
 |-------|--------|
-| **Build order** | No fixed priority — finish ladder calibration first, then ship features as needed. |
-| **Discovery** | URL is enough for now; no benchmark-hub listing push. |
-| **Agent signup** | Open registration; honor system (any agent name, no manual approval). |
-| **Hosting** | Home server for now. |
-| **Protection** | Still need caps on concurrent games/engines and basic abuse limits on a home box open to the internet — details TBD at API design time. |
-
-**Prerequisite:** ladder calibration from 1320 → −600 with ≤100 ELO gaps and rungs below random (Stockfish harness + inverse_sf; MinimalChess backup optional).
+| Build order | Architecture refactor + ladder calibration, then roadmap features as needed |
+| Discovery | URL is enough |
+| Agent signup | Open; honor system |
+| Hosting | Home server |
+| Protection | Concurrency caps + abuse limits ([`plans/home-server-ops.md`](plans/home-server-ops.md)) |
 
 ---
 
-## Also on the list
+## Index
 
-Live game streaming (SSE/WebSocket moves + board refreshes) — about **3–5 days** when we get to it.
+Full plan table and dependency graph: [`plans/README.md`](plans/README.md).
