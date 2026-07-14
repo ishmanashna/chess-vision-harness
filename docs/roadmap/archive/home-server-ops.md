@@ -1,9 +1,11 @@
 # Plan: Home server operations
 
-Status: **planned**  
+> **Archived (2026-07-14).** Merged into **[Plan 1 — public-agent-api.md](../public-agent-api.md)** (Phases 2–4: deploy, limits, backup). Do not execute this as a separate plan.
+
+Status: **superseded**  
 Last updated: 2026-07-13  
 Cross-cutting: supports all public-facing roadmap items  
-Depends on: nothing (prep can start now)
+Depends on: nothing to **start** Phases 0–1; Phase 2 **blocks** [`public-agent-api.md`](public-agent-api.md) Phase 2 (internet exposure)
 
 ---
 

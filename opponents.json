@@ -153,9 +153,9 @@
       "id": "inverse-sf:exclude-top1",
       "display_name": "Inverse SF (exclude top1)",
       "type": "inverse_sf",
-      "elo": 300,
+      "elo": 500,
       "rating_source": "inverse_sf",
-      "rating_note": "Stockfish eval inverse mode exclude_top1 depth 10 \u2014 target ~300 ELO",
+      "rating_note": "Inverse exclude-top1 d10 \u2014 shallow inverses play LESS badly than deep",
       "inverse": {
         "mode": "exclude_top1",
         "depth": 10,
@@ -166,9 +166,9 @@
       "id": "inverse-sf:worst-d10",
       "display_name": "Inverse SF (worst d10)",
       "type": "inverse_sf",
-      "elo": -400,
+      "elo": 500,
       "rating_source": "inverse_sf",
-      "rating_note": "Stockfish eval inverse mode worst depth 10 \u2014 target ~\u2212400 ELO",
+      "rating_note": "Inverse worst d10 \u2014 shallow inverses play LESS badly than deep",
       "inverse": {
         "mode": "worst",
         "depth": 10,
@@ -371,6 +371,176 @@
       "harness": {
         "movetime_ms": 50,
         "random_move_pct": 0.55
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise68",
+      "display_name": "Stockfish 17.1 (depth 1 + 68% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill noise62(286)->random(66); uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.68
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise76",
+      "display_name": "Stockfish 17.1 (depth 1 + 76% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill noise62(286)->random(66); uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.76
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise84",
+      "display_name": "Stockfish 17.1 (depth 1 + 84% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill noise62(286)->random(66); uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.84
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise90",
+      "display_name": "Stockfish 17.1 (depth 1 + 90% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill noise62(286)->random(66); uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.9
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise96",
+      "display_name": "Stockfish 17.1 (depth 1 + 96% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill noise62(286)->random(66); uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.96
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise98",
+      "display_name": "Stockfish 17.1 (depth 1 + 98% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Gap fill random(66)->inverse; uncalibrated",
+      "harness": {
+        "movetime_ms": 30,
+        "depth": 1,
+        "random_move_pct": 0.98
+      }
+    },
+    {
+      "id": "stockfish-handicap:noise99",
+      "display_name": "Stockfish 17.1 (depth 1 + 99% noise)",
+      "type": "stockfish_harness",
+      "uci_elo": 1320,
+      "skill_level": 0,
+      "rating_source": "stockfish_harness",
+      "elo": 500,
+      "rating_note": "Near-random noise floor; weaker than random target",
+      "harness": {
+        "movetime_ms": 20,
+        "depth": 1,
+        "random_move_pct": 0.99
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d16",
+      "display_name": "Inverse SF (worst d16)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Deep worst d16 \u2014 weaker than d10 (shallow eval plays less badly)",
+      "inverse": {
+        "mode": "worst",
+        "depth": 16,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:worst-d18",
+      "display_name": "Inverse SF (worst d18)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Deep worst d18 \u2014 sub-random floor",
+      "inverse": {
+        "mode": "worst",
+        "depth": 18,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:bottom-half-d16",
+      "display_name": "Inverse SF (bottom half d16)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Deep bottom-half d16 \u2014 chaotic blunders",
+      "inverse": {
+        "mode": "bottom_half",
+        "depth": 16,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:exclude-top1-d14",
+      "display_name": "Inverse SF (exclude top1 d14)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Deep exclude-top1 d14 \u2014 gap random to inverse band",
+      "inverse": {
+        "mode": "exclude_top1",
+        "depth": 14,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:abyss",
+      "display_name": "Inverse SF (abyss)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Ultimate superbad: depth-20+ eval, random among catastrophic moves (abyss mode)",
+      "inverse": {
+        "mode": "abyss",
+        "depth": 20,
+        "movetime_ms": 400
       }
     },
     {

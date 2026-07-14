@@ -36,14 +36,23 @@ def test_pick_second_worst():
     assert pick_inverse_move(ranked, "second_worst") == d4
 
 
+def test_pick_abyss_from_blunder_cluster():
+    e4 = chess.Move.from_uci("e2e4")
+    d4 = chess.Move.from_uci("d2d4")
+    a3 = chess.Move.from_uci("a2a3")
+    ranked = [(e4, 300.0), (d4, 50.0), (a3, -400.0)]
+    pick = pick_inverse_move(ranked, "abyss")
+    assert pick == a3
+
+
 def test_catalog_has_inverse_sf_entries():
     from chess_harness.opponents import get_catalog
 
     catalog = get_catalog()
-    inv = catalog.get("inverse-sf:worst-d4")
+    inv = catalog.get("inverse-sf:abyss")
     assert inv.type == "inverse_sf"
-    assert inv.inverse["mode"] == "worst"
-    assert inv.inverse["depth"] == 4
+    assert inv.inverse["mode"] == "abyss"
+    assert inv.inverse["depth"] == 20
     assert inv.enabled is True
 
 

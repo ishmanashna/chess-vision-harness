@@ -19,6 +19,7 @@ INVERSE_MODES = frozenset(
         "bottom3",
         "bottom5",
         "bottom_half",
+        "abyss",
     }
 )
 
@@ -102,6 +103,11 @@ def pick_inverse_move(
         start = n // 2
         pool = [m for m, _ in ranked[start:]]
         return random.choice(pool)
+    if mode == "abyss":
+        # Deep eval ranks moves; pick randomly among the catastrophic cluster (≈ worst).
+        worst_score = ranked[-1][1]
+        pool = [m for m, s in ranked if s <= worst_score + 80.0]
+        return random.choice(pool)
 
     return ranked[-1][0]
 
@@ -115,5 +121,8 @@ def play_inverse_sf_move(
     mode = str(cfg.get("mode", "worst"))
     depth = int(cfg.get("depth", 10))
     movetime_ms = int(cfg.get("movetime_ms", 100))
+    if mode == "abyss":
+        depth = max(depth, 20)
+        movetime_ms = max(movetime_ms, 300)
     ranked = rank_legal_moves(engine, board, depth=depth, movetime_ms=movetime_ms)
     return pick_inverse_move(ranked, mode)
