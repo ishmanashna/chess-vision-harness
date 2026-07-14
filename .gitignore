@@ -20,6 +20,7 @@ stockfish/
 
 # Local model registry (copy from models.json.example)
 models.json
+!tests/fixtures/models.json
 
 # Calibration output — track ratings + game log for restore (binaries stay gitignored)
 elo_calibration/results/**
