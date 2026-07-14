@@ -56,39 +56,46 @@ def test_catalog_has_inverse_sf_entries():
     assert inv.enabled is True
 
 
-def test_catalog_has_new_noise_harnesses():
+def test_catalog_has_noise_harnesses():
     from chess_harness.opponents import get_catalog
 
     catalog = get_catalog()
-    n3 = catalog.get("stockfish-handicap:noise3")
-    assert n3.harness["random_move_pct"] == 0.03
-    assert n3.harness["movetime_ms"] == 50
-    n17 = catalog.get("stockfish-handicap:noise17")
-    assert n17.harness["random_move_pct"] == 0.17
+    n7 = catalog.get("stockfish-handicap:noise7")
+    assert n7.harness["random_move_pct"] == 0.07
+    assert n7.harness["movetime_ms"] == 50
+    n10 = catalog.get("stockfish-handicap:noise10")
+    assert n10.harness["random_move_pct"] == 0.1
 
 
-def test_pruned_opponents_disabled():
+def test_removed_opponents_not_in_catalog():
     from chess_harness.opponents import get_catalog
 
     catalog = get_catalog()
-    assert catalog.get("stockfish-handicap:noise4").enabled is False
     assert catalog.get("stockfish-handicap:noise10").enabled is True
     assert catalog.get("inverse-sf:exclude-top1").enabled is True
-    assert catalog.get("minimalchess-0.2:noise15").enabled is True
     with pytest.raises(ValueError):
         catalog.get("stockfish-handicap:blitz800")
+    with pytest.raises(ValueError):
+        catalog.get("stockfish-handicap:noise3")
 
 
-def test_disabled_opponent_not_in_calibration_pick():
+def test_disabled_opponent_not_in_calibration_pick(tmp_path, monkeypatch):
     from chess_harness.continuous_calibration import pick_opponent
-    from chess_harness.opponents import get_catalog
+    from chess_harness.opponents import OpponentCatalog, get_catalog, reload_catalog
 
+    dest = tmp_path / "opponents.json"
+    dest.write_text(get_catalog().path.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setenv("OPPONENTS_FILE", str(dest))
+    reload_catalog()
     catalog = get_catalog()
-    assert not catalog.get("stockfish-handicap:noise4").enabled
-    for _ in range(40):
-        oid = pick_opponent("stockfish-handicap:noise10", pairing_mode="random")
-        assert oid != "stockfish-handicap:noise4"
-        assert catalog.get(oid).enabled
+    catalog.set_enabled("stockfish-handicap:noise12", False)
+    try:
+        for _ in range(40):
+            oid = pick_opponent("stockfish-handicap:noise10", pairing_mode="random")
+            assert oid != "stockfish-handicap:noise12"
+            assert catalog.get(oid).enabled
+    finally:
+        reload_catalog()
 
 
 def test_manager_release_quits_all_pooled_adapters():
@@ -101,7 +108,7 @@ def test_manager_release_quits_all_pooled_adapters():
         catalog = get_catalog()
         mgr = OpponentEngineManager()
         mgr.get_adapter(catalog.get("stockfish-handicap:noise10"))
-        mgr.get_adapter(catalog.get("minimalchess-0.2:noise15"))
+        mgr.get_adapter(catalog.get("inverse-sf:worst-d10"))
         assert popen.call_count == 2
         mgr.release()
         for eng in engines:
@@ -114,7 +121,7 @@ def test_stockfish_pool_reuses_subprocess():
 
     catalog = get_catalog()
     a = catalog.get("stockfish-handicap:noise10")
-    b = catalog.get("stockfish-handicap:noise20")
+    b = catalog.get("stockfish-handicap:noise12")
     with patch("chess_harness.engine.chess.engine.SimpleEngine.popen_uci") as popen:
         engine = MagicMock()
         popen.return_value = engine

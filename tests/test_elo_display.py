@@ -8,9 +8,17 @@ from chess_harness.elo import ELOLadder
 from chess_harness.results import ResultsManager
 
 
-def test_elo_change_for_game_replay(tmp_path):
+def test_elo_change_for_game_replay(tmp_path, monkeypatch):
     base = tmp_path / "chess_harness"
     base.mkdir()
+    models_file = tmp_path / "models.json"
+    models_file.write_text(
+        (
+            '{"models":[{"id":"composer-2.5","name":"C","inscribed":"x","elo":500}]}\n'
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("chess_harness.models.resolve_models_file", lambda: models_file)
     results = base / "results.jsonl"
     results.write_text(
         "\n".join(

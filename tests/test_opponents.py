@@ -5,7 +5,10 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from chess_harness.calibration_view import ladder_elo_for_opponent
 from chess_harness.opponents import get_catalog, opponent_elo_from_result, stockfish_skill_to_elo
+
+from conftest import LOW_OPPONENT
 
 
 def test_catalog_loads():
@@ -16,9 +19,10 @@ def test_catalog_loads():
 
 def test_select_by_elo_prefers_similar_rating():
     catalog = get_catalog()
-    picks = [catalog.select_by_elo(820).id for _ in range(50)]
-    assert "stockfish-handicap:noise17" in picks
-    assert "stockfish:0" not in picks or picks.count("stockfish-handicap:noise17") >= 1
+    opp = catalog.get(LOW_OPPONENT)
+    target = ladder_elo_for_opponent(opp)
+    picks = [catalog.select_by_elo(target).id for _ in range(50)]
+    assert LOW_OPPONENT in picks
 
 
 def test_negative_skill_rejected():
@@ -37,11 +41,7 @@ def test_skill_alias_maps_to_stockfish():
 
 def test_opponent_elo_from_result_uses_calibrated_ladder():
     catalog = get_catalog()
-    opp = catalog.get("stockfish-handicap:noise17")
-    from chess_harness.calibration_view import ladder_elo_for_opponent
-
+    opp = catalog.get(LOW_OPPONENT)
     calibrated = ladder_elo_for_opponent(opp)
-    assert calibrated != opp.elo or calibrated == opp.elo
-    resolved = opponent_elo_from_result({"opponent_id": "stockfish-handicap:noise17"}, catalog)
+    resolved = opponent_elo_from_result({"opponent_id": LOW_OPPONENT}, catalog)
     assert resolved == calibrated
-    assert resolved != opp.elo or opp.elo == calibrated

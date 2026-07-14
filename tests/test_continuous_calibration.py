@@ -20,7 +20,9 @@ from chess_harness.continuous_calibration import (  # noqa: E402
     pick_similar_opponent,
 )
 
-LOW = "stockfish-handicap:noise17"
+from conftest import LOW_OPPONENT  # noqa: E402
+
+LOW = LOW_OPPONENT
 MID = "stockfish-handicap:noise22"
 
 
