@@ -34,4 +34,5 @@ jobs:
       - name: Run tests
         env:
           STOCKFISH_PATH: ${{ runner.os == 'Windows' && 'bin/stockfish-windows-x86-64.exe' || 'stockfish' }}
+          MODELS_FILE: tests/fixtures/models.json
         run: pytest -q

@@ -8,6 +8,8 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from conftest import LOW_OPPONENT, UNCALIBRATED_OPPONENT  # noqa: E402
+
 from chess_harness.opponents import OpponentCatalog, get_catalog, reload_catalog
 
 
@@ -31,15 +33,15 @@ def test_set_enabled_persists(temp_catalog):
 
 
 def test_disabled_excluded_from_selection(temp_catalog):
-    temp_catalog.set_enabled("stockfish-handicap:noise17", False)
+    temp_catalog.set_enabled(LOW_OPPONENT, False)
     picks = [temp_catalog.select_by_elo(500).id for _ in range(40)]
-    assert "stockfish-handicap:noise17" not in picks
+    assert LOW_OPPONENT not in picks
 
 
 def test_resolve_disabled_raises(temp_catalog):
-    temp_catalog.set_enabled("stockfish-handicap:noise17", False)
+    temp_catalog.set_enabled(LOW_OPPONENT, False)
     with pytest.raises(ValueError, match="disabled"):
-        temp_catalog.resolve_opponent_id(opponent_id="stockfish-handicap:noise17")
+        temp_catalog.resolve_opponent_id(opponent_id=LOW_OPPONENT)
 
 
 def test_resolve_disabled_skill_raises(temp_catalog):

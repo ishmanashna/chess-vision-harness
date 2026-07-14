@@ -42,6 +42,9 @@ def test_move_rows_san():
     ]
 
 
+from conftest import LOW_OPPONENT
+
+
 def test_leaderboard_uses_opponent_catalog():
     from chess_harness.ladder_display import render_leaderboard_html
     from chess_harness.elo import ELOLadder
@@ -49,9 +52,9 @@ def test_leaderboard_uses_opponent_catalog():
 
     html = render_leaderboard_html(ELOLadder(base_dir=str(resolve_base_dir())))
     assert "Opponent Ladder" in html
-    assert "stockfish-handicap:noise17" in html
+    assert LOW_OPPONENT in html
     assert "random" in html
-    assert "minimalchess-0.2:noise15" in html
+    assert "inverse-sf:abyss" in html
     assert "Stockfish handicaps" in html
     assert "stockfish:0" in html
     assert "patricia" not in html.lower()

@@ -12,11 +12,11 @@ from chess_harness.opponents import Opponent, get_catalog
 
 def test_catalog_has_handicap_stockfish():
     catalog = get_catalog()
-    noise3 = catalog.get("stockfish-handicap:noise3")
+    noise7 = catalog.get("stockfish-handicap:noise7")
     depth = catalog.get("stockfish-handicap:depth4")
     noise10 = catalog.get("stockfish-handicap:noise10")
-    assert noise3.type == "stockfish_harness"
-    assert noise3.harness == {"movetime_ms": 50, "random_move_pct": 0.03}
+    assert noise7.type == "stockfish_harness"
+    assert noise7.harness == {"movetime_ms": 50, "random_move_pct": 0.07}
     assert depth.harness["depth"] == 2
     assert noise10.harness["random_move_pct"] == 0.1
 

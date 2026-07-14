@@ -11,10 +11,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from calibration.ratings import CalibrationLadder, is_anchor  # noqa: E402
 from calibration.runner import build_schedule  # noqa: E402
-from chess_harness.opponents import get_catalog  # noqa: E402
+from chess_harness.opponents import OpponentCatalog, get_catalog, reload_catalog  # noqa: E402
 
-LOW = "stockfish-handicap:noise17"
-MID = "stockfish-handicap:noise22"
+from conftest import LOW_OPPONENT, MID_OPPONENT  # noqa: E402
+
+LOW = LOW_OPPONENT
+MID = MID_OPPONENT
 
 
 def test_non_stockfish_starts_at_500():
@@ -65,11 +67,15 @@ def test_build_schedule_no_engines():
 
 def test_stockfish_handicap_is_floating_not_anchor():
     catalog = get_catalog()
-    assert not is_anchor(catalog.get("stockfish-handicap:depth6"))
+    assert not is_anchor(catalog.get("stockfish-handicap:depth4"))
     assert is_anchor(catalog.get("stockfish:0"))
 
 
-def test_build_schedule_skips_disabled_opponents():
+def test_build_schedule_skips_disabled_opponents(tmp_path, monkeypatch):
+    dest = tmp_path / "opponents.json"
+    dest.write_text(get_catalog().path.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setenv("OPPONENTS_FILE", str(dest))
+    reload_catalog()
     catalog = get_catalog()
     catalog.set_enabled(LOW, False)
     try:
@@ -82,19 +88,19 @@ def test_build_schedule_skips_disabled_opponents():
         }
         assert build_schedule(suite, seed=1) == []
     finally:
-        catalog.set_enabled(LOW, True)
+        reload_catalog()
 
 
 def test_stockfish_handicap_starts_at_500_in_calibration():
     ladder = CalibrationLadder()
-    assert ladder.initial_rating("stockfish-handicap:blitz50") == 500.0
+    assert ladder.initial_rating(LOW) == 500.0
 
 
-def test_reference_harness_in_catalog():
+def test_depth_harness_in_catalog():
     catalog = get_catalog()
-    ref = catalog.get("stockfish-handicap:reference")
-    assert ref.type == "stockfish_harness"
-    assert ref.harness["movetime_ms"] == 1000
+    depth = catalog.get("stockfish-handicap:depth4")
+    assert depth.type == "stockfish_harness"
+    assert depth.harness["depth"] == 2
 
 
 def test_calibration_first_game_uses_sliding_k():
