@@ -1,6 +1,6 @@
 # Ladder improvement plan
 
-> **Archived (2026-07-13).** Current ladder work lives in [`ladder-coverage-plan.md`](ladder-coverage-plan.md). Kept for historical context only.
+> **Archived (2026-07-13).** Current ladder work lives in [`../ladder-coverage-plan.md`](../ladder-coverage-plan.md). Kept for historical context only.
 
 Status: **superseded**  
 Last updated: 2026-07-12  

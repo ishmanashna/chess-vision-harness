@@ -1,8 +1,23 @@
 # Ladder coverage plan (1300 → −600)
 
-Status: **implementing**  
-Last updated: 2026-07-13  
-Supersedes the gap-filling sections of `ladder-improvement-plan.md` for opponent catalog work.
+Status: **in progress**  
+Last updated: 2026-07-14  
+Supersedes [`archive/ladder-improvement-plan.md`](archive/ladder-improvement-plan.md) for opponent catalog work.
+
+**Not a product roadmap item** — this is the active maintainer mission for opponent calibration. Future product work: [`roadmap/`](roadmap/README.md).
+
+### Progress snapshot (2026-07-14)
+
+| Area | Status |
+|------|--------|
+| `inverse_sf` modes + abyss / worst / exclude-top1 rungs | **Done** |
+| Overlap prune (blitz blob, duplicate depth rungs) | **Mostly done** |
+| Sliding K 64/48/24 | **Done** |
+| 38 opponents with calibrated ELO, adjacent gaps ≤100 | **Done** (among rated rungs) |
+| Full **1300 → −600** span with rungs at each ~100 ELO step | **Not done** — rated band today is ~44–1224 |
+| Sub-random / **negative ELO** rungs | **Not done** — weakest calibrated ~44 (`worst-d10`) |
+| Engine cache / unified SF subprocess per worker | **Not done** |
+| Success criteria checklist below | **Open** |
 
 ---
 
@@ -306,7 +321,7 @@ Example entries (enable only if probes show distinct ELO):
 1. **Pairing:** `floaters` mode (not fixed-vs-`stockfish:0`) so weak engines play each other and spread.
 2. **K-factor:** sliding 64 / 48 / 24 (already implemented).
 3. **New opponent acceptance:** after ~50 games, keep iff calibrated ELO is **> 50 ELO** from nearest neighbor.
-4. **Overlap cull:** if two active opponents within **50 ELO**, disable the slower one (benchmark: `docs/opponent-benchmark.json`).
+4. **Overlap cull:** if two active opponents within **50 ELO**, disable the slower one (benchmark: [`archive/opponent-benchmark.json`](archive/opponent-benchmark.json)).
 5. **Gap audit:** script or ladder UI highlight any interval **> 100 ELO** in 1300→−600; file issue per gap.
 6. **Re-merge:** `rebuild_merged_ratings_file()` after catalog changes; do not reset history.
 
@@ -343,7 +358,7 @@ Example entries (enable only if probes show distinct ELO):
 ## References
 
 - Calibrated ratings: `elo_calibration/results/merged_ratings.json`
-- Speed benchmark: `docs/opponent-benchmark.json`
+- Speed benchmark: [`archive/opponent-benchmark.json`](archive/opponent-benchmark.json)
 - Harness play path: `src/chess_harness/engine.py` (`play_opponent_move`)
 - Calibration game loop: `elo_calibration/calibration/resilient_game.py`
-- Prior work: `docs/ladder-improvement-plan.md` (Phases 0–4, K-factor, UI)
+- Prior work: [`archive/ladder-improvement-plan.md`](archive/ladder-improvement-plan.md) (Phases 0–4, K-factor, UI)
