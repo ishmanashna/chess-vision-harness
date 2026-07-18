@@ -170,7 +170,7 @@ class ModelRegistry:
             if not self.is_enabled(ref):
                 raise ValueError(
                     f"Model '{ref}' is disabled. "
-                    "Enable with: python play.py models enable <id>"
+                    "Enable with: chess-harness models enable <id>"
                 )
             return ref
 
@@ -179,7 +179,7 @@ class ModelRegistry:
                 if not model.get("enabled", True):
                     raise ValueError(
                         f"Model '{ref}' is disabled. "
-                        "Enable with: python play.py models enable <id>"
+                        "Enable with: chess-harness models enable <id>"
                     )
                 return model["id"]
 
@@ -195,11 +195,11 @@ class ModelRegistry:
             return None
 
     def _missing_model_message(self) -> str:
-        ids = ", ".join(self.list_ids()) or "(none — run: python play.py models inscribe <id>)"
+        ids = ", ".join(self.list_ids()) or "(none — run: chess-harness models inscribe <id>)"
         return (
             "A inscribed model is required. Use --model <id>.\n"
             f"Inscribed models: {ids}\n"
-            "List models: python play.py models list"
+            "List models: chess-harness models list"
         )
 
     def _unknown_model_message(self, ref: str) -> str:
@@ -207,14 +207,14 @@ class ModelRegistry:
         return (
             f"Unknown model '{ref}'. Must be an inscribed model id.\n"
             f"Inscribed models: {ids}\n"
-            "Inscribe new: python play.py models inscribe <id> --name \"Display Name\""
+            "Inscribe new: chess-harness models inscribe <id> --name \"Display Name\""
         )
 
 
 def format_model_list(registry: ModelRegistry) -> str:
     models = registry.list_models()
     if not models:
-        return "No inscribed models. Run: python play.py models inscribe <id> --name \"Name\""
+        return "No inscribed models. Run: chess-harness models inscribe <id> --name \"Name\""
     lines = ["Inscribed models:"]
     for model in models:
         elo = model.get("elo", AGENT_START_ELO)

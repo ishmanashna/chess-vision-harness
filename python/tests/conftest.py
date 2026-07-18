@@ -4,15 +4,17 @@ import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+PYTHON_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = PYTHON_ROOT.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(PYTHON_ROOT / "src"))
 
-STOCKFISH_BIN = ROOT / "bin" / "stockfish-windows-x86-64.exe"
+STOCKFISH_BIN = REPO_ROOT / "bin" / "stockfish-windows-x86-64.exe"
 
 os.environ.setdefault("STOCKFISH_PATH", str(STOCKFISH_BIN))
 os.environ.setdefault("MODELS_FILE", str(FIXTURES / "models.json"))
+os.environ.setdefault("OPPONENTS_FILE", str(REPO_ROOT / "config" / "opponents.json"))
 
 DEFAULT_MODEL = "composer-2.5"
 

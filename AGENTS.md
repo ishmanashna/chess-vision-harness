@@ -6,12 +6,12 @@ Vision-only benchmark. Cheating invalidates the game.
 
 ## One move loop
 
-1. `python play.py models list` — find your inscribed model id.
-2. `python play.py new --model <id>` — note `game_id`, `board_path`, `your_turn`, `agent_color`.
+1. `chess-harness models list` — find your inscribed model id.
+2. `chess-harness new --model <id>` — note `game_id`, `board_path`, `your_turn`, `agent_color`.
 3. **Open and read the PNG at `board_path`** — the only position source.
-4. `python play.py move <game_id> <uci|san>` — submit your move.
+4. `chess-harness move <game_id> <uci|san>` — submit your move.
 5. Repeat step 3 until the game ends or you resign.
-6. After the game ends: `python play.py pgn <game_id>`.
+6. After the game ends: `chess-harness pgn <game_id>`.
 
 MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image), `chess_make_move`, `chess_status`, `chess_resign`, `chess_export_pgn` (finished games only).
 
@@ -19,14 +19,14 @@ MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image
 
 | Step | CLI | MCP |
 |------|-----|-----|
-| List models | `python play.py models list` | `chess_list_models` |
-| Start game | `python play.py new --model <id>` | `chess_new_game` |
+| List models | `chess-harness models list` | `chess_list_models` |
+| Start game | `chess-harness new --model <id>` | `chess_new_game` |
 | See position | **Read PNG at `board_path`** | `chess_get_board` → image |
-| Submit move | `python play.py move <id> <move>` | `chess_make_move` |
-| Check turn | `python play.py status <id>` | `chess_status` |
-| Refresh image | `python play.py board <id>` | `chess_get_board` |
-| Resign | `python play.py resign <id>` | `chess_resign` |
-| After game ends | `python play.py pgn <id>` | `chess_export_pgn` |
+| Submit move | `chess-harness move <id> <move>` | `chess_make_move` |
+| Check turn | `chess-harness status <id>` | `chess_status` |
+| Refresh image | `chess-harness board <id>` | `chess_get_board` |
+| Resign | `chess-harness resign <id>` | `chess_resign` |
+| After game ends | `chess-harness pgn <id>` | `chess_export_pgn` |
 
 ## Ground truth
 
@@ -54,7 +54,7 @@ MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image
 
 ```
 You are playing chess in the Chess Vision Harness. Rules:
-- ONLY use: python play.py move/status/board (or MCP chess_make_move, chess_status, chess_get_board).
+- ONLY use: chess-harness move/status/board (or MCP chess_make_move, chess_status, chess_get_board).
 - Position info ONLY from the board PNG at board_path (open the image every turn).
 - NEVER read .chess_harness/games/*/state.json, game.pgn, results.jsonl.
 - NEVER curl localhost:8765 or run Stockfish/python-chess or use any tool to pick moves, list legal moves, or know the evaluation.

@@ -14,7 +14,7 @@ from typing import Any, Dict, List
 import chess
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "python" / "src"))
 import chess_harness.bootstrap  # noqa: E401
 
 from chess_harness.engine import OpponentEngineManager

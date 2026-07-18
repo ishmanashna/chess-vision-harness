@@ -47,7 +47,7 @@ def split_opponent_ladder(
 def format_agent_leaderboard_cli(ladder: ELOLadder) -> str:
     board = ladder.get_leaderboard()
     if not board:
-        return "No inscribed models. Run: python play.py models list"
+        return "No inscribed models. Run: chess-harness models list"
     lines = ["Agent rankings:"]
     for i, entry in enumerate(board, 1):
         label = entry["name"] if entry.get("name") != entry["model"] else entry["model"]

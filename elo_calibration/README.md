@@ -36,6 +36,6 @@ Reports: `elo_calibration/results/<suite>/summary.md`, `ratings.json`, `games.js
 
 **Note:** `elo_calibration/results/` is gitignored except **`merged_ratings.json`**, **`continuous/ratings.json`**, and **`continuous/games.jsonl`** — commit those to restore calibration after clone. Per-suite `quick/` / `ladder/` outputs stay local.
 
-**Spectator continuous calibration** (`python play.py serve` → `/calibration`): per-engine Start/Stop, parallel games, writes to `results/continuous/`. Do not run the batch CLI and spectator calibration at the same time.
+**Spectator continuous calibration** (`chess-harness serve` → `/calibration`): per-engine Start/Stop, parallel games, writes to `results/continuous/`. Do not run the batch CLI and spectator calibration at the same time.
 
 See `suites/schema.md` for YAML format.

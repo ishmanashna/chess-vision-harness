@@ -28,7 +28,7 @@ class ChessHarnessMCP:
         model_ids = self.registry.list_ids()
         model_schema: Dict[str, Any] = {
             "type": "string",
-            "description": "Inscribed model id (required). List: python play.py models list",
+            "description": "Inscribed model id (required). List: chess-harness models list",
         }
         if model_ids:
             model_schema["enum"] = model_ids

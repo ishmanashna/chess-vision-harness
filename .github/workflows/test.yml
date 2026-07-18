@@ -21,7 +21,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e "python/[dev]"
 
       - name: Install Stockfish (Linux)
         if: runner.os == 'Linux'
@@ -32,7 +32,9 @@ jobs:
         run: python scripts/fetch_opponents.py
 
       - name: Run tests
+        working-directory: python
         env:
-          STOCKFISH_PATH: ${{ runner.os == 'Windows' && 'bin/stockfish-windows-x86-64.exe' || 'stockfish' }}
-          MODELS_FILE: tests/fixtures/models.json
+          STOCKFISH_PATH: ${{ runner.os == 'Windows' && '../bin/stockfish-windows-x86-64.exe' || 'stockfish' }}
+          MODELS_FILE: python/tests/fixtures/models.json
+          OPPONENTS_FILE: config/opponents.json
         run: pytest -q

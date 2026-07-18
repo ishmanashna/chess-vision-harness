@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run line-limit check, TypeScript, full pytest, and ESLint."""
+"""Run root layout, line-limit check, TypeScript, full pytest, and ESLint."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+PYTHON = ROOT / "python"
+FRONTEND = ROOT / "frontend"
 
 
 def run(title: str, argv: list[str], *, cwd: Path = ROOT) -> int:
@@ -27,19 +29,18 @@ def npx_cmd() -> str:
 
 
 def ensure_node_deps() -> int:
-    if not (ROOT / "node_modules").is_dir():
-        return run("npm install", [npm_cmd(), "install"])
+    if not (FRONTEND / "node_modules").is_dir():
+        return run("npm install", [npm_cmd(), "install"], cwd=FRONTEND)
     return 0
 
 
 def main() -> int:
-    steps: list[tuple[str, list[str]]] = [
-        ("Line limit (≤300)", [sys.executable, str(ROOT / "scripts" / "check_line_limits.py")]),
-    ]
-
     code = 0
-    for title, argv in steps:
-        rc = run(title, argv)
+    for title, argv, cwd in [
+        ("Clean root", [sys.executable, str(ROOT / "scripts" / "check_clean_root.py")], ROOT),
+        ("Line limit (≤300)", [sys.executable, str(ROOT / "scripts" / "check_line_limits.py")], ROOT),
+    ]:
+        rc = run(title, argv, cwd=cwd)
         if rc != 0:
             code = rc
 
@@ -47,12 +48,12 @@ def main() -> int:
     if rc != 0:
         return rc
 
-    for title, argv in [
-        ("TypeScript", [npx_cmd(), "tsc", "--noEmit", "--pretty", "false"]),
-        ("Tests (full pytest)", [sys.executable, "-m", "pytest"]),
-        ("ESLint", [npx_cmd(), "eslint", ".", "--max-warnings", "0"]),
+    for title, argv, cwd in [
+        ("TypeScript", [npx_cmd(), "tsc", "--noEmit", "--pretty", "false"], FRONTEND),
+        ("Tests (full pytest)", [sys.executable, "-m", "pytest"], PYTHON),
+        ("ESLint", [npx_cmd(), "eslint", ".", "--max-warnings", "0"], FRONTEND),
     ]:
-        rc = run(title, argv)
+        rc = run(title, argv, cwd=cwd)
         if rc != 0:
             code = rc
 

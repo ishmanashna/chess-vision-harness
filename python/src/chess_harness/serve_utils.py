@@ -131,21 +131,21 @@ def ensure_port_available(host: str, port: int, force: bool = False) -> None:
             remaining = find_pids_on_port(port)
             raise RuntimeError(
                 f"Port {port} is still in use after stopping PIDs {killed}. "
-                f"Remaining: {remaining}. Try: python play.py serve stop"
+                f"Remaining: {remaining}. Try: chess-harness serve stop"
             )
         if killed:
             print(f"Stopped previous spectator process(es): {killed}")
         return
 
-    hint = "python play.py serve stop"
+    hint = "chess-harness serve stop"
     if meta and meta.get("port") == port:
-        hint = f"python play.py serve stop   (recorded pid {meta.get('pid')})"
+        hint = f"chess-harness serve stop   (recorded pid {meta.get('pid')})"
 
     pid_text = ", ".join(str(p) for p in pids) if pids else "unknown"
     raise RuntimeError(
         f"Port {port} is already in use (PID(s): {pid_text}).\n"
         f"Stop the old server: {hint}\n"
-        f"Or force-restart:    python play.py serve --force"
+        f"Or force-restart:    chess-harness serve --force"
     )
 
 

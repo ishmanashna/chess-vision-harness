@@ -126,7 +126,7 @@ def kill_orphan_pool_workers(*, keep_pids: set[int] | None = None) -> int:
             parent_cmd = _windows_parent_cmdline(parent_pid) if parent_alive else None
             parent_is_spectator = bool(
                 parent_cmd
-                and ("play.py serve" in parent_cmd or "uvicorn" in parent_cmd.lower())
+                and ("chess-harness serve" in parent_cmd or "play.py serve" in parent_cmd or "uvicorn" in parent_cmd.lower())
             )
             if parent_alive and parent_is_spectator:
                 continue

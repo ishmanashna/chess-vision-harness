@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "chess-vision-harness"
 version = "0.2.0"
 description = "Local harness for vision LLM agents to play chess against a catalog of rated engines, with spectator UI and engine calibration."
-readme = "README.md"
+readme = "../README.md"
 license = "MIT"
 requires-python = ">=3.11"
 classifiers = [
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-chess-harness = "chess_harness.cli:main"
+chess-harness = "chess_harness.__main__:main"
 chess-harness-mcp = "chess_harness.mcp_server:run"
 
 [tool.hatch.build.targets.wheel]

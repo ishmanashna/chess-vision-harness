@@ -149,7 +149,7 @@ def main() -> int:
         tmp = Path(tmpdir)
         _install_stockfish(tmp)
         _install_minimalchess_all(tmp)
-    print("Done. Run: python play.py opponents verify")
+    print("Done. Run: chess-harness opponents verify")
     return 0
 
 

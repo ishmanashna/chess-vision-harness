@@ -1,14 +1,12 @@
-#!/usr/bin/env python3
-"""Chess Vision Harness — play chess vs catalog opponents via board images."""
+"""Canonical CLI entry (`chess-harness`, `python -m chess_harness`)."""
+
+from __future__ import annotations
 
 import json
 import sys
 
-# Bootstrap paths and Stockfish before other imports
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent / "src"))
-import chess_harness.bootstrap  # noqa: F401
-
-from chess_harness import commands
+from . import bootstrap  # noqa: F401
+from . import commands
 
 
 def _parse_new_opts(args: list[str]) -> dict:
@@ -29,8 +27,8 @@ def _parse_new_opts(args: list[str]) -> dict:
     return opts
 
 
-def main():
-    args = sys.argv[1:]
+def main(argv: list[str] | None = None) -> None:
+    args = list(sys.argv[1:] if argv is None else argv)
 
     if not args or args[0] == "new":
         opts = _parse_new_opts(args[1:] if args and args[0] == "new" else args)
@@ -56,25 +54,25 @@ def main():
 
     elif args[0] == "move":
         if len(args) < 3:
-            print("Usage: python play.py move <game_id> <move>")
+            print("Usage: chess-harness move <game_id> <move>")
             sys.exit(1)
         print(json.dumps(commands.cmd_move(args[1], args[2]), indent=2))
 
     elif args[0] == "pgn":
         if len(args) < 2:
-            print("Usage: python play.py pgn <game_id>")
+            print("Usage: chess-harness pgn <game_id>")
             sys.exit(1)
         print(json.dumps(commands.cmd_pgn(args[1]), indent=2))
 
     elif args[0] == "game":
         if len(args) < 3 or args[1] != "audit":
-            print("Usage: python play.py game audit <game_id>")
+            print("Usage: chess-harness game audit <game_id>")
             sys.exit(1)
         print(json.dumps(commands.cmd_game_audit(args[2]), indent=2))
 
     elif args[0] == "resign":
         if len(args) < 2:
-            print("Usage: python play.py resign <game_id>")
+            print("Usage: chess-harness resign <game_id>")
             sys.exit(1)
         print(json.dumps(commands.cmd_resign(args[1]), indent=2))
 
@@ -94,7 +92,7 @@ def main():
 
     elif args[0] == "rating":
         if len(args) < 3 or args[1] != "--model":
-            print("Usage: python play.py rating --model <name>")
+            print("Usage: chess-harness rating --model <name>")
             sys.exit(1)
         commands.cmd_rating(args[2])
 
@@ -141,7 +139,7 @@ def main():
             commands.cmd_models_list()
         elif args[1] == "inscribe":
             if len(args) < 3:
-                print("Usage: python play.py models inscribe <id> [--name \"Display Name\"]")
+                print('Usage: chess-harness models inscribe <id> [--name "Display Name"]')
                 sys.exit(1)
             model_id = args[2]
             name = None
@@ -150,26 +148,28 @@ def main():
             commands.cmd_models_inscribe(model_id, name)
         elif args[1] == "uninscribe":
             if len(args) < 3:
-                print("Usage: python play.py models uninscribe <id>")
+                print("Usage: chess-harness models uninscribe <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_models_uninscribe(args[2]))
         elif args[1] == "disable":
             if len(args) < 3:
-                print("Usage: python play.py models disable <id>")
+                print("Usage: chess-harness models disable <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_models_set_enabled(args[2], False))
         elif args[1] == "enable":
             if len(args) < 3:
-                print("Usage: python play.py models enable <id>")
+                print("Usage: chess-harness models enable <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_models_set_enabled(args[2], True))
         else:
-            print("Usage: python play.py models list|inscribe <id>|uninscribe <id>|disable <id>|enable <id>")
+            print(
+                "Usage: chess-harness models list|inscribe <id>|uninscribe <id>|disable <id>|enable <id>"
+            )
             sys.exit(1)
 
     elif args[0] == "harness":
         if len(args) < 2 or args[1] != "reset":
-            print("Usage: python play.py harness reset [--yes]")
+            print("Usage: chess-harness harness reset [--yes]")
             sys.exit(1)
         sys.exit(commands.cmd_harness_reset(confirm="--yes" in args))
 
@@ -183,21 +183,21 @@ def main():
             sys.exit(commands.cmd_opponents_verify())
         elif args[1] == "disable":
             if len(args) < 3:
-                print("Usage: python play.py opponents disable <id>")
+                print("Usage: chess-harness opponents disable <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_opponents_set_enabled(args[2], False))
         elif args[1] == "enable":
             if len(args) < 3:
-                print("Usage: python play.py opponents enable <id>")
+                print("Usage: chess-harness opponents enable <id>")
                 sys.exit(1)
             sys.exit(commands.cmd_opponents_set_enabled(args[2], True))
         else:
-            print("Usage: python play.py opponents list|verify|disable <id>|enable <id>")
+            print("Usage: chess-harness opponents list|verify|disable <id>|enable <id>")
             sys.exit(1)
 
     elif args[0] == "tournament":
         if len(args) < 2:
-            print("Usage: python play.py tournament create|start|smoke|aggregate")
+            print("Usage: chess-harness tournament create|start|smoke|aggregate")
             sys.exit(1)
         sub = args[1]
         if sub == "create":
@@ -215,7 +215,7 @@ def main():
             sys.exit(1)
 
     else:
-        print(__doc__ or "Chess Vision Harness — run: python play.py new")
+        print("Chess Vision Harness — run: chess-harness new --model <id>")
         sys.exit(1)
 
 

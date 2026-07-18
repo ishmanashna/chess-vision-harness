@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PATH = ROOT / "opponents.json"
+PATH = ROOT / "config" / "opponents.json"
 
 # Remove entirely (not just disable).
 REMOVE_IDS = {

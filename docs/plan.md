@@ -1,7 +1,6 @@
 # Plan: Markdown-only repo root
 
-Status: **ready to implement** (wait for go-ahead)  
-Last updated: 2026-07-18
+Status: **implemented** (2026-07-18)
 
 ## Goal
 

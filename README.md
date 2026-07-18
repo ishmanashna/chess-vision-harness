@@ -24,13 +24,14 @@ Maintainer roadmap (separate from this file): `[docs/roadmap/](docs/roadmap/READ
 ## Install
 
 ```bash
-pip install -e ".[dev]"
-cp models.json.example models.json    # optional: empty model registry
+pip install -e "python/[dev]"
 python scripts/fetch_opponents.py   # Stockfish → bin/
-python play.py opponents verify
+chess-harness opponents verify
 ```
 
-Requirements: **Python 3.11+** (Stockfish only — no Node or third-party engine binaries).
+First run creates `.chess_harness/models.json` from `config/models.json.example`.
+
+Requirements: **Python 3.11+**. Node.js only for `python scripts/quality_gate.py` (TypeScript + ESLint).
 
 
 | Variable            | Purpose                                                                  |
@@ -44,25 +45,25 @@ Stockfish is GPL-3 — see `[NOTICE.md](NOTICE.md)`.
 ## Quick start (human operator)
 
 ```bash
-python play.py models inscribe my-agent --name "My Agent"
-python play.py serve --force
+chess-harness models inscribe my-agent --name "My Agent"
+chess-harness serve --force
 # http://localhost:8765
 ```
 
 Give an agent `[AGENTS.md](AGENTS.md)` and let it play:
 
 ```bash
-python play.py new --model my-agent --opponent stockfish-handicap:noise17
-python play.py move <game_id> e2e4
+chess-harness new --model my-agent --opponent stockfish-handicap:noise17
+chess-harness move <game_id> e2e4
 ```
 
 
 
 ## Opponents
 
-Catalog: `[opponents.json](opponents.json)`. Download binaries with `scripts/fetch_opponents.py`.
+Catalog: [`config/opponents.json`](config/opponents.json). Download binaries with `scripts/fetch_opponents.py`.
 
-Opponents can be **`enabled: false`** to remove them from agent pairing and calibration without deleting ELO history (`python play.py opponents disable <id>`).
+Opponents can be **`enabled: false`** to remove them from agent pairing and calibration without deleting ELO history (`chess-harness opponents disable <id>`).
 
 | Family | Examples | Rating source |
 |--------|----------|---------------|
@@ -77,19 +78,19 @@ Opponents can be **`enabled: false`** to remove them from agent pairing and cali
 Omit `--opponent` for an **ELO-weighted random** opponent matched to the agent's rating (eligible opponents only).
 
 ```bash
-python play.py opponents list
-python play.py opponents verify
+chess-harness opponents list
+chess-harness opponents verify
 ```
 
 Catalog ELO labels are **engine ratings**, not human FIDE ELO.
 
 ## Agent ELO
 
-Inscribed models live in `models.json` (copy from `models.json.example`; starts at **500** ELO). Vision agents only — see `[AGENTS.md](AGENTS.md)`.
+Inscribed models live in `.chess_harness/models.json` (created from `config/models.json.example`; starts at **500** ELO). Vision agents only — see [`AGENTS.md`](AGENTS.md).
 
 ```bash
-python play.py models list
-python play.py leaderboard
+chess-harness models list
+chess-harness leaderboard
 ```
 
 
@@ -115,9 +116,9 @@ See `[elo_calibration/README.md](elo_calibration/README.md)` and `[docs/ladder-c
 ## Spectator
 
 ```bash
-python play.py serve
-python play.py serve stop
-python play.py serve --force
+chess-harness serve
+chess-harness serve stop
+chess-harness serve --force
 ```
 
 
@@ -137,23 +138,23 @@ python play.py serve --force
 python -m chess_harness.mcp_server
 ```
 
-Copy `[mcp.json.example](mcp.json.example)` to `.cursor/mcp.json` if you use Cursor.
+Copy [`config/mcp.json.example`](config/mcp.json.example) to `.cursor/mcp.json` if you use Cursor.
 
 Tools: `chess_list_models`, `chess_new_game`, `chess_get_board`, `chess_make_move`, `chess_status`, `chess_resign`, `chess_export_pgn`.
 
 ## CLI reference
 
 
-| Command                       | Purpose                 |
+| Command | Purpose |
 | ----------------------------- | ----------------------- |
-| `play.py new --model <id>`    | Start game              |
-| `play.py move <id> <move>`    | Agent move (UCI or SAN) |
-| `play.py status` / `board`    | Metadata / refresh PNG  |
-| `play.py pgn <id>`            | Export after game ends  |
-| `play.py opponents list`      | Catalog (enabled/disabled) |
-| `play.py opponents disable/enable <id>` | Toggle opponent |
-| `play.py harness reset --yes` | Wipe local data         |
-| `play.py game audit <id>`     | Move audit log          |
+| `chess-harness new --model <id>` | Start game |
+| `chess-harness move <id> <move>` | Agent move (UCI or SAN) |
+| `chess-harness status` / `board` | Metadata / refresh PNG |
+| `chess-harness pgn <id>` | Export after game ends |
+| `chess-harness opponents list` | Catalog (enabled/disabled) |
+| `chess-harness opponents disable/enable <id>` | Toggle opponent |
+| `chess-harness harness reset --yes` | Wipe local data |
+| `chess-harness game audit <id>` | Move audit log |
 
 
 Workflows: `[scripts/run_agent_game.md](scripts/run_agent_game.md)`.
@@ -161,14 +162,14 @@ Workflows: `[scripts/run_agent_game.md](scripts/run_agent_game.md)`.
 ## Tests
 
 ```bash
-pytest
+cd python && pytest
 ```
 
-CI runs on Ubuntu + Windows (see `.github/workflows/test.yml`).
+Or from repo root: `python scripts/quality_gate.py` (full gate).
 
 ## License
 
-- **[`LICENSE`](LICENSE)** — MIT for harness source code (Python, spectator UI, scripts).
+- **[`docs/LICENSE.md`](docs/LICENSE.md)** — MIT for harness source code (Python, spectator UI, scripts).
 - **[`NOTICE.md`](NOTICE.md)** — third-party **engine** licenses (Stockfish GPL, optional MinimalChess MIT). Binaries are downloaded, not shipped in git.
 
 See also [`docs/README.md`](docs/README.md) for the full documentation map.

@@ -4,7 +4,7 @@ Only **Stockfish** is required. Install with:
 
 ```bash
 python scripts/fetch_opponents.py
-python play.py opponents verify
+chess-harness opponents verify
 ```
 
 Legacy third-party engines (Patricia, MinimalChess, Toledo) were removed from the ladder. If old binaries remain:

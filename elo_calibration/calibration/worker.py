@@ -9,7 +9,7 @@ def play_match_worker(payload: dict) -> dict:
 
     root = Path(__file__).resolve().parents[1]
     project = root.parent
-    src = str(project / "src")
+    src = str(project / "python" / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
     cal = str(root)
@@ -40,7 +40,7 @@ def play_resilient_match_worker(payload: dict) -> dict:
 
     root = Path(__file__).resolve().parents[1]
     project = root.parent
-    src = str(project / "src")
+    src = str(project / "python" / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
     cal = str(root)

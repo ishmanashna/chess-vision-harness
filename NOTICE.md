@@ -1,6 +1,6 @@
 # Third-party engines and licenses
 
-The **Chess Vision Harness** application code is licensed under the MIT License (see [`LICENSE`](../LICENSE)).
+The **Chess Vision Harness** application code is licensed under the MIT License (see [`docs/LICENSE.md`](docs/LICENSE.md)).
 
 Running games downloads separate chess engine binaries. Those engines are **not**
 covered by the MIT license. You are responsible for complying with each engine's

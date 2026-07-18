@@ -23,7 +23,7 @@ def harness_reset(*, confirm: bool = False) -> int:
         print("  - legacy elo.json (if present)")
         print()
         print("Re-run with --yes to confirm:")
-        print("  python play.py harness reset --yes")
+        print("  chess-harness harness reset --yes")
         return 1
 
     gm = GameManager()

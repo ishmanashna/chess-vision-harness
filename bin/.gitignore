@@ -1,0 +1,4 @@
+**/*.exe
+stockfish*
+opponents/**
+!opponents/LICENSES.md

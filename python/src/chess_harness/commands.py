@@ -1,4 +1,4 @@
-"""Shared command handlers for play.py and chess-harness CLI."""
+"""Shared command handlers for chess-harness CLI."""
 
 from __future__ import annotations
 
@@ -265,7 +265,7 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
     atexit.register(remove_spectator_meta)
 
     print(f"Starting spectator on http://localhost:{port}")
-    print("Stop with Ctrl+C, or run: python play.py serve stop")
+    print("Stop with Ctrl+C, or run: chess-harness serve stop")
     try:
         uvicorn.run(app, host=host, port=port, log_level="info")
     finally:
@@ -300,7 +300,7 @@ def cmd_tournament_start(prefix: str = "tour") -> None:
     try:
         manifest = tm.load_manifest()
         if not manifest:
-            print("No tournament manifest found. Run: play.py tournament create")
+            print("No tournament manifest found. Run: chess-harness tournament create")
             return
         for game in manifest["games"]:
             if game.get("status") == "pending":
