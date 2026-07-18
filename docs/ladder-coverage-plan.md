@@ -1,10 +1,12 @@
 # Ladder coverage plan (1300 → −600)
 
 Status: **in progress**  
-Last updated: 2026-07-14  
+Last updated: 2026-07-18  
 Supersedes [`archive/ladder-improvement-plan.md`](archive/ladder-improvement-plan.md) for opponent catalog work.
 
-**Not a product roadmap item** — this is the active maintainer mission for opponent calibration. Future product work: [`roadmap/`](roadmap/README.md).
+**Not a numbered product plan.** Product roadmap: [`roadmap/`](roadmap/README.md).
+
+**Serial only:** do this work only **between** numbered roadmap plans. Pause Plan 0–4 before touching the catalog/calibration mission; never run ladder work at the same time as a product plan.
 
 ### Progress snapshot (2026-07-14)
 

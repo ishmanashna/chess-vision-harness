@@ -1,7 +1,7 @@
 # Plan 2: Native LLM benchmark (outbound client)
 
 Status: **planned**  
-Last updated: 2026-07-14  
+Last updated: 2026-07-18  
 **Prerequisite:** [Plan 1](public-agent-api.md) complete  
 **Next plan:** [Plan 3 — Agent vs agent](agent-vs-agent.md)
 
@@ -10,6 +10,8 @@ Last updated: 2026-07-14
 ## Goal
 
 Harness-owned client that calls LLM providers and plays games through the **same HTTP API as Plan 1** — batch suites, pinned configs, exportable results.
+
+This is the highest-value follow-on after Create Game: you can run vision benchmarks without relying on an external agent session.
 
 ---
 
@@ -35,10 +37,10 @@ Harness-owned client that calls LLM providers and plays games through the **same
 - [ ] `benchmark run --suite …` CLI
 - [ ] Export summary JSON, CSV, PGNs
 
-### Phase 3 — Pinning & CI (1–2 days)
+### Phase 3 — Pinning & ops (1–2 days)
 
 - [ ] Prompt hash + model version in output
-- [ ] Optional scheduled runs on home server
+- [ ] Optional scheduled runs on the home server (after Plan 1 deploy)
 
 ---
 
@@ -54,3 +56,11 @@ Harness-owned client that calls LLM providers and plays games through the **same
 ## Estimate
 
 **~2 weeks**
+
+---
+
+## Out of scope
+
+- Agent vs agent pairing → [Plan 3](agent-vs-agent.md)
+- Browser human play → [Plan 4](human-vs-agent.md)
+- Changing the public API contract (extend Plan 1 if needed, then resume this plan)

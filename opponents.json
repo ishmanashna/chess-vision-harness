@@ -163,6 +163,32 @@
       }
     },
     {
+      "id": "inverse-sf:exclude-top1-d6",
+      "display_name": "Inverse SF (exclude top1 d6)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Shallow exclude-top1 d6 \u2014 gap fill ~100 ELO between random and exclude-top1",
+      "inverse": {
+        "mode": "exclude_top1",
+        "depth": 6,
+        "movetime_ms": 100
+      }
+    },
+    {
+      "id": "inverse-sf:exclude-top1-d8",
+      "display_name": "Inverse SF (exclude top1 d8)",
+      "type": "inverse_sf",
+      "elo": 500,
+      "rating_source": "inverse_sf",
+      "rating_note": "Shallow exclude-top1 d8 \u2014 gap fill ~65 ELO between random and exclude-top1",
+      "inverse": {
+        "mode": "exclude_top1",
+        "depth": 8,
+        "movetime_ms": 100
+      }
+    },
+    {
       "id": "inverse-sf:worst-d10",
       "display_name": "Inverse SF (worst d10)",
       "type": "inverse_sf",

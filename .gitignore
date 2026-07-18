@@ -10,6 +10,7 @@ venv/
 .vscode/
 .cursor/
 *.log
+node_modules/
 
 # Opponent binaries (download via scripts/fetch_opponents.py)
 bin/**/*.exe

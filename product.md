@@ -1,103 +1,42 @@
-# Chess Vision Harness — Product
+# PRODUCT
 
-## One-liner
+## What this is
 
-A local harness where **vision LLM agents** play chess against a **catalog of rated engines**, grounded on a fresh board PNG every turn, with live **spectator**, agent **ELO ladder**, PGN export, and parallel multi-game runs for winrate stats.
+A fair chess benchmark for vision-capable AI agents. Agents see the board as an image, choose a move, and play against a ladder of rated opponents. Humans can watch games and compare agents on a shared leaderboard.
 
-## Problem
+## Why it exists
 
-Agents playing from text or hidden state drift off the board and cheat with engines. We need a fair benchmark: **see the board, submit a move, repeat** — with illegal moves rejected and humans able to watch.
+Most agent “chess” demos leak the position as text or let the model call an engine. That measures tooling, not vision and play. This project forces the hard path: look at the board, move, repeat — with illegal moves rejected and no hidden shortcuts.
 
-Separately, opponent catalog labels (Patricia “500”, CCRL quotes) may not match real strength at our time controls. We need **engine calibration** to measure and rationalize those numbers.
+## Desired product
 
-## What we're building
+A public, copyable vision-chess benchmark people trust:
 
-### 1. Vision agent benchmark
+- Anyone can bring an agent, start a rated game, and finish it under the same rules.
+- Results update a shared agent ladder.
+- Operators can watch live games and review finished ones.
+- Opponent strength is honest — calibrated engines from strong down through random and worse — so a weak agent faces weak opponents, not a world champion by accident.
+- Later: the harness can call models itself for batch benchmarks; agents can play each other; a human can play an agent in the browser. Live viewing stays on Twitch (or similar), not a custom stream stack.
 
-- Agent reads `board.png` only (API/CLI redacted — no FEN leaks).
-- Plays vs `opponents.json` entries (Patricia, tiny engines, Stockfish tiers, handicapped Stockfish).
-- Agent ELO in `models.json` (starts 500, updates from game results).
-- MCP + `play.py` CLI; contract in [`AGENTS.md`](AGENTS.md).
+The north star is simple: **bring an agent, play fair rated games, see where you stand.**
 
-### 2. Spectator (operator + audience)
+## Who it’s for
 
-Local web UI at `http://localhost:8765`:
+- **Operators** — run the benchmark, tune opponents, watch and validate games.
+- **Agent builders** — plug in a vision model and measure real play strength.
+- **Outsiders** — reproduce results and compare agents under the same contract.
 
-| Area | Purpose |
-|------|---------|
-| **Active** | Live games — mini-boards, eval bar, agent vs opponent labels |
-| **Completed** | Results, ELO change, link to full board view |
-| **Game view** (`/g/<id>`) | Full board, move list, game info (operator debug) |
-| **Leaderboard** | Agent rankings + opponent catalog reference table |
+## What success looks like
 
-Started with `python play.py serve`. One process per port; `--force` replaces stale servers.
+- Agents that only see the board can complete honest games end to end.
+- Rankings reflect play, not leaked state or engine help.
+- Opponent difficulty matches the agent’s level in a sensible way.
+- A stranger can understand the offer without reading the codebase: play, watch, compare.
 
-Spectator is **not** for agents — API is redacted unless `CHESS_HARNESS_DEBUG=1` (auto-set when serving).
+## What we are not building
 
-### 3. Engine calibration (`elo_calibration/`)
-
-Engine-vs-engine ladder — **no agents**:
-
-- Non-Stockfish opponents start at ELO **500**, update per game (sliding K).
-- `stockfish:N` tiers are **anchors** (fixed catalog UCI ELO).
-- `stockfish-handicap:*` = Stockfish with depth/time/noise harness — calibrated like other floaters.
-- Output: `results/<suite>/games.jsonl`, `ratings.json`, `summary.md` — advisory for `opponents.json`.
-
-Example finding: a mislabeled harness rung can beat `stockfish:0` often while fitted ELO is still climbing (500→900+) — catalog labels need calibration, not blind trust.
-
-### 4. Operator tooling
-
-- `harness reset`, `models inscribe/uninscribe`, `game audit`, `opponents verify`
-- [`scripts/run_agent_game.md`](scripts/run_agent_game.md) — how to launch an honest subagent run
-- Tournament / batch (`results.jsonl`, aggregate)
-
-## Goals
-
-- IDE agents play full games via tools with visual grounding every turn.
-- Many parallel `game_id`s (subagents) without state corruption.
-- Honest opponent strength labels (calibration-backed).
-- Windows-friendly, offline, no database.
-
-## Non-goals
-
-- Computer-use / clicking on a screen
-- Online matchmaking or FIDE ratings
-- Model training
-- Letting agents read `state.json` or spectator APIs during play
-
-## Target users
-
-1. **Us** — run agent batteries, tune opponents, watch spectator, read calibration reports.
-2. **Outsiders** — clone repo, read README, reproduce agent games with their own models.
-
-## Core journeys
-
-### Honest agent game
-
-1. Operator: `serve --force`, inscribe model, paste [`AGENTS.md`](AGENTS.md) prompt into subagent.
-2. Agent: `new` → read image → `move` loop → `pgn`.
-3. Operator: `game audit <id>`, spectator review, keep or invalidate result.
-
-### Calibrate opponents
-
-1. `python elo_calibration/scripts/run_calibration.py --suite ladder --play`
-2. Review fitted ELO vs catalog; adjust `opponents.json` or harness configs.
-3. Re-run agent games at calibrated tiers.
-
-### Parallel eval
-
-Matrix of opponents × colors × N games; each subagent gets its own `game_id`; `aggregate` + `leaderboard`.
-
-## Success criteria
-
-- Agent at ~500 ELO gets ~500-strength opponents by default (not `stockfish:0` at 1320).
-- No FEN/position leaks on agent API surface (tests in `test_agent_surface.py`).
-- Calibration produces sensible ordering (e.g. `noise10` weaker than `noise5` over many games).
-- Spectator shows correct orientation and labels when agent plays Black.
-- PGN imports on Lichess.
-
-## Constraints
-
-- Python 3.11+, `python-chess`, local Stockfish + bundled opponents
-- Filesystem state (`.chess_harness/`), no DB
-- Localhost spectator by default
+- Screen-clicking / computer-use bots
+- Online matchmaking or official human ratings
+- Training models inside this repo
+- In-app live streaming (operators use Twitch or screen share)
+- A product that rewards cheating the vision contract

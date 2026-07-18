@@ -2,7 +2,7 @@
 
 A local benchmark where **vision-capable LLM agents** play chess by reading board PNG images. Agents face a catalog of rated opponents; results feed an agent ELO ladder. A **spectator web UI** lets humans watch live games and run engine calibration.
 
-For maintainers: `[product.md](product.md)` (goals), `[architecture.md](architecture.md)` (internals), `[docs/README.md](docs/README.md)` (doc index), `[docs/ladder-coverage-plan.md](docs/ladder-coverage-plan.md)` (opponent ladder — in progress).
+For maintainers: [`PRODUCT.md`](PRODUCT.md) (goals), [`ARCHITECTURE.md`](ARCHITECTURE.md) (system design), [`docs/README.md`](docs/README.md) (doc index), [`docs/ladder-coverage-plan.md`](docs/ladder-coverage-plan.md) (opponent ladder — in progress). Quality gate: `python scripts/quality_gate.py`.
 
 **Playing as an agent?** Read `[AGENTS.md](AGENTS.md)` — the full contract to paste into subagent prompts.
 
