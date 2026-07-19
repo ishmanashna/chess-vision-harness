@@ -9,9 +9,9 @@ from typing import Any, Dict, List
 from mcp import Tool
 from mcp.types import ImageContent, TextContent
 
-from .board_controller import BoardController
 from .commands import resolve_agent_color
 from .game_manager import GameManager
+from .game_service import GameService
 from .models import ModelRegistry
 from .opponents import get_catalog
 
@@ -21,7 +21,7 @@ class ChessHarnessMCP:
 
     def __init__(self):
         self.game_manager = GameManager()
-        self.controller = BoardController(self.game_manager)
+        self.game_service = GameService(self.game_manager)
         self.registry = ModelRegistry()
 
     def get_tools(self) -> List[Tool]:
@@ -137,6 +137,7 @@ class ChessHarnessMCP:
 
     async def handle_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> List:
         game_id = arguments.get("game_id", "default")
+        svc = self.game_service
 
         if tool_name == "chess_list_models":
             models = self.registry.list_models()
@@ -146,7 +147,7 @@ class ChessHarnessMCP:
             model_id = arguments.get("model_id") or arguments.get("model_name")
             opponent = arguments.get("opponent")
             skill = arguments.get("skill")
-            result = self.controller.new_game(
+            result = svc.new_game(
                 game_id,
                 resolve_agent_color(arguments.get("agent_color")),
                 model_name=model_id,
@@ -155,15 +156,15 @@ class ChessHarnessMCP:
                 skill=skill,
             )
         elif tool_name == "chess_get_board":
-            result = self.controller.get_board(game_id)
+            result = svc.get_board(game_id)
         elif tool_name == "chess_make_move":
-            result = self.controller.make_agent_move(game_id, arguments["move"])
+            result = svc.make_move(game_id, arguments["move"])
         elif tool_name == "chess_resign":
-            result = self.controller.resign(game_id)
+            result = svc.resign(game_id)
         elif tool_name == "chess_export_pgn":
-            result = self.controller.export_pgn(game_id)
+            result = svc.export_pgn(game_id)
         elif tool_name == "chess_status":
-            result = self.controller.status(game_id)
+            result = svc.status(game_id)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {tool_name}")]
 

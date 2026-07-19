@@ -20,9 +20,11 @@ from .models import ModelRegistry
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
 from .render_pillow import ChessBoardRenderer
+from .limits import load_limits
 from .results import ResultsManager
 
-IDLE_TIMEOUT_SECONDS = 300
+IDLE_TIMEOUT_SECONDS = 300  # default; check_idle_games uses load_limits()
+DEFAULT_GAME_TYPE = "agent_vs_engine"
 
 
 class BoardController:
@@ -164,10 +166,11 @@ class BoardController:
         return 0.0
 
     def check_idle_games(self) -> List[str]:
-        """Auto-resign in-progress games idle longer than IDLE_TIMEOUT_SECONDS."""
-        resigned: List[str] = []
+        """End in-progress games idle longer than configured timeout with no result."""
+        idle_limit = load_limits().idle_timeout_sec
+        ended: List[str] = []
         if not self.game_manager.games_dir.exists():
-            return resigned
+            return ended
         for game_dir in self.game_manager.games_dir.iterdir():
             if not game_dir.is_dir():
                 continue
@@ -175,11 +178,11 @@ class BoardController:
             state = self.game_manager.load_state(game_id)
             if not state or state.get("status") != "in_progress":
                 continue
-            if self._idle_seconds(game_id, state) >= IDLE_TIMEOUT_SECONDS:
-                result = self.resign(game_id, reason="inactivity")
+            if self._idle_seconds(game_id, state) >= idle_limit:
+                result = self.end_no_result(game_id, reason="inactivity")
                 if result.get("ok"):
-                    resigned.append(game_id)
-        return resigned
+                    ended.append(game_id)
+        return ended
 
     @staticmethod
     def game_revision(state: Dict[str, Any]) -> str:
@@ -206,9 +209,16 @@ class BoardController:
 
     @staticmethod
     def agent_outcome(agent_color: str, result: Optional[str]) -> Dict[str, str]:
-        """Agent-centric outcome (Win/Loss/Draw), separate from PGN white-first notation."""
-        if not result or result == "*":
+        """Agent-centric outcome (Win/Loss/Draw/No result), separate from PGN white-first notation."""
+        if not result:
             return {"outcome": "live", "label": "in progress", "pgn": "", "pgn_note": ""}
+        if result == "*":
+            return {
+                "outcome": "none",
+                "label": "No result",
+                "pgn": "*",
+                "pgn_note": "No result",
+            }
         if result == "1/2-1/2":
             return {"outcome": "draw", "label": "Draw", "pgn": result, "pgn_note": "Draw"}
         agent_won = (agent_color == "WHITE" and result == "1-0") or (
@@ -255,6 +265,7 @@ class BoardController:
         *,
         opponent_id: Optional[str] = None,
         skill: Optional[int] = None,
+        game_type: str = DEFAULT_GAME_TYPE,
     ) -> Dict[str, Any]:
         if not self.game_manager.validate_game_id(game_id):
             return {"ok": False, "error": f"Invalid game_id: {game_id}"}
@@ -318,6 +329,7 @@ class BoardController:
 
                 state: Dict[str, Any] = {
                     "game_id": game_id,
+                    "game_type": game_type,
                     "agent_color": agent_color_upper,
                     "opponent_id": opponent.id,
                     "opponent_elo": opponent_ladder_elo,
@@ -569,7 +581,7 @@ class BoardController:
         if reason == "resignation":
             return f"{model} resigned"
         if reason == "inactivity":
-            return "Inactivity timeout"
+            return "No result (idle timeout)"
         return reason
 
     def resolve_end_reason(self, state: Dict[str, Any], game_id: str) -> Optional[str]:
@@ -636,6 +648,59 @@ class BoardController:
             return True
         except Exception:
             return False
+
+    def end_no_result(self, game_id: str, reason: str = "inactivity") -> Dict[str, Any]:
+        """Finish a game with PGN result '*' — no win/loss/draw, no ELO change."""
+        try:
+            with self.game_manager.game_lock(game_id):
+                state = self.game_manager.load_state(game_id)
+                if not state:
+                    return {"ok": False, "error": f"Game {game_id} not found"}
+                if state["status"] != "in_progress":
+                    return self._error(game_id, f"Game is already over: {state['result']}")
+
+                agent_color = state["agent_color"]
+                result = "*"
+                state["status"] = "finished"
+                state["result"] = result
+                state["end_reason"] = reason
+                state["pgn_headers"]["Result"] = result
+
+                board = chess.Board(state["board_fen"])
+                self._try_snapshot_eval(state, board)
+                self._auto_save_pgn(game_id, state)
+
+                opp_elo = state.get("opponent_elo")
+                if opp_elo is None:
+                    opp_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
+                self.results.append_result(
+                    {
+                        "ts": datetime.now().isoformat(),
+                        "game_id": game_id,
+                        "opponent_id": state.get("opponent_id"),
+                        "opponent_elo": opp_elo,
+                        "skill": state.get("skill"),
+                        "agent_color": agent_color,
+                        "result": result,
+                        "reason": reason,
+                        "plies": len(state["moves"]),
+                        "pgn_path": str(self.game_manager.get_pgn_path(game_id)),
+                        "model_name": state.get("model_name"),
+                    }
+                )
+
+                if not self.game_manager.save_state(game_id, state):
+                    return {"ok": False, "error": "Failed to save game state"}
+
+                return {
+                    "ok": True,
+                    "game_id": game_id,
+                    "board_path": self._board_path(game_id),
+                    "result": result,
+                    **self.agent_outcome(agent_color, result),
+                }
+        except GameBusyError as e:
+            return {"ok": False, "error": str(e)}
 
     def resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
         try:

@@ -415,6 +415,7 @@ def spectator_tabs(active: str) -> str:
         '<div class="tabs">'
         f'<a href="/?tab=active"{" class=active" if active == "active" else ""}>Active</a>'
         f'<a href="/?tab=done"{" class=active" if active == "done" else ""}>Completed</a>'
+        f'<a href="/create"{" class=active" if active == "create" else ""}>Create Game</a>'
         f'<a href="/calibration"{" class=active" if active == "calibration" else ""}>Calibration</a>'
         f'<a href="/leaderboard"{" class=active" if active == "ladder" else ""}>ELO Ladder</a>'
         "</div>"

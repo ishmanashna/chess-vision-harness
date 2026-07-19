@@ -1,7 +1,7 @@
 # Plan 0: Thin foundation
 
-Status: **not started**  
-Last updated: 2026-07-18  
+Status: **done**  
+Last updated: 2026-07-19  
 **Prerequisite:** none  
 **Next plan:** [Plan 1 — Public agent API + Create Game](public-agent-api.md)
 
@@ -84,22 +84,22 @@ Delegate to existing controller; no rule rewrites:
 
 ### Phase 0 — Path + lifecycle fixes (2–3 days)
 
-- [ ] Spectator `GameManager` / base dir → `resolve_base_dir()`
-- [ ] `ELOLadder` default → `resolve_base_dir()`
-- [ ] MCP: `check_idle_games()` before mutations; `opponent_mgr.release()` after game ops (match CLI)
-- [ ] Test: MCP engine cleanup / release parity
-- [ ] Deduplicate `_clean_pgn()` if cheap (optional same PR)
+- [x] Spectator `GameManager` / base dir → `resolve_base_dir()`
+- [x] `ELOLadder` default → `resolve_base_dir()`
+- [x] MCP: `check_idle_games()` before mutations; `opponent_mgr.release()` after game ops (match CLI)
+- [x] Test: MCP engine cleanup / release parity
+- [x] Deduplicate `_clean_pgn()` if cheap (optional same PR)
 
 **Exit:** `CHESS_HARNESS_DIR` works under `serve`; MCP cleanup test green.
 
 ### Phase 1 — GameService + health (3–5 days)
 
-- [ ] Add `GameService` wrapping `BoardController` (shim OK; do not rename every call site yet)
-- [ ] Point CLI + MCP + spectator mutations at `GameService` where practical (tournament may stay on controller with a one-line defer note)
-- [ ] `get_board_bytes()` for HTTP (PNG bytes)
-- [ ] `game_type` on `state.json` (default `agent_vs_engine`)
-- [ ] `GET /health` on spectator app (200 + process up)
-- [ ] Short parity note in [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [x] Add `GameService` wrapping `BoardController` (shim OK; do not rename every call site yet)
+- [x] Point CLI + MCP + spectator mutations at `GameService` where practical (tournament may stay on controller with a one-line defer note)
+- [x] `get_board_bytes()` for HTTP (PNG bytes)
+- [x] `game_type` on `state.json` (default `agent_vs_engine`)
+- [x] `GET /health` on spectator app (200 + process up)
+- [x] Short parity note in [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 
 **Exit:** Mutations for agent play go through `GameService`; `/health` works; Plan 1 can add routes without touching rules.
 
@@ -109,12 +109,12 @@ Delegate to existing controller; no rule rewrites:
 
 Do **not** start [Plan 1](public-agent-api.md) until:
 
-- [ ] Spectator + `ELOLadder` use `resolve_base_dir()`
-- [ ] MCP idle prune + `release()` with a green test
-- [ ] `GameService` exists and is used by CLI/MCP for new/move/resign/status/board/pgn
-- [ ] `GET /health` returns 200
-- [ ] `game_type` present (default `agent_vs_engine`)
-- [ ] `ARCHITECTURE.md` mentions `GameService` and entry-point parity
+- [x] Spectator + `ELOLadder` use `resolve_base_dir()`
+- [x] MCP idle prune + `release()` with a green test
+- [x] `GameService` exists and is used by CLI/MCP for new/move/resign/status/board/pgn
+- [x] `GET /health` returns 200
+- [x] `game_type` present (default `agent_vs_engine`)
+- [x] `ARCHITECTURE.md` mentions `GameService` and entry-point parity
 
 ---
 

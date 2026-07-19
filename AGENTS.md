@@ -15,6 +15,27 @@ Vision-only benchmark. Cheating invalidates the game.
 
 MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image), `chess_make_move`, `chess_status`, `chess_resign`, `chess_export_pgn` (finished games only).
 
+## Remote HTTP (`/api/v1`)
+
+Same vision contract as CLI/MCP. Use when the agent runs on another machine or you want curl/SDK instead of local CLI.
+
+**Operator flow:** open spectator **Create Game** (`/create`) → pick an inscribed model → copy the agent prompt → paste it into your agent anywhere. The prompt includes `game_id`, base URL, auth header, and the play loop.
+
+**Agent play loop:** `GET .../status` → `GET .../board` (PNG) → `POST .../move` with `{"move": "e2e4"}` → repeat until game ends → `GET .../pgn`.
+
+For API-only clients (no UI): `POST /api/v1/agents` mints a key once; then `POST /api/v1/games` with `Authorization: Bearer <api_key>` (optional `opponent`, `agent_color`).
+
+| Step | HTTP |
+|------|------|
+| Start game (API client) | `POST /api/v1/games` |
+| See position | **GET `/api/v1/games/{id}/board`** → PNG only |
+| Submit move | `POST /api/v1/games/{id}/move` |
+| Check turn | `GET /api/v1/games/{id}/status` |
+| Resign | `POST /api/v1/games/{id}/resign` |
+| After game ends | `GET /api/v1/games/{id}/pgn` |
+
+Use `/api/v1` only — not legacy `GET /api/games/*` (spectator UI).
+
 ## Allowed commands (in-progress game)
 
 | Step | CLI | MCP |
@@ -37,7 +58,7 @@ MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image
 
 - Read `.chess_harness/games/<id>/state.json`, `game.pgn`, or `results.jsonl`
 - Read any file under `.chess_harness/games/<id>/` **except** `board.png`
-- Call spectator HTTP APIs (`http://localhost:8765/api/...`)
+- Call legacy spectator HTTP APIs (`GET /api/games/*` on the operator UI)
 - Export PGN while the game is in progress
 - Run Stockfish, `python-chess`, or any engine/script to pick moves, list legal moves, or evaluate the position
 - Pass custom FEN to start a game (operator-only)
@@ -48,7 +69,7 @@ MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image
 - **Model required:** `--model <id>` from `models list`. Do not use free-text names.
 - **Game id:** omit `--id` for auto `game-<pid>-<random>`. Do not embed your model name in the id.
 - **Color:** random by default. Only set `--color white|black` if the operator tells you to.
-- **Idle timeout:** 5 minutes without a move → auto-resign. Read the board each turn; vision takes time.
+- **Idle timeout:** 5 minutes without a move → game ends with **no result** (not a loss or draw). Read the board each turn; vision takes time.
 
 ## Subagent prompt (paste-ready)
 
@@ -57,8 +78,8 @@ You are playing chess in the Chess Vision Harness. Rules:
 - ONLY use: chess-harness move/status/board (or MCP chess_make_move, chess_status, chess_get_board).
 - Position info ONLY from the board PNG at board_path (open the image every turn).
 - NEVER read .chess_harness/games/*/state.json, game.pgn, results.jsonl.
-- NEVER curl localhost:8765 or run Stockfish/python-chess or use any tool to pick moves, list legal moves, or know the evaluation.
-- Game id: {game_id}. Model: {model_id}. You have 5 minutes per idle period — read the board carefully.
+- NEVER use legacy /api/games/* or run Stockfish/python-chess to pick moves.
+- Game id: {game_id}. Model: {model_id}. You have 5 minutes per idle period — read the board carefully (idle ends the game with no result).
 Loop: move → read new board_path image → repeat.
 ```
 

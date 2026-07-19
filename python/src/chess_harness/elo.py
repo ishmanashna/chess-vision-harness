@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 from .rating_math import k_factor, update_elo as rating_update_elo
 
 from .models import AGENT_START_ELO, ModelRegistry
+from .paths import resolve_base_dir
 
 # Re-export for backward compatibility
 __all__ = ["AGENT_START_ELO", "ELOLadder", "ENGINE_DISPLAY_NAME", "K_FACTOR", "LEGACY_SKILL_ELO"]
@@ -83,8 +84,8 @@ def _score_from_result(result: str, agent_color: str) -> float:
 class ELOLadder:
     """Manages agent ELO ratings based on game results (backed by models.json)."""
 
-    def __init__(self, base_dir: str = ".chess_harness", registry: Optional[ModelRegistry] = None):
-        self.base_dir = Path(base_dir)
+    def __init__(self, base_dir: Optional[str] = None, registry: Optional[ModelRegistry] = None):
+        self.base_dir = Path(base_dir) if base_dir else resolve_base_dir()
         self.registry = registry or ModelRegistry()
 
     def get_rating(self, model_name: str) -> float:

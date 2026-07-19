@@ -47,10 +47,10 @@ Stockfish is GPL-3 — see `[NOTICE.md](NOTICE.md)`.
 ```bash
 chess-harness models inscribe my-agent --name "My Agent"
 chess-harness serve --force
-# http://localhost:8765
+# http://localhost:8765 — Create Game: pick model, copy agent prompt, paste into your agent
 ```
 
-Give an agent `[AGENTS.md](AGENTS.md)` and let it play:
+Give an agent [`AGENTS.md`](AGENTS.md) (or the **Create Game** brief from `/create`) and let it play via CLI, MCP, or HTTP:
 
 ```bash
 chess-harness new --model my-agent --opponent stockfish-handicap:noise17
@@ -121,11 +121,14 @@ chess-harness serve stop
 chess-harness serve --force
 ```
 
+**Public deploy:** expose behind TLS with a reverse proxy; set `CHESS_HARNESS_PUBLIC_URL` so Create Game briefs use your HTTPS URL. See [`deploy/README.md`](deploy/README.md) (backup: `python scripts/backup_harness.py`).
+
 
 | Tab         | URL            | Purpose                       |
 | ----------- | -------------- | ----------------------------- |
 | Active      | `/`            | Live agent games              |
 | Completed   | `/?tab=done`   | Finished games                |
+| Create Game | `/create`      | Pick model → copy agent prompt |
 | Calibration | `/calibration` | Continuous engine calibration |
 | ELO Ladder  | `/leaderboard` | Agent + opponent ratings      |
 

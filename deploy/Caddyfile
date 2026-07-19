@@ -1,0 +1,30 @@
+# Chess Vision Harness — Caddy reverse proxy template
+#
+# 1. Replace chess.example.com with your public hostname.
+# 2. Ensure DNS points to this server (or use Cloudflare Tunnel — see deploy/README.md).
+# 3. chess-harness serve must be running on 127.0.0.1:8765 (default bind).
+#
+# Caddy obtains and renews Let's Encrypt certificates automatically when:
+#   - The hostname resolves to this machine
+#   - Ports 80 and 443 are reachable from the internet (HTTP-01 / TLS-ALPN)
+#
+# Install: sudo cp deploy/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+
+chess.example.com {
+	# Optional: restrict to HTTPS only (Caddy redirects HTTP by default)
+	# encode gzip
+
+	reverse_proxy 127.0.0.1:8765
+
+	# Optional access log (Caddy rotates file logs automatically)
+	# log {
+	# 	output file /var/log/caddy/chess-harness.log
+	# 	format console
+	# }
+}
+
+# --- Staging / internal hostname (self-signed or internal CA) ---
+# chess-staging.example.com {
+# 	tls internal
+# 	reverse_proxy 127.0.0.1:8765
+# }

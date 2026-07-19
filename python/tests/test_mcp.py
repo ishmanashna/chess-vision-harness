@@ -23,19 +23,19 @@ from chess_harness.tools_mcp import ChessHarnessMCP
 def mcp():
     instance = ChessHarnessMCP()
     yield instance
-    instance.controller.opponent_mgr.release()
-    if instance.controller._eval_engine is not None:
-        instance.controller._eval_engine.quit()
+    instance.game_service.controller.opponent_mgr.release()
+    if instance.game_service.controller._eval_engine is not None:
+        instance.game_service.controller._eval_engine.quit()
 
 
 def test_mcp_new_game_and_image_base64(mcp, tmp_path, monkeypatch):
     async def run():
         monkeypatch.setenv("CHESS_HARNESS_DIR", str(tmp_path / "harness"))
-        from chess_harness.board_controller import BoardController
         from chess_harness.game_manager import GameManager
+        from chess_harness.game_service import GameService
 
         mcp.game_manager = GameManager(str(tmp_path / "harness"))
-        mcp.controller = BoardController(mcp.game_manager)
+        mcp.game_service = GameService(mcp.game_manager)
 
         result = await mcp.handle_tool_call(
             "chess_new_game",
@@ -66,3 +66,66 @@ def test_mcp_schemas_no_include_fen(mcp):
         assert "include_fen" not in props
     new_props = tools["chess_new_game"].inputSchema.get("properties", {})
     assert "fen" not in new_props
+
+
+def test_mcp_idle_prune_and_release_parity(mcp, tmp_path, monkeypatch):
+    async def run():
+        monkeypatch.setenv("CHESS_HARNESS_DIR", str(tmp_path / "harness"))
+        from chess_harness.game_manager import GameManager
+        from chess_harness.game_service import GameService
+
+        mcp.game_manager = GameManager(str(tmp_path / "harness"))
+        mcp.game_service = GameService(mcp.game_manager)
+
+        prune_calls = []
+        release_calls = []
+
+        original_prune = mcp.game_service.controller.check_idle_games
+        original_release = mcp.game_service.controller.opponent_mgr.release
+
+        def track_prune():
+            prune_calls.append(True)
+            return original_prune()
+
+        def track_release():
+            release_calls.append(True)
+            return original_release()
+
+        mcp.game_service.controller.check_idle_games = track_prune
+        mcp.game_service.controller.opponent_mgr.release = track_release
+
+        game_id = "mcp-release"
+        await mcp.handle_tool_call(
+            "chess_new_game",
+            {
+                "game_id": game_id,
+                "agent_color": "white",
+                "opponent": "stockfish:5",
+                "model_id": "composer-2.5",
+            },
+        )
+        assert prune_calls
+        assert release_calls
+
+        prune_calls.clear()
+        release_calls.clear()
+        await mcp.handle_tool_call(
+            "chess_make_move",
+            {"game_id": game_id, "move": "e2e4"},
+        )
+        assert prune_calls
+        assert release_calls
+
+        prune_calls.clear()
+        release_calls.clear()
+        await mcp.handle_tool_call("chess_status", {"game_id": game_id})
+        assert not prune_calls
+        assert not release_calls
+
+        prune_calls.clear()
+        release_calls.clear()
+        await mcp.handle_tool_call("chess_resign", {"game_id": game_id})
+        assert prune_calls
+        assert not release_calls
+
+    asyncio.run(run())

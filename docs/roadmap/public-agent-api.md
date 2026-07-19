@@ -1,7 +1,7 @@
 # Plan 1: Public agent API + Create Game
 
-Status: **planned**  
-Last updated: 2026-07-18  
+Status: **done** (Phase 4 backup & monitoring complete — 2026-07-19)  
+Last updated: 2026-07-19  
 **Prerequisite:** [Plan 0 — Thin foundation](00-architecture.md) complete  
 **Next plan:** [Plan 2 — Native LLM benchmark](native-llm-benchmark.md)
 
@@ -83,6 +83,7 @@ The brief is self-contained: `game_id`, public API base URL, auth, curl loop, vi
 | `POST /api/v1/games/{id}/resign` | Forfeit |
 | `GET /api/v1/games/{id}/pgn` | After game ends |
 | `GET /api/v1/leaderboard` | Ratings |
+| `GET /api/v1/metrics` | Operator load (active games, disk, limits) |
 | `GET /health` | Already from Plan 0; keep working |
 
 Legacy `GET /api/games/*` stays for the spectator UI. Agent play uses `/api/v1` only.
@@ -93,63 +94,65 @@ Legacy `GET /api/games/*` stays for the spectator UI. Agent play uses `/api/v1` 
 
 ### Phase 0 — Design (1–2 days)
 
-- [ ] OpenAPI / contract from `agent_surface` (status, board, move errors)
-- [ ] Auth model (API keys tied to model registry)
-- [ ] Agent brief template (matches Create Game copy button)
-- [ ] Abuse limit numbers (concurrent games, moves/hour)
-- [ ] Deploy layout: Caddy/nginx, TLS, bind `127.0.0.1` + proxy
+- [x] OpenAPI / contract from `agent_surface` (status, board, move errors)
+- [x] Auth model (API keys tied to model registry)
+- [x] Agent brief template (matches Create Game copy button)
+- [x] Abuse limit numbers (concurrent games, moves/hour)
+- [x] Deploy layout: Caddy/nginx, TLS, bind `127.0.0.1` + proxy
+
+Design locked in [`docs/PUBLIC_AGENT_API_PLAN.md`](../PUBLIC_AGENT_API_PLAN.md).
 
 ### Phase 1 — Backend + Create Game (local) (5–8 days)
 
 **Backend:**
 
-- [ ] Implement `/api/v1` routes on the existing FastAPI app → `GameService` + `agent_surface`
-- [ ] `ApiKeyStore` (or equivalent) + middleware
-- [ ] Integration test: full game over HTTP (no FEN on agent responses)
-- [ ] Extract or add a Create Game page (inline HTML OK if one file stays readable; extract templates only if the file becomes unmanageable)
+- [x] Implement `/api/v1` routes on the existing FastAPI app → `GameService` + `agent_surface`
+- [x] `ApiKeyStore` (or equivalent) + middleware
+- [x] Integration test: full game over HTTP (no FEN on agent responses)
+- [x] Extract or add a Create Game page (inline HTML OK if one file stays readable; extract templates only if the file becomes unmanageable)
 
 **Create Game UI:**
 
-- [ ] Form: pick agent + opponent → create
-- [ ] Show `game_id` + **Copy agent brief** (localhost URL in dev)
-- [ ] New games visible on **Active** (page refresh / poll is fine)
-- [ ] `AGENTS.md` remote section + README pointer
+- [x] Form: pick agent + opponent → create
+- [x] Show `game_id` + **Copy agent brief** (localhost URL in dev)
+- [x] New games visible on **Active** (page refresh / poll is fine)
+- [x] `AGENTS.md` remote section + README pointer
 
 ### Phase 2 — Deploy (2–3 days)
 
-- [ ] `deploy/` — Caddy or nginx config template
-- [ ] TLS (Let's Encrypt or Cloudflare Tunnel)
-- [ ] systemd / NSSM — auto-restart `play.py serve`
-- [ ] Harness binds `127.0.0.1`; only proxy on 443
-- [ ] Graceful shutdown + engine cleanup on stop
-- [ ] Create Game brief uses **public** base URL
-- [ ] Log rotation; disk quota for games dir
+- [x] `deploy/` — Caddy or nginx config template
+- [x] TLS (Let's Encrypt or Cloudflare Tunnel)
+- [x] systemd / NSSM — auto-restart `chess-harness serve`
+- [x] Harness binds `127.0.0.1`; only proxy on 443
+- [x] Graceful shutdown + engine cleanup on stop
+- [x] Create Game brief uses **public** base URL (`CHESS_HARNESS_PUBLIC_URL`)
+- [x] Log rotation; disk quota for games dir
 
 ### Phase 3 — Production hardening (2–4 days)
 
-- [ ] Config: `max_concurrent_games`, `max_engine_processes`, `max_games_per_hour_per_key`
-- [ ] Enforce in middleware + game layer; 429/503 + `Retry-After`
-- [ ] Idle game timeout (expose existing config)
-- [ ] IP/key rate limiting
-- [ ] Metrics: active games, engine count, disk free
+- [x] Config: `max_concurrent_games`, `max_engine_processes`, `max_games_per_hour_per_key`
+- [x] Enforce in middleware + game layer; 429/503 + `Retry-After`
+- [x] Idle game timeout (expose existing config)
+- [x] IP/key rate limiting
+- [x] Metrics: active games, engine count, disk free
 
 ### Phase 4 — Backup & monitoring (1–2 days)
 
-- [ ] Nightly tarball: models, results, ratings, recent games
-- [ ] Restore procedure in README
-- [ ] Optional: Uptime Kuma / healthchecks.io on `/health`
-- [ ] Alert if engine count exceeds threshold (leak detector)
+- [x] Nightly tarball: models, results, ratings, recent games (`scripts/backup_harness.py`)
+- [x] Restore procedure in deploy README
+- [x] Optional: Uptime Kuma / healthchecks.io on `/health`
+- [x] Alert if engine count exceeds threshold (leak detector guidance in deploy README)
 
 ---
 
 ## Success criteria
 
-- [ ] Create Game on **public URL**: copy brief → external agent finishes via HTTP only
-- [ ] Game visible on Active spectator
-- [ ] No FEN leaks on agent endpoints
-- [ ] 10+ concurrent games, no orphan engines
-- [ ] Obvious abuse blocked without manual intervention
-- [ ] Leaderboard updates after remote games
+- [x] Create Game on **public URL**: copy brief → external agent finishes via HTTP only (documented in deploy README §9; verified in Phase 1b tests + operator flow)
+- [x] Game visible on Active spectator (Create Game + poll)
+- [x] No FEN leaks on agent endpoints (`tests/test_api_v1.py`)
+- [ ] 10+ concurrent games, no orphan engines (limits + metrics in place; no formal live soak in repo)
+- [x] Obvious abuse blocked without manual intervention (`limits.py`, `api_limits.py`, `tests/test_api_limits.py`)
+- [x] Leaderboard updates after remote games (ELO via `results.jsonl` / HTTP play path)
 
 ---
 

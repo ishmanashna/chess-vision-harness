@@ -9,8 +9,8 @@ North star: [`future-work-roadmap.md`](future-work-roadmap.md).
 
 | # | Plan | Status | Estimate |
 |---|------|--------|----------|
-| **0** | [Thin foundation](00-architecture.md) | **not started** | ~1 week |
-| **1** | [Public agent API + Create Game](public-agent-api.md) | planned | ~3–4 weeks |
+| **0** | [Thin foundation](00-architecture.md) | **done** | ~1 week |
+| **1** | [Public agent API + Create Game](public-agent-api.md) | **done** | ~3–4 weeks |
 | **2** | [Native LLM benchmark](native-llm-benchmark.md) | planned | ~2 weeks |
 | **3** | [Agent vs agent](agent-vs-agent.md) | planned | ~1–2 weeks |
 | **4** | [Human vs agent (browser)](human-vs-agent.md) | planned | ~2 weeks |

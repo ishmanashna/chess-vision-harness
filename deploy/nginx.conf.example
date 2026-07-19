@@ -1,0 +1,42 @@
+# Chess Vision Harness — nginx reverse proxy example
+#
+# 1. Replace chess.example.com and SSL cert paths.
+# 2. Obtain certs with certbot: certbot certonly --nginx -d chess.example.com
+# 3. Include this server block from /etc/nginx/sites-enabled/ or nginx.conf.
+# 4. chess-harness serve on 127.0.0.1:8765 (default).
+
+upstream chess_harness {
+	server 127.0.0.1:8765;
+	keepalive 8;
+}
+
+server {
+	listen 80;
+	server_name chess.example.com;
+	# Redirect HTTP → HTTPS (or use certbot --nginx for automatic config)
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	server_name chess.example.com;
+
+	ssl_certificate     /etc/letsencrypt/live/chess.example.com/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/chess.example.com/privkey.pem;
+
+	# Basic TLS settings (tune for your policy)
+	ssl_protocols TLSv1.2 TLSv1.3;
+	ssl_prefer_server_ciphers off;
+
+	client_max_body_size 1m;
+
+	location / {
+		proxy_pass http://chess_harness;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_read_timeout 300s;
+	}
+}

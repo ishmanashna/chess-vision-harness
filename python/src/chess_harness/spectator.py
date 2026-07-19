@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from .agent_surface import agent_safe_spectator_state, debug_state_enabled
+from .api_v1 import mount_api_v1
 from .board_controller import BoardController
 from .elo import ELOLadder
 from .ladder_display import (
@@ -22,14 +23,17 @@ from .ladder_display import (
     render_leaderboard_html,
     spectator_tabs,
 )
+from .create_game_page import handle_create_game_post, render_create_game_page
 from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
 from .continuous_calibration import can_continuously_calibrate, get_continuous_calibration
 from .engine import EvalEngineAdapter
 from .game_manager import GameManager
+from .game_service import GameService
+from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
 
-_project_root = Path(__file__).resolve().parent.parent.parent
-_base = str(_project_root / ".chess_harness")
+_project_root = project_root()
+_base = str(resolve_base_dir())
 game_manager = GameManager(base_dir=_base)
 
 
@@ -39,18 +43,12 @@ def _ladder() -> ELOLadder:
 
 _engine: Optional[EvalEngineAdapter] = None
 _controller: Optional[BoardController] = None
+_game_service: Optional[GameService] = None
 _eval_cache: Dict[str, tuple[float, Optional[int]]] = {}
 _finished_eval_cache: Dict[str, int] = {}
 _EVAL_TTL = 2.0
 
 NAV = '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; <a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; <a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; <a class="back" href="/leaderboard">ELO Ladder</a>'
-
-
-def _clean_pgn(pgn_text: str) -> str:
-    lines = [
-        line for line in pgn_text.splitlines() if not line.strip().startswith("[Annotator ")
-    ]
-    return "\n".join(lines).strip() + "\n"
 
 
 def _game_summary(state: Dict[str, Any]) -> str:
@@ -81,7 +79,7 @@ async def _lifespan(_app: FastAPI):
         while True:
             await asyncio.sleep(60)
             try:
-                await asyncio.to_thread(_get_controller().check_idle_games)
+                await asyncio.to_thread(_get_game_service().prune_idle_games)
             except Exception:
                 pass
 
@@ -89,7 +87,7 @@ async def _lifespan(_app: FastAPI):
     yield
     task.cancel()
     await get_continuous_calibration().stop_all()
-    _get_controller().opponent_mgr.release()
+    _get_game_service().controller.opponent_mgr.release()
     remove_spectator_meta()
     global _engine
     if _engine is not None:
@@ -115,6 +113,22 @@ def _get_controller() -> BoardController:
     if _controller is None:
         _controller = BoardController(game_manager)
     return _controller
+
+
+def _get_game_service() -> GameService:
+    global _game_service
+    if _game_service is None:
+        # Share one BoardController with display helpers (no dual engine managers).
+        _game_service = GameService(game_manager, controller=_get_controller())
+    return _game_service
+
+
+mount_api_v1(app, _get_game_service)
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "status": "up"}
 
 
 def _eval_position(fen: str) -> Optional[int]:
@@ -361,6 +375,19 @@ async def root(request: Request):
     </script></body></html>"""
     )
     return HTMLResponse(html)
+
+
+@app.get("/create", response_class=HTMLResponse)
+async def create_game_get():
+    return HTMLResponse(render_create_game_page())
+
+
+@app.post("/create", response_class=HTMLResponse)
+async def create_game_post(request: Request):
+    form = await request.form()
+    fields = {k: str(v) for k, v in form.items()}
+    html_out, _game_id, _brief, _echo = handle_create_game_post(fields, _get_game_service())
+    return HTMLResponse(html_out)
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
@@ -652,7 +679,7 @@ async def get_board_image(game_id: str):
 
 @app.get("/api/games")
 async def list_games():
-    await asyncio.to_thread(_get_controller().check_idle_games)
+    await asyncio.to_thread(_get_game_service().prune_idle_games)
     games = game_manager.list_games()
     enriched = []
     for g in games:
@@ -759,8 +786,10 @@ async def get_game_pgn(game_id: str, debug: Optional[str] = None):
             )
     pgn_path = game_manager.get_pgn_path(game_id)
     if pgn_path.exists():
-        return {"pgn": _clean_pgn(pgn_path.read_text(encoding="utf-8"))}
-    result = _get_controller().export_pgn(game_id, allow_in_progress=debug_state_enabled(debug))
+        return {"pgn": _get_controller()._clean_pgn(pgn_path.read_text(encoding="utf-8"))}
+    result = _get_game_service().export_pgn(
+        game_id, allow_in_progress=debug_state_enabled(debug)
+    )
     if not result["ok"]:
         raise HTTPException(404, result["error"])
     return {"pgn": result["pgn"]}

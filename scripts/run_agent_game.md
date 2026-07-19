@@ -9,4 +9,4 @@
 
 Prefer MCP (`chess_get_board` embeds PNG) over Shell to reduce temptation to read `state.json`.
 
-Idle timeout is **5 minutes** — remind the subagent to read the board each turn.
+Idle timeout is **5 minutes** — remind the subagent to read the board each turn. Idle ends the game with **no result** (not a resign/loss).

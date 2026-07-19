@@ -13,4 +13,10 @@ def test_format_end_reason_resignation():
 
 def test_format_end_reason_inactivity():
     state = {"model_name": "mimo-v2.5"}
-    assert BoardController.format_end_reason("inactivity", state) == "Inactivity timeout"
+    assert BoardController.format_end_reason("inactivity", state) == "No result (idle timeout)"
+
+
+def test_agent_outcome_no_result():
+    out = BoardController.agent_outcome("WHITE", "*")
+    assert out["outcome"] == "none"
+    assert out["label"] == "No result"

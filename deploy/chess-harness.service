@@ -1,0 +1,32 @@
+[Unit]
+Description=Chess Vision Harness spectator + /api/v1 agent API
+Documentation=file:///opt/chess-vision-harness/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chess
+Group=chess
+WorkingDirectory=/opt/chess-vision-harness
+
+# Edit paths: venv chess-harness, repo root, public URL
+ExecStart=/opt/chess-vision-harness/.venv/bin/chess-harness serve
+Environment=CHESS_HARNESS_PUBLIC_URL=https://chess.example.com
+# Environment=STOCKFISH_PATH=/opt/chess-vision-harness/bin/stockfish
+# Environment=CHESS_HARNESS_DIR=/var/lib/chess-harness
+
+# Default bind is 127.0.0.1:8765 — do NOT add --host 0.0.0.0
+Restart=on-failure
+RestartSec=5
+
+# Lifespan handler releases engines on SIGTERM
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Hardening (optional)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

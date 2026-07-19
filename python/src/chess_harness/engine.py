@@ -323,6 +323,9 @@ class OpponentEngineManager:
             configure_opponent_strength(adapter.engine, opponent)
         return adapter
 
+    def live_adapter_count(self) -> int:
+        return len(self._adapters)
+
     def release(self):
         for adapter in self._adapters.values():
             adapter.quit()

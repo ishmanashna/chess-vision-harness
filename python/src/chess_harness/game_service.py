@@ -1,0 +1,99 @@
+"""
+Thin facade over BoardController — single mutation path for adapters.
+
+Engine lifecycle: opponent and eval engines are released after new_game and
+make_move. resign prunes idle games but does not acquire engines. Read-only
+calls (status, board, pgn, audit) skip prune and release.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from .board_controller import BoardController, DEFAULT_GAME_TYPE
+from .game_manager import GameManager
+
+__all__ = ["DEFAULT_GAME_TYPE", "GameService"]
+
+
+class GameService:
+    """Delegates game rules to BoardController; owns idle prune + engine release."""
+
+    def __init__(
+        self,
+        game_manager: Optional[GameManager] = None,
+        controller: Optional[BoardController] = None,
+    ):
+        self.game_manager = game_manager or GameManager()
+        self.controller = controller or BoardController(self.game_manager)
+
+    def _prune_idle(self) -> None:
+        self.controller.check_idle_games()
+
+    def _release_engines(self) -> None:
+        self.controller.opponent_mgr.release()
+        if self.controller._eval_engine is not None:
+            self.controller._eval_engine.quit()
+            self.controller._eval_engine = None
+
+    def prune_idle_games(self) -> list[str]:
+        return self.controller.check_idle_games()
+
+    def new_game(
+        self,
+        game_id: str,
+        agent_color: str,
+        opponent_or_skill=None,
+        fen: Optional[str] = None,
+        model_name: Optional[str] = None,
+        force: bool = False,
+        *,
+        opponent_id: Optional[str] = None,
+        skill: Optional[int] = None,
+        game_type: str = DEFAULT_GAME_TYPE,
+    ) -> Dict[str, Any]:
+        self._prune_idle()
+        try:
+            return self.controller.new_game(
+                game_id,
+                agent_color,
+                opponent_or_skill,
+                fen=fen,
+                model_name=model_name,
+                force=force,
+                opponent_id=opponent_id,
+                skill=skill,
+                game_type=game_type,
+            )
+        finally:
+            self._release_engines()
+
+    def make_move(self, game_id: str, move_str: str) -> Dict[str, Any]:
+        self._prune_idle()
+        try:
+            return self.controller.make_agent_move(game_id, move_str)
+        finally:
+            self._release_engines()
+
+    def resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
+        self._prune_idle()
+        return self.controller.resign(game_id, reason=reason)
+
+    def status(self, game_id: str) -> Dict[str, Any]:
+        return self.controller.status(game_id)
+
+    def get_board(self, game_id: str) -> Dict[str, Any]:
+        return self.controller.get_board(game_id)
+
+    def get_board_bytes(self, game_id: str) -> bytes:
+        result = self.get_board(game_id)
+        if not result.get("ok"):
+            raise ValueError(result.get("error", "board unavailable"))
+        return Path(result["board_path"]).read_bytes()
+
+    def export_pgn(self, game_id: str, *, allow_in_progress: bool = False) -> Dict[str, Any]:
+        return self.controller.export_pgn(game_id, allow_in_progress=allow_in_progress)
+
+    def game_audit(self, game_id: str) -> Dict[str, Any]:
+        return self.controller.game_audit(game_id)

@@ -32,6 +32,7 @@ chess-vision-harness/
   README.md
   bin/
   config/
+  deploy/
   docs/
   elo_calibration/
   frontend/
@@ -41,6 +42,7 @@ chess-vision-harness/
 
 | Path | Contents |
 |------|----------|
+| `deploy/` | Operator deploy templates (Caddy, systemd, TLS notes) — see `deploy/README.md` |
 | `config/` | Committed catalogs and examples (`opponents.json`, `models.json.example`, `mcp.json.example`) |
 | `python/` | `pyproject.toml`, `src/chess_harness/`, `tests/` |
 | `frontend/` | `package.json`, `tsconfig.json`, `eslint.config.js`, TypeScript sources |
@@ -89,6 +91,8 @@ Agents (CLI / MCP / future HTTP)          Operator (serve UI)
 | Calibration | `elo_calibration/` — engine-vs-engine, no agents |
 
 Target (roadmap Plan 0): thin `GameService` as the single mutation path.
+
+**Entry-point parity:** CLI, MCP, and spectator mutations for agent play (`new` / `move` / `resign` / `status` / `board` / `pgn`) go through `GameService`, which delegates to `BoardController`. Adapters stay thin; idle prune and engine `release()` after `new_game` / `make_move` live in `GameService`. Tournament batch paths still call `BoardController` directly until Plan 1 HTTP diverges.
 
 ## Entry points
 

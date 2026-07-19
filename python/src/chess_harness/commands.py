@@ -7,10 +7,9 @@ import os
 import random
 from typing import Any, Dict, List, Optional
 
-from .board_controller import BoardController
 from .elo import ELOLadder
-from .engine import OpponentEngineManager
 from .game_manager import GameManager
+from .game_service import GameService
 from .ladder_display import format_agent_leaderboard_cli, format_opponent_ladder_cli
 from .opponents import get_catalog
 from .results import ResultsManager
@@ -22,13 +21,8 @@ def _game_manager() -> GameManager:
     return GameManager()
 
 
-def _with_controller() -> BoardController:
-    gm = _game_manager()
-    return BoardController(gm)
-
-
-def _without_engine() -> BoardController:
-    return _with_controller()
+def _game_service() -> GameService:
+    return GameService(_game_manager())
 
 
 def resolve_agent_color(color: Optional[str] = None) -> str:
@@ -43,10 +37,6 @@ def resolve_agent_color(color: Optional[str] = None) -> str:
     raise ValueError("agent_color must be 'white', 'black', or 'random'")
 
 
-def _prune_idle_games() -> None:
-    _without_engine().check_idle_games()
-
-
 def cmd_new(
     game_id: str,
     color: Optional[str] = None,
@@ -57,59 +47,43 @@ def cmd_new(
     opponent: Optional[str] = None,
 ) -> Dict[str, Any]:
     color = resolve_agent_color(color)
-    _prune_idle_games()
-    ctrl = _with_controller()
-    try:
-        return ctrl.new_game(
-            game_id,
-            color,
-            fen=fen,
-            model_name=model_name,
-            force=force,
-            opponent_id=opponent,
-            skill=skill,
-        )
-    finally:
-        ctrl.opponent_mgr.release()
-        if ctrl._eval_engine is not None:
-            ctrl._eval_engine.quit()
-            ctrl._eval_engine = None
+    return _game_service().new_game(
+        game_id,
+        color,
+        fen=fen,
+        model_name=model_name,
+        force=force,
+        opponent_id=opponent,
+        skill=skill,
+    )
 
 
 def cmd_move(game_id: str, move_str: str) -> Dict[str, Any]:
-    _prune_idle_games()
-    ctrl = _with_controller()
-    try:
-        return ctrl.make_agent_move(game_id, move_str)
-    finally:
-        ctrl.opponent_mgr.release()
-        if ctrl._eval_engine is not None:
-            ctrl._eval_engine.quit()
-            ctrl._eval_engine = None
+    return _game_service().make_move(game_id, move_str)
 
 
 def cmd_board(game_id: str) -> Dict[str, Any]:
-    return _without_engine().get_board(game_id)
+    return _game_service().get_board(game_id)
 
 
 def cmd_pgn(game_id: str) -> Dict[str, Any]:
-    return _without_engine().export_pgn(game_id)
+    return _game_service().export_pgn(game_id)
 
 
 def cmd_game_audit(game_id: str) -> Dict[str, Any]:
-    return _without_engine().game_audit(game_id)
+    return _game_service().game_audit(game_id)
 
 
 def cmd_resign(game_id: str) -> Dict[str, Any]:
-    return _without_engine().resign(game_id)
+    return _game_service().resign(game_id)
 
 
 def cmd_status(game_id: str) -> Dict[str, Any]:
-    return _without_engine().status(game_id)
+    return _game_service().status(game_id)
 
 
 def cmd_list() -> None:
-    _prune_idle_games()
+    _game_service().prune_idle_games()
     gm = _game_manager()
     games = gm.list_games()
     if not games:
@@ -288,6 +262,7 @@ def cmd_tournament_create(
     games_per_cell: int = 1,
     prefix: str = "tour",
 ) -> Dict[str, Any]:
+    # Tournament batch paths stay on BoardController until batch/HTTP diverge (Plan 0 defer).
     tm = TournamentManager(base_dir=str(_game_manager().base_dir))
     try:
         return tm.create_tournament_matrix(opponents, games_per_cell, prefix=prefix)
