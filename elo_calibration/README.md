@@ -10,13 +10,12 @@ Engine-vs-engine ladder. **No LLM agents**, no board images, no MCP.
 4. **After each game**, floating engines get ELO gains/losses (sliding K: 64 / 48 / 24). You see ratings evolve game-by-game in `games.jsonl` and stabilize over many games.
 5. **Stockfish harness** — per-game `black_harness` / `white_harness` can set `depth`, `movetime_ms`, `random_move_pct` to test weakened reference opponents (see `suites/stockfish-harness.yaml`).
 
-Output is **advisory** for updating `opponents.json` labels after review.
+Output is **advisory** for updating `config/opponents.json` labels after review.
 
 ## Setup
 
 ```bash
-pip install -e ".[dev]"
-set PYTHONPATH=src
+pip install -e "python/[dev]"
 ```
 
 ## Commands

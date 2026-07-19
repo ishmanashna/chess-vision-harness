@@ -1,24 +1,29 @@
 """Tests for continuous per-engine calibration."""
 
-import os
+import random
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-ROOT = os.path.join(os.path.dirname(__file__), "..", "elo_calibration")
-sys.path.insert(0, ROOT)
+PYTHON_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = PYTHON_ROOT.parent
+sys.path.insert(0, str(PYTHON_ROOT / "src"))
+sys.path.insert(0, str(REPO_ROOT / "elo_calibration"))
 
+from chess_harness.calibration_view import merge_calibration_ratings  # noqa: E402
 from chess_harness.continuous_calibration import (  # noqa: E402
     build_random_match,
     can_continuously_calibrate,
     clamp_parallel,
+    display_elo,
     get_continuous_calibration,
     list_calibratable_engine_ids,
     normalize_pairing_mode,
     pick_opponent,
     pick_similar_opponent,
 )
+from chess_harness.opponents import get_catalog  # noqa: E402
 
 from conftest import LOW_OPPONENT  # noqa: E402
 
@@ -64,11 +69,29 @@ def test_pick_opponent_anchors_only():
         assert is_anchor(cat.get(opp))
 
 
-def test_pick_opponent_allows_large_elo_gaps_in_random():
+def test_pick_opponent_random_reaches_far_elo_opponents():
+    """Random mode is unweighted — opponents far from focus ELO remain in the pool."""
+    cat = get_catalog()
+    cal = merge_calibration_ratings()
+    focus_elo = display_elo(cat.get(LOW), cal)
+    far_ids = [
+        o.id
+        for o in cat.list_opponents()
+        if o.id != LOW
+        and o.enabled
+        and cat._is_playable(o)
+        and abs(display_elo(o, cal) - focus_elo) >= 400
+    ]
+    assert far_ids, "catalog needs opponents ≥400 ELO from LOW for this check"
+
+    rng = random.Random(0)
     seen = set()
-    for _ in range(80):
-        seen.add(pick_opponent(LOW, pairing_mode="random"))
-    assert "stockfish-handicap:noise92" in seen or "stockfish:0" in seen
+    for _ in range(600):
+        seen.add(pick_opponent(LOW, pairing_mode="random", rng=rng))
+    assert any(fid in seen for fid in far_ids), (
+        f"random mode never picked a far opponent in 600 seeded draws; "
+        f"far pool sample: {sorted(far_ids)[:5]}"
+    )
 
 
 def test_normalize_pairing_mode_rejects_unknown():

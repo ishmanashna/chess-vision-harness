@@ -162,10 +162,8 @@ Workflows: `[scripts/run_agent_game.md](scripts/run_agent_game.md)`.
 ## Tests
 
 ```bash
-cd python && pytest
+cd python && python -m pytest
 ```
-
-Or from repo root: `python scripts/quality_gate.py` (full gate).
 
 ## License
 
