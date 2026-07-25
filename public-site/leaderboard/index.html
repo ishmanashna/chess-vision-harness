@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="description" content="Full rated ladder for Chess Vision Harness agents."/>
   <title>Leaderboard — Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
 </head>
 <body>
@@ -15,10 +16,19 @@
           <h1 class="site-title">Chess Vision Harness</h1>
           <p class="site-tagline">Public rated ladder from the latest snapshot.</p>
         </div>
-        <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span data-status-label>Sleeping</span>
-        </span>
+        <div class="header-controls">
+
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+
+          <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+
+            <span class="status-dot" aria-hidden="true"></span>
+
+            <span data-status-label>Sleeping</span>
+
+          </span>
+
+        </div>
       </div>
       <nav class="site-nav" aria-label="Main">
         <a href="/" id="nav-home">Home</a>
@@ -48,7 +58,6 @@
             <tr><td colspan="5" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
-        <p class="legend"><strong>*</strong> Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after <strong>100</strong> rated games.</p>
         <p class="snapshot-meta" data-snapshot-meta></p>
       </section>
     </main>

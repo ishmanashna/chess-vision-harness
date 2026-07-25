@@ -23,6 +23,37 @@
   --banner-offline-bg: #fff8f0;
   --banner-offline-border: #f0d8b8;
   --banner-offline-fg: #7a4a12;
+  --form-ok-bg: #edf7f0;
+  --form-ok-border: #b8dfc4;
+}
+
+[data-theme="dark"] {
+  --bg: #12141a;
+  --bg-elevated: #1a1d26;
+  --surface: #1e222c;
+  --surface-muted: #232833;
+  --text: #e8eaef;
+  --text-secondary: #c8ccd6;
+  --muted: #a0a6b4;
+  --faint: #7a8190;
+  --border: #2e3440;
+  --border-strong: #3a4252;
+  --row: #2a303c;
+  --link: #7eb0e8;
+  --code-bg: #2a303c;
+  --ok: #8fd9a8;
+  --warn: #e0a46a;
+  --btn-bg: #232833;
+  --btn-hover: #2a303c;
+  --chip-sleep-bg: #2a303c;
+  --chip-sleep-fg: #a0a6b4;
+  --chip-online-bg: #1e3a28;
+  --chip-online-fg: #8fd9a8;
+  --banner-offline-bg: #2a2218;
+  --banner-offline-border: #5a4030;
+  --banner-offline-fg: #e0a46a;
+  --form-ok-bg: #1a2a20;
+  --form-ok-border: #2e4a38;
 }
 
 *,
@@ -114,6 +145,31 @@ main {
   border-bottom: 2px solid var(--text);
 }
 
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.theme-toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.theme-toggle:hover {
+  background: var(--btn-hover);
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -133,7 +189,7 @@ main {
 .status-chip[data-state="online"] {
   background: var(--chip-online-bg);
   color: var(--chip-online-fg);
-  border-color: #b8dfc4;
+  border-color: var(--form-ok-border);
 }
 
 .status-dot {
@@ -293,6 +349,9 @@ p {
 .leaderboard-table .provisional {
   color: var(--muted);
   font-weight: 500;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 
 .empty-state {
@@ -411,8 +470,8 @@ p {
 
 .form-message-ok {
   color: var(--ok);
-  background: #edf7f0;
-  border: 1px solid #b8dfc4;
+  background: var(--form-ok-bg);
+  border: 1px solid var(--form-ok-border);
 }
 
 .brief-wrap {
@@ -475,8 +534,12 @@ p {
     align-items: stretch;
   }
 
-  .status-chip {
+  .header-controls {
     align-self: flex-start;
+  }
+
+  .status-chip {
+    align-self: center;
   }
 
   .leaderboard-table th,

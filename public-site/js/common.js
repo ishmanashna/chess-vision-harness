@@ -2,6 +2,9 @@
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
+  var THEME_KEY = "chess-harness-theme";
+  var PROVISIONAL_HINT =
+    "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
   var healthCache = null;
 
   function navPath() {
@@ -23,6 +26,36 @@
     if (!activeId) return;
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
+  }
+
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark"
+      ? "dark"
+      : "light";
+  }
+
+  function applyTheme(theme) {
+    var t = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+    try {
+      localStorage.setItem(THEME_KEY, t);
+    } catch (_err) {}
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+      btn.textContent = t === "dark" ? "Light mode" : "Dark mode";
+      btn.setAttribute(
+        "aria-label",
+        t === "dark" ? "Switch to light mode" : "Switch to dark mode"
+      );
+    });
+  }
+
+  function initThemeToggle() {
+    applyTheme(currentTheme());
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        applyTheme(currentTheme() === "dark" ? "light" : "dark");
+      });
+    });
   }
 
   function formatElo(agent) {
@@ -73,7 +106,11 @@
         var rank = index + 1;
         var name = agent.name || agent.id || "—";
         var games = Number(agent.games) || 0;
-        var eloClass = isProvisional(agent) ? "elo provisional" : "elo";
+        var provisional = isProvisional(agent);
+        var eloClass = provisional ? "elo provisional" : "elo";
+        var titleAttr = provisional
+          ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
+          : "";
         return (
           "<tr>" +
           '<td class="rank">' +
@@ -84,7 +121,9 @@
           "</td>" +
           '<td class="' +
           eloClass +
-          '">' +
+          '"' +
+          titleAttr +
+          ">" +
           escapeHtml(formatElo(agent)) +
           "</td>" +
           "<td>" +
@@ -219,6 +258,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();
+    initThemeToggle();
     if (document.querySelector("[data-status-chip]")) {
       applyHealthUi();
     }
