@@ -127,12 +127,16 @@ def pick_opponent(
             continue
         if mode == "anchors" and not is_anchor(opp):
             continue
-        candidates.append(opp)
         if mode == "floaters":
             opp_elo = display_elo(opp, cal)
             delta = abs(opp_elo - focus_elo)
+            max_delta = matching.get("max_delta_elo")
+            if max_delta is not None and delta > float(max_delta):
+                continue
+            candidates.append(opp)
             weights.append(max(floor_w, math.exp(-delta / sigma)))
         else:
+            candidates.append(opp)
             weights.append(1.0)
 
     if not candidates:

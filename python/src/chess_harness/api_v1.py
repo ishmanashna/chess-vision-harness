@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, get_limit_enforcer, key_fingerprint
 from .commands import resolve_agent_color
@@ -140,7 +141,11 @@ def build_router(
         return {"ok": True, "leaderboard": ladder.get_leaderboard()}
 
     @router.post("/games")
-    async def create_game(body: CreateGameBody, auth: AuthContext = Depends(_auth_context)):
+    async def create_game(
+        body: CreateGameBody,
+        auth: AuthContext = Depends(_auth_context),
+        authorization: Optional[str] = Header(None),
+    ):
         denied = limits.check_create_game(_svc(), auth)
         if denied:
             return denied
@@ -158,7 +163,15 @@ def build_router(
         if not result.get("ok"):
             return _err(400, result.get("error", "Failed to create game"))
         limits.record_create_game(auth)
-        return {"ok": True, **_sanitize_agent_payload(result)}
+        payload: Dict[str, Any] = {"ok": True, **_sanitize_agent_payload(result)}
+        raw_key = ""
+        if authorization and authorization.lower().startswith("bearer "):
+            raw_key = authorization[7:].strip()
+        if raw_key:
+            payload["agent_brief"] = render_agent_brief(
+                public_base_url(), str(result.get("game_id") or game_id), raw_key
+            )
+        return payload
 
     @router.get("/games/{game_id}/status")
     async def game_status(game_id: str, auth: AuthContext = Depends(_auth_context)):
@@ -181,17 +194,31 @@ def build_router(
             return _err(404, str(exc))
         return Response(content=png, media_type="image/png")
 
+    @router.post("/games/{game_id}/move/{move}")
+    async def game_move_path(
+        game_id: str, move: str, auth: AuthContext = Depends(_auth_context)
+    ):
+        """Preferred agent move: no JSON body (OS/shell-safe)."""
+        return await _do_move(game_id, move, auth)
+
     @router.post("/games/{game_id}/move")
-    async def game_move(
+    async def game_move_body(
         game_id: str, body: MoveBody, auth: AuthContext = Depends(_auth_context)
     ):
+        """Legacy JSON body move — prefer /move/{{uci_or_san}}."""
+        return await _do_move(game_id, body.move, auth)
+
+    async def _do_move(game_id: str, move: str, auth: AuthContext):
         denied = _require_game_access(game_id, auth)
         if denied:
             return denied
         denied = limits.check_move(_svc(), auth)
         if denied:
             return denied
-        result = _svc().make_move(game_id, body.move)
+        move = (move or "").strip()
+        if len(move) < 2:
+            return _err(400, "Move required")
+        result = _svc().make_move(game_id, move)
         if not result.get("ok"):
             return _err(400, result.get("error", "Move failed"))
         limits.record_move(auth)

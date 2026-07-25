@@ -19,6 +19,8 @@ from .board_controller import BoardController
 from .elo import ELOLadder
 from .ladder_display import (
     SPECTATOR_PAGE_CSS,
+    THEME_INIT_SCRIPT,
+    THEME_TOGGLE_SCRIPT,
     render_calibration_html,
     render_leaderboard_html,
     spectator_tabs,
@@ -48,7 +50,13 @@ _eval_cache: Dict[str, tuple[float, Optional[int]]] = {}
 _finished_eval_cache: Dict[str, int] = {}
 _EVAL_TTL = 2.0
 
-NAV = '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; <a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; <a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; <a class="back" href="/leaderboard">ELO Ladder</a>'
+NAV = (
+    '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/leaderboard">ELO Ladder</a> &nbsp;|&nbsp; '
+    '<button type="button" class="theme-toggle theme-toggle-inline" data-theme-toggle>Dark mode</button>'
+)
 
 
 def _game_summary(state: Dict[str, Any]) -> str:
@@ -157,13 +165,19 @@ def _eval_ui(
     labels: Dict[str, str],
     agent_color: str = "WHITE",
 ) -> Dict[str, Any]:
-    """Lichess-style vertical eval: black segment from top, white from bottom (+ = white ahead)."""
+    """Vertical eval aligned to board orientation (agent at bottom).
+
+    Dark segment = Black's share. When the agent is Black (black at bottom of
+    the board), that segment grows from the bottom so the bar matches the board.
+    """
     stack = _board_stack_labels(labels, agent_color)
+    black_at_bottom = agent_color == "BLACK"
     base = {
         "black_label": labels["black"],
         "white_label": labels["white"],
         "top_label": stack["top"],
         "bottom_label": stack["bottom"],
+        "black_at_bottom": black_at_bottom,
     }
     if score_white is None:
         return {**base, "black_pct": "50%", "text": "—"}
@@ -249,6 +263,7 @@ async def root(request: Request):
         tab = "active"
     html = (
         f"""<!DOCTYPE html><html><head><title>Chess Vision Harness</title>
+    {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
     </style></head><body>
@@ -261,8 +276,15 @@ async def root(request: Request):
     """
         + """
     function evalFromUi(ev){
-      if(!ev)return{blackPct:'50%',text:'—',black:'Black',white:'White'};
-      return{blackPct:ev.black_pct||'50%',text:ev.text,black:ev.black_label,white:ev.white_label};
+      if(!ev)return{blackPct:'50%',text:'—',black:'Black',white:'White',blackAtBottom:false};
+      return{blackPct:ev.black_pct||'50%',text:ev.text,black:ev.black_label,white:ev.white_label,blackAtBottom:!!ev.black_at_bottom};
+    }
+
+    function applyEvalBar(el, ev){
+      if(!el||!ev)return;
+      el.style.height=ev.blackPct||'50%';
+      if(ev.blackAtBottom){el.style.top='auto';el.style.bottom='0';}
+      else{el.style.top='0';el.style.bottom='auto';}
     }
 
     function syncMiniEvalHeights(){
@@ -292,7 +314,7 @@ async def root(request: Request):
         <div class="card-body">
           <div class="board-eval-stage">
             <div class="eval-col">
-              <div class="eval-track-v"><div class="eval-black" style="height:${ev.blackPct}"></div></div>
+              <div class="eval-track-v"><div class="eval-black" style="height:${ev.blackPct};${ev.blackAtBottom?'top:auto;bottom:0':'top:0;bottom:auto'}"></div></div>
               <div class="eval-score-v">${ev.text}</div>
             </div>
             <a class="mini-board-wrap" href="/g/${g.game_id}"><img class="mini-board" src="${c.board_url}?v=${c.board_cache||0}" alt="board" onload="syncMiniEvalHeights()"/></a>
@@ -318,17 +340,18 @@ async def root(request: Request):
       const img=el.querySelector('.mini-board');
       const nextSrc=`${c.board_url}?v=${c.board_cache||0}`;
       if(img.getAttribute('src')!==nextSrc)img.setAttribute('src',nextSrc);
-      el.querySelector('.eval-black').style.height=ev.blackPct;
+      applyEvalBar(el.querySelector('.eval-black'), ev);
       el.querySelector('.eval-score-v').textContent=ev.text;
       el.querySelector('.meta-line').textContent=`${ev.white} vs ${ev.black} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves`;
       syncMiniEvalHeights();
     }
 
     async function f(){
-      const r=await fetch('/api/games');const d=await r.json();const c=document.getElementById('g');
-      const active=d.filter(g=>g.status==='in_progress');
-      const done=d.filter(g=>g.status!=='in_progress');
+      const c=document.getElementById('g');
       if(tab==='active'){
+        const r=await fetch('/api/games?status=in_progress');
+        const payload=await r.json();
+        const active=payload.games||payload;
         if(!active.length){
           c.innerHTML='<p>No active games. <a href="/?tab=done">View completed</a></p>';
           activeCards.clear();
@@ -358,21 +381,73 @@ async def root(request: Request):
           if(!seen.has(id)){info.el.remove();activeCards.delete(id);}
         }
       }else{
-        const sig=done.map(g=>g.revision).join('|');
-        if(c.dataset.doneSig===sig)return;
-        c.dataset.doneSig=sig;
-        c.innerHTML='';
-        if(done.length){
-          done.forEach(g=>{const tag=g.result||'done';
-          c.innerHTML+=`<div class="g"><h3>${g.game_id} <span class="tag done">${tag}</span></h3>
-          <p>${g.summary}</p>
-          ${g.elo_change?`<p>${g.elo_change}</p>`:''}
-          <a href="/g/${g.game_id}">Review</a></div>`});
-        }else{c.innerHTML='<p>No completed games yet.</p>'}
+        await renderDonePage(false);
       }
     }
-    f();setInterval(f,3000);
-    </script></body></html>"""
+
+    const DONE_PAGE=40;
+    let doneOffset=0;
+    let doneTotal=0;
+    let doneLoading=false;
+
+    function appendDoneGames(games){
+      const c=document.getElementById('g');
+      let list=c.querySelector('.done-list');
+      if(!list){
+        c.innerHTML='';
+        const head=document.createElement('p');
+        head.className='done-meta sub';
+        head.id='done-meta';
+        c.appendChild(head);
+        list=document.createElement('div');
+        list.className='done-list';
+        c.appendChild(list);
+        const more=document.createElement('button');
+        more.type='button';
+        more.className='btn-more';
+        more.id='done-more';
+        more.textContent='Load more';
+        more.onclick=()=>renderDonePage(true);
+        c.appendChild(more);
+      }
+      for(const g of games){
+        const tag=g.result||'done';
+        const outcome=(g.agent_outcome&&g.agent_outcome.label)?` · ${g.agent_outcome.label}`:'';
+        list.insertAdjacentHTML('beforeend',`<div class="g"><h3>${g.game_id} <span class="tag done">${tag}</span></h3>
+          <p>${g.summary||''}${outcome}</p>
+          ${g.elo_change?`<p>${g.elo_change}</p>`:''}
+          <a href="/g/${g.game_id}">Review</a></div>`);
+      }
+      const meta=document.getElementById('done-meta');
+      if(meta)meta.textContent=`Showing ${Math.min(doneOffset,doneTotal)} of ${doneTotal} completed (newest first)`;
+      const btn=document.getElementById('done-more');
+      if(btn)btn.style.display=doneOffset<doneTotal?'inline-block':'none';
+    }
+
+    async function renderDonePage(append){
+      if(doneLoading)return;
+      doneLoading=true;
+      try{
+        if(!append){doneOffset=0;document.getElementById('g').innerHTML='';}
+        const r=await fetch(`/api/games?status=finished&limit=${DONE_PAGE}&offset=${doneOffset}`);
+        const payload=await r.json();
+        const games=payload.games||[];
+        doneTotal=payload.total||games.length;
+        if(!append && !games.length){
+          document.getElementById('g').innerHTML='<p>No completed games yet.</p>';
+          return;
+        }
+        doneOffset+=games.length;
+        appendDoneGames(games);
+      }finally{doneLoading=false;}
+    }
+
+    f();
+    if(tab==='active')setInterval(f,3000);
+    </script>
+    """
+        + THEME_TOGGLE_SCRIPT
+        + """</body></html>"""
     )
     return HTMLResponse(html)
 
@@ -455,45 +530,48 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
     html = f"""<!DOCTYPE html><html><head><title>{game_id} · Chess Vision Harness</title>
+    {THEME_INIT_SCRIPT}
     <style>
+    {SPECTATOR_PAGE_CSS}
     *{{box-sizing:border-box}}
-    body{{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f3ef;color:#2c2c2c;min-height:100vh}}
-    a{{color:#3d6ea8;text-decoration:none}}a:hover{{text-decoration:underline}}
-    .page-header{{padding:16px 32px;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 24px;border-bottom:1px solid #e4e2da;background:#faf9f6}}
-    .page-header .nav{{font-size:.9em;color:#666}}
+    body{{padding:0;min-height:100vh}}
+    a{{color:var(--link);text-decoration:none}}a:hover{{text-decoration:underline}}
+    .page-header{{padding:16px 32px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;border-bottom:1px solid var(--border);background:var(--bg-elevated)}}
+    .page-header .nav{{font-size:.9em;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;width:100%}}
+    .theme-toggle-inline{{margin-left:8px;vertical-align:middle}}
     .page-header h1{{margin:0;font-size:1.2em;font-weight:600}}
-    .page-header .gid{{color:#888;font-weight:400;font-size:.85em}}
+    .page-header .gid{{color:var(--faint);font-weight:400;font-size:.85em}}
     .layout{{display:grid;grid-template-columns:minmax(280px,360px) auto minmax(200px,280px);gap:28px;align-items:start;padding:24px 32px 40px;max-width:1320px;margin:0 auto}}
-    .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#999}}
+    .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .info-col{{display:flex;flex-direction:column;gap:16px}}
-    .info-card{{background:#fff;border:1px solid #e4e2da;border-radius:8px;padding:18px 20px}}
-    .info-card h2{{margin:0 0 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#999}}
+    .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
+    .info-card h2{{margin:0 0 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .meta-grid{{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.86em;line-height:1.45}}
-    .meta-grid dt{{color:#999;margin:0}}
-    .meta-grid dd{{margin:0;color:#444;word-break:break-word}}
+    .meta-grid dt{{color:var(--faint);margin:0}}
+    .meta-grid dd{{margin:0;color:var(--text-secondary);word-break:break-word}}
     #state-result{{font-weight:700}}
     .actions{{display:flex;flex-direction:column;gap:8px}}
-    .btn{{display:block;width:100%;padding:9px 12px;font-size:.86em;border:1px solid #d8d6ce;border-radius:6px;background:#faf9f6;color:#333;cursor:pointer;text-align:center;text-decoration:none}}
-    .btn:hover{{background:#f0eeea;border-color:#c8c6be}}
-    .btn-hint{{font-size:.78em;color:#888;min-height:1.2em}}
+    .btn{{display:block;width:100%;padding:9px 12px;font-size:.86em;border:1px solid var(--border-strong);border-radius:6px;background:var(--btn-bg);color:var(--text);cursor:pointer;text-align:center;text-decoration:none}}
+    .btn:hover{{background:var(--btn-hover);border-color:var(--border-strong)}}
+    .btn-hint{{font-size:.78em;color:var(--faint);min-height:1.2em}}
     .board-col{{display:flex;justify-content:center}}
-    .board-stack{{display:inline-flex;flex-direction:column;border:1px solid #d4d2ca;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)}}
-    .board-label{{padding:11px 16px;text-align:center;font-size:.93em;font-weight:600;background:#f7f6f2}}
-    .board-label.black{{border-bottom:1px solid #e8e6e0}}
-    .board-label.white{{border-top:1px solid #e8e6e0}}
-    .board-label .sub{{display:block;font-size:.76em;font-weight:400;color:#888;margin-top:3px}}
+    .board-stack{{display:inline-flex;flex-direction:column;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:0 1px 4px var(--shadow)}}
+    .board-label{{padding:11px 16px;text-align:center;font-size:.93em;font-weight:600;background:var(--bg-elevated);color:var(--text)}}
+    .board-label.black{{border-bottom:1px solid var(--border)}}
+    .board-label.white{{border-top:1px solid var(--border)}}
+    .board-label .sub{{display:block;font-size:.76em;font-weight:400;color:var(--faint);margin-top:3px}}
     .board-row{{display:flex;align-items:stretch}}
-    .eval-col-v{{display:flex;flex-direction:column;align-items:center;flex-shrink:0;border-right:1px solid #e8e6e0;background:#faf9f6;padding:0}}
-    .eval-track-v{{width:18px;background:#fff;position:relative;flex-shrink:0;border:1px solid #d8d6ce;border-radius:2px;flex:1;min-height:120px;margin:0}}
-    .eval-black{{position:absolute;top:0;left:0;right:0;background:#2c2c2c;transition:height .5s ease}}
-    #board{{display:block;background:#fff;width:min(calc(100vh - 180px),calc(100vw - 560px),600px);height:auto}}
+    .eval-col-v{{display:flex;flex-direction:column;align-items:center;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg-elevated);padding:0}}
+    .eval-track-v{{width:18px;background:var(--surface);position:relative;flex-shrink:0;border:1px solid var(--border-strong);border-radius:2px;flex:1;min-height:120px;margin:0}}
+    .eval-black{{position:absolute;top:0;left:0;right:0;background:var(--eval-fill);transition:height .5s ease}}
+    #board{{display:block;background:var(--surface);width:min(calc(100vh - 180px),calc(100vw - 560px),600px);height:auto}}
     .moves-col{{display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 100px)}}
-    .moves-col .panel{{background:#fff;border:1px solid #e4e2da;border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:200px;overflow:hidden}}
+    .moves-col .panel{{background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:200px;overflow:hidden}}
     .moves-col .panel h2{{padding:14px 16px 0;margin:0}}
     .moves-scroll{{overflow-y:auto;flex:1;padding:8px 12px 14px}}
-    .move-row{{display:grid;grid-template-columns:26px 1fr 1fr;gap:8px;padding:7px 4px;font-size:.88em;border-bottom:1px solid #f2f0ec}}
+    .move-row{{display:grid;grid-template-columns:26px 1fr 1fr;gap:8px;padding:7px 4px;font-size:.88em;border-bottom:1px solid var(--row)}}
     .move-row:last-child{{border-bottom:none}}
-    .move-row .mn{{color:#aaa;text-align:right;font-size:.82em}}
+    .move-row .mn{{color:var(--faint);text-align:right;font-size:.82em}}
     .move-row .w.on,.move-row .b.on{{font-weight:700}}
     @media(max-width:960px){{
       .layout{{grid-template-columns:1fr;gap:24px}}
@@ -585,7 +663,10 @@ async def game_view(game_id: str):
       if(!ev)return;
       document.getElementById('lbl-black').textContent=ev.top_label||ev.black_label||'Black';
       document.getElementById('lbl-white').textContent=ev.bottom_label||ev.white_label||'White';
-      document.getElementById('eval-black').style.height=ev.black_pct||'50%';
+      const bar=document.getElementById('eval-black');
+      bar.style.height=ev.black_pct||'50%';
+      if(ev.black_at_bottom){{bar.style.top='auto';bar.style.bottom='0';}}
+      else{{bar.style.top='0';bar.style.bottom='auto';}}
       renderGameState(s,ev);
     }}
 
@@ -622,7 +703,7 @@ async def game_view(game_id: str):
 
     function renderMoves(rows,plies){{
       const el=document.getElementById('mv');
-      if(!rows||!rows.length){{el.innerHTML='<p style="color:#999;margin:0">No moves yet.</p>';return}}
+      if(!rows||!rows.length){{el.innerHTML='<p style="color:var(--faint);margin:0">No moves yet.</p>';return}}
       const lastPly=plies||0;
       el.innerHTML=rows.map(r=>{{
         const wOn=r.num*2-1===lastPly,bOn=r.num*2===lastPly;
@@ -653,18 +734,22 @@ async def game_view(game_id: str):
         if(rev!==lastRevision||plies!==lastMoveCount){{
           lastRevision=rev;lastMoveCount=plies;
           if(s.move_rows)renderMoves(s.move_rows,plies);
-          if(!s.game_over)document.getElementById('board').src='/g/{game_id}/board.png?v='+rev;
+          document.getElementById('board').src='/g/{game_id}/board.png?v='+rev;
         }}
         const p=await(await fetch('/api/games/{game_id}/pgn?debug=1')).json();
         if(p.pgn)lastPgn=p.pgn;
         renderMeta(lastPgn,s);
         syncHeights();
+        if(s.game_over && pollTimer){{clearInterval(pollTimer);pollTimer=null;}}
       }}catch(e){{}}
     }}
     document.getElementById('board').onload=syncHeights;
     window.addEventListener('resize',syncHeights);
-    u();setInterval(u,3000);
-    </script></body></html>"""
+    let pollTimer=setInterval(u,3000);
+    u();
+    </script>
+    {THEME_TOGGLE_SCRIPT}
+    </body></html>"""
     return HTMLResponse(html)
 
 
@@ -678,9 +763,25 @@ async def get_board_image(game_id: str):
 
 
 @app.get("/api/games")
-async def list_games():
+async def list_games(
+    status: Optional[str] = Query(None),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """List games newest-first. status=in_progress|finished; omit for all."""
     await asyncio.to_thread(_get_game_service().prune_idle_games)
     games = game_manager.list_games()
+    if status in ("in_progress", "active"):
+        games = [g for g in games if g["state"].get("status") == "in_progress"]
+    elif status in ("finished", "done", "completed"):
+        games = [g for g in games if g["state"].get("status") != "in_progress"]
+
+    total = len(games)
+    if limit is not None:
+        games = games[offset : offset + limit]
+    else:
+        games = games[offset:]
+
     enriched = []
     for g in games:
         state = g["state"]
@@ -712,7 +813,12 @@ async def list_games():
                 ),
             }
         )
-    return enriched
+    return {
+        "games": enriched,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+    }
 
 
 @app.get("/api/games/{game_id}/state")

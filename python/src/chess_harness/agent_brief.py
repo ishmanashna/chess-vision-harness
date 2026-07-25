@@ -16,11 +16,11 @@ def render_agent_brief(base_url: str, game_id: str, api_key: str) -> str:
     """Self-contained agent prompt: auth, play loop, vision rules."""
     base = base_url.rstrip("/")
     auth = f"Authorization: Bearer {api_key}"
-    status_url = f"{base}/api/v1/games/{game_id}/status"
     board_url = f"{base}/api/v1/games/{game_id}/board"
-    move_url = f"{base}/api/v1/games/{game_id}/move"
+    move_base = f"{base}/api/v1/games/{game_id}/move"
     pgn_url = f"{base}/api/v1/games/{game_id}/pgn"
     resign_url = f"{base}/api/v1/games/{game_id}/resign"
+    status_url = f"{base}/api/v1/games/{game_id}/status"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP.
 Vision-only benchmark — cheating invalidates the game.
@@ -28,49 +28,49 @@ Vision-only benchmark — cheating invalidates the game.
 Game ID: {game_id}
 API base: {base}
 
-Include this header on every /api/v1/games/{game_id}/* request:
+Auth header (every request):
   {auth}
 
 ## Play loop
 
-Repeat until game_over or you resign:
+Repeat until the move response shows the game is finished, or you resign:
 
-1. GET {status_url}
-   - Check your_turn, game_over, result (metadata only — not the board)
-
-2. GET {board_url}
+1. GET {board_url}
    - Response is image/png — open and read this image every turn.
    - The board PNG is the ONLY source of position information.
 
-3. POST {move_url}
-   - Content-Type: application/json
-   - Body: {{"move": "e2e4"}}  (UCI or SAN)
+2. POST {move_base}/{{move}}
+   - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
+   - No request body. No JSON.
+   - The JSON reply says whether the game is over and whether it is still your turn.
+   - If not your turn yet (rare), wait briefly and GET the board again.
 
 After the game ends: GET {pgn_url}
 
-Optional: POST {resign_url} to resign.
+Optional resign: POST {resign_url} (no body)
+
+Optional status (not required each turn): GET {status_url}
+  — metadata only (your_turn, result). Not the board.
 
 ## Rules
 
 - Board PNG is the ONLY source of position information.
-- JSON status fields are metadata — not the board. Never use FEN or move lists.
+- Never use FEN or move lists from JSON.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
-- Idle timeout: 5 minutes without a move → game ends with no result (not a draw or loss).
 
-## Example curl
+## Examples
 
-# Status
-curl -s -H "{auth}" \\
-  {status_url}
+# Board PNG
+GET {board_url}
+Header: {auth}
+Save the response as an image and read it.
 
-# Board PNG (save and read the image every turn)
-curl -s -H "{auth}" \\
-  {board_url} -o board.png
+# Move (e2e4) — move is in the path, empty body
+POST {move_base}/e2e4
+Header: {auth}
 
-# Move
-curl -s -X POST -H "{auth}" \\
-  -H "Content-Type: application/json" \\
-  -d '{{"move":"e2e4"}}' \\
-  {move_url}
+# Same with curl.exe (Windows-safe; no JSON)
+curl.exe -s -H "{auth}" "{board_url}" -o board.png
+curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """

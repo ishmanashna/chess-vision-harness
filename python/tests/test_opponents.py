@@ -25,6 +25,19 @@ def test_select_by_elo_prefers_similar_rating():
     assert LOW_OPPONENT in picks
 
 
+def test_select_by_elo_excludes_far_anchors():
+    """Low agents must not draw 3000+ Stockfish via the soft weight floor."""
+    catalog = get_catalog()
+    picks = [catalog.select_by_elo(292).id for _ in range(80)]
+    far = []
+    for oid in picks:
+        opp = catalog.get(oid)
+        elo = ladder_elo_for_opponent(opp)
+        if elo >= 2500:
+            far.append((oid, elo))
+    assert not far, f"unexpected far pairings: {far[:5]}"
+
+
 def test_negative_skill_rejected():
     catalog = get_catalog()
     try:

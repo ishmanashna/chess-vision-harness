@@ -105,9 +105,8 @@ def test_api_v1_full_game_flow(api_client):
     assert board.content[:8] == b"\x89PNG\r\n\x1a\n"
 
     move = client.post(
-        f"/api/v1/games/{game_id}/move",
+        f"/api/v1/games/{game_id}/move/e2e4",
         headers=_auth_headers(api_key),
-        json={"move": "e2e4"},
     )
     assert move.status_code == 200
     move_data = move.json()
@@ -115,9 +114,8 @@ def test_api_v1_full_game_flow(api_client):
     _assert_no_leaks(move_data)
 
     bad_move = client.post(
-        f"/api/v1/games/{game_id}/move",
+        f"/api/v1/games/{game_id}/move/a9a9",
         headers=_auth_headers(api_key),
-        json={"move": "a9a9"},
     )
     assert bad_move.status_code == 400
     assert bad_move.json()["ok"] is False
@@ -146,7 +144,10 @@ def test_api_v1_full_game_flow(api_client):
 
     legacy = client.get("/api/games")
     assert legacy.status_code == 200
-    assert isinstance(legacy.json(), list)
+    payload = legacy.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload.get("games"), list)
+    assert "total" in payload
 
 
 def test_api_v1_auth_and_model_mismatch(api_client):

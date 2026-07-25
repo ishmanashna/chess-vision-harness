@@ -152,16 +152,14 @@ def test_moves_per_hour_per_key_returns_429(limit_client):
 
     for move in ("e2e4", "g1f3", "f1c4"):
         resp = client.post(
-            f"/api/v1/games/{game_id}/move",
+            f"/api/v1/games/{game_id}/move/{move}",
             headers=_auth(key),
-            json={"move": move},
         )
         assert resp.status_code == 200
 
     blocked = client.post(
-        f"/api/v1/games/{game_id}/move",
+        f"/api/v1/games/{game_id}/move/d2d4",
         headers=_auth(key),
-        json={"move": "d2d4"},
     )
     assert blocked.status_code == 429
     assert "move limit" in blocked.json()["error"].lower()

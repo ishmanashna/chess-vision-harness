@@ -41,6 +41,17 @@ def test_status_no_fen_or_last_move_in_progress(ctrl):
     assert "move_count" in r
 
 
+def test_status_finished_sets_game_over(ctrl):
+    ctrl.new_game("surf-idle", "white", 5, model_name="composer-2.5")
+    ended = ctrl.end_no_result("surf-idle", reason="inactivity")
+    assert ended["ok"]
+    r = ctrl.status("surf-idle")
+    assert r["ok"]
+    assert r["result"] == "*"
+    assert r["game_over"] is True
+    assert r["your_turn"] is False
+
+
 def test_board_no_fen(ctrl):
     ctrl.new_game("surf2", "white", 5, model_name="composer-2.5")
     r = ctrl.get_board("surf2")

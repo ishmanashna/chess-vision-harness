@@ -143,6 +143,15 @@ def cmd_leaderboard() -> None:
     print(format_opponent_ladder_cli())
 
 
+def cmd_snapshot_leaderboard(output: Optional[str] = None) -> None:
+    from pathlib import Path
+
+    from .snapshot_leaderboard import export_leaderboard_snapshot
+
+    path = export_leaderboard_snapshot(Path(output) if output else None)
+    print(f"Wrote leaderboard snapshot: {path}")
+
+
 def cmd_models_list() -> None:
     print(format_model_list(ModelRegistry()))
 

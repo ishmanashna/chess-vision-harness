@@ -189,6 +189,31 @@ class BoardController:
         return f"{state.get('status')}:{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}"
 
     @staticmethod
+    def highlight_moves(state: Dict[str, Any]) -> list:
+        """Last one or two plies for spectator board highlights (oldest first)."""
+        moves: list = []
+        for uci in (state.get("moves") or [])[-2:]:
+            try:
+                moves.append(chess.Move.from_uci(uci))
+            except ValueError:
+                continue
+        if not moves and state.get("last_move_uci"):
+            try:
+                moves.append(chess.Move.from_uci(state["last_move_uci"]))
+            except ValueError:
+                pass
+        return moves
+
+    def _render_state_board(self, board: chess.Board, board_path, state: Dict[str, Any]) -> None:
+        self.renderer.render_board(
+            board,
+            board_path,
+            last_moves=self.highlight_moves(state),
+            agent_color=state["agent_color"].lower(),
+            check_square=board.king(board.turn) if board.is_check() else None,
+        )
+
+    @staticmethod
     def side_labels(state: Dict[str, Any]) -> Dict[str, str]:
         model = state.get("model_display_name") or state.get("model_name") or "Agent"
         engine = BoardController.engine_display_label(state)
@@ -388,16 +413,7 @@ class BoardController:
 
                 board_path = self.game_manager.get_board_path(game_id)
                 try:
-                    last_move = (
-                        chess.Move.from_uci(state["last_move_uci"]) if state["last_move_uci"] else None
-                    )
-                    self.renderer.render_board(
-                        board,
-                        board_path,
-                        last_move=last_move,
-                        agent_color=agent_color,
-                        check_square=board.king(board.turn) if board.is_check() else None,
-                    )
+                    self._render_state_board(board, board_path, state)
                 except Exception as e:
                     return {"ok": False, "error": f"Failed to render board: {e}"}
 
@@ -477,16 +493,7 @@ class BoardController:
 
                 board_path = self.game_manager.get_board_path(game_id)
                 try:
-                    last_move = (
-                        chess.Move.from_uci(state["last_move_uci"]) if state["last_move_uci"] else None
-                    )
-                    self.renderer.render_board(
-                        board,
-                        board_path,
-                        last_move=last_move,
-                        agent_color=state["agent_color"].lower(),
-                        check_square=board.king(board.turn) if board.is_check() else None,
-                    )
+                    self._render_state_board(board, board_path, state)
                 except Exception as e:
                     return {"ok": False, "error": f"Failed to render board: {e}"}
 
@@ -611,16 +618,7 @@ class BoardController:
 
         if not board_path.exists():
             try:
-                last_move = (
-                    chess.Move.from_uci(state["last_move_uci"]) if state["last_move_uci"] else None
-                )
-                self.renderer.render_board(
-                    board,
-                    board_path,
-                    last_move=last_move,
-                    agent_color=state["agent_color"].lower(),
-                    check_square=board.king(board.turn) if board.is_check() else None,
-                )
+                self._render_state_board(board, board_path, state)
             except Exception as e:
                 return {"ok": False, "error": f"Failed to render board: {e}"}
 
@@ -635,16 +633,7 @@ class BoardController:
         board = chess.Board(state["board_fen"])
         board_path = self.game_manager.get_board_path(game_id)
         try:
-            last_move = (
-                chess.Move.from_uci(state["last_move_uci"]) if state["last_move_uci"] else None
-            )
-            self.renderer.render_board(
-                board,
-                board_path,
-                last_move=last_move,
-                agent_color=state["agent_color"].lower(),
-                check_square=board.king(board.turn) if board.is_check() else None,
-            )
+            self._render_state_board(board, board_path, state)
             return True
         except Exception:
             return False

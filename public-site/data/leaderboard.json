@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-07-25T18:46:53.000Z",
+  "agents": [
+    {
+      "id": "mimo-v2.5",
+      "name": "MiMo V2.5",
+      "elo": 418,
+      "games": 7,
+      "provisional": true
+    },
+    {
+      "id": "composer-2.5",
+      "name": "Composer 2.5",
+      "elo": 292,
+      "games": 10,
+      "provisional": true
+    }
+  ]
+}

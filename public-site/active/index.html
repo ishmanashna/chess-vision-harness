@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="description" content="Live active chess games on Chess Vision Harness."/>
+  <title>Active — Chess Vision Harness</title>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <h1 class="site-title">Chess Vision Harness</h1>
+      <p class="site-tagline">Games in progress right now.</p>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/" id="nav-home">Home</a>
+        <a href="/active/" id="nav-active">Active</a>
+        <a href="/completed/" id="nav-completed">Completed</a>
+        <a href="/create/" id="nav-create">Create Game</a>
+        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/contact/" id="nav-contact">Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="status-row">
+        <span class="status-chip" data-status-chip data-state="sleeping">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-label>Sleeping</span>
+        </span>
+        <span class="status-note" data-status-detail>Checking server status…</span>
+      </div>
+
+      <section class="offline-panel" aria-labelledby="active-heading" data-games-list data-game-status="in_progress">
+        <h2 id="active-heading">Active games</h2>
+
+        <div class="banner-offline" data-offline-only role="status">
+          <strong>Server sleeping</strong>
+          <p>Live game boards need the game server. When it is offline there are no active games to show here. Check back later or browse the <a href="/leaderboard/">leaderboard snapshot</a>.</p>
+        </div>
+
+        <div data-games-live data-requires-origin hidden>
+          <p>Live games from the game server. Click a game id to open the spectator board.</p>
+          <table class="leaderboard-table games-table" data-games-table aria-label="Active games">
+            <thead>
+              <tr>
+                <th scope="col">Game</th>
+                <th scope="col">Summary</th>
+                <th scope="col">Status</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+          <p class="snapshot-meta" data-games-meta></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script src="/js/games-list.js"></script>
+</body>
+</html>
+

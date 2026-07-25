@@ -96,7 +96,28 @@ class GameManager:
                 state = self.load_state(game_dir.name)
                 if state and (status_filter is None or state.get("status") == status_filter):
                     games.append({"game_id": game_dir.name, "state": state})
+        games.sort(key=self._game_recency_key, reverse=True)
         return games
+
+    def _game_recency_key(self, game: Dict[str, Any]) -> float:
+        """Newest activity first; fall back to state.json mtime."""
+        state = game.get("state") or {}
+        ts = state.get("last_activity")
+        if ts:
+            try:
+                from datetime import datetime, timezone
+
+                last = datetime.fromisoformat(ts)
+                if last.tzinfo is None:
+                    last = last.replace(tzinfo=timezone.utc)
+                return last.timestamp()
+            except ValueError:
+                pass
+        path = self.get_state_path(game["game_id"])
+        try:
+            return path.stat().st_mtime if path.exists() else 0.0
+        except OSError:
+            return 0.0
 
     def game_exists(self, game_id: str) -> bool:
         return self.get_state_path(game_id).exists()

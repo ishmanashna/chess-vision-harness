@@ -33,7 +33,7 @@ Mount on the existing FastAPI spectator app. New module `python/src/chess_harnes
 | POST | `/api/v1/games` | yes | Body `{opponent?, agent_color?}`. Start game as key’s model. Return agent-safe start payload + `game_id`. |
 | GET | `/api/v1/games/{id}/status` | yes | Agent-safe status (turn metadata). |
 | GET | `/api/v1/games/{id}/board` | yes | `image/png` bytes only (`GameService.get_board_bytes`). |
-| POST | `/api/v1/games/{id}/move` | yes | Body `{move}` UCI or SAN. |
+| POST | `/api/v1/games/{id}/move/{uci_or_san}` | yes | Move in path; no body (preferred). Legacy JSON `POST .../move` still accepted. |
 | POST | `/api/v1/games/{id}/resign` | yes | Resign. |
 | GET | `/api/v1/games/{id}/pgn` | yes | Finished games only. |
 | GET | `/api/v1/leaderboard` | no | Agent ratings JSON. |

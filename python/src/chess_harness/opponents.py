@@ -164,39 +164,52 @@ class OpponentCatalog:
         *,
         sigma_elo: Optional[float] = None,
         min_weight: Optional[float] = None,
+        max_delta_elo: Optional[float] = None,
     ) -> Opponent:
-        """Pick opponent weighted toward similar ELO (always, not just early games)."""
+        """Pick opponent weighted toward similar ELO (always, not just early games).
+
+        Opponents farther than ``max_delta_elo`` get zero weight. If none remain
+        in-band, fall back to the nearest eligible opponents only.
+        """
         if not self.opponents:
             raise ValueError("Opponent catalog is empty")
 
         from .calibration_view import ladder_elo_for_opponent, merge_calibration_ratings
 
         sigma = float(sigma_elo if sigma_elo is not None else self.matching.get("sigma_elo", 150))
-        floor_w = float(min_weight if min_weight is not None else self.matching.get("min_weight", 0.05))
+        floor_w = float(
+            min_weight if min_weight is not None else self.matching.get("min_weight", 0.05)
+        )
+        max_delta = max_delta_elo
+        if max_delta is None and "max_delta_elo" in self.matching:
+            max_delta = float(self.matching["max_delta_elo"])
         calibration = merge_calibration_ratings()
 
-        weights: List[float] = []
+        eligible: List[tuple[Opponent, float]] = []
         for opp in self.opponents:
             if not self.is_eligible(opp):
-                weights.append(0.0)
                 continue
             delta = abs(ladder_elo_for_opponent(opp, calibration) - agent_elo)
-            weights.append(max(floor_w, math.exp(-delta / sigma)))
+            eligible.append((opp, delta))
 
-        if not any(w > 0 for w in weights):
-            # Fall back to stockfish tiers only (tiny binaries missing)
+        if not eligible:
             playable = [o for o in self.opponents if o.type == "stockfish" and o.enabled]
             if not playable:
                 raise RuntimeError("No playable opponents in catalog")
-            weights = []
-            for opp in self.opponents:
-                if opp.type != "stockfish" or not opp.enabled:
-                    weights.append(0.0)
-                else:
-                    delta = abs(ladder_elo_for_opponent(opp, calibration) - agent_elo)
-                    weights.append(max(floor_w, math.exp(-delta / sigma)))
+            eligible = [
+                (opp, abs(ladder_elo_for_opponent(opp, calibration) - agent_elo))
+                for opp in playable
+            ]
 
-        return random.choices(self.opponents, weights=weights, k=1)[0]
+        in_band = (
+            [(opp, delta) for opp, delta in eligible if delta <= max_delta]
+            if max_delta is not None
+            else list(eligible)
+        )
+        pool = in_band if in_band else sorted(eligible, key=lambda x: x[1])[:5]
+
+        weights = [max(floor_w, math.exp(-delta / sigma)) for _opp, delta in pool]
+        return random.choices([opp for opp, _ in pool], weights=weights, k=1)[0]
 
     @staticmethod
     def _is_playable(opp: Opponent) -> bool:

@@ -4,6 +4,15 @@ Expose the spectator + `/api/v1` agent API behind TLS. The harness process binds
 
 **Prerequisites:** Phase 1 complete (HTTP API + Create Game). See [`docs/PUBLIC_AGENT_API_PLAN.md`](../docs/PUBLIC_AGENT_API_PLAN.md).
 
+### Home PC + Cloudflare Pages (current public site)
+
+If the public site is **https://chessvisionharness.pages.dev** and games run on your Windows PC, use the dedicated runbook:
+
+- **[`home-pc.md`](home-pc.md)** — tunnel options (Quick Tunnel vs named route), Windows services, turning live play on/off, snapshot publish, moving `GAME_ORIGIN` later
+- **[`pages.md`](pages.md)** — one-time GitHub/Cloudflare secrets and Pages `GAME_ORIGIN`
+
+Set `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev` on the PC (not the tunnel URL). The rest of this README still applies for install, backup, disk usage, and generic TLS/proxy patterns.
+
 ---
 
 ## 1. Install
@@ -90,8 +99,10 @@ If you cannot expose 443 on the host:
 
 1. Install `cloudflared` and create a tunnel to your Cloudflare account.
 2. Route `chess.example.com` → `http://127.0.0.1:8765`.
-3. Set `CHESS_HARNESS_PUBLIC_URL=https://chess.example.com` on the harness service.
+3. Set `CHESS_HARNESS_PUBLIC_URL` on the harness service to your **public agent URL** (for Pages deploys: `https://chessvisionharness.pages.dev`, not the tunnel hostname — see [`home-pc.md`](home-pc.md)).
 4. TLS is handled by Cloudflare; the tunnel connects outbound — no inbound firewall rules required.
+
+For the **chessvisionharness** Pages project, the tunnel URL goes in Cloudflare **`GAME_ORIGIN`**, not in `CHESS_HARNESS_PUBLIC_URL`. Full steps: [`home-pc.md`](home-pc.md).
 
 ---
 
@@ -317,6 +328,14 @@ if [ "$active" -eq 0 ] && [ "$engines" -gt 2 ]; then echo "possible engine leak:
 ```
 
 Pair with §8 disk checks and §10 backups.
+
+---
+
+## 13. Moving live origin off this machine
+
+When the public site uses Cloudflare Pages (`chessvisionharness.pages.dev`), visitors always use that hostname. Only **`GAME_ORIGIN`** (Pages dashboard) and where you run `chess-harness serve` change when you migrate.
+
+Steps: [`home-pc.md` — Move GAME_ORIGIN off this PC later](home-pc.md#move-game_origin-off-this-pc-later).
 
 ---
 

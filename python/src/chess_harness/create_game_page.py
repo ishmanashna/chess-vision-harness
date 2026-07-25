@@ -13,23 +13,29 @@ from .api_keys import ApiKeyStore
 from .api_limits import AuthContext, get_limit_enforcer, key_fingerprint
 from .commands import resolve_agent_color
 from .game_service import GameService
-from .ladder_display import SPECTATOR_PAGE_CSS, spectator_tabs
+from .ladder_display import (
+    SPECTATOR_PAGE_CSS,
+    THEME_INIT_SCRIPT,
+    THEME_TOGGLE_SCRIPT,
+    spectator_tabs,
+)
 from .models import ModelRegistry
 
 __all__ = ["render_create_game_page", "handle_create_game_post"]
 
 _CREATE_CSS = """
-    .form-card{max-width:520px;background:#fff;border:1px solid #e4e2da;border-radius:8px;padding:18px 20px;margin-top:8px}
+    .form-card{max-width:520px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-top:8px}
     .form-row{margin:0 0 14px}
-    .form-row label{display:block;font-size:.85em;font-weight:600;color:#555;margin-bottom:4px}
-    .form-row select{width:100%;box-sizing:border-box;font-size:.9em;padding:8px 10px;border:1px solid #ccc;border-radius:4px;background:#fff}
-    .form-hint{font-size:.78em;color:#888;margin-top:4px}
-    .btn-primary{font-size:.9em;padding:8px 16px;border-radius:4px;border:1px solid #3d6ea8;background:#3d6ea8;color:#fff;font-weight:600;cursor:pointer}
-    .btn-secondary{font-size:.85em;padding:6px 12px;border-radius:4px;border:1px solid #ccc;background:#fff;cursor:pointer;margin-top:8px}
-    .err{color:#b45309;background:#fff8f0;border:1px solid #f0d8b8;padding:10px 12px;border-radius:6px;margin:12px 0;font-size:.88em}
-    .ok-box{color:#1a6b2d;background:#f0faf2;border:1px solid #c8e6ce;padding:10px 12px;border-radius:6px;margin:12px 0;font-size:.88em}
+    .form-row label{display:block;font-size:.85em;font-weight:600;color:var(--muted);margin-bottom:4px}
+    .form-row select{width:100%;box-sizing:border-box;font-size:.9em;padding:8px 10px;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text)}
+    .form-hint{font-size:.78em;color:var(--faint);margin-top:4px}
+    .btn-primary{font-size:.9em;padding:8px 16px;border-radius:4px;border:1px solid var(--link);background:var(--link);color:#fff;font-weight:600;cursor:pointer}
+    .btn-secondary{font-size:.85em;padding:6px 12px;border-radius:4px;border:1px solid var(--input-border);background:var(--surface);color:var(--text);cursor:pointer;margin-top:8px}
+    .err{color:var(--warn);background:var(--err-bg);border:1px solid var(--err-border);padding:10px 12px;border-radius:6px;margin:12px 0;font-size:.88em}
+    .ok-box{color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-border);padding:10px 12px;border-radius:6px;margin:12px 0;font-size:.88em}
+    .ok-box a{color:var(--link)}
     .brief-wrap{margin-top:16px;max-width:720px}
-    .brief-wrap textarea{width:100%;box-sizing:border-box;min-height:320px;font-family:ui-monospace,monospace;font-size:.78em;padding:12px;border:1px solid #ddd;border-radius:6px;background:#faf9f6}
+    .brief-wrap textarea{width:100%;box-sizing:border-box;min-height:320px;font-family:ui-monospace,monospace;font-size:.78em;padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevated);color:var(--text)}
     .game-id{font-size:1.05em;margin:8px 0}
 """
 
@@ -73,8 +79,9 @@ def render_create_game_page(
 
     if success_game_id and brief:
         parts.extend([
-            '<div class="ok-box">Game created. It will appear on the '
-            '<a href="/?tab=active">Active</a> tab.</div>',
+            '<div class="ok-box">Game created. '
+            f'<a href="/g/{_esc(success_game_id)}">Spectate this game</a>'
+            ' · <a href="/?tab=active">Active</a></div>',
             f'<p class="game-id">Game ID: <code>{_esc(success_game_id)}</code></p>',
             '<div class="brief-wrap">',
             '<label for="brief"><strong>Agent prompt</strong> — paste into your agent</label>',
@@ -111,6 +118,7 @@ def render_create_game_page(
     """
 
     return f"""<!DOCTYPE html><html><head><title>Create Game · Chess Vision Harness</title>
+    {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
     {_CREATE_CSS}
@@ -120,6 +128,7 @@ def render_create_game_page(
     <p class="sub">Pick an inscribed model, create a rated game, and copy the agent prompt for HTTP play (<code>/api/v1</code>).</p>
     {"".join(parts)}
     <script>{copy_js}</script>
+    {THEME_TOGGLE_SCRIPT}
     </body></html>"""
 
 

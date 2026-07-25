@@ -30,6 +30,11 @@ def agent_safe_status(state: Dict[str, Any], board_path: str, persp: Dict[str, A
         "board_path": board_path,
         **persp,
     }
+    # Finished/abandoned games keep a live board FEN; trust harness status, not board.is_game_over().
+    if not in_progress:
+        response["game_over"] = True
+        response["your_turn"] = False
+        response["in_check"] = False
     if not in_progress and state.get("last_move_uci"):
         response["last_move"] = state["last_move_uci"]
     return response
@@ -41,11 +46,13 @@ def agent_safe_board(state: Dict[str, Any], board_path: str, persp: Dict[str, An
         "game_id": state.get("game_id"),
         "board_path": board_path,
     }
-    if state.get("result"):
-        response["result"] = state["result"]
-        response.update(_agent_outcome(state["agent_color"], state["result"]))
+    if state.get("status") != "in_progress" or state.get("result"):
+        response["result"] = state.get("result")
+        response["game_over"] = True
+        response.update(_agent_outcome(state["agent_color"], state.get("result")))
     else:
         response["your_turn"] = persp.get("your_turn", False)
+        response["game_over"] = False
     return response
 
 

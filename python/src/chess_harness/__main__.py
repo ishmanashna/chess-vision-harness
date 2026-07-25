@@ -90,6 +90,17 @@ def main(argv: list[str] | None = None) -> None:
     elif args[0] == "leaderboard":
         commands.cmd_leaderboard()
 
+    elif args[0] == "snapshot-leaderboard":
+        output = None
+        i = 1
+        while i < len(args):
+            if args[i] == "--output" and i + 1 < len(args):
+                output = args[i + 1]
+                i += 2
+            else:
+                i += 1
+        commands.cmd_snapshot_leaderboard(output)
+
     elif args[0] == "rating":
         if len(args) < 3 or args[1] != "--model":
             print("Usage: chess-harness rating --model <name>")

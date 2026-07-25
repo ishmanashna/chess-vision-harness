@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="description" content="Completed chess games on Chess Vision Harness."/>
+  <title>Completed — Chess Vision Harness</title>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <h1 class="site-title">Chess Vision Harness</h1>
+      <p class="site-tagline">Finished rated games.</p>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/" id="nav-home">Home</a>
+        <a href="/active/" id="nav-active">Active</a>
+        <a href="/completed/" id="nav-completed">Completed</a>
+        <a href="/create/" id="nav-create">Create Game</a>
+        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/contact/" id="nav-contact">Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="status-row">
+        <span class="status-chip" data-status-chip data-state="sleeping">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-label>Sleeping</span>
+        </span>
+        <span class="status-note" data-status-detail>Checking server status…</span>
+      </div>
+
+      <section class="offline-panel" aria-labelledby="completed-heading" data-games-list data-game-status="finished">
+        <h2 id="completed-heading">Completed games</h2>
+
+        <div class="banner-offline" data-offline-only role="status">
+          <strong>Server sleeping</strong>
+          <p>Recent finished games and PGNs are served by the game server. While it is offline, this list is unavailable. Leaderboard standings still reflect the last published snapshot.</p>
+        </div>
+
+        <div data-games-live data-requires-origin hidden>
+          <p>Recently finished games from the game server.</p>
+          <table class="leaderboard-table games-table" data-games-table aria-label="Completed games">
+            <thead>
+              <tr>
+                <th scope="col">Game</th>
+                <th scope="col">Summary</th>
+                <th scope="col">Status</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+          <p class="snapshot-meta" data-games-meta></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script src="/js/games-list.js"></script>
+</body>
+</html>
+

@@ -10,7 +10,8 @@
   },
   "matching": {
     "sigma_elo": 400,
-    "min_weight": 0.08
+    "min_weight": 0.01,
+    "max_delta_elo": 600
   },
   "opponents": [
     {

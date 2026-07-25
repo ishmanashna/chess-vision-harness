@@ -17,6 +17,8 @@ class ChessBoardRenderer:
     DARK_SQUARE = (181, 136, 99)
     LAST_MOVE_LIGHT = (205, 210, 106)
     LAST_MOVE_DARK = (170, 162, 58)
+    PREV_MOVE_LIGHT = (186, 202, 168)
+    PREV_MOVE_DARK = (140, 162, 110)
     CHECK_OUTLINE = (220, 50, 50)
     WHITE_PIECE = (245, 245, 245)
     BLACK_PIECE = (30, 30, 30)
@@ -72,6 +74,7 @@ class ChessBoardRenderer:
         board: chess.Board,
         output_path: Path,
         last_move: Optional[chess.Move] = None,
+        last_moves: Optional[list] = None,
         agent_color: str = "white",
         check_square: Optional[chess.Square] = None,
         status_text: Optional[str] = None,
@@ -83,6 +86,15 @@ class ChessBoardRenderer:
         flip_board = agent_color.lower() == "black"
         ox, oy = self.coord_margin, 0
 
+        highlight: dict = {}
+        moves = list(last_moves) if last_moves else ([last_move] if last_move else [])
+        if len(moves) >= 2 and moves[-2] is not None:
+            for sq in (moves[-2].from_square, moves[-2].to_square):
+                highlight[sq] = "prev"
+        if moves and moves[-1] is not None:
+            for sq in (moves[-1].from_square, moves[-1].to_square):
+                highlight[sq] = "last"
+
         for row in range(8):
             for col in range(8):
                 square_row = 7 - row if flip_board else row
@@ -91,10 +103,12 @@ class ChessBoardRenderer:
                 is_light = (row + col) % 2 == 0
                 square_color = self.LIGHT_SQUARE if is_light else self.DARK_SQUARE
 
-                if last_move:
-                    sq = chess.square(square_col, 7 - square_row)
-                    if sq in (last_move.from_square, last_move.to_square):
-                        square_color = self.LAST_MOVE_LIGHT if is_light else self.LAST_MOVE_DARK
+                sq = chess.square(square_col, 7 - square_row)
+                kind = highlight.get(sq)
+                if kind == "last":
+                    square_color = self.LAST_MOVE_LIGHT if is_light else self.LAST_MOVE_DARK
+                elif kind == "prev":
+                    square_color = self.PREV_MOVE_LIGHT if is_light else self.PREV_MOVE_DARK
 
                 x1 = ox + col * self.square_size
                 y1 = oy + row * self.square_size

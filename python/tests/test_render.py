@@ -35,6 +35,17 @@ class TestRenderer:
         self.renderer.render_board(board, out, agent_color="white", last_move=chess.Move.from_uci("e2e4"))
         assert out.exists()
 
+    def test_last_two_moves_highlight(self, tmp_path):
+        board = chess.Board()
+        m1 = chess.Move.from_uci("e2e4")
+        m2 = chess.Move.from_uci("e7e5")
+        board.push(m1)
+        board.push(m2)
+        out = tmp_path / "board.png"
+        self.renderer.render_board(board, out, agent_color="white", last_moves=[m1, m2])
+        assert out.exists()
+        assert out.stat().st_size > 1000
+
     def test_flipped_for_black(self, tmp_path):
         board = chess.Board()
         out = tmp_path / "board.png"

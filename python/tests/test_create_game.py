@@ -60,6 +60,8 @@ def test_create_game_post_happy_path(create_client):
     assert resp.status_code == 200
     assert "Game created" in resp.text
     assert "Copy prompt" in resp.text
+    assert 'href="/g/' in resp.text
+    assert "Spectate this game" in resp.text
     assert "Authorization: Bearer" in resp.text
     assert "game-" in resp.text
 
@@ -67,7 +69,7 @@ def test_create_game_post_happy_path(create_client):
     assert keys_file.exists()
     assert "composer-2.5" in keys_file.read_text(encoding="utf-8")
 
-    games = client.get("/api/games").json()
+    games = client.get("/api/games").json()["games"]
     assert any(g["status"] == "in_progress" for g in games)
 
 
