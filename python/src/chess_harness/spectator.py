@@ -11,13 +11,15 @@ from contextlib import asynccontextmanager
 
 import chess
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from .agent_surface import agent_safe_spectator_state, debug_state_enabled
 from .api_v1 import mount_api_v1
 from .board_controller import BoardController
 from .elo import ELOLadder
 from .ladder_display import (
+    PUBLIC_SITE_HEADER,
     SPECTATOR_PAGE_CSS,
     THEME_INIT_SCRIPT,
     THEME_TOGGLE_SCRIPT,
@@ -133,10 +135,50 @@ def _get_game_service() -> GameService:
 
 mount_api_v1(app, _get_game_service)
 
+_public_site = _project_root / "public-site"
+if (_public_site / "css").is_dir():
+    app.mount("/css", StaticFiles(directory=str(_public_site / "css")), name="public_css")
+if (_public_site / "js").is_dir():
+    app.mount("/js", StaticFiles(directory=str(_public_site / "js")), name="public_js")
+
 
 @app.get("/health")
 async def health():
     return {"ok": True, "status": "up"}
+
+
+@app.get("/api/edge-health")
+async def local_edge_health():
+    """Same shape as Pages /api/edge-health so public chrome works on localhost."""
+    return {
+        "status": "online",
+        "online": True,
+        "origin": True,
+        "message": "Local game server.",
+    }
+
+
+@app.get("/active")
+@app.get("/active/")
+async def redirect_active():
+    return RedirectResponse(url="/?tab=active", status_code=307)
+
+
+@app.get("/completed")
+@app.get("/completed/")
+async def redirect_completed():
+    return RedirectResponse(url="/?tab=done", status_code=307)
+
+
+@app.get("/contact")
+@app.get("/contact/")
+async def local_contact():
+    return HTMLResponse(
+        "<!DOCTYPE html><html><head><title>Contact</title></head><body>"
+        "<p>Operator: "
+        '<a href="mailto:jvalladaresgay@gmail.com">jvalladaresgay@gmail.com</a>'
+        ' · <a href="/">Home</a></p></body></html>'
+    )
 
 
 def _eval_position(fen: str) -> Optional[int]:
@@ -529,18 +571,17 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
+    header = PUBLIC_SITE_HEADER.format(game_id=game_id)
     html = f"""<!DOCTYPE html><html><head><title>{game_id} · Chess Vision Harness</title>
     {THEME_INIT_SCRIPT}
+    <link rel="stylesheet" href="/css/site.css"/>
     <style>
     {SPECTATOR_PAGE_CSS}
     *{{box-sizing:border-box}}
     body{{padding:0;min-height:100vh}}
+    .site-chrome{{padding-bottom:0}}
+    .site-chrome .site-header{{margin-bottom:0}}
     a{{color:var(--link);text-decoration:none}}a:hover{{text-decoration:underline}}
-    .page-header{{padding:16px 32px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;border-bottom:1px solid var(--border);background:var(--bg-elevated)}}
-    .page-header .nav{{font-size:.9em;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;width:100%}}
-    .theme-toggle-inline{{margin-left:8px;vertical-align:middle}}
-    .page-header h1{{margin:0;font-size:1.2em;font-weight:600}}
-    .page-header .gid{{color:var(--faint);font-weight:400;font-size:.85em}}
     .layout{{display:grid;grid-template-columns:minmax(280px,360px) auto minmax(200px,280px);gap:28px;align-items:start;padding:24px 32px 40px;max-width:1320px;margin:0 auto}}
     .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .info-col{{display:flex;flex-direction:column;gap:16px}}
@@ -579,9 +620,7 @@ async def game_view(game_id: str):
       #board{{width:100%;max-width:480px}}
     }}
     </style></head><body>
-    <header class="page-header">
-      <div class="nav">{NAV}</div>
-    </header>
+    {header}
     <div class="layout">
       <aside class="col info-col">
         <div class="info-card">
@@ -748,7 +787,7 @@ async def game_view(game_id: str):
     let pollTimer=setInterval(u,3000);
     u();
     </script>
-    {THEME_TOGGLE_SCRIPT}
+    <script src="/js/common.js"></script>
     </body></html>"""
     return HTMLResponse(html)
 
@@ -796,6 +835,14 @@ async def list_games(
             )
         else:
             active_card = _active_card(state, g["game_id"])
+        labels = BoardController.side_labels(state)
+        agent_name = (
+            state.get("model_display_name")
+            or state.get("model_name")
+            or labels.get("agent")
+            or "Agent"
+        )
+        opp_label = BoardController.engine_display_label(state)
         enriched.append(
             {
                 "game_id": g["game_id"],
@@ -805,7 +852,15 @@ async def list_games(
                 "summary": _game_summary(state),
                 "elo_change": elo_delta,
                 "agent_outcome": agent_outcome,
+                "outcome_label": (agent_outcome or {}).get("label"),
                 "active_card": active_card,
+                "model_id": state.get("model_name"),
+                "model_name": agent_name,
+                "agent_elo": state.get("agent_elo"),
+                "opponent_id": state.get("opponent_id"),
+                "opponent_label": opp_label,
+                "opponent_elo": state.get("opponent_elo") or state.get("engine_elo"),
+                "last_activity": state.get("last_activity"),
                 "turn": active_card["turn_label"] if active_card else (
                     _get_controller().format_spectator_summary(state).split(" — ", 1)[-1]
                     if state.get("status") == "in_progress"

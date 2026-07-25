@@ -389,6 +389,42 @@ THEME_TOGGLE_SCRIPT = """
 </script>
 """
 
+PUBLIC_SITE_HEADER = """
+<div class="wrap site-chrome">
+  <header class="site-header">
+    <div class="header-top">
+      <div class="header-brand">
+        <h1 class="site-title">Chess Vision Harness</h1>
+        <p class="site-tagline">Spectating <code>{game_id}</code></p>
+      </div>
+      <div class="header-controls">
+        <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+        <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-label>Sleeping</span>
+        </span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/active/">Active</a>
+      <a href="/completed/">Completed</a>
+      <a href="/create/">Create Game</a>
+      <a href="/leaderboard/">Leaderboard</a>
+      <a href="/contact/">Contact</a>
+    </nav>
+  </header>
+</div>
+"""
+
+NAV = (
+    '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/leaderboard">ELO Ladder</a> &nbsp;|&nbsp; '
+    '<button type="button" class="theme-toggle theme-toggle-inline" data-theme-toggle>Dark mode</button>'
+)
+
 SPECTATOR_PAGE_CSS = """
     :root{
       --bg:#f4f3ef;--bg-elevated:#faf9f6;--surface:#fff;--surface-muted:#fcfcfb;

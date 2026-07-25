@@ -444,10 +444,42 @@ p {
   color: var(--text-secondary);
 }
 
-.card-heading-spaced {
+.inscribe-panel {
   margin-top: 22px;
-  padding-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.inscribe-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.inscribe-panel[open] summary {
+  margin-bottom: 12px;
+}
+
+.create-intro {
+  max-width: 48rem;
+}
+
+.games-table th[data-sort] {
+  user-select: none;
+}
+
+.games-table th[data-sort].is-sorted {
+  color: var(--text);
+}
+
+.rating-explain {
+  margin-top: 36px;
+  max-width: 48rem;
+}
+
+.rating-explain p {
+  max-width: none;
 }
 
 .create-form .btn {

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-25T19:25:22.000Z",
+  "generated_at": "2026-07-25T20:09:33.000Z",
   "agents": [
     {
       "id": "mimo-v2.5",
@@ -14,6 +14,496 @@
       "elo": 292,
       "games": 10,
       "provisional": true
+    }
+  ],
+  "opponents": [
+    {
+      "id": "stockfish:20",
+      "name": "Stockfish 17.1 (stockfish:20)",
+      "elo": 3190,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:19",
+      "name": "Stockfish 17.1 (stockfish:19)",
+      "elo": 3096,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:18",
+      "name": "Stockfish 17.1 (stockfish:18)",
+      "elo": 3003,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:17",
+      "name": "Stockfish 17.1 (stockfish:17)",
+      "elo": 2910,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:16",
+      "name": "Stockfish 17.1 (stockfish:16)",
+      "elo": 2816,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:15",
+      "name": "Stockfish 17.1 (stockfish:15)",
+      "elo": 2722,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:14",
+      "name": "Stockfish 17.1 (stockfish:14)",
+      "elo": 2629,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:13",
+      "name": "Stockfish 17.1 (stockfish:13)",
+      "elo": 2536,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:12",
+      "name": "Stockfish 17.1 (stockfish:12)",
+      "elo": 2442,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:11",
+      "name": "Stockfish 17.1 (stockfish:11)",
+      "elo": 2348,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:10",
+      "name": "Stockfish 17.1 (stockfish:10)",
+      "elo": 2255,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:9",
+      "name": "Stockfish 17.1 (stockfish:9)",
+      "elo": 2162,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:8",
+      "name": "Stockfish 17.1 (stockfish:8)",
+      "elo": 2068,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:7",
+      "name": "Stockfish 17.1 (stockfish:7)",
+      "elo": 1974,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:6",
+      "name": "Stockfish 17.1 (stockfish:6)",
+      "elo": 1881,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:5",
+      "name": "Stockfish 17.1 (stockfish:5)",
+      "elo": 1788,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:4",
+      "name": "Stockfish 17.1 (stockfish:4)",
+      "elo": 1694,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:3",
+      "name": "Stockfish 17.1 (stockfish:3)",
+      "elo": 1600,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:depth4",
+      "name": "Stockfish 17.1 (depth 4)",
+      "elo": 1508,
+      "games": 2293,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:2",
+      "name": "Stockfish 17.1 (stockfish:2)",
+      "elo": 1507,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:1",
+      "name": "Stockfish 17.1 (stockfish:1)",
+      "elo": 1414,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise5",
+      "name": "Stockfish 17.1 (5% noise)",
+      "elo": 1342,
+      "games": 2418,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish:0",
+      "name": "Stockfish 17.1 (stockfish:0)",
+      "elo": 1320,
+      "games": 0,
+      "anchor": true,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise7",
+      "name": "Stockfish 17.1 (7% noise)",
+      "elo": 1313,
+      "games": 1516,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise8",
+      "name": "Stockfish 17.1 (8% noise)",
+      "elo": 1288,
+      "games": 1596,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise10",
+      "name": "Stockfish 17.1 (10% noise)",
+      "elo": 1205,
+      "games": 2536,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise13",
+      "name": "Stockfish 17.1 (13% noise)",
+      "elo": 1156,
+      "games": 1688,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise12",
+      "name": "Stockfish 17.1 (12% noise)",
+      "elo": 1115,
+      "games": 2576,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise19",
+      "name": "Stockfish 17.1 (19% noise)",
+      "elo": 1094,
+      "games": 1719,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise16",
+      "name": "Stockfish 17.1 (16% noise)",
+      "elo": 1072,
+      "games": 1701,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise21",
+      "name": "Stockfish 17.1 (21% noise)",
+      "elo": 977,
+      "games": 1690,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise24",
+      "name": "Stockfish 17.1 (24% noise)",
+      "elo": 972,
+      "games": 1767,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise27",
+      "name": "Stockfish 17.1 (27% noise)",
+      "elo": 954,
+      "games": 1789,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise22",
+      "name": "Stockfish 17.1 (22% noise)",
+      "elo": 939,
+      "games": 1989,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise30",
+      "name": "Stockfish 17.1 (30% noise)",
+      "elo": 835,
+      "games": 2083,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise33",
+      "name": "Stockfish 17.1 (33% noise)",
+      "elo": 790,
+      "games": 1818,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise38",
+      "name": "Stockfish 17.1 (38% noise)",
+      "elo": 753,
+      "games": 2127,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise41",
+      "name": "Stockfish 17.1 (41% noise)",
+      "elo": 726,
+      "games": 1771,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise46",
+      "name": "Stockfish 17.1 (46% noise)",
+      "elo": 706,
+      "games": 1874,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise52",
+      "name": "Stockfish 17.1 (depth 1 + 52% noise)",
+      "elo": 591,
+      "games": 1950,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise62",
+      "name": "Stockfish 17.1 (depth 1 + 62% noise)",
+      "elo": 496,
+      "games": 2199,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise55",
+      "name": "Stockfish 17.1 (55% noise)",
+      "elo": 489,
+      "games": 1888,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise68",
+      "name": "Stockfish 17.1 (depth 1 + 68% noise)",
+      "elo": 455,
+      "games": 1725,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise72",
+      "name": "Stockfish 17.1 (depth 1 + 72% noise)",
+      "elo": 424,
+      "games": 1729,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise76",
+      "name": "Stockfish 17.1 (depth 1 + 76% noise)",
+      "elo": 398,
+      "games": 1696,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise84",
+      "name": "Stockfish 17.1 (depth 1 + 84% noise)",
+      "elo": 256,
+      "games": 1702,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise94",
+      "name": "Stockfish 17.1 (depth 1 + 94% noise)",
+      "elo": 182,
+      "games": 1733,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise90",
+      "name": "Stockfish 17.1 (depth 1 + 90% noise)",
+      "elo": 178,
+      "games": 1665,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise96",
+      "name": "Stockfish 17.1 (depth 1 + 96% noise)",
+      "elo": 154,
+      "games": 1724,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise98",
+      "name": "Stockfish 17.1 (depth 1 + 98% noise)",
+      "elo": 104,
+      "games": 1651,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "stockfish-handicap:noise99",
+      "name": "Stockfish 17.1 (depth 1 + 99% noise)",
+      "elo": 103,
+      "games": 1626,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:exclude-top1-d8",
+      "name": "Inverse SF (exclude top1 d8)",
+      "elo": 92,
+      "games": 704,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "random",
+      "name": "Random mover",
+      "elo": 91,
+      "games": 2844,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:exclude-top1",
+      "name": "Inverse SF (exclude top1)",
+      "elo": 67,
+      "games": 1681,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:exclude-top1-d14",
+      "name": "Inverse SF (exclude top1 d14)",
+      "elo": 59,
+      "games": 1322,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:exclude-top1-d6",
+      "name": "Inverse SF (exclude top1 d6)",
+      "elo": 58,
+      "games": 797,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:bottom-half-d16",
+      "name": "Inverse SF (bottom half d16)",
+      "elo": 26,
+      "games": 1216,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:abyss",
+      "name": "Inverse SF (abyss)",
+      "elo": 3,
+      "games": 1113,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:worst-d16",
+      "name": "Inverse SF (worst d16)",
+      "elo": -3,
+      "games": 1230,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:worst-d10",
+      "name": "Inverse SF (worst d10)",
+      "elo": -10,
+      "games": 2106,
+      "anchor": false,
+      "uncalibrated": false
+    },
+    {
+      "id": "inverse-sf:worst-d18",
+      "name": "Inverse SF (worst d18)",
+      "elo": -10,
+      "games": 1212,
+      "anchor": false,
+      "uncalibrated": false
     }
   ]
 }

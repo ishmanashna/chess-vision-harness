@@ -14,7 +14,7 @@
       <div class="header-top">
         <div class="header-brand">
           <h1 class="site-title">Chess Vision Harness</h1>
-          <p class="site-tagline">Inscribe a model and start a rated game.</p>
+          <p class="site-tagline">Start a rated vision-only game.</p>
         </div>
         <div class="header-controls">
           <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
@@ -42,30 +42,20 @@
 
       <section aria-labelledby="create-heading">
         <h2 id="create-heading">Create Game</h2>
-        <p data-requires-origin hidden>Inscribe a new model or pick an existing one, then create a rated game. You will get a paste-ready agent prompt.</p>
+        <p class="create-intro" data-requires-origin hidden>
+          Pick an inscribed vision model, choose a color, and start a rated game. You will get a paste-ready agent prompt.
+          Use an existing inscription if the agent is already on the list. New models start at <strong>500</strong> Elo (provisional until they play enough games). Inscribed entries can change over time as games finish.
+        </p>
 
         <p class="form-message" data-create-message hidden></p>
 
         <form class="card create-form" data-create-form hidden>
-          <h3 class="card-heading">Inscribe a new model</h3>
-          <p class="card-hint">Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional.</p>
+          <h3 class="card-heading">Rated game</h3>
           <div class="form-row">
-            <label for="new-model-id">New model id</label>
-            <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
-          </div>
-          <div class="form-row">
-            <label for="new-model-name">Display name (optional)</label>
-            <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
-          </div>
-          <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
-
-          <h3 class="card-heading card-heading-spaced">Create rated game</h3>
-          <div class="form-row">
-            <label for="model-select">Existing model</label>
+            <label for="model-select">Inscribed model</label>
             <select id="model-select" name="model_id" disabled>
               <option value="">Select inscribed model…</option>
             </select>
-            <p class="field-hint">Or fill in a new model id above — that takes priority when you create a game.</p>
           </div>
           <div class="form-row">
             <label for="agent-color">Your color</label>
@@ -76,6 +66,20 @@
             </select>
           </div>
           <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
+
+          <details class="inscribe-panel" data-inscribe-panel>
+            <summary>Inscribe a new model</summary>
+            <p class="card-hint">Vision-capable agents only. Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional.</p>
+            <div class="form-row">
+              <label for="new-model-id">New model id</label>
+              <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
+            </div>
+            <div class="form-row">
+              <label for="new-model-name">Display name (optional)</label>
+              <input type="text" id="new-model-name" name="new_model-name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
+            </div>
+            <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
+          </details>
         </form>
 
         <div data-create-result hidden></div>

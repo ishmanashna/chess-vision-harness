@@ -55,9 +55,6 @@
       agents.forEach(function (agent) {
         var id = agent.id || "";
         var label = agent.name && agent.name !== id ? agent.name + " (" + id + ")" : id;
-        if (agent.elo != null) {
-          label += " — Elo " + agent.elo;
-        }
         html +=
           '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + "</option>";
       });
@@ -187,7 +184,7 @@
         var chosenId = freshId || modelId;
 
         if (!chosenId) {
-          setMessage(messageEl, "error", "Select an inscribed model or enter a new model id.");
+          setMessage(messageEl, "error", "Select an inscribed model, or open Inscribe a new model below.");
           return;
         }
 

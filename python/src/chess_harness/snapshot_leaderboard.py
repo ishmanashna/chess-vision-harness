@@ -23,11 +23,42 @@ def is_provisional(games: int) -> bool:
     return games < PROVISIONAL_GAMES_THRESHOLD
 
 
+def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
+    """Anchors + calibrated floaters for the public ladder snapshot."""
+    from .calibration_view import build_ladder_rating_table
+    from .opponents import OpponentCatalog
+
+    catalog = OpponentCatalog()
+    rows: List[Dict[str, Any]] = []
+    for row in build_ladder_rating_table(catalog):
+        oid = str(row.get("id") or "")
+        opp = catalog.get(oid) if oid else None
+        if opp and opp.type == "stockfish":
+            name = f"{opp.display_name} ({oid})"
+        elif opp:
+            name = opp.display_name
+        else:
+            name = oid
+        rows.append(
+            {
+                "id": oid,
+                "name": name,
+                "elo": round(float(row.get("elo") or 0)),
+                "games": int(row.get("games") or 0),
+                "anchor": bool(row.get("anchor")),
+                "uncalibrated": bool(row.get("uncalibrated")),
+            }
+        )
+    rows.sort(key=lambda r: (-r["elo"], str(r["name"]).lower()))
+    return rows
+
+
 def build_snapshot(
     registry: ModelRegistry,
     game_counts: Dict[str, int],
     *,
     generated_at: Optional[str] = None,
+    include_opponents: bool = True,
 ) -> Dict[str, Any]:
     agents: List[Dict[str, Any]] = []
     for model in registry.list_models():
@@ -47,7 +78,10 @@ def build_snapshot(
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
-    return {"generated_at": generated_at, "agents": agents}
+    snapshot: Dict[str, Any] = {"generated_at": generated_at, "agents": agents}
+    if include_opponents:
+        snapshot["opponents"] = build_opponent_snapshot_rows()
+    return snapshot
 
 
 def export_leaderboard_snapshot(

@@ -44,21 +44,24 @@
         </div>
 
         <div data-games-live data-requires-origin hidden>
-          <p>Click a game id to open the spectator board.</p>
+          <p>Click a game id or Open to watch the board.</p>
           <table class="leaderboard-table games-table" data-games-table aria-label="Active games">
             <thead>
               <tr>
-                <th scope="col">Game</th>
-                <th scope="col">Summary</th>
-                <th scope="col">Status</th>
+                <th scope="col" data-sort="id">Game</th>
+                <th scope="col" data-sort="agent">Agent</th>
+                <th scope="col" data-sort="agentElo">Elo</th>
+                <th scope="col" data-sort="opponent">Opponent</th>
+                <th scope="col" data-sort="result">Turn / result</th>
+                <th scope="col" data-sort="whenMs">Updated</th>
                 <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
-          <p class="snapshot-meta" data-games-meta></p>
+          <p class="snapshot-meta" data-games-meta hidden></p>
         </div>
       </section>
     </main>

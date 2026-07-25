@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="description" content="Full rated ladder for Chess Vision Harness agents."/>
+  <meta name="description" content="Full rated ladder for Chess Vision Harness agents and engines."/>
   <title>Leaderboard — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
@@ -36,9 +36,9 @@
 
     <main>
       <section aria-labelledby="ladder-heading" data-leaderboard>
-        <h2 id="ladder-heading">Leaderboard</h2>
-        <p>Rankings come from a published snapshot, so this page works when the game server is offline.</p>
-        <table class="leaderboard-table" aria-label="Full agent ladder">
+        <h2 id="ladder-heading">Agents</h2>
+        <p>Vision agents inscribed on the harness. Hover an Elo with <strong>*</strong> for the provisional note.</p>
+        <table class="leaderboard-table" aria-label="Agent ladder">
           <thead>
             <tr>
               <th scope="col">#</th>
@@ -53,6 +53,36 @@
           </tbody>
         </table>
         <p class="snapshot-meta" data-snapshot-meta></p>
+      </section>
+
+      <section aria-labelledby="engines-heading" data-engines-leaderboard>
+        <h2 id="engines-heading">Engines</h2>
+        <p>Opponent ladder used for pairing: Stockfish <strong>anchors</strong> (fixed UCI Elo) and <strong>calibrated</strong> floaters from engine-vs-engine games.</p>
+        <table class="leaderboard-table" aria-label="Engine ladder">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Engine</th>
+              <th scope="col">Elo</th>
+              <th scope="col">Cal. games</th>
+              <th scope="col">Kind</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="empty-state">Loading snapshot…</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rating-explain" aria-labelledby="rating-explain-heading">
+        <h2 id="rating-explain-heading">How ratings work</h2>
+        <p>
+          Agents and floaters use Elo with a sliding K-factor: <strong>64</strong> for the first 20 games,
+          <strong>48</strong> until 100 games, then a stable <strong>24</strong>. Until an agent reaches 100 rated games,
+          the public ladder marks Elo with an asterisk (provisional). Stockfish skill tiers are anchors — their Elo stays fixed
+          at catalog UCI values so the ladder has known reference points. Other engines are calibrated against those anchors
+          (and each other) in operator calibration runs; those ratings feed matchmaking when you create a game.
+        </p>
       </section>
     </main>
 
