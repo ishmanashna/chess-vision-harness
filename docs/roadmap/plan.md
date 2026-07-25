@@ -202,7 +202,7 @@ Header: **Online** / **Sleeping** from edge health probe.
 
 - [x] Document NSSM / Task Scheduler for `chess-harness serve` on `127.0.0.1:8765`
 - [x] Cloudflare Tunnel → local harness (Quick Tunnel documented; named route when domain exists)
-- [ ] Operator sets Pages `GAME_ORIGIN` + PC `CHESS_HARNESS_PUBLIC_URL` when going live
+- [ ] Operator sets Pages `GAME_ORIGIN` + PC `CHESS_HARNESS_PUBLIC_URL` when going live (repo secret `GAME_ORIGIN` + deploy sync, or dashboard)
 - [x] Proxy live routes; block `/calibration*`
 - [x] Create Game UI: **inscribe model** + select existing (wired to origin when online)
 - [x] Origin API/page support for public inscribe under existing rate limits

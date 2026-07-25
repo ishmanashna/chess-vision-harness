@@ -85,7 +85,7 @@ Add a **plain-text** variable (Production and Preview if you use preview deploys
 You can set it either:
 
 1. **Cloudflare dashboard** (Production env var), then redeploy, or  
-2. **GitHub secret** `GAME_ORIGIN` — the deploy workflow syncs it onto the Pages project after each deploy (handy for Quick Tunnel URL updates: `gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"` then re-run the workflow).
+After CI deploys, if GitHub secret `GAME_ORIGIN` is set, `deploy/sync-game-origin.py` patches the Pages production env var automatically.
 
 After you change `GAME_ORIGIN`, redeploy the site (push to `main`/`master` or **Retry deployment** in Actions). You do **not** edit HTML when the origin URL changes — only this variable.
 

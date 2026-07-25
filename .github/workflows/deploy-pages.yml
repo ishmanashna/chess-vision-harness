@@ -5,6 +5,7 @@ on:
     branches: [main, master]
     paths:
       - "public-site/**"
+      - "deploy/sync-game-origin.py"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -22,52 +23,13 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public-site --project-name=chessvisionharness
+          # Run from public-site so Wrangler picks up ./functions (not repo-root).
+          workingDirectory: public-site
+          command: pages deploy . --project-name=chessvisionharness --commit-dirty=true
 
       - name: Sync GAME_ORIGIN (optional secret)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GAME_ORIGIN: ${{ secrets.GAME_ORIGIN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GAME_ORIGIN:-}" ]; then
-            echo "GAME_ORIGIN secret not set; skipping (set repo secret GAME_ORIGIN to enable live proxy)."
-            exit 0
-          fi
-          ORIGIN="${GAME_ORIGIN%/}"
-          PROJECT=$(curl -sS \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/chessvisionharness")
-          echo "$PROJECT" | ORIGIN="$ORIGIN" python3 -c "
-          import json, os, sys, urllib.request
-          data = json.load(sys.stdin)
-          if not data.get('success'):
-              print(data, file=sys.stderr)
-              sys.exit(1)
-          result = data['result']
-          configs = result.get('deployment_configs') or {}
-          prod = dict(configs.get('production') or {})
-          env_vars = dict(prod.get('env_vars') or {})
-          origin = os.environ['ORIGIN']
-          env_vars['GAME_ORIGIN'] = {'type': 'plain_text', 'value': origin}
-          prod['env_vars'] = env_vars
-          if not prod.get('compatibility_date'):
-              prod['compatibility_date'] = '2024-08-01'
-          payload = {'deployment_configs': {'production': prod}}
-          req = urllib.request.Request(
-              f\"https://api.cloudflare.com/client/v4/accounts/{os.environ['CLOUDFLARE_ACCOUNT_ID']}/pages/projects/chessvisionharness\",
-              data=json.dumps(payload).encode(),
-              headers={
-                  'Authorization': f\"Bearer {os.environ['CLOUDFLARE_API_TOKEN']}\",
-                  'Content-Type': 'application/json',
-              },
-              method='PATCH',
-          )
-          with urllib.request.urlopen(req) as resp:
-              out = json.load(resp)
-          if not out.get('success'):
-              print(out, file=sys.stderr)
-              sys.exit(1)
-          print('GAME_ORIGIN synced for production:', origin)
-          "
+        run: python3 deploy/sync-game-origin.py
