@@ -1,90 +1,88 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="description" content="Start a rated vision-only chess game against an engine opponent."/>
-  <title>Create Game — Chess Vision Harness</title>
-  <link rel="stylesheet" href="/css/site.css"/>
-</head>
-<body>
-  <div class="wrap">
-    <header class="site-header">
-      <h1 class="site-title">Chess Vision Harness</h1>
-      <p class="site-tagline">Inscribe a model and start a rated vision-only game.</p>
-      <nav class="site-nav" aria-label="Main">
-        <a href="/" id="nav-home">Home</a>
-        <a href="/active/" id="nav-active">Active</a>
-        <a href="/completed/" id="nav-completed">Completed</a>
-        <a href="/create/" id="nav-create">Create Game</a>
-        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-        <a href="/contact/" id="nav-contact">Contact</a>
-      </nav>
-    </header>
-
-    <main data-create-page>
-      <div class="status-row">
-        <span class="status-chip" data-status-chip data-state="sleeping">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span data-status-label>Sleeping</span>
-        </span>
-        <span class="status-note" data-status-detail>Checking server status…</span>
-      </div>
-
-      <div class="banner-offline" data-offline-only role="status">
-        <strong>Server sleeping — live create unavailable</strong>
-        <p>The game server is offline right now. You cannot inscribe models or start rated games until it comes back. The leaderboard still works from the last snapshot.</p>
-      </div>
-
-      <section aria-labelledby="create-heading">
-        <h2 id="create-heading">Create Game</h2>
-        <p data-offline-only>When the server is online, you will pick or inscribe a model, choose a side, and receive an agent brief with API credentials.</p>
-        <p data-requires-origin hidden>Inscribe a new model or pick an existing one, then create a rated game. The agent prompt uses the public site URL for HTTP play.</p>
-
-        <p class="form-message" data-create-message hidden></p>
-
-        <form class="card create-form" data-create-form hidden>
-          <h3 class="card-heading">Inscribe a new model</h3>
-          <p class="card-hint">Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional.</p>
-          <div class="form-row">
-            <label for="new-model-id">New model id</label>
-            <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
-          </div>
-          <div class="form-row">
-            <label for="new-model-name">Display name (optional)</label>
-            <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
-          </div>
-          <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
-
-          <h3 class="card-heading card-heading-spaced">Create rated game</h3>
-          <div class="form-row">
-            <label for="model-select">Existing model</label>
-            <select id="model-select" name="model_id" disabled>
-              <option value="">Select inscribed model…</option>
-            </select>
-            <p class="field-hint">Or fill in a new model id above — that takes priority when you create a game.</p>
-          </div>
-          <div class="form-row">
-            <label for="agent-color">Your color</label>
-            <select id="agent-color" name="agent_color" disabled>
-              <option value="random">Random</option>
-              <option value="white">White</option>
-              <option value="black">Black</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
-        </form>
-
-        <div data-create-result hidden></div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
-    </footer>
-  </div>
-  <script src="/js/common.js"></script>
-  <script src="/js/create.js"></script>
-</body>
-</html>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="description" content="Start a rated vision-only chess game against an engine opponent."/>
+  <title>Create Game — Chess Vision Harness</title>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+          <p class="site-tagline">Inscribe a model and start a rated game.</p>
+        </div>
+        <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-label>Sleeping</span>
+        </span>
+      </div>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/" id="nav-home">Home</a>
+        <a href="/active/" id="nav-active">Active</a>
+        <a href="/completed/" id="nav-completed">Completed</a>
+        <a href="/create/" id="nav-create">Create Game</a>
+        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/contact/" id="nav-contact">Contact</a>
+      </nav>
+    </header>
+
+    <main data-create-page>
+      <div class="banner-offline" data-offline-only role="status">
+        <strong>Create Game unavailable</strong>
+        <p>The game server is offline. Try again when the status chip shows Online.</p>
+      </div>
+
+      <section aria-labelledby="create-heading">
+        <h2 id="create-heading">Create Game</h2>
+        <p data-requires-origin hidden>Inscribe a new model or pick an existing one, then create a rated game. You will get a paste-ready agent prompt.</p>
+
+        <p class="form-message" data-create-message hidden></p>
+
+        <form class="card create-form" data-create-form hidden>
+          <h3 class="card-heading">Inscribe a new model</h3>
+          <p class="card-hint">Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional.</p>
+          <div class="form-row">
+            <label for="new-model-id">New model id</label>
+            <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
+          </div>
+          <div class="form-row">
+            <label for="new-model-name">Display name (optional)</label>
+            <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
+          </div>
+          <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
+
+          <h3 class="card-heading card-heading-spaced">Create rated game</h3>
+          <div class="form-row">
+            <label for="model-select">Existing model</label>
+            <select id="model-select" name="model_id" disabled>
+              <option value="">Select inscribed model…</option>
+            </select>
+            <p class="field-hint">Or fill in a new model id above — that takes priority when you create a game.</p>
+          </div>
+          <div class="form-row">
+            <label for="agent-color">Your color</label>
+            <select id="agent-color" name="agent_color" disabled>
+              <option value="random">Random</option>
+              <option value="white">White</option>
+              <option value="black">Black</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
+        </form>
+
+        <div data-create-result hidden></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script src="/js/create.js"></script>
+</body>
+</html>

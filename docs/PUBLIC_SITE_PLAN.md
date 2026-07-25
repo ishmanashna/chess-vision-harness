@@ -1,12 +1,12 @@
 # Public site + home-PC game origin
 
-Status: **Phases 1–4 implemented in repo** (2026-07-25). Human one-time: GitHub Actions secrets + push; then set `GAME_ORIGIN` when the PC should serve live games (see `deploy/pages.md` + `deploy/home-pc.md`).
+Status: **Phases 1–4 implemented in repo** (2026-07-25). Live games: set Pages env `GAME_ORIGIN` when the PC should serve (see `deploy/pages.md` + `deploy/home-pc.md`). Contact is operator email, not GitHub Issues.
 
 Self-contained implementation plan. Public hostname today: `https://chessvisionharness.pages.dev`. Tunnel name: `chess-harness-pc` (connector healthy; no public hostname route yet).
 
 ## Goal
 
-Ship one public URL that always loads. Home explains the product and shows the leaderboard. Leaderboard works when the game PC is off (snapshot + provisional Elo `*`). Create Game shows sleeping/offline when the origin is down; when up, users can inscribe or select a model and start a rated game. Contact goes to GitHub Issues. Live play proxies to a swappable `GAME_ORIGIN` (PC via tunnel now, other host later). No manual Pages drag-and-drop after the first Git/CI connect — deploys on push.
+Ship one public URL that always loads. Home explains the product and shows the leaderboard. Leaderboard works when the game PC is off (snapshot + provisional Elo `*`). Create Game shows sleeping/offline when the origin is down; when up, users can inscribe or select a model and start a rated game. Contact is operator email. Live play proxies to a swappable `GAME_ORIGIN` (PC via tunnel now, other host later). No manual Pages drag-and-drop after the first Git/CI connect — deploys on push.
 
 ## Scope
 
@@ -32,7 +32,7 @@ Build the always-on site and CI deploy so pushes update Pages without manual upl
 
 - Replace placeholder with Home (default), Contact, Leaderboard, Create Game, Active, Completed nav.
 - Home: short product copy, status chip, leaderboard section.
-- Contact: primary CTA to `https://github.com/ishmanashna/chess-vision-harness/issues/new`, secondary profile link.
+- Contact: operator email (`mailto:jvalladaresgay@gmail.com`).
 - Create Game: if origin unhealthy, prominent sleeping/offline message; no fake success.
 - Active/Completed: offline message when origin down.
 - Leaderboard UI reads `/data/leaderboard.json` (commit a bootstrap empty/minimal snapshot).

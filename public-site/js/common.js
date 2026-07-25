@@ -156,9 +156,11 @@
       if (label) {
         label.textContent = state === "online" ? "Online" : "Sleeping";
       }
-    });
-    document.querySelectorAll("[data-status-detail]").forEach(function (el) {
-      el.textContent = detail || "";
+      chip.title =
+        detail ||
+        (state === "online"
+          ? "Game server online"
+          : "Game server offline — leaderboard uses the last snapshot");
     });
   }
 
@@ -193,8 +195,8 @@
       setStatusChip(
         online ? "online" : "sleeping",
         online
-          ? "Live games and Create Game are available."
-          : "Game server is offline. Leaderboard uses the last snapshot."
+          ? "Game server online — Create Game and live boards available"
+          : "Game server offline — leaderboard uses the last snapshot"
       );
       document.querySelectorAll("[data-requires-origin]").forEach(function (el) {
         el.hidden = !online;

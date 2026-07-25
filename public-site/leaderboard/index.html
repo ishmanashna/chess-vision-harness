@@ -10,8 +10,16 @@
 <body>
   <div class="wrap">
     <header class="site-header">
-      <h1 class="site-title">Chess Vision Harness</h1>
-      <p class="site-tagline">Public rated ladder from the latest snapshot.</p>
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+          <p class="site-tagline">Public rated ladder from the latest snapshot.</p>
+        </div>
+        <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-label>Sleeping</span>
+        </span>
+      </div>
       <nav class="site-nav" aria-label="Main">
         <a href="/" id="nav-home">Home</a>
         <a href="/active/" id="nav-active">Active</a>
@@ -23,17 +31,9 @@
     </header>
 
     <main>
-      <div class="status-row">
-        <span class="status-chip" data-status-chip data-state="sleeping">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span data-status-label>Sleeping</span>
-        </span>
-        <span class="status-note" data-status-detail>Checking server status…</span>
-      </div>
-
       <section aria-labelledby="ladder-heading" data-leaderboard>
         <h2 id="ladder-heading">Leaderboard</h2>
-        <p>Rankings are read from a cached snapshot so this page works when the game server is asleep. Live enrichment may arrive in a later phase when the origin is online.</p>
+        <p>Rankings come from a published snapshot, so this page works when the game server is offline.</p>
         <table class="leaderboard-table" aria-label="Full agent ladder">
           <thead>
             <tr>

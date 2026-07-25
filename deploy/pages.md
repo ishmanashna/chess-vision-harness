@@ -4,11 +4,16 @@ This deploys the static site in `public-site/` to the Cloudflare Pages project *
 
 ## 1. Cloudflare API token
 
-1. Log in to the [Cloudflare dashboard](https://dash.cloudflare.com/).
-2. Open **My Profile → API Tokens → Create Token**.
-3. Use the **Edit Cloudflare Workers** template (or create a custom token) with:
+1. Open [API Tokens](https://dash.cloudflare.com/profile/api-tokens) → **Create Token**.
+2. Click **Create Custom Token** (do not use a read-only token).
+3. Name it e.g. `pages-deploy`.
+4. Permissions (exact):
    - **Account** → **Cloudflare Pages** → **Edit**
-4. Create the token and copy it — you will not see it again.
+   - **Account** → **Account Settings** → **Read** (optional but helps Wrangler)
+5. Under **Account Resources**, include **Jvalladaresgay@gmail.com's Account** (your account).
+6. Create token → copy it once.
+
+If deploy fails with `Authentication error [code: 10000]`, the token is missing **Cloudflare Pages → Edit**. Delete the old GitHub secret and paste a new token.
 
 ## 2. Account ID
 
@@ -76,6 +81,11 @@ Add a **plain-text** variable (Production and Preview if you use preview deploys
 | Variable | Example value | Notes |
 |----------|---------------|--------|
 | `GAME_ORIGIN` | `https://your-tunnel-or-host.example` | **No trailing slash.** Base URL where `chess-harness serve` is reachable (Cloudflare Tunnel, Quick Tunnel, or any HTTPS/HTTP origin). |
+
+You can set it either:
+
+1. **Cloudflare dashboard** (Production env var), then redeploy, or  
+2. **GitHub secret** `GAME_ORIGIN` — the deploy workflow syncs it onto the Pages project after each deploy (handy for Quick Tunnel URL updates: `gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"` then re-run the workflow).
 
 After you change `GAME_ORIGIN`, redeploy the site (push to `main`/`master` or **Retry deployment** in Actions). You do **not** edit HTML when the origin URL changes — only this variable.
 

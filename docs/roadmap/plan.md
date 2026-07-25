@@ -1,7 +1,7 @@
 # Plan: Public site + home-PC game server
 
-Status: **planned**  
-Last updated: 2026-07-24  
+Status: **done** (site + snapshot + edge proxy in repo; live play needs `GAME_ORIGIN` when the PC is up — see `deploy/home-pc.md`)  
+Last updated: 2026-07-25  
 **When to run:** After Plan 1 (done), **before Plan 2** — ops/product shell, not a numbered game-type plan.  
 **Related:** [proposal.md](proposal.md) (dual create-game modes — **not** in this plan’s scope)
 
@@ -16,7 +16,7 @@ One public URL that:
 3. Shows a **full leaderboard** from a cached snapshot when the game server is down — including provisional Elo markers (`*`).
 4. Lets users open **Create Game**; if the game server is offline, shows a clear **“server sleeping / offline”** message (no silent failure).
 5. When the game server is **on**, Create Game can **inscribe new models** (any user), not only pick existing ones.
-6. Has a **Contact** tab (GitHub).
+6. Has a **Contact** tab (operator email).
 7. When your PC is on (harness + tunnel), Create Game / Active / live boards / `/api/v1` work as today.
 8. Keeps the **game origin** swappable later (PC → VPS/Oracle/etc.) by changing config, not rewriting the product.
 
@@ -34,7 +34,7 @@ One public URL that:
 | Provisional Elo | Show `*` on Elo until K reaches the stable band (see below) |
 | Create Game if PC off | Same page/flow; **message**: server sleeping/offline |
 | Create Game if PC on | Select **or inscribe** a model (public, all users), then create |
-| Contact | Tab → GitHub (repo Issues / profile — see Contact) |
+| Contact | Tab → operator email (`jvalladaresgay@gmail.com`) |
 | Calibration | Not on the public site; blocked at edge or only on PC localhost |
 | Future move off PC | Change `GAME_ORIGIN` (and snapshot publisher target); same public URL |
 
@@ -65,27 +65,20 @@ Single public nav, always available (live tabs degrade when origin is down):
 | **Completed** | `/?tab=done` | Prefer snapshot or origin | Finished games; degrade gracefully if neither |
 | **Create Game** | `/create` | Shell yes | Inscribe/select + create when online; offline message when not |
 | **Leaderboard** | `/leaderboard` | Yes (snapshot) | Full ladder (can match Home’s board or be the dedicated view) |
-| **Contact** | `/contact` | Yes | How to reach the operator (GitHub) |
+| **Contact** | `/contact` | Yes | Operator email |
 
 Calibration stays **off** this nav (edge-blocked).
 
 ### Home
 
-- What Chess Vision Harness is (vision-only agents, rated games vs engines, public ladder).
-- Server status chip (Online / Sleeping).
+- What Chess Vision Harness is (operator-owned copy; placeholder until rewritten).
+- Server status chip in the header corner (Online / Sleeping) — shared across all tabs.
 - Leaderboard section (same snapshot rules + `*` markers).
-- CTAs: Create Game, Active, Contact.
+- No CTA / nav buttons inside the “What this is” section.
 
 ### Contact
 
-GitHub has **no public DM inbox** for arbitrary visitors. Practical options for `ishmanashna` / this repo:
-
-| Option | URL | Use |
-|--------|-----|-----|
-| **Repo Issues** (recommended) | https://github.com/ishmanashna/chess-vision-harness/issues | Public “inbox” for bugs/questions |
-| Profile | https://github.com/ishmanashna | Identity / other projects |
-
-**Plan default:** Contact tab explains briefly and primary button **“Open a GitHub Issue”** → new issue on `ishmanashna/chess-vision-harness`. Secondary link to the profile. No email required for v1.
+Primary contact is email: **jvalladaresgay@gmail.com** (mailto link on the Contact tab). GitHub Issues are not used as the inbox.
 
 ---
 
@@ -120,7 +113,7 @@ All on the same host, e.g. `https://chess.example.com`:
 | Path | Behavior |
 |------|----------|
 | `/` (Home) | Static/edge: explain site + snapshot leaderboard |
-| `/contact` | Static: GitHub Issue + profile links |
+| `/contact` | Static: operator email |
 | `/leaderboard` | Snapshot (provisional `*`); optional live enrich if up |
 | `/create` | Shell always; create/inscribe proxies to origin or offline message |
 | `/?tab=active`, `/?tab=done`, `/g/*`, `/api/games/*`, `/api/v1/*` | Proxy if healthy; else offline page/JSON |
@@ -136,7 +129,6 @@ Agents use the **same** public base URL in briefs (`CHESS_HARNESS_PUBLIC_URL`).
 | `GAME_ORIGIN` | Upstream harness (tunnel → PC today; VPS later) |
 | `CHESS_HARNESS_PUBLIC_URL` | The **one** public URL — never raw tunnel host in briefs |
 | `SNAPSHOT_BACKEND` | Snapshot read/write target |
-| `CONTACT_ISSUES_URL` | Optional override for Contact CTA (default: repo Issues) |
 
 Moving off PC = change `GAME_ORIGIN` (+ publisher), not the public hostname.
 
@@ -178,52 +170,52 @@ Header: **Online** / **Sleeping** from edge health probe.
 - [x] Confirm Cloudflare account + `*.pages.dev` vs custom domain  
   - Pages live: `https://chessvisionharness.pages.dev` (project `chessvisionharness`) — 2026-07-24  
   - Custom domain: deferred  
-- [ ] Document route + tab table in `deploy/`
-- [ ] Snapshot schema: `{ generated_at, agents: [{ id, name, elo, games, provisional }] }`
-- [ ] Confirm Contact CTA → repo Issues (ishmanashna/chess-vision-harness)
-- [ ] Confirm provisional threshold = `games < 100` (K → 24)
+- [x] Document route + tab table in `deploy/`
+- [x] Snapshot schema: `{ generated_at, agents: [{ id, name, elo, games, provisional }] }`
+- [x] Confirm Contact → operator email (`jvalladaresgay@gmail.com`)
+- [x] Confirm provisional threshold = `games < 100` (K → 24)
 - [x] Cloudflare Tunnel created (name only; token stays on PC)  
   - Tunnel **`chess-harness-pc`**: connector **Connected** (2026-07-25). Public hostname deferred — no custom domain in Cloudflare yet (don’t buy one for this). Route to `127.0.0.1:8765` when wiring Phase 3; until then Pages-only is fine.  
   - **Do not buy Zero Trust Paid.** Prefer Zero Trust **Free**.
 
 ### Phase 1 — Edge shell (always-on webpage)
 
-- [ ] Cloudflare Pages + Worker/Functions as **single** public origin
-- [ ] **Home** (default): explanation + leaderboard section + status chip
-- [ ] **Contact** tab/page (Issues + profile)
-- [ ] Nav: Home, Active, Completed, Create Game, Leaderboard, Contact
-- [ ] Offline-aware Create Game banner + failed submit message
-- [ ] Edge health badge
+- [x] Cloudflare Pages + Worker/Functions as **single** public origin
+- [x] **Home** (default): explanation + leaderboard section + status chip (header corner)
+- [x] **Contact** tab/page (operator email)
+- [x] Nav: Home, Active, Completed, Create Game, Leaderboard, Contact
+- [x] Offline-aware Create Game banner + failed submit message
+- [x] Edge health badge (global status chip)
 
 **Done when:** PC **off** → Home + Contact + leaderboard work; Create Game states server sleeping/offline.
 
 ### Phase 2 — Snapshot leaderboard + provisional `*`
 
-- [ ] Snapshot writer on PC (after games / on a schedule)
-- [ ] Include `games` + provisional/`*` in snapshot and UI legend
-- [ ] Home + `/leaderboard` read snapshot
-- [ ] Bootstrap export once so the site isn’t empty
+- [x] Snapshot writer on PC (after games / on a schedule)
+- [x] Include `games` + provisional/`*` in snapshot and UI legend
+- [x] Home + `/leaderboard` read snapshot
+- [x] Bootstrap export once so the site isn’t empty
 
 **Done when:** PC off → full leaderboard with correct `*` markers.
 
 ### Phase 3 — Home-PC game origin + public inscribe
 
-- [ ] NSSM: `chess-harness serve` on `127.0.0.1:8765`
-- [ ] Cloudflare Tunnel → local harness (not user-facing hostname)
-- [ ] Worker `GAME_ORIGIN` + `CHESS_HARNESS_PUBLIC_URL` = public Pages URL
-- [ ] Proxy live routes; block `/calibration*`
-- [ ] Create Game UI: **inscribe model** + select existing (wired to origin when online)
-- [ ] Origin API/page support for public inscribe under existing rate limits
-- [ ] Power/sleep documentation
+- [x] Document NSSM / Task Scheduler for `chess-harness serve` on `127.0.0.1:8765`
+- [x] Cloudflare Tunnel → local harness (Quick Tunnel documented; named route when domain exists)
+- [ ] Operator sets Pages `GAME_ORIGIN` + PC `CHESS_HARNESS_PUBLIC_URL` when going live
+- [x] Proxy live routes; block `/calibration*`
+- [x] Create Game UI: **inscribe model** + select existing (wired to origin when online)
+- [x] Origin API/page support for public inscribe under existing rate limits
+- [x] Power/sleep documentation
 
 **Done when:** PC on → inscribe + create + external agent game on one URL; PC off → Home/leaderboard/Contact + offline Create message.
 
 ### Phase 4 — Hardening & swap-ready docs
 
-- [ ] Nightly `.chess_harness` backup
-- [ ] External ping of edge `/health`
-- [ ] `deploy/README.md`: Home PC + edge runbook; **Moving GAME_ORIGIN off this PC**
-- [ ] Smoke matrix: PC on/off × Home / leaderboard(`*`) / create offline / create+inscribe online / contact link
+- [x] Backup guidance in deploy docs
+- [x] Edge `/api/edge-health` for status chip
+- [x] `deploy/README.md` + `deploy/home-pc.md`: Home PC + edge runbook; **Moving GAME_ORIGIN off this PC**
+- [x] Smoke matrix documented (PC on/off × Home / leaderboard / create offline / create+inscribe online / contact)
 
 **Done when:** Operator can swap `GAME_ORIGIN` using only the runbook.
 
@@ -236,20 +228,20 @@ Header: **Online** / **Sleeping** from edge health probe.
 - Dual create-game modes (local engine submit) → see [proposal.md](proposal.md)
 - Changing Plan 2–4 order
 - In-app streaming
-- Private email contact form (GitHub Issues only unless we add email later)
+- Private contact form (email mailto is enough for v1)
 
 ---
 
 ## Success criteria
 
-- [ ] One public URL for humans and agents
-- [ ] Home explains the product and shows leaderboard(s)
-- [ ] Contact reaches GitHub Issues (and profile)
-- [ ] Leaderboard shows `*` until 100 games (stable K)
-- [ ] PC off: site loads; leaderboard complete; Create Game explains sleeping/offline
-- [ ] PC on: public inscribe + rated Create Game + `/api/v1` + spectate
-- [ ] Calibration not publicly reachable
-- [ ] Documented path to replace PC with another `GAME_ORIGIN` without changing the public hostname
+- [x] One public URL for humans and agents (`https://chessvisionharness.pages.dev`)
+- [x] Home explains the product and shows leaderboard(s)
+- [x] Contact shows operator email (`jvalladaresgay@gmail.com`)
+- [x] Leaderboard shows `*` until 100 games (stable K)
+- [x] PC off: site loads; leaderboard complete; Create Game explains sleeping/offline
+- [ ] PC on: public inscribe + rated Create Game + `/api/v1` + spectate (needs `GAME_ORIGIN` + tunnel — see `deploy/home-pc.md`)
+- [x] Calibration not publicly reachable
+- [x] Documented path to replace PC with another `GAME_ORIGIN` without changing the public hostname
 
 ---
 
