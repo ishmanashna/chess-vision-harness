@@ -9,7 +9,7 @@
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Maintainers / agents | System architecture + coding conventions |
 | [`docs/roadmap/`](roadmap/README.md) | Maintainers | **Product roadmap** — Plan 0–4 (serial) |
 | [`PUBLIC_SITE_PLAN.md`](PUBLIC_SITE_PLAN.md) | Maintainers | Public site implementation plan (done) |
-| [`OAUTH_PLAN.md`](OAUTH_PLAN.md) | Maintainers | GitHub OAuth for Create/inscribe + operator audit (planned) |
+| [`OAUTH_PLAN.md`](OAUTH_PLAN.md) | Maintainers | Cosmetic GitHub OAuth + light no-auth activity audit (planned) |
 | [`ladder-coverage-plan.md`](ladder-coverage-plan.md) | Maintainers | Opponent catalog (between product plans only) |
 | [`docs/plan.md`](plan.md) | Maintainers | Repo layout migration (markdown-only root) |
 | [`archive/`](archive/) | Archive | Superseded notes |

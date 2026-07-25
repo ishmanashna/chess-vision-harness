@@ -1,102 +1,84 @@
-# OAuth + operator audit for Create Game
+# OAuth (cosmetic) + light activity audit
 
 Status: **planned**  
 Last updated: 2026-07-25
 
-Gate public **inscribe** and **create game** behind a real login. Keep the rest of the site readable without auth. Record who did what so the operator has an internal activity trail (not a second public product).
+Add GitHub login to the public site **without** gating Create Game or inscribe. Add a durable, no-auth activity log for creates/inscribes so the operator can see what happened (IP-ish metadata only). Prove OAuth works with a tiny signed-in-only UI affordance.
 
 ## Goal
 
-Only signed-in people can `POST /api/v1/agents` and `POST /api/v1/games` (and the Create Game UI that calls them). Home, leaderboard snapshot, Active/Completed spectate, and Contact stay public. Every successful inscribe and create is attributable to a user identity and stored for the operator.
+1. **Audit (no auth):** every successful public `POST /api/v1/agents` and `POST /api/v1/games` appends a line the operator can read later.
+2. **OAuth (fun / proof):** users can Sign in with GitHub, see their name, Sign out. Create/inscribe stay open to everyone (logged in or not).
+3. **Smoke signal:** one trivial UI difference only when logged in (so we know the session works).
 
-## How this is usually done
-
-Typical stack for a small public app:
-
-1. **Identity provider (IdP)** — user clicks “Sign in with GitHub / Google”, browser redirects to the IdP, IdP redirects back with an auth code.
-2. **Your app exchanges the code** for tokens, creates a **session** (HTTP-only cookie) or short-lived JWT.
-3. **Protected routes** check the session before mutating state.
-4. **Audit log** writes `{ when, user_id, action, payload }` on each sensitive action (append-only file or small DB).
-5. **Operator UI** (private) lists that log; often behind the same login plus an allowlist, or a separate admin secret.
-
-Common hosted shortcuts (same idea, less code):
-
-- **Cloudflare Access** in front of `/create` and mutate APIs — CF handles OAuth; you still need to forward identity to the game origin and write audits.
-- **Clerk / Auth0 / Supabase Auth** — hosted user tables + SDKs; you still enforce auth on the harness API and write your own audit events.
-
-For this repo (Pages edge + PC `GAME_ORIGIN`, agent builders, free ops), **GitHub OAuth** fits best: one provider, familiar to contributors, no paid IdP required.
-
-Out of scope for “usually”: building your own password database, or putting OAuth only on the static UI while leaving `/api/v1` open.
-
-## Product decisions (locked for this plan)
+## Product decisions
 
 | Topic | Choice |
 |-------|--------|
-| Provider | GitHub OAuth App (primary). Optional Google later, same session shape. |
-| What requires login | Create Game page actions: inscribe model, create rated game. Matching API: `POST /api/v1/agents`, `POST /api/v1/games`. |
-| What stays public | Home, Leaderboard, Contact, Active/Completed lists, `/g/*` spectate, board/move/PGN for an already-issued agent API key. |
-| Session | HTTP-only secure cookie on the Pages hostname after OAuth callback. |
-| API from Create UI | Browser sends session cookie (same-site) or a short-lived bearer minted at login; game origin must verify it (shared secret / JWT). |
-| Existing agent API keys | Still used for move loops after create. Creating the game itself requires a logged-in user. |
-| Audit store | Append-only JSONL on the game host under `.chess_harness/audit/` (and optional mirror to operator-only Pages Function storage later). |
-| Operator “internal platform” | Private `/operator/activity` (or similar) on the harness, blocked at public edge except for an allowlisted operator session — list recent inscribes/creates with GitHub user, model id, game id, time. |
-| Anonymous abuse | Rate limits remain; auth is the main gate. |
+| Create / inscribe | **Open to everyone** (unchanged access) |
+| OAuth purpose | Cosmetic + future-ready; **no** API enforcement in this plan |
+| Provider | GitHub OAuth App |
+| Session | HTTP-only cookie on the Pages hostname |
+| Login UI | Header control next to Dark mode / status: **Sign in with GitHub** when logged out; **avatar/login + Sign out** when logged in |
+| Signed-in-only toy | e.g. a small “Signed in as @{login}” chip under the header on Create Game, or a soft highlight on the Create heading — pick one in implementation; must be obvious and harmless |
+| Audit store | Append-only JSONL on the game host: `.chess_harness/audit/activity.jsonl` |
+| Audit fields | `ts`, `action` (`inscribe` \| `create_game`), `model_id`, `game_id` (creates), `ip_hash` (hash of client IP + server salt), `user_agent` truncated — **no** GitHub identity until a later plan |
+| Operator read path | CLI or local file read for v1 (`chess-harness audit tail` or documented `Get-Content`); optional tiny localhost-only HTML later — not a public page |
 
 ## Scope
 
-- GitHub OAuth login/logout on the public site.
-- Session verification for create/inscribe from the edge through to the harness.
-- Audit events for inscribe + create.
-- Operator activity page (read-only).
-- Docs: env vars (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, session secret, operator allowlist).
+- Pages Functions: `/auth/github`, `/auth/callback`, `/auth/logout`, `/auth/me`.
+- Public-site header: login / user / logout.
+- One trivial logged-in-only visual on Create Game (or global header subtitle).
+- Harness: write activity JSONL on successful register + create; env `CHESS_HARNESS_AUDIT_SALT` for IP hashing.
+- Docs: GitHub OAuth app setup, Pages secrets, audit file location.
 
 ## Out of scope
 
-- Per-model ownership enforcement beyond “this user created it” (can follow later).
-- Charging / billing.
-- Replacing agent API keys with OAuth for every move.
-- Full admin CMS.
-- Cloudflare Access as the only solution (documented as an alternative, not the default path).
+- Requiring login for create/inscribe.
+- Attaching GitHub user to audit lines (can follow later).
+- Public operator dashboard.
+- Cloudflare Access.
+- Changing agent API key / move-loop auth.
 
-## Phase 1 — Session + GitHub OAuth on Pages
+## Phase 1 — Light activity audit (no OAuth)
 
-Add login/logout UI (header). Pages Function handles `/auth/github`, `/auth/callback`, `/auth/logout`. Store encrypted session cookie with `github_id`, `login`, `avatar_url`. Unauthenticated Create Game shows “Sign in with GitHub” instead of the form.
+On successful `POST /api/v1/agents` and `POST /api/v1/games`, append one JSON line to `.chess_harness/audit/activity.jsonl`. Hash IP with a server salt. Document how to read the file on the PC. Keep rate limits as they are.
 
-**Done when:** User can sign in/out on the public site; cookie is HTTP-only; Create Game form is hidden until signed in.
+**Done when:** Creating a game or inscribing locally appends a parseable line; failures do not write success lines.
 
-## Phase 2 — Enforce auth on mutate APIs
+## Phase 2 — GitHub OAuth on Pages (no gates)
 
-Harness rejects `POST /api/v1/agents` and `POST /api/v1/games` without a valid user session assertion (signed JWT from Pages, or verified cookie forwarded via proxy). Move/resign/board/status with existing agent API keys unchanged. Proxy must not strip auth headers/cookies for those routes.
+GitHub OAuth App → callback Function sets session cookie (`github_id`, `login`, `avatar_url`). Header shows Sign in / signed-in identity / Sign out. `/auth/me` returns the session JSON for the client. Create and inscribe APIs remain open.
 
-**Done when:** Curl without login cannot inscribe or create; signed-in Create Game still works end-to-end through Pages.
+**Done when:** User can complete login/logout on chessvisionharness.pages.dev; cookie is HTTP-only; logged-out users still create games.
 
-## Phase 3 — Audit log + operator activity
+## Phase 3 — Trivial logged-in-only UI
 
-On each successful inscribe/create, append an audit record (timestamp, github login/id, action, model_id, game_id, request ip hash optional). Add `GET` operator activity endpoint + simple HTML table. Edge: deny `/operator*` for everyone except configured operator GitHub ids (or separate operator token).
+If `/auth/me` says signed in, show a small non-blocking cue (recommended: header shows `@login`; Create Game aside or form card gets a one-line “Playing as GitHub @{login} — login is optional.”). No API changes.
 
-**Done when:** Operator can open activity and see recent creates/inscribes tied to GitHub users; public visitors cannot.
+**Done when:** The cue appears only when logged in and disappears on logout; create still works logged out.
 
-## Phase 4 — Hardening
+## Phase 4 — Docs + verify
 
-Rotate session secret docs; CSRF on OAuth state; short session TTL + refresh; rate-limit failed auth; document revoke (delete GitHub OAuth app grants). Smoke: logged-out create fails; logged-in create audits; spectate still public.
+Document secrets (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, session secret, `CHESS_HARNESS_AUDIT_SALT`). Smoke: audit lines after anonymous create; login shows name; logout clears cue; create still works both ways.
 
-**Done when:** Deploy docs cover secrets and the smoke matrix above.
+**Done when:** `DEPLOY.md` or `deploy/pages.md` lists the secrets and the smoke checks above.
 
 ## Order
 
-1 → 2 → 3 → 4. Do not open mutate APIs until Phase 2 verifies the session.
+1 → 2 → 3 → 4.
 
 ## Verify
 
-- Signed out: Create Game prompts login; `POST /api/v1/games` → 401.
-- Signed in: inscribe + create succeed; agent brief still works with issued API key.
-- Audit line appears for both actions with GitHub login.
-- `/operator/activity` visible only to allowlisted operator.
-- Active/Completed/Home/Leaderboard remain usable logged out.
+- Anonymous create/inscribe still succeed.
+- Each success adds an `activity.jsonl` line with hashed IP (not raw IP in the clear if salt is set).
+- Login → header shows GitHub login; logout clears it.
+- Logged-in-only cue toggles with session; no 401 on create either way.
 
 ## Estimated duration
 
-- Phase 1: 4–6 agent-hours
-- Phase 2: 4–6 agent-hours
-- Phase 3: 3–5 agent-hours
-- Phase 4: 2–3 agent-hours
+- Phase 1: 1–2 agent-hours
+- Phase 2: 3–5 agent-hours
+- Phase 3: 1 agent-hour
+- Phase 4: 1 agent-hour
