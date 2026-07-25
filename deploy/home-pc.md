@@ -2,10 +2,11 @@
 
 This is the operator guide for running games on your Windows PC while the public site stays at **https://chessvisionharness.pages.dev**. You do not edit site code to turn live play on or off — you start/stop services on the PC and set Cloudflare environment variables.
 
-**Related docs**
+Related docs
 
+- Root operator entry: [`../DEPLOY.md`](../DEPLOY.md)
 - One-time Pages + GitHub secrets: [`pages.md`](pages.md)
-- General harness install, backup, monitoring: [`README.md`](README.md)
+- General harness install, backup, monitoring: also in [`../DEPLOY.md`](../DEPLOY.md)
 
 ---
 

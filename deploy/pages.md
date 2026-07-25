@@ -2,6 +2,9 @@
 
 This deploys the static site in `public-site/` to the Cloudflare Pages project **chessvisionharness** (e.g. `https://chessvisionharness.pages.dev`). After setup, every push to `main`/`master` that touches `public-site/` triggers an automatic deploy via GitHub Actions — no manual drag-and-drop.
 
+**Start here for operators:** [`../DEPLOY.md`](../DEPLOY.md). Home-PC live path: [`home-pc.md`](home-pc.md).
+
+
 ## 1. Cloudflare API token
 
 1. Open [API Tokens](https://dash.cloudflare.com/profile/api-tokens) → **Create Token**.

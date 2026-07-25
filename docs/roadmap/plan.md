@@ -214,7 +214,7 @@ Header: **Online** / **Sleeping** from edge health probe.
 
 - [x] Backup guidance in deploy docs
 - [x] Edge `/api/edge-health` for status chip
-- [x] `deploy/README.md` + `deploy/home-pc.md`: Home PC + edge runbook; **Moving GAME_ORIGIN off this PC**
+- [x] `DEPLOY.md` + `deploy/home-pc.md`: Home PC + edge runbook; **Moving GAME_ORIGIN off this PC**
 - [x] Smoke matrix documented (PC on/off × Home / leaderboard / create offline / create+inscribe online / contact)
 
 **Done when:** Operator can swap `GAME_ORIGIN` using only the runbook.

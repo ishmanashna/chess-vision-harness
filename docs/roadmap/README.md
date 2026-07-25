@@ -19,7 +19,7 @@ North star: [`future-work-roadmap.md`](future-work-roadmap.md).
 
 **Archived:** [home-server-ops](archive/home-server-ops.md) (merged into Plan 1).
 
-**Deploy follow-on (before Plan 2):** [plan.md](plan.md) — public always-on site + home-PC game server (one URL).  
+**Deploy (done, before Plan 2):** [plan.md](plan.md) — public always-on site + home-PC game server. Operator entry: [`../../DEPLOY.md`](../../DEPLOY.md).  
 **Proposal (not scheduled):** [proposal.md](proposal.md) — hosted vs local-engine create-game modes.
 
 ---

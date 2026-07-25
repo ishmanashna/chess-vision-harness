@@ -1,6 +1,6 @@
 # Public site + home-PC game origin
 
-Status: **Phases 1–4 implemented in repo** (2026-07-25). Live games: set Pages env `GAME_ORIGIN` when the PC should serve (see `deploy/pages.md` + `deploy/home-pc.md`). Contact is operator email, not GitHub Issues.
+Status: **Phases 1–4 implemented in repo** (2026-07-25). Live games: set `GAME_ORIGIN` when the PC should serve — see root [`DEPLOY.md`](../DEPLOY.md) and `deploy/pages.md` + `deploy/home-pc.md`. Contact is operator email, not GitHub Issues.
 
 Self-contained implementation plan. Public hostname today: `https://chessvisionharness.pages.dev`. Tunnel name: `chess-harness-pc` (connector healthy; no public hostname route yet).
 

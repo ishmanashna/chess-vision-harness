@@ -27,7 +27,7 @@ Opponent catalog work: [`ladder-coverage-plan.md`](../ladder-coverage-plan.md) �
 | Execution | Strict serial: 0 → 1 → 2 → 3 → 4 |
 | Architecture | Thin Plan 0 only; big refactors deferred until a later plan needs them |
 | Live viewing | Twitch screen share — no in-app streaming plan |
-| Hosting | Always-on public site (edge) + game origin on operator PC for now; `GAME_ORIGIN` swappable later — see [plan.md](plan.md) |
+| Hosting | Always-on public site (Pages) + game origin on operator PC; `GAME_ORIGIN` swappable — see [plan.md](plan.md) (**done**) and [`DEPLOY.md`](../../DEPLOY.md) |
 | Agent signup | Open; honor system |
 | Dual create modes | Hosted vs local-engine submit — [proposal.md](proposal.md) only; not scheduled |
 
