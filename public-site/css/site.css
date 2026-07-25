@@ -465,6 +465,42 @@ p {
   max-width: 48rem;
 }
 
+.create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 28px 40px;
+  align-items: start;
+}
+
+.create-aside h2 {
+  margin-top: 0;
+}
+
+.info-block {
+  margin: 0 0 18px;
+  max-width: 36rem;
+}
+
+.info-block h3 {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.info-block p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  max-width: none;
+}
+
+@media (max-width: 900px) {
+  .create-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
 .games-table th[data-sort] {
   user-select: none;
 }

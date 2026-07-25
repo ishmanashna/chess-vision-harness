@@ -158,7 +158,7 @@
         inscribeBtn.disabled = true;
         registerAgent(id, name || undefined)
           .then(function () {
-            setMessage(messageEl, "ok", "Model inscribed. Select it below or create a game.");
+            setMessage(messageEl, "ok", "Model inscribed. Select it in the list above, then create a game.");
             if (newModelId) newModelId.value = "";
             if (newModelName) newModelName.value = "";
             if (modelSelect) return loadAgents(modelSelect);
