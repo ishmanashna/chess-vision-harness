@@ -202,7 +202,7 @@ Header: **Online** / **Sleeping** from edge health probe.
 
 - [x] Document NSSM / Task Scheduler for `chess-harness serve` on `127.0.0.1:8765`
 - [x] Cloudflare Tunnel → local harness (Quick Tunnel documented; named route when domain exists)
-- [ ] Operator sets Pages `GAME_ORIGIN` + PC `CHESS_HARNESS_PUBLIC_URL` when going live (repo secret `GAME_ORIGIN` + deploy sync, or dashboard)
+- [x] Operator sets Pages `GAME_ORIGIN` + PC `CHESS_HARNESS_PUBLIC_URL` when going live (repo secret `GAME_ORIGIN` injects at deploy; harness restarted with public URL 2026-07-25)
 - [x] Proxy live routes; block `/calibration*`
 - [x] Create Game UI: **inscribe model** + select existing (wired to origin when online)
 - [x] Origin API/page support for public inscribe under existing rate limits
@@ -239,7 +239,7 @@ Header: **Online** / **Sleeping** from edge health probe.
 - [x] Contact shows operator email (`jvalladaresgay@gmail.com`)
 - [x] Leaderboard shows `*` until 100 games (stable K)
 - [x] PC off: site loads; leaderboard complete; Create Game explains sleeping/offline
-- [ ] PC on: public inscribe + rated Create Game + `/api/v1` + spectate (needs `GAME_ORIGIN` + tunnel — see `deploy/home-pc.md`)
+- [x] PC on: public inscribe + rated Create Game + `/api/v1` + spectate (Quick Tunnel + `GAME_ORIGIN` secret wired 2026-07-25; restart tunnel → update secret + redeploy)
 - [x] Calibration not publicly reachable
 - [x] Documented path to replace PC with another `GAME_ORIGIN` without changing the public hostname
 
