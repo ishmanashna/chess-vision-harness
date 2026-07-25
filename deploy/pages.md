@@ -84,10 +84,15 @@ Add a **plain-text** variable (Production and Preview if you use preview deploys
 
 You can set it either:
 
-1. **Cloudflare dashboard** (Production env var), then redeploy, or  
-After CI deploys, if GitHub secret `GAME_ORIGIN` is set, `deploy/sync-game-origin.py` patches the Pages production env var automatically.
+1. **Cloudflare dashboard** (Production env var), then redeploy, or
+2. **GitHub secret** `GAME_ORIGIN` — preferred for Quick Tunnel. The deploy workflow appends it to `public-site/wrangler.toml` `[vars]` before upload (required so Direct Upload Functions actually bind it) and syncs the Pages project setting via `deploy/sync-game-origin.py`. Update with:
 
-After you change `GAME_ORIGIN`, redeploy the site (push to `main`/`master` or **Retry deployment** in Actions). You do **not** edit HTML when the origin URL changes — only this variable.
+```bash
+gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"
+gh workflow run "Deploy public site"
+```
+
+After a successful deploy with that secret, `/api/edge-health` reports online when the tunnel and harness are up. You do **not** edit HTML when the origin URL changes — only the secret/dashboard value.
 
 **What it does when set:**
 
