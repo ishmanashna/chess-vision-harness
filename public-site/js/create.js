@@ -122,7 +122,6 @@
     var modelSelect = root.querySelector("#model-select");
     var newModelId = root.querySelector("#new-model-id");
     var newModelName = root.querySelector("#new-model-name");
-    var agentColor = root.querySelector("#agent-color");
     var submitBtn = root.querySelector("[data-create-submit]");
     var messageEl = root.querySelector("[data-create-message]");
     var inscribeBtn = root.querySelector("[data-inscribe-submit]");
@@ -130,7 +129,7 @@
     function enableForm(online) {
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
-      [modelSelect, newModelId, newModelName, agentColor, submitBtn, inscribeBtn].forEach(
+      [modelSelect, newModelId, newModelName, submitBtn, inscribeBtn].forEach(
         function (el) {
           if (el) el.disabled = !online;
         }
@@ -194,8 +193,7 @@
         registerAgent(chosenId, freshId ? freshName || undefined : undefined)
           .then(function (reg) {
             if (!reg.api_key) throw new Error("No API key returned.");
-            var color = agentColor ? agentColor.value : "random";
-            return createGame(reg.api_key, color).then(function (game) {
+            return createGame(reg.api_key, "random").then(function (game) {
               return { game: game, apiKey: reg.api_key };
             });
           })

@@ -43,8 +43,8 @@
       <section aria-labelledby="create-heading">
         <h2 id="create-heading">Create Game</h2>
         <p class="create-intro" data-requires-origin hidden>
-          Pick an inscribed vision model, choose a color, and start a rated game. You will get a paste-ready agent prompt.
-          Use an existing inscription if the agent is already on the list. New models start at <strong>500</strong> Elo (provisional until they play enough games). Inscribed entries can change over time as games finish.
+          Pick an inscribed vision model and start a rated game. You will get a paste-ready agent prompt.
+          Use an existing inscription if the agent is already on the list. New models start at <strong>500</strong> Elo (provisional until they play enough games). Inscribed entries can change over time as games finish. Color is assigned at random.
         </p>
 
         <p class="form-message" data-create-message hidden></p>
@@ -55,14 +55,6 @@
             <label for="model-select">Inscribed model</label>
             <select id="model-select" name="model_id" disabled>
               <option value="">Select inscribed model…</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label for="agent-color">Your color</label>
-            <select id="agent-color" name="agent_color" disabled>
-              <option value="random">Random</option>
-              <option value="white">White</option>
-              <option value="black">Black</option>
             </select>
           </div>
           <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
