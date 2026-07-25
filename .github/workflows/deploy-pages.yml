@@ -18,18 +18,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync GAME_ORIGIN (optional secret)
+      - name: Inject GAME_ORIGIN for this deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GAME_ORIGIN: ${{ secrets.GAME_ORIGIN }}
-        run: python3 deploy/sync-game-origin.py
+        run: |
+          set -euo pipefail
+          if [ -z "${GAME_ORIGIN:-}" ]; then
+            echo "GAME_ORIGIN secret not set; Functions will report offline until it is."
+            exit 0
+          fi
+          ORIGIN="${GAME_ORIGIN%/}"
+          # Bind into the Pages Worker for this Direct Upload.
+          {
+            echo ""
+            echo "[vars]"
+            echo "GAME_ORIGIN = \"${ORIGIN}\""
+          } >> public-site/wrangler.toml
+          # Keep project settings in sync for the dashboard / future swaps.
+          python3 deploy/sync-game-origin.py
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Run from public-site so Wrangler picks up ./functions (not repo-root).
           workingDirectory: public-site
           command: pages deploy . --project-name=chessvisionharness --commit-dirty=true
