@@ -379,10 +379,29 @@ p {
   border-radius: 4px;
 }
 
+.info-block-callout {
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.info-block-callout h3 {
+  color: var(--text);
+}
+
+.info-block-callout p {
+  color: var(--text-secondary);
+}
+
 .snapshot-meta {
   font-size: 0.8rem;
   color: var(--faint);
   margin: 6px 0 0;
+}
+
+.engines-section {
+  margin-top: 40px;
 }
 
 .section-actions {

@@ -55,7 +55,7 @@
         <p class="snapshot-meta" data-snapshot-meta></p>
       </section>
 
-      <section aria-labelledby="engines-heading" data-engines-leaderboard>
+      <section aria-labelledby="engines-heading" class="engines-section" data-engines-leaderboard>
         <h2 id="engines-heading">Engines</h2>
         <p>Opponent ladder used for pairing: Stockfish <strong>anchors</strong> (fixed UCI Elo) and <strong>calibrated</strong> floaters from engine-vs-engine games.</p>
         <table class="leaderboard-table" aria-label="Engine ladder">
@@ -64,12 +64,11 @@
               <th scope="col">#</th>
               <th scope="col">Engine</th>
               <th scope="col">Elo</th>
-              <th scope="col">Cal. games</th>
               <th scope="col">Kind</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="5" class="empty-state">Loading snapshot…</td></tr>
+            <tr><td colspan="4" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
       </section>

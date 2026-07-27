@@ -255,7 +255,7 @@
     });
     if (!list.length) {
       return (
-        '<tr><td colspan="5" class="empty-state">No engine ratings in this snapshot yet. Re-run snapshot-leaderboard on the game PC.</td></tr>'
+        '<tr><td colspan="4" class="empty-state">No engine ratings in this snapshot yet. Re-run snapshot-leaderboard on the game PC.</td></tr>'
       );
     }
     return list
@@ -277,9 +277,6 @@
           escapeHtml(row.elo != null ? String(row.elo) : "—") +
           "</td>" +
           "<td>" +
-          (Number(row.games) || 0) +
-          "</td>" +
-          "<td>" +
           escapeHtml(kind) +
           "</td>" +
           "</tr>"
@@ -299,7 +296,7 @@
         var tbody = container.querySelector("tbody");
         if (tbody) {
           tbody.innerHTML =
-            '<tr><td colspan="5" class="empty-state">Could not load engine snapshot.</td></tr>';
+            '<tr><td colspan="4" class="empty-state">Could not load engine snapshot.</td></tr>';
         }
       });
   }
