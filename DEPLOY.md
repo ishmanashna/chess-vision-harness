@@ -90,7 +90,7 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_PUBLIC_URL` | **Yes (public deploy)** | HTTPS URL agents use in Create Game briefs (Pages: `https://chessvisionharness.pages.dev`). No trailing slash. |
 | `STOCKFISH_PATH` | If not default | Path to Stockfish binary |
 | `CHESS_HARNESS_DIR` | No | Runtime data (games, models, API keys) |
-| `CHESS_HARNESS_IDLE_TIMEOUT_SEC` | No | End game with no result after N seconds idle (default `300`) |
+| `CHESS_HARNESS_IDLE_TIMEOUT_SEC` | No | End game with no result after N seconds idle (default `1800` = 30 min) |
 | `CHESS_HARNESS_MAX_CONCURRENT_GAMES` | No | Global in-progress cap (default `10`) |
 | `CHESS_HARNESS_MAX_ENGINE_PROCESSES` | No | In-flight engine cap (default `12`) |
 | `CHESS_HARNESS_MAX_GAMES_PER_HOUR_PER_KEY` | No | Per API key (default `20`) |

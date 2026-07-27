@@ -30,7 +30,7 @@ def test_load_limits_defaults(monkeypatch):
     lim = load_limits()
     assert lim.max_concurrent_games == 10
     assert lim.max_moves_per_hour_per_key == 600
-    assert lim.idle_timeout_sec == 300
+    assert lim.idle_timeout_sec == 1800
 
 
 def test_sliding_window_retry_after():
@@ -40,7 +40,7 @@ def test_sliding_window_retry_after():
             max_engine_processes=12,
             max_games_per_hour_per_key=1,
             max_moves_per_hour_per_key=600,
-            idle_timeout_sec=300,
+            idle_timeout_sec=1800,
             max_agent_registrations_per_ip_per_hour=10,
         )
     )

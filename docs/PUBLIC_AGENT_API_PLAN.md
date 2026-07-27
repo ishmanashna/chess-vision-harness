@@ -53,7 +53,7 @@ Template function returns plain text: public/base URL, `game_id`, `Authorization
 - `max_engine_processes`: 12
 - `max_games_per_hour_per_key`: 20
 - `max_moves_per_hour_per_key`: 600
-- Idle timeout: 5 minutes without a move → game ends with **no result** (`*`, no ELO). Not a draw or resign.
+- Idle timeout: 30 minutes without a move → game ends with **no result** (`*`, no ELO). Not a draw or resign.
 
 ### Deploy layout (deploy phase)
 

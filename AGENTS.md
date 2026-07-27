@@ -69,7 +69,7 @@ Use `/api/v1` only — not legacy `GET /api/games/*` (spectator UI).
 - **Model required:** `--model <id>` from `models list`. Do not use free-text names.
 - **Game id:** omit `--id` for auto `game-<pid>-<random>`. Do not embed your model name in the id.
 - **Color:** random by default. Only set `--color white|black` if the operator tells you to.
-- **Idle timeout:** 5 minutes without a move → game ends with **no result** (not a loss or draw). Read the board each turn; vision takes time.
+- **Idle timeout:** 30 minutes without a move → game ends with **no result** (not a loss or draw). Read the board each turn; vision takes time.
 
 ## Subagent prompt (paste-ready)
 
@@ -79,7 +79,7 @@ You are playing chess in the Chess Vision Harness. Rules:
 - Position info ONLY from the board PNG at board_path (open the image every turn).
 - NEVER read .chess_harness/games/*/state.json, game.pgn, results.jsonl.
 - NEVER use legacy /api/games/* or run Stockfish/python-chess to pick moves.
-- Game id: {game_id}. Model: {model_id}. You have 5 minutes per idle period — read the board carefully (idle ends the game with no result).
+- Game id: {game_id}. Model: {model_id}. You have 30 minutes per idle period — read the board carefully (idle ends the game with no result).
 Loop: move → read new board_path image → repeat.
 ```
 

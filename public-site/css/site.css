@@ -92,10 +92,9 @@ main {
 }
 
 .header-top {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 10px 20px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
@@ -103,7 +102,7 @@ main {
 
 .header-brand {
   min-width: 0;
-  flex: 0 0 auto;
+  justify-self: start;
 }
 
 .site-title {
@@ -119,7 +118,8 @@ main {
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: center;
-  flex: 1 1 auto;
+  justify-content: center;
+  justify-self: center;
   min-width: 0;
 }
 
@@ -144,9 +144,9 @@ main {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 auto;
-  margin-left: auto;
+  justify-self: end;
 }
 
 .theme-toggle {
@@ -269,10 +269,21 @@ p {
 
 .about-copy {
   max-width: 48rem;
+  margin-bottom: 28px;
 }
 
 .about-copy p {
   max-width: none;
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+}
+
+.about-copy .lead {
+  color: var(--text);
+}
+
+.about-copy p:last-child {
+  margin-bottom: 0;
 }
 
 .btn {
@@ -699,17 +710,19 @@ p {
   }
 
   .header-top {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
   }
 
   .site-nav {
     order: 2;
+    justify-content: flex-start;
   }
 
   .header-controls {
     order: 3;
-    margin-left: 0;
+    justify-content: flex-start;
     align-self: flex-start;
   }
 

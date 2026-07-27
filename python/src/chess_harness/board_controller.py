@@ -23,7 +23,7 @@ from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
 from .results import ResultsManager
 
-IDLE_TIMEOUT_SECONDS = 300  # default; check_idle_games uses load_limits()
+IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
 DEFAULT_GAME_TYPE = "agent_vs_engine"
 
 
