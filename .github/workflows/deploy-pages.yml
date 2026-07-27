@@ -18,26 +18,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject GAME_ORIGIN for this deploy
+      - name: Inject Pages Function vars for this deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GAME_ORIGIN: ${{ secrets.GAME_ORIGIN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          AUTH_SESSION_SECRET: ${{ secrets.AUTH_SESSION_SECRET }}
         run: |
           set -euo pipefail
-          if [ -z "${GAME_ORIGIN:-}" ]; then
-            echo "GAME_ORIGIN secret not set; Functions will report offline until it is."
-            exit 0
-          fi
-          ORIGIN="${GAME_ORIGIN%/}"
-          # Bind into the Pages Worker for this Direct Upload.
           {
             echo ""
             echo "[vars]"
-            echo "GAME_ORIGIN = \"${ORIGIN}\""
+            if [ -n "${GAME_ORIGIN:-}" ]; then
+              ORIGIN="${GAME_ORIGIN%/}"
+              echo "GAME_ORIGIN = \"${ORIGIN}\""
+            else
+              echo "GAME_ORIGIN secret not set; Functions will report offline until it is." >&2
+            fi
+            if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
+              echo "GOOGLE_CLIENT_ID = \"${GOOGLE_CLIENT_ID}\""
+            fi
+            if [ -n "${GOOGLE_CLIENT_SECRET:-}" ]; then
+              echo "GOOGLE_CLIENT_SECRET = \"${GOOGLE_CLIENT_SECRET}\""
+            fi
+            if [ -n "${AUTH_SESSION_SECRET:-}" ]; then
+              echo "AUTH_SESSION_SECRET = \"${AUTH_SESSION_SECRET}\""
+            fi
           } >> public-site/wrangler.toml
-          # Keep project settings in sync for the dashboard / future swaps.
-          python3 deploy/sync-game-origin.py
+          if [ -n "${GAME_ORIGIN:-}" ]; then
+            python3 deploy/sync-game-origin.py
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

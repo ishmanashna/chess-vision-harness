@@ -178,6 +178,15 @@ def main(argv: list[str] | None = None) -> None:
             )
             sys.exit(1)
 
+    elif args[0] == "audit":
+        if len(args) < 2 or args[1] != "tail":
+            print("Usage: chess-harness audit tail [n]")
+            sys.exit(1)
+        from .activity_audit import print_activity_tail
+
+        n = int(args[2]) if len(args) > 2 else 50
+        print_activity_tail(n)
+
     elif args[0] == "harness":
         if len(args) < 2 or args[1] != "reset":
             print("Usage: chess-harness harness reset [--yes]")

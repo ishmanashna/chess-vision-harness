@@ -2,5 +2,7 @@ name = "chessvisionharness"
 compatibility_date = "2024-08-01"
 pages_build_output_dir = "."
 
-# GAME_ORIGIN — set in Cloudflare Pages dashboard (not committed).
+# Injected at deploy time (not committed): GAME_ORIGIN, GOOGLE_CLIENT_ID,
+# GOOGLE_CLIENT_SECRET, AUTH_SESSION_SECRET — see deploy/pages.md.
 # CHESS_HARNESS_PUBLIC_URL — set on the game PC running chess-harness serve.
+

@@ -10,9 +10,10 @@ from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
-from .api_limits import ApiLimitEnforcer, AuthContext, get_limit_enforcer, key_fingerprint
+from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
 from .commands import resolve_agent_color
 from .elo import ELOLadder
 from .game_service import GameService
@@ -120,6 +121,15 @@ def build_router(
         assert model is not None
         api_key = _keys().create(body.id)
         limits.record_register_agent(request)
+        try:
+            record_activity(
+                "inscribe",
+                model_id=body.id,
+                client_ip=client_ip(request),
+                user_agent=request.headers.get("user-agent", ""),
+            )
+        except Exception:
+            pass
         return {"ok": True, "model_id": body.id, "name": model.get("name", body.id), "api_key": api_key}
 
     @router.get("/agents")
@@ -143,6 +153,7 @@ def build_router(
     @router.post("/games")
     async def create_game(
         body: CreateGameBody,
+        request: Request,
         auth: AuthContext = Depends(_auth_context),
         authorization: Optional[str] = Header(None),
     ):
@@ -163,6 +174,16 @@ def build_router(
         if not result.get("ok"):
             return _err(400, result.get("error", "Failed to create game"))
         limits.record_create_game(auth)
+        try:
+            record_activity(
+                "create_game",
+                model_id=auth.model_id,
+                game_id=str(result.get("game_id") or game_id),
+                client_ip=client_ip(request),
+                user_agent=request.headers.get("user-agent", ""),
+            )
+        except Exception:
+            pass
         payload: Dict[str, Any] = {"ok": True, **_sanitize_agent_payload(result)}
         raw_key = ""
         if authorization and authorization.lower().startswith("bearer "):

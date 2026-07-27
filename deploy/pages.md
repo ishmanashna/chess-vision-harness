@@ -30,6 +30,10 @@ In this repo on GitHub: **Settings → Secrets and variables → Actions → New
 |-------------|--------|
 | `CLOUDFLARE_API_TOKEN` | Token from step 1 |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID from step 2 |
+| `GAME_ORIGIN` | (optional until live play) Tunnel/host URL, no trailing slash — see Phase 3 |
+| `GOOGLE_CLIENT_ID` | (optional until OAuth) Google OAuth Web client id — see Google sign-in below |
+| `GOOGLE_CLIENT_SECRET` | (optional until OAuth) Google OAuth Web client secret |
+| `AUTH_SESSION_SECRET` | (optional until OAuth) Long random string used to sign the session cookie |
 
 You only paste these once. The workflow does not print them in logs.
 
@@ -129,11 +133,36 @@ echo GAME_ORIGIN=http://127.0.0.1:8765 > .dev.vars
 npx wrangler pages dev .
 ```
 
-Then open the URL Wrangler prints. `.dev.vars` is for local dev only — do not commit it.
+Then open the URL Wrangler prints. `.dev.vars` is for local dev only — do not commit it. For Google sign-in locally, also put `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `AUTH_SESSION_SECRET` in `.dev.vars`, and add `http://localhost:8788/auth/callback` (or whatever port Wrangler prints) as an Authorized redirect URI on the Google OAuth client.
+
+## Google sign-in (cosmetic — Create stays open)
+
+Login is optional. Create Game and inscribe work for anonymous visitors. Sign-in only shows identity in the header and a one-line cue on Create.
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → create or pick a project.
+2. **APIs & Services → OAuth consent screen** → External → app name e.g. `Chess Vision Harness` → your email as support/contact → Save. For testing, add yourself under **Test users** until you publish the app.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID** → Application type **Web application**.
+4. Name: `Chess Vision Harness Pages`.
+5. Authorized JavaScript origins: `https://chessvisionharness.pages.dev`
+6. Authorized redirect URIs: `https://chessvisionharness.pages.dev/auth/callback`
+7. Create → copy **Client ID** and **Client secret**.
+8. Create a long random session secret (PowerShell: `-join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })`).
+9. Set GitHub Actions secrets on this repo:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `AUTH_SESSION_SECRET`
+10. Redeploy: `gh workflow run "Deploy public site"` (or push a `public-site/` change). The deploy workflow injects these into `wrangler.toml` `[vars]` for Direct Upload, same pattern as `GAME_ORIGIN`.
+
+Smoke: visit the site → **Sign in with Google** → header shows your name → Create shows “Signed in as … — login is optional.” → **Sign out** clears both → create a game while logged out still works.
+
+While the consent screen is in **Testing**, only listed test users can sign in. Click **Publish app** when you want anyone with a Google account.
 
 ## Troubleshooting
 
-- **Workflow fails with auth error** — re-check token permissions and that both secrets are set on the correct repo.
+- **Workflow fails with auth error** — re-check token permissions and that Cloudflare secrets are set on the correct repo.
 - **404 on subpaths locally** — ensure you serve `public-site` as the document root, not the repo root.
 - **Status chip always Sleeping** — `GAME_ORIGIN` is unset, the tunnel/origin is down, or `/health` on the origin failed. Check the Pages env var and that `chess-harness serve` is running.
 - **Create Game online but brief missing** — set `CHESS_HARNESS_PUBLIC_URL` on the game PC to your Pages URL and restart the server.
+- **No Sign in button** — OAuth secrets not injected yet (`/auth/me` reports `oauth_configured: false`).
+- **redirect_uri_mismatch** — the Google client’s Authorized redirect URI must be exactly `https://chessvisionharness.pages.dev/auth/callback`.
+- **Access blocked: app is in testing** — add your Google account under OAuth consent screen → Test users, or publish the app.
