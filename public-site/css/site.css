@@ -94,38 +94,33 @@ main {
 .header-top {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 14px;
+  gap: 10px 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .header-brand {
   min-width: 0;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .site-title {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.site-tagline {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  max-width: 52rem;
+  line-height: 1.2;
 }
 
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 8px 16px;
   align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .site-nav a {
@@ -150,7 +145,8 @@ main {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .theme-toggle {
@@ -494,7 +490,45 @@ p {
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   background: var(--surface);
+  color: var(--text);
   font-family: inherit;
+  color-scheme: light;
+}
+
+.form-row select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+.form-row select option,
+.form-row select optgroup {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.form-row select:disabled,
+.form-row input:disabled {
+  opacity: 0.72;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.form-row select:focus,
+.form-row input:focus {
+  outline: 2px solid var(--link);
+  outline-offset: 1px;
+}
+
+[data-theme="dark"] .form-row select,
+[data-theme="dark"] .form-row input {
+  color-scheme: dark;
+  background-color: var(--surface-muted);
+  border-color: var(--border-strong);
 }
 
 .field-hint,
@@ -669,7 +703,13 @@ p {
     align-items: stretch;
   }
 
+  .site-nav {
+    order: 2;
+  }
+
   .header-controls {
+    order: 3;
+    margin-left: 0;
     align-self: flex-start;
   }
 

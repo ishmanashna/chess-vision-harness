@@ -395,8 +395,15 @@ PUBLIC_SITE_HEADER = """
     <div class="header-top">
       <div class="header-brand">
         <h1 class="site-title">Chess Vision Harness</h1>
-        <p class="site-tagline">Spectating <code>{game_id}</code></p>
       </div>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/active/">Active</a>
+        <a href="/completed/">Completed</a>
+        <a href="/create/">Create Game</a>
+        <a href="/leaderboard/">Leaderboard</a>
+        <a href="/contact/">Contact</a>
+      </nav>
       <div class="header-controls">
         <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
         <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
@@ -405,14 +412,6 @@ PUBLIC_SITE_HEADER = """
         </span>
       </div>
     </div>
-    <nav class="site-nav" aria-label="Main">
-      <a href="/">Home</a>
-      <a href="/active/">Active</a>
-      <a href="/completed/">Completed</a>
-      <a href="/create/">Create Game</a>
-      <a href="/leaderboard/">Leaderboard</a>
-      <a href="/contact/">Contact</a>
-    </nav>
   </header>
 </div>
 """

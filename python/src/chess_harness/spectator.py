@@ -571,7 +571,7 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
-    header = PUBLIC_SITE_HEADER.format(game_id=game_id)
+    header = PUBLIC_SITE_HEADER
     html = f"""<!DOCTYPE html><html><head><title>{game_id} · Chess Vision Harness</title>
     {THEME_INIT_SCRIPT}
     <link rel="stylesheet" href="/css/site.css"/>
