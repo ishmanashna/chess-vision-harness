@@ -14,7 +14,6 @@ from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
-from .avaa import is_avaa_state
 from .avaa_api import register_avaa_routes, require_game_participant
 from .commands import resolve_agent_color
 from .elo import ELOLadder
@@ -61,10 +60,6 @@ def _sanitize_agent_payload(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def _new_game_id() -> str:
     return f"game-{os.getpid()}-{random.randint(1000, 9999)}"
-
-
-def _game_state(game_service: GameService, game_id: str) -> Optional[Dict[str, Any]]:
-    return game_service.game_manager.load_state(game_id)
 
 
 def build_router(
@@ -217,11 +212,6 @@ def build_router(
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
-        state = _game_state(_svc(), game_id) or {}
-        if is_avaa_state(state) and state.get("status") == "in_progress":
-            status = _svc().status(game_id, caller_color=caller_color)
-            if status.get("ok") and not status.get("your_turn"):
-                return _err(403, "Not your turn")
         try:
             png = _svc().get_board_bytes(game_id, caller_color=caller_color)
         except ValueError as exc:

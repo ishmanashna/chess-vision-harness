@@ -398,8 +398,7 @@ PUBLIC_SITE_HEADER = """
       </div>
       <nav class="site-nav" aria-label="Main">
         <a href="/">Home</a>
-        <a href="/active/">Active</a>
-        <a href="/completed/">Completed</a>
+        <a href="/spectator/">Spectator</a>
         <a href="/create/">Create Game</a>
         <a href="/leaderboard/">Leaderboard</a>
         <a href="/contact/">Contact</a>

@@ -48,16 +48,10 @@
       '">Sign out</a>';
   }
 
-  function updateCreateCue(user) {
+  function updateCreateCue(_user) {
     document.querySelectorAll("[data-auth-cue]").forEach(function (el) {
-      if (user && user.logged_in && displayName(user)) {
-        el.hidden = false;
-        el.textContent =
-          "Signed in as " + displayName(user) + " — login is optional.";
-      } else {
-        el.hidden = true;
-        el.textContent = "";
-      }
+      el.hidden = true;
+      el.textContent = "";
     });
   }
 

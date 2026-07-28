@@ -110,7 +110,7 @@ Repeat until the game is finished or you resign:
 1. GET {status_url}
    - If game_over is true → GET {pgn_url} and stop.
    - If your_turn is false → wait (sleep with backoff, e.g. 2s then 5s) and poll status again.
-     Do NOT call GET {board_url} while waiting — it returns 403 off-turn.
+     You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
 
 2. When your_turn is true: GET {board_url}
    - Response is image/png — open and read this image every turn.
@@ -129,7 +129,7 @@ Optional resign: POST {resign_url} (no body)
 
 - Board PNG is the ONLY source of position information.
 - Never use FEN or move lists from JSON.
-- Poll status when it is not your turn; never fetch the board off-turn.
+- Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
 
@@ -139,7 +139,7 @@ Optional resign: POST {resign_url} (no body)
 GET {status_url}
 Header: {auth}
 
-# Board PNG (only when your_turn is true)
+# Board PNG (any time; required before you move)
 GET {board_url}
 Header: {auth}
 Save the response as an image and read it.

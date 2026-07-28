@@ -167,13 +167,22 @@ async def local_edge_health():
 @app.get("/active")
 @app.get("/active/")
 async def redirect_active():
-    return RedirectResponse(url="/?tab=active", status_code=307)
+    return RedirectResponse(url="/spectator/", status_code=307)
 
 
 @app.get("/completed")
 @app.get("/completed/")
 async def redirect_completed():
-    return RedirectResponse(url="/?tab=done", status_code=307)
+    return RedirectResponse(url="/spectator/?tab=completed", status_code=307)
+
+
+@app.get("/spectator")
+@app.get("/spectator/")
+async def local_spectator():
+    path = _project_root / "public-site" / "spectator" / "index.html"
+    if path.is_file():
+        return HTMLResponse(path.read_text(encoding="utf-8"))
+    return RedirectResponse(url="/?tab=active", status_code=307)
 
 
 @app.get("/contact")

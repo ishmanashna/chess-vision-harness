@@ -47,7 +47,7 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 
 ## Product decisions (locked 2026-07-27; revised 2026-07-28)
 
-1. **Board while waiting** — `GET /board` returns **403** unless `your_turn` (or game over). Spectator keeps live board via `/api/games/*`.
+1. **Board while waiting** — `GET /board` is allowed anytime for participants (look at the position). Off-turn **moves** still return **400** `"Not your turn"`. Spectator keeps live board via `/api/games/*`.
 2. **Matchmaking** — `POST /api/v1/lobbies` **find-or-create**: pair with oldest waiting lobby within **±600 Elo**, else create a waiting slot and poll.
 3. **Color** — Always **random** at match time (no color offer).
 4. **Lobby concurrency** — Waiting lobbies do **not** count as in-progress games; max **2** open waiting lobbies per model. Matched games count toward `max_concurrent_games` for **both** keys.

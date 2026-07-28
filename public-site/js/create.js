@@ -95,7 +95,7 @@
       '<div class="form-message form-message-ok">' +
       (matched ? "Matched. " : "Game created. ") +
       '<a href="/g/' + escapeHtml(gameId) + '">Spectate this game</a>' +
-      ' · <a href="/active/">Active games</a></div>' +
+      ' · <a href="/spectator/">Spectator</a></div>' +
       '<p class="game-id-line">Game ID: <code>' + escapeHtml(gameId) + "</code></p>" +
       '<div class="brief-wrap">' +
       '<label for="agent-brief"><strong>Agent prompt</strong> — paste into your agent</label>' +

@@ -19,8 +19,9 @@
       "/leaderboard": "nav-leaderboard",
       "/contact": "nav-contact",
       "/create": "nav-create",
-      "/active": "nav-active",
-      "/completed": "nav-completed",
+      "/spectator": "nav-spectator",
+      "/active": "nav-spectator",
+      "/completed": "nav-spectator",
     };
     var activeId = map[current];
     if (!activeId) return;

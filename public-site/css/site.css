@@ -268,8 +268,8 @@ p {
 }
 
 .about-copy {
-  max-width: 48rem;
-  margin-bottom: 28px;
+  max-width: none;
+  margin-bottom: 0;
 }
 
 .about-copy p {
@@ -284,6 +284,35 @@ p {
 
 .about-copy p:last-child {
   margin-bottom: 0;
+}
+
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+  gap: 28px 40px;
+  align-items: start;
+}
+
+.home-ladder h2 {
+  margin-top: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 860px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .btn {

@@ -61,8 +61,8 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
     assert "backoff" in brief.lower() or "sleep" in brief.lower()
-    assert "403" in brief
-    assert "Do NOT call GET" in brief or "do not fetch the board off-turn" in brief.lower()
+    assert "403" not in brief
+    assert "while waiting" in brief.lower() or "look at the position" in brief.lower()
     assert "rare" not in brief.lower()
     assert "Never use FEN" in brief
     assert "/move/e2e4" in brief

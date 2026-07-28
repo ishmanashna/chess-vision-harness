@@ -119,7 +119,8 @@ def test_avaa_turn_and_board_access(avaa_client):
     assert white_board.content[:8] == b"\x89PNG\r\n\x1a\n"
 
     black_board_wait = client.get(f"/api/v1/games/{game_id}/board", headers=_auth(black_key))
-    assert black_board_wait.status_code == 403
+    assert black_board_wait.status_code == 200
+    assert black_board_wait.content[:8] == b"\x89PNG\r\n\x1a\n"
 
     move = client.post(
         f"/api/v1/games/{game_id}/move/e2e4",
@@ -139,7 +140,7 @@ def test_avaa_turn_and_board_access(avaa_client):
     assert black_status.json()["your_turn"] is True
 
     white_board_after = client.get(f"/api/v1/games/{game_id}/board", headers=_auth(white_key))
-    assert white_board_after.status_code == 403
+    assert white_board_after.status_code == 200
 
     black_board = client.get(f"/api/v1/games/{game_id}/board", headers=_auth(black_key))
     assert black_board.status_code == 200
