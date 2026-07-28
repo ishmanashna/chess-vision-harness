@@ -75,7 +75,7 @@
 
   function renderRows(rows) {
     if (!rows.length) {
-      return '<tr><td colspan="7" class="empty-state">No games in this list right now.</td></tr>';
+      return '<tr><td colspan="6" class="empty-state">No games in this list right now.</td></tr>';
     }
     return rows
       .map(function (g) {
@@ -113,9 +113,6 @@
           "<td>" +
           escapeHtml(formatWhen(g.when)) +
           "</td>" +
-          '<td><a class="btn btn-secondary btn-sm" href="/g/' +
-          escapeHtml(g.id) +
-          '">Open</a></td>' +
           "</tr>"
         );
       })
@@ -196,7 +193,7 @@
           })
           .catch(function () {
             tbody.innerHTML =
-              '<tr><td colspan="7" class="empty-state">Could not load live games.</td></tr>';
+              '<tr><td colspan="6" class="empty-state">Could not load live games.</td></tr>';
           });
       },
     });

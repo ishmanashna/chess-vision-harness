@@ -107,7 +107,7 @@ After a successful deploy with that secret, `/api/edge-health` reports online wh
 - These paths are proxied to the origin: `/api/v1/*`, `/api/games/*`, `/g/*`.
 - `/calibration*` is blocked at the edge (404) — calibration stays operator-only on the PC.
 
-**When unset or the PC is down:** static pages and the leaderboard snapshot still work; Create Game and Active/Completed show the sleeping/offline UX.
+**When unset or the PC is down:** static pages and the leaderboard snapshot still work; Create Game and Spectator show the sleeping/offline UX.
 
 ### Game PC environment variable
 

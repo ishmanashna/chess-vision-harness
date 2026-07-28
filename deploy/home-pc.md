@@ -19,7 +19,7 @@ Related docs
 | Public route | **None yet** — tunnel has no published hostname, so Pages cannot reach the PC until you add a route or use a Quick Tunnel |
 | Harness bind | `127.0.0.1:8765` (localhost only; tunnel or proxy reaches it) |
 
-Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Active/Completed show the sleeping/offline state. The leaderboard still works from the committed snapshot.
+Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Spectator show the sleeping/offline state. The leaderboard still works from the committed snapshot.
 
 ---
 

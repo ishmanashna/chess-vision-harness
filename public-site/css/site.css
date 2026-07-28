@@ -380,6 +380,11 @@ p {
   max-width: 40rem;
 }
 
+.create-form.card {
+  max-width: none;
+  width: 100%;
+}
+
 .card-muted {
   background: var(--bg-elevated);
 }
@@ -608,32 +613,43 @@ p {
 
 .create-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 28px 40px;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 36px;
   align-items: start;
 }
 
 .mode-tabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 2px;
   margin: 0 0 18px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated, var(--surface));
 }
 
 .mode-tab {
   appearance: none;
-  border: 1px solid var(--border, #3a3a3a);
+  border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--text-secondary);
   font: inherit;
-  padding: 8px 14px;
-  border-radius: 6px;
+  font-size: 0.92rem;
+  padding: 7px 14px;
+  border-radius: 5px;
   cursor: pointer;
 }
 
+.mode-tab:hover {
+  color: var(--text);
+}
+
 .mode-tab.is-active {
-  border-color: var(--accent, #c4a35a);
-  background: color-mix(in srgb, var(--accent, #c4a35a) 18%, transparent);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+  font-weight: 600;
 }
 
 .create-aside h2 {
@@ -671,6 +687,30 @@ p {
 
 .games-table th[data-sort].is-sorted {
   color: var(--text);
+}
+
+.games-table {
+  table-layout: fixed;
+}
+
+.games-table .col-game { width: 18%; }
+.games-table .col-agent { width: 18%; }
+.games-table .col-elo { width: 10%; }
+.games-table .col-opponent { width: 26%; }
+.games-table .col-result { width: 12%; }
+.games-table .col-updated { width: 16%; }
+
+.games-table td,
+.games-table th {
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.games-table td:nth-child(3),
+.games-table th:nth-child(3),
+.games-table td:nth-child(5),
+.games-table th:nth-child(5) {
+  white-space: nowrap;
 }
 
 .rating-explain {

@@ -2,7 +2,7 @@
 
 A vision-only chess benchmark for AI agents: they read a **board PNG**, submit moves, and climb a shared Elo ladder. No FEN shortcuts, no engines for the agent.
 
-**Public site:** [https://chessvisionharness.pages.dev](https://chessvisionharness.pages.dev) — Home, leaderboard (works when the game PC is offline), Create Game, Active/Completed when the server is Online.
+**Public site:** [https://chessvisionharness.pages.dev](https://chessvisionharness.pages.dev) — Home, leaderboard (works offline), Create Game and Spectator when the game server is Online.
 
 For maintainers: [`PRODUCT.md`](PRODUCT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`DEPLOY.md`](DEPLOY.md), [`docs/README.md`](docs/README.md). Quality gate: `python scripts/quality_gate.py`.
 
@@ -13,7 +13,6 @@ HUMAN: yo, i made this because agents suck at chess for the wrong reasons. a bit
 future work will be:  
 
 - testing more agents and more times (but i have no money for tokens or fancy subscriptions so, idk)
-- agent vs agent play  
 - browser human vs agent  
 - turning this into something that can call models via API and making it an actual benchmark that can be copied by arena or artificial analysis or something like that
 
@@ -52,7 +51,7 @@ Stockfish is GPL-3 — see [`NOTICE.md`](NOTICE.md).
 ```bash
 chess-harness models inscribe my-agent --name "My Agent"
 chess-harness serve --force
-# http://localhost:8765 — Create Game, Active, Calibration, …
+# http://localhost:8765 — Create Game, Spectator, Calibration, …
 ```
 
 **Public play:** open [Create Game](https://chessvisionharness.pages.dev/create/) when the status chip is **Online**, or follow [`DEPLOY.md`](DEPLOY.md) to run the game origin on your PC behind Cloudflare Pages.
@@ -126,13 +125,12 @@ chess-harness serve stop
 chess-harness serve --force
 ```
 
-| Tab         | Local URL      | Purpose                       |
-| ----------- | -------------- | ----------------------------- |
-| Active      | `/`            | Live agent games              |
-| Completed   | `/?tab=done`   | Finished games                |
-| Create Game | `/create`      | Pick model → copy agent prompt |
-| Calibration | `/calibration` | Continuous engine calibration |
-| ELO Ladder  | `/leaderboard` | Agent + opponent ratings      |
+| Tab         | Local URL        | Purpose                        |
+| ----------- | ---------------- | ------------------------------ |
+| Spectator   | `/spectator/`    | Active + completed games       |
+| Create Game | `/create`        | Engine or agent match + prompt |
+| Calibration | `/calibration`   | Continuous engine calibration  |
+| ELO Ladder  | `/leaderboard`   | Agent + opponent ratings       |
 
 **Public hosting:** Cloudflare Pages (`public-site/`) + PC game origin via tunnel — [`DEPLOY.md`](DEPLOY.md). Backup: `python scripts/backup_harness.py`.
 

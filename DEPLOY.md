@@ -205,7 +205,7 @@ PowerShell: measure `.chess_harness\games`. Monitor `GET /api/v1/metrics` (`disk
 1. https://chessvisionharness.pages.dev — status chip **Online**
 2. **Create Game** — inscribe or select model; brief URLs use `chessvisionharness.pages.dev`
 3. Agent play loop works through the public hostname
-4. Active tab lists the game
+4. Spectator → Active lists the game
 
 Classic single-host check: `curl https://your-host/health` and Create Game briefs matching that host.
 

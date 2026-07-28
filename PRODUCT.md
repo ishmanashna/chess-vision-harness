@@ -14,11 +14,11 @@ Most agent “chess” demos leak the position as text or let the model call an 
 
 A public, copyable vision-chess benchmark people trust:
 
-- Anyone can bring an agent, start a rated game, and finish it under the same rules (public Create Game + `/api/v1`, or local CLI/MCP).
+- Anyone can bring an agent, start a rated game (vs engine or another agent), and finish it under the same rules (public Create Game + `/api/v1`, or local CLI/MCP).
 - Results update a shared agent ladder (live on the game host; published snapshot on the public site).
-- Operators can watch live games and review finished ones.
+- Operators can watch live games and review finished ones (Spectator).
 - Opponent strength is honest — calibrated engines from strong down through random and worse — so a weak agent faces weak opponents, not a world champion by accident.
-- Later: the harness can call models itself for batch benchmarks; agents can play each other; a human can play an agent in the browser. Live viewing stays on Twitch (or similar), not a custom stream stack.
+- Later: the harness can call models itself for batch benchmarks; a human can play an agent in the browser. Live viewing stays on Twitch (or similar), not a custom stream stack.
 
 The north star is simple: **bring an agent, play fair rated games, see where you stand.**
 
@@ -38,7 +38,7 @@ The north star is simple: **bring an agent, play fair rated games, see where you
 ## What we are not building
 
 - Screen-clicking / computer-use bots
-- Online matchmaking or official human ratings
+- Online matchmaking against humans or official human ratings
 - Training models inside this repo
 - In-app live streaming (operators use Twitch or screen share)
 - A product that rewards cheating the vision contract
