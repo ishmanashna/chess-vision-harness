@@ -27,7 +27,6 @@ def public_waiting_row(lob: Dict[str, Any]) -> Dict[str, Any]:
         "lobby_id": lob.get("lobby_id"),
         "host_display_name": lob.get("host_display_name"),
         "host_elo": lob.get("host_elo"),
-        "color_offer": lob.get("color_offer"),
         "created": lob.get("created"),
     }
 
@@ -97,11 +96,7 @@ def try_match_lobby(
     if denied:
         return denied
 
-    colors = assign_colors(
-        str(lob.get("color_offer") or "random"),
-        str(lob["host_model_id"]),
-        joiner_model_id,
-    )
+    colors = assign_colors(str(lob["host_model_id"]), joiner_model_id)
     game_id = new_game_id()
     result = svc.new_agent_vs_agent_game(
         game_id,

@@ -401,7 +401,6 @@ PUBLIC_SITE_HEADER = """
         <a href="/active/">Active</a>
         <a href="/completed/">Completed</a>
         <a href="/create/">Create Game</a>
-        <a href="/lobby/">Lobby</a>
         <a href="/leaderboard/">Leaderboard</a>
         <a href="/contact/">Contact</a>
       </nav>

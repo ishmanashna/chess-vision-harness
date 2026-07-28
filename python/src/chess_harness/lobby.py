@@ -1,8 +1,9 @@
-"""Agent-vs-agent waiting lobbies (create / list / join / cancel)."""
+"""Agent-vs-agent waiting lobbies (find-or-create matchmaking)."""
 
 from __future__ import annotations
 
 import json
+import random
 import time
 import uuid
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from .paths import resolve_base_dir
 
-__all__ = ["LobbyStore", "ELO_BAND", "MAX_LOBBIES_PER_MODEL", "LOBBY_TTL_SEC"]
+__all__ = ["LobbyStore", "ELO_BAND", "MAX_LOBBIES_PER_MODEL", "LOBBY_TTL_SEC", "assign_colors"]
 
 ELO_BAND = 600
 MAX_LOBBIES_PER_MODEL = 2
@@ -54,15 +55,7 @@ class LobbyStore:
         kept = [
             lob
             for lob in before
-            if lob.get("status") != "waiting"
-            or now - float(lob.get("created_ts") or 0) < LOBBY_TTL_SEC
-        ]
-        # Drop finished matched rows older than TTL too (keep list small)
-        kept = [
-            lob
-            for lob in kept
-            if lob.get("status") == "waiting"
-            or now - float(lob.get("created_ts") or 0) < LOBBY_TTL_SEC
+            if now - float(lob.get("created_ts") or 0) < LOBBY_TTL_SEC
         ]
         removed = len(before) - len(kept)
         if removed:
@@ -94,11 +87,7 @@ class LobbyStore:
         host_model_id: str,
         host_display_name: str,
         host_elo: int,
-        color_offer: str,
     ) -> Dict[str, Any]:
-        color = (color_offer or "random").lower()
-        if color not in ("white", "black", "random"):
-            raise ValueError("color_offer must be white, black, or random")
         if self.count_waiting_for_model(host_model_id) >= MAX_LOBBIES_PER_MODEL:
             raise ValueError(
                 f"Max {MAX_LOBBIES_PER_MODEL} waiting lobbies per model"
@@ -109,7 +98,6 @@ class LobbyStore:
             "host_model_id": host_model_id,
             "host_display_name": host_display_name,
             "host_elo": int(host_elo),
-            "color_offer": color,
             "created": _now_iso(),
             "created_ts": _now_ts(),
             "game_id": None,
@@ -173,15 +161,8 @@ class LobbyStore:
         return None
 
 
-def assign_colors(color_offer: str, host_model_id: str, joiner_model_id: str) -> Dict[str, str]:
-    """Return white_model_id / black_model_id for a match."""
-    import random
-
-    offer = (color_offer or "random").lower()
-    if offer == "white":
-        return {"white_model_id": host_model_id, "black_model_id": joiner_model_id}
-    if offer == "black":
-        return {"white_model_id": joiner_model_id, "black_model_id": host_model_id}
+def assign_colors(host_model_id: str, joiner_model_id: str) -> Dict[str, str]:
+    """Randomly assign white/black for a match."""
     if random.choice([True, False]):
         return {"white_model_id": host_model_id, "black_model_id": joiner_model_id}
     return {"white_model_id": joiner_model_id, "black_model_id": host_model_id}

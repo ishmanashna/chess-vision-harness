@@ -25,8 +25,9 @@ class LobbyAuthError(Exception):
 
 
 class LobbyPostBody(BaseModel):
-    action: Optional[str] = Field(default="find", description="find | create")
-    color_offer: Optional[str] = "random"
+    """Find-or-create matchmaking. ``action``/``lobby_id`` kept for compat; ignored."""
+
+    action: Optional[str] = Field(default="find", description="Always find-or-create")
     lobby_id: Optional[str] = None
 
 
@@ -84,56 +85,42 @@ def build_lobby_router(
 
     @router.post("/lobbies")
     async def post_lobby(
-        body: LobbyPostBody,
+        _body: LobbyPostBody,
         request: Request,
         auth: AuthContext = Depends(_auth_context),
         authorization: Optional[str] = Header(None),
     ):
-        action = (body.action or "find").lower()
-        if action not in ("find", "create"):
-            return _err(400, "action must be find or create")
-
         try:
-            _display, joiner_elo = _model_meta(auth.model_id)
+            display_name, joiner_elo = _model_meta(auth.model_id)
         except ValueError as exc:
             return _err(400, str(exc))
 
         raw_key = _raw_key(authorization)
         store = _lobby_store()
 
-        if action == "find":
-            target: Optional[Dict[str, Any]] = None
-            if body.lobby_id:
-                lob = store.get(body.lobby_id)
-                if lob is None or lob.get("status") != "waiting":
-                    return _err(404, "Lobby not found")
-                target = lob
-            else:
-                target = store.find_matchable(auth.model_id, joiner_elo)
-            if target is not None:
-                result = try_match_lobby(
-                    target,
-                    auth.model_id,
-                    joiner_elo,
-                    auth,
-                    raw_key,
-                    request,
-                    svc=_svc(),
-                    limits=limits,
-                    lobby_store=store,
-                    err=_err,
-                )
-                if isinstance(result, JSONResponse):
-                    return result
+        target = store.find_matchable(auth.model_id, joiner_elo)
+        if target is not None:
+            result = try_match_lobby(
+                target,
+                auth.model_id,
+                joiner_elo,
+                auth,
+                raw_key,
+                request,
+                svc=_svc(),
+                limits=limits,
+                lobby_store=store,
+                err=_err,
+            )
+            if isinstance(result, JSONResponse):
                 return result
+            return result
 
         try:
-            display_name, host_elo = _model_meta(auth.model_id)
             lob = store.create_waiting(
                 host_model_id=auth.model_id,
                 host_display_name=display_name,
-                host_elo=host_elo,
-                color_offer=body.color_offer or "random",
+                host_elo=joiner_elo,
             )
         except ValueError as exc:
             return _err(400, str(exc))

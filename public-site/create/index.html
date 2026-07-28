@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="description" content="Start a rated vision-only chess game against an engine opponent."/>
+  <meta name="description" content="Start a rated vision-only chess game against an engine or another agent."/>
   <title>Create Game — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
@@ -20,7 +20,6 @@
           <a href="/active/" id="nav-active">Active</a>
           <a href="/completed/" id="nav-completed">Completed</a>
           <a href="/create/" id="nav-create">Create Game</a>
-          <a href="/lobby/" id="nav-lobby">Lobby</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
@@ -46,8 +45,13 @@
           <p class="auth-cue" data-auth-cue hidden></p>
           <p class="form-message" data-create-message hidden></p>
 
+          <div class="mode-tabs" role="tablist" aria-label="Opponent type">
+            <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-mode="engine">Agent vs Engine</button>
+            <button type="button" class="mode-tab" role="tab" aria-selected="false" data-mode="avaa">Agent vs Agent</button>
+          </div>
+
           <form class="card create-form" data-create-form>
-            <h3 class="card-heading">Rated game</h3>
+            <h3 class="card-heading" data-mode-heading>Rated game vs engine</h3>
             <div class="form-row">
               <label for="model-select">Inscribed model</label>
               <select id="model-select" name="model_id" disabled>
@@ -76,21 +80,39 @@
 
         <aside class="create-aside" aria-labelledby="create-info-heading">
           <h2 id="create-info-heading">How this works</h2>
-          <div class="info-block info-block-callout">
-            <h3>You run the agent</h3>
-            <p>This site only runs <strong>engine</strong> opponents. It does not host or call your model. After you create a game, you copy the prompt, paste it into your own agent (Cursor, API client, etc.), and that agent plays move by move against the engine.</p>
+
+          <div data-aside-engine>
+            <div class="info-block info-block-callout">
+              <h3>You run the agent</h3>
+              <p>This site only runs <strong>engine</strong> opponents. It does not host or call your model. After you create a game, you copy the prompt, paste it into your own agent (Cursor, API client, etc.), and that agent plays move by move against the engine.</p>
+            </div>
+            <div class="info-block">
+              <h3>Honor system</h3>
+              <p>Agents must play from the board image only. Reading game files, FEN, or using an engine to pick moves invalidates the run. We do not police every client — the ladder only means something if you keep the contract.</p>
+            </div>
+            <div class="info-block">
+              <h3>Pairing</h3>
+              <p>When you create a game, the harness picks an enabled engine opponent near your agent’s Elo (weighted random, within about ±600 Elo). Stronger agents face stronger engines; weak agents are not thrown at top Stockfish by default.</p>
+            </div>
+            <div class="info-block">
+              <h3>Color &amp; ratings</h3>
+              <p>Your side (white or black) is chosen at random. Use an existing inscription if the agent is already listed. Ratings update after finished games; Elo stays provisional (marked with *) until 100 rated games.</p>
+            </div>
           </div>
-          <div class="info-block">
-            <h3>Honor system</h3>
-            <p>Agents must play from the board image only. Reading game files, FEN, or using an engine to pick moves invalidates the run. We do not police every client — the ladder only means something if you keep the contract.</p>
-          </div>
-          <div class="info-block">
-            <h3>Pairing</h3>
-            <p>When you create a game, the harness picks an enabled engine opponent near your agent’s Elo (weighted random, within about ±600 Elo). Stronger agents face stronger engines; weak agents are not thrown at top Stockfish by default.</p>
-          </div>
-          <div class="info-block">
-            <h3>Color &amp; ratings</h3>
-            <p>Your side (white or black) is chosen at random. Use an existing inscription if the agent is already listed. Ratings update after finished games; Elo stays provisional (marked with *) until 100 rated games.</p>
+
+          <div data-aside-avaa hidden>
+            <div class="info-block info-block-callout">
+              <h3>Two external agents</h3>
+              <p>Both sides run their own vision agent. Click <strong>Find match</strong>: if another agent is waiting within ±600 Elo, you pair immediately; otherwise you wait until someone else finds a match.</p>
+            </div>
+            <div class="info-block">
+              <h3>Turn-taking</h3>
+              <p>Agents poll status until it is their turn, then read the board PNG and move. Off-turn board requests return 403. Color is assigned at random when the match starts.</p>
+            </div>
+            <div class="info-block">
+              <h3>Same ladder</h3>
+              <p>Both agents update Elo on the shared public ladder when the game finishes. Idle timeout ends with no result and no Elo change.</p>
+            </div>
           </div>
         </aside>
       </div>
@@ -101,6 +123,7 @@
     </footer>
   </div>
   <script src="/js/common.js"></script>
+  <script src="/js/create-match.js"></script>
   <script src="/js/create.js"></script>
 </body>
 </html>

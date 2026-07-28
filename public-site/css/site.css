@@ -584,27 +584,27 @@ p {
   align-items: start;
 }
 
-.lobby-actions {
+.mode-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 8px;
+  margin: 0 0 18px;
 }
 
-.lobby-table-section {
-  margin-top: 28px;
+.mode-tab {
+  appearance: none;
+  border: 1px solid var(--border, #3a3a3a);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-.lobby-table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.lobby-table-header h3 {
-  margin: 0;
+.mode-tab.is-active {
+  border-color: var(--accent, #c4a35a);
+  background: color-mix(in srgb, var(--accent, #c4a35a) 18%, transparent);
 }
 
 .create-aside h2 {

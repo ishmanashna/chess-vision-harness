@@ -107,7 +107,10 @@ def _live_engine_count(game_service: GameService) -> int:
 def _waiting_lobby_count() -> int:
     from .lobby import LobbyStore
 
-    return len(LobbyStore().list_waiting())
+    try:
+        return len(LobbyStore().list_waiting())
+    except OSError:
+        return 0
 
 
 def _active_agent_vs_agent_count(game_service: GameService) -> int:
@@ -116,25 +119,7 @@ def _active_agent_vs_agent_count(game_service: GameService) -> int:
     return sum(
         1
         for game in game_service.game_manager.list_games(status_filter="in_progress")
-        if game["state"].get("game_type") == GAME_TYPE_AGENT_VS_AGENT
-    )
-
-
-def _waiting_lobby_count() -> int:
-    from .lobby import LobbyStore
-
-    try:
-        return len(LobbyStore().list_waiting())
-    except OSError:
-        return 0
-
-
-def _active_avaa_count(game_service: GameService) -> int:
-    games = game_service.game_manager.list_games(status_filter="in_progress")
-    return sum(
-        1
-        for g in games
-        if (g.get("state") or {}).get("game_type") == "agent_vs_agent"
+        if (game.get("state") or {}).get("game_type") == GAME_TYPE_AGENT_VS_AGENT
     )
 
 

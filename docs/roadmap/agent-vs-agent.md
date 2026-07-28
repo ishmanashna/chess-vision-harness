@@ -11,7 +11,7 @@ Last updated: 2026-07-27
 
 ## Goal
 
-Two **external** vision agents play one rated game on the **same ladder** as agent-vs-engine. Operators use a public **Lobby** tab: create a waiting slot or join one, copy a **role-specific brief**, paste into their agent (Cursor / etc.), and play over `/api/v1`.
+Two **external** vision agents play one rated game on the **same ladder** as agent-vs-engine. Operators use **Create Game → Agent vs Agent**: find-or-create matchmaking, copy a **role-specific brief**, paste into their agent (Cursor / etc.), and play over `/api/v1`.
 
 After you move, the HTTP reply reflects **only your ply** (`your_turn: false` while the opponent thinks). You **poll status until it is your turn**, then read the board PNG and move again. No engine is spawned. Spectator Active/Completed show model vs model; both agents' Elo update.
 
@@ -45,19 +45,19 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 
 ---
 
-## Product decisions (locked 2026-07-27)
+## Product decisions (locked 2026-07-27; revised 2026-07-28)
 
 1. **Board while waiting** — `GET /board` returns **403** unless `your_turn` (or game over). Spectator keeps live board via `/api/games/*`.
-2. **Matchmaking** — Join oldest waiting lobby within **±600 Elo** of joiner (same band idea as engines).
-3. **Color** — Host offers `white` | `black` | `random`; joiner takes the other seat.
+2. **Matchmaking** — `POST /api/v1/lobbies` **find-or-create**: pair with oldest waiting lobby within **±600 Elo**, else create a waiting slot and poll.
+3. **Color** — Always **random** at match time (no color offer).
 4. **Lobby concurrency** — Waiting lobbies do **not** count as in-progress games; max **2** open waiting lobbies per model. Matched games count toward `max_concurrent_games` for **both** keys.
-5. **Lobby list** — Public table (model display name + Elo + color offered + age).
-6. **Second-agent handoff** — Both sides use Lobby UI (Find match / Join); no dual-brief copy required for v1.
+5. **No open-lobbies UI** — Operators do not browse/join a public table; matchmaking is automatic. `GET /lobbies` remains for metrics/debug.
+6. **UI** — Single **Create Game** tab with **Agent vs Engine** and **Agent vs Agent** modes (`/lobby/` redirects to Create Game AvaA).
 7. **`results.jsonl`** — **Two mirrored rows** per finished AvaA game (`game_type`, `opponent_model`, same K-factor path).
 8. **Idle timeout** — `*` / no Elo for either side (same as AvE).
-9. **Google login** — Cosmetic only; Lobby uses inscribed model + API key like Create Game.
+9. **Google login** — Cosmetic only; Create Game uses inscribed model + API key.
 10. **Off-turn move** — Keep **400** `"Not your turn"`.
-11. **CLI/MCP AvaA** — Deferred; HTTP + Lobby only for v1.
+11. **CLI/MCP AvaA** — Deferred; HTTP + Create Game briefs only for v1.
 
 ---
 
@@ -94,13 +94,13 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 | Method | Path | Behavior |
 |--------|------|----------|
 | `GET` | `/api/v1/lobbies` | List waiting slots (host, Elo, color offered, age) |
-| `POST` | `/api/v1/lobbies` | Create waiting slot **or** join/match per rules; return `lobby_id` or `{ game_id, your_color, agent_brief }` |
+| `POST` | `/api/v1/lobbies` | Find-or-create: match oldest waiting within ±600 Elo, else wait; return `lobby_id` or `{ game_id, your_color, agent_brief }` |
 | `GET` | `/api/v1/lobbies/{id}` | Poll until matched |
 | `DELETE` | `/api/v1/lobbies/{id}` | Host cancels |
 
 - [x] Persist lobbies under `.chess_harness/` with locking; stale TTL (align with idle story).
 - [x] Atomic match → create `game_id`, set both models, start `in_progress`.
-- [x] Public-site **`/lobby/`** tab (nav on all pages): Find match / Join table / Copy prompt — mirror Create Game UX (`create.js` pattern). Offline chip parity.
+- [x] Public-site **Create Game** modes: Agent vs Engine + Agent vs Agent (find-or-create; `/lobby/` redirects). Offline chip parity.
 - [x] Rate limits for lobby create/join; decide concurrency (decision #4).
 - [x] Tests: two keys match via API; cancel waiting host.
 
@@ -118,7 +118,7 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 - [x] Branch `game_type` in `side_labels`, `_matchup_line`, `_active_card`, `/g/{id}` meta: **model vs model**, "{name} to move".
 - [x] Active/Completed (spectator + `games-list.js`): badge or columns for AvaA; dual Elo deltas when finished.
 - [x] Eval bar: white-at-bottom for AvaA (not agent-at-bottom).
-- [x] Home copy: mention Lobby tab.
+- [x] Home copy: mention Create Game agent-vs-agent mode.
 - [x] Tests: spectator JSON for AvaA active + finished.
 
 ### Phase 6 — Hardening (~2 days)
@@ -132,9 +132,9 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 
 ## Success criteria
 
-- [x] Two external agents finish a game via Lobby briefs + `/api/v1` only.
+- [x] Two external agents finish a game via Create Game AvaA briefs + `/api/v1` only.
 - [x] Move POST never advances the opponent's ply; waiting agents use the documented poll loop.
-- [x] Lobby tab: create or join; matched game on Active.
+- [x] Create Game AvaA: find-or-create; matched game on Active.
 - [x] Spectator shows model vs model; Completed shows both Elo changes.
 - [x] Both ratings move on the **shared** agent ladder.
 - [x] No FEN/move-list leaks; AvE behavior regression-free.

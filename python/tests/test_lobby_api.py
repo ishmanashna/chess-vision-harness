@@ -1,4 +1,4 @@
-"""Integration tests for /api/v1/lobbies (AvaA lobby API)."""
+"""Integration tests for /api/v1/lobbies (AvaA find-or-create)."""
 
 from __future__ import annotations
 
@@ -53,42 +53,35 @@ def _register(client: TestClient, model_id: str, name: str) -> tuple[str, str]:
     return data["api_key"], data["model_id"]
 
 
-def test_lobby_list_create_join_match(lobby_api_client):
+def test_find_or_create_then_match(lobby_api_client):
     client, _ = lobby_api_client
-    host_key, host_id = _register(client, "lobby-host", "Host")
-    join_key, join_id = _register(client, "lobby-join", "Joiner")
+    host_key, _ = _register(client, "lobby-host", "Host")
+    join_key, _ = _register(client, "lobby-join", "Joiner")
 
     empty = client.get("/api/v1/lobbies")
     assert empty.status_code == 200
     assert empty.json()["lobbies"] == []
 
-    create = client.post(
-        "/api/v1/lobbies",
-        headers=_auth(host_key),
-        json={"action": "create", "color_offer": "white"},
-    )
-    assert create.status_code == 200, create.text
-    created = create.json()
+    waiting = client.post("/api/v1/lobbies", headers=_auth(host_key), json={})
+    assert waiting.status_code == 200, waiting.text
+    created = waiting.json()
     assert created["ok"] is True
     assert created["status"] == "waiting"
     lobby_id = created["lobby_id"]
+    assert "color_offer" not in created
 
     listed = client.get("/api/v1/lobbies")
     assert listed.status_code == 200
     rows = listed.json()["lobbies"]
     assert len(rows) == 1
     assert rows[0]["lobby_id"] == lobby_id
-    assert rows[0]["color_offer"] == "white"
+    assert "color_offer" not in rows[0]
 
-    waiting = client.get(f"/api/v1/lobbies/{lobby_id}", headers=_auth(host_key))
-    assert waiting.status_code == 200
-    assert waiting.json()["status"] == "waiting"
+    host_poll = client.get(f"/api/v1/lobbies/{lobby_id}", headers=_auth(host_key))
+    assert host_poll.status_code == 200
+    assert host_poll.json()["status"] == "waiting"
 
-    matched = client.post(
-        "/api/v1/lobbies",
-        headers=_auth(join_key),
-        json={"action": "find", "lobby_id": lobby_id},
-    )
+    matched = client.post("/api/v1/lobbies", headers=_auth(join_key), json={})
     assert matched.status_code == 200, matched.text
     match_data = matched.json()
     assert match_data["ok"] is True
@@ -98,13 +91,15 @@ def test_lobby_list_create_join_match(lobby_api_client):
     assert match_data.get("agent_brief")
     assert "poll" in match_data["agent_brief"].lower()
 
-    host_poll = client.get(f"/api/v1/lobbies/{lobby_id}", headers=_auth(host_key))
-    assert host_poll.status_code == 200
-    host_data = host_poll.json()
+    host_done = client.get(f"/api/v1/lobbies/{lobby_id}", headers=_auth(host_key))
+    assert host_done.status_code == 200
+    host_data = host_done.json()
     assert host_data["status"] == "matched"
     assert host_data["game_id"] == match_data["game_id"]
-    assert host_data.get("your_color") == "WHITE"
+    assert host_data.get("your_color") in ("WHITE", "BLACK")
     assert host_data.get("agent_brief")
+    # Colors are random; host and joiner must be opposite sides of the same game.
+    assert {host_data["your_color"], match_data["your_color"]} == {"WHITE", "BLACK"}
 
     assert client.get("/api/v1/lobbies").json()["lobbies"] == []
 
@@ -113,11 +108,7 @@ def test_lobby_host_cancel(lobby_api_client):
     client, _ = lobby_api_client
     host_key, _ = _register(client, "cancel-host", "Cancel Host")
 
-    create = client.post(
-        "/api/v1/lobbies",
-        headers=_auth(host_key),
-        json={"action": "create", "color_offer": "random"},
-    )
+    create = client.post("/api/v1/lobbies", headers=_auth(host_key), json={})
     lobby_id = create.json()["lobby_id"]
 
     denied = client.delete(f"/api/v1/lobbies/{lobby_id}")

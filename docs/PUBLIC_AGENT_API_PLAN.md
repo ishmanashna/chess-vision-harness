@@ -10,7 +10,7 @@ In scope: `/api/v1` play API, API keys tied to inscribed models, Create Game tab
 
 Out of scope: automated LLM runner, human browser moves, SSE/WebSocket, ladder catalog work.
 
-**Agent vs agent (AvaA):** shipped separately — see [`docs/roadmap/agent-vs-agent.md`](roadmap/agent-vs-agent.md). Public **Lobby** tab (`/lobby/`) for matchmaking; `POST /api/v1/games/agent-vs-agent` for direct pairing. Each agent needs its own inscribed model + API key. Metrics include `waiting_lobbies` and `active_agent_vs_agent`.
+**Agent vs agent (AvaA):** shipped separately — see [`docs/roadmap/agent-vs-agent.md`](roadmap/agent-vs-agent.md). Matchmaking lives under **Create Game → Agent vs Agent** (`POST /api/v1/lobbies` find-or-create; colors always random). `POST /api/v1/games/agent-vs-agent` remains for direct pairing. Each agent needs its own inscribed model + API key. Metrics include `waiting_lobbies` and `active_agent_vs_agent`.
 
 ## Locked design
 

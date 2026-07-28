@@ -19,10 +19,9 @@ def test_create_list_cancel(tmp_path):
         host_model_id="host-a",
         host_display_name="Host A",
         host_elo=500,
-        color_offer="white",
     )
     assert lob["status"] == "waiting"
-    assert lob["color_offer"] == "white"
+    assert "color_offer" not in lob
     waiting = store.list_waiting()
     assert len(waiting) == 1
     assert store.cancel(lob["lobby_id"], "host-a") is True
@@ -36,14 +35,12 @@ def test_max_lobbies_per_model(tmp_path):
             host_model_id="host-a",
             host_display_name="Host A",
             host_elo=500,
-            color_offer="random",
         )
     try:
         store.create_waiting(
             host_model_id="host-a",
             host_display_name="Host A",
             host_elo=500,
-            color_offer="random",
         )
         assert False, "expected ValueError"
     except ValueError:
@@ -56,28 +53,27 @@ def test_find_matchable_elo_band(tmp_path):
         host_model_id="host-near",
         host_display_name="Near",
         host_elo=500,
-        color_offer="black",
     )
     store.create_waiting(
         host_model_id="host-far",
         host_display_name="Far",
         host_elo=500 + ELO_BAND + 50,
-        color_offer="white",
     )
     found = store.find_matchable("joiner", 520)
     assert found is not None
     assert found["lobby_id"] == near["lobby_id"]
-    # Outside band relative to both hosts (500 and 1150)
     assert store.find_matchable("joiner", 500 + 2 * ELO_BAND + 100) is None
 
 
-def test_assign_colors():
-    w = assign_colors("white", "host", "join")
-    assert w["white_model_id"] == "host"
-    assert w["black_model_id"] == "join"
-    b = assign_colors("black", "host", "join")
-    assert b["white_model_id"] == "join"
-    assert b["black_model_id"] == "host"
+def test_assign_colors_random():
+    seen = set()
+    for _ in range(40):
+        colors = assign_colors("host", "join")
+        pair = (colors["white_model_id"], colors["black_model_id"])
+        assert set(pair) == {"host", "join"}
+        seen.add(pair)
+    assert ("host", "join") in seen
+    assert ("join", "host") in seen
 
 
 def test_mark_matched(tmp_path):
@@ -86,7 +82,6 @@ def test_mark_matched(tmp_path):
         host_model_id="a",
         host_display_name="A",
         host_elo=500,
-        color_offer="random",
     )
     matched = store.mark_matched(
         lob["lobby_id"],
