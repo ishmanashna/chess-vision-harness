@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import os
 
-from chess_harness.agent_brief import public_base_url, render_agent_brief
+from chess_harness.agent_brief import (
+    public_base_url,
+    render_agent_brief,
+    render_agent_brief_avaa,
+)
 
 
 def test_public_base_url_default():
@@ -32,3 +36,33 @@ def test_render_agent_brief_contains_play_loop():
     assert "--data-raw" not in brief
     assert "curl.exe" in brief
     assert "Optional status" in brief
+
+
+def test_render_agent_brief_ave_still_says_rare_wait():
+    brief = render_agent_brief("http://127.0.0.1:8765", "game-1-2345", "secret-key-abc")
+    assert "rare" in brief.lower()
+
+
+def test_render_agent_brief_avaa_contains_poll_loop():
+    brief = render_agent_brief_avaa(
+        "http://127.0.0.1:8765",
+        "game-avaa-1",
+        "key-white",
+        "white",
+        "Opponent Model",
+    )
+    assert "game-avaa-1" in brief
+    assert "Authorization: Bearer key-white" in brief
+    assert "You play: white" in brief
+    assert "Opponent: Opponent Model" in brief
+    assert "agent vs agent" in brief.lower()
+    assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/status" in brief
+    assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/board" in brief
+    assert "your_turn" in brief
+    assert "poll" in brief.lower() or "Poll" in brief
+    assert "backoff" in brief.lower() or "sleep" in brief.lower()
+    assert "403" in brief
+    assert "Do NOT call GET" in brief or "do not fetch the board off-turn" in brief.lower()
+    assert "rare" not in brief.lower()
+    assert "Never use FEN" in brief
+    assert "/move/e2e4" in brief

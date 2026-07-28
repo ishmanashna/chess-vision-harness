@@ -176,6 +176,8 @@ class ELOLadder:
                     opponent_elo = opponent_elo_from_result(game)
                     if not canonical or opponent_elo is None or not result or not color:
                         continue
+                    if result == "*":
+                        continue
 
                     agent_elo = ratings.get(canonical, float(AGENT_START_ELO))
                     elo_before = round(agent_elo)
@@ -247,7 +249,7 @@ class ELOLadder:
                     result = game.get("result")
                     color = game.get("agent_color")
                     opponent_elo = opponent_elo_from_result(game)
-                    if model and opponent_elo is not None and result and color:
+                    if model and opponent_elo is not None and result and color and result != "*":
                         self.record_game(model, opponent_elo, result, color)
         except (OSError, json.JSONDecodeError):
             pass

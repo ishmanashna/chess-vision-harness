@@ -34,8 +34,10 @@ def api_client(tmp_path, monkeypatch):
     monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
     monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
 
+    import chess_harness.api_limits as api_limits
     import chess_harness.spectator as spec
 
+    api_limits.get_limit_enforcer().reset_counters()
     spec._base = str(harness_dir)
     spec.game_manager = GameManager(str(harness_dir))
     spec._controller = None
@@ -43,6 +45,7 @@ def api_client(tmp_path, monkeypatch):
 
     client = TestClient(app)
     yield client, harness_dir
+    api_limits.get_limit_enforcer().reset_counters()
     spec._game_service = None
     spec._controller = None
     if spec._engine is not None:

@@ -11,10 +11,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .board_controller import BoardController, DEFAULT_GAME_TYPE
+from .board_controller import BoardController
+from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT
 from .game_manager import GameManager
 
-__all__ = ["DEFAULT_GAME_TYPE", "GameService"]
+__all__ = [
+    "DEFAULT_GAME_TYPE",
+    "GAME_TYPE_AGENT_VS_AGENT",
+    "GameService",
+]
 
 
 class GameService:
@@ -69,25 +74,51 @@ class GameService:
         finally:
             self._release_engines()
 
-    def make_move(self, game_id: str, move_str: str) -> Dict[str, Any]:
+    def new_agent_vs_agent_game(
+        self,
+        game_id: str,
+        white_model_id: str,
+        black_model_id: str,
+        *,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        self._prune_idle()
+        return self.controller.new_agent_vs_agent_game(
+            game_id,
+            white_model_id,
+            black_model_id,
+            force=force,
+        )
+
+    def make_move(
+        self, game_id: str, move_str: str, *, caller_color: Optional[str] = None
+    ) -> Dict[str, Any]:
         self._prune_idle()
         try:
-            return self.controller.make_agent_move(game_id, move_str)
+            return self.controller.make_agent_move(
+                game_id, move_str, caller_color=caller_color
+            )
         finally:
             self._release_engines()
 
-    def resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
+    def resign(
+        self,
+        game_id: str,
+        reason: str = "resignation",
+        *,
+        caller_color: Optional[str] = None,
+    ) -> Dict[str, Any]:
         self._prune_idle()
-        return self.controller.resign(game_id, reason=reason)
+        return self.controller.resign(game_id, reason=reason, caller_color=caller_color)
 
-    def status(self, game_id: str) -> Dict[str, Any]:
-        return self.controller.status(game_id)
+    def status(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        return self.controller.status(game_id, caller_color=caller_color)
 
-    def get_board(self, game_id: str) -> Dict[str, Any]:
-        return self.controller.get_board(game_id)
+    def get_board(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        return self.controller.get_board(game_id, caller_color=caller_color)
 
-    def get_board_bytes(self, game_id: str) -> bytes:
-        result = self.get_board(game_id)
+    def get_board_bytes(self, game_id: str, *, caller_color: Optional[str] = None) -> bytes:
+        result = self.get_board(game_id, caller_color=caller_color)
         if not result.get("ok"):
             raise ValueError(result.get("error", "board unavailable"))
         return Path(result["board_path"]).read_bytes()

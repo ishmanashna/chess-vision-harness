@@ -14,13 +14,15 @@ from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
+from .avaa import is_avaa_state
+from .avaa_api import register_avaa_routes, require_game_participant
 from .commands import resolve_agent_color
 from .elo import ELOLadder
 from .game_service import GameService
 from .models import ModelRegistry
 from .paths import resolve_base_dir
 
-__all__ = ["mount_api_v1"]
+__all__ = ["build_router", "_AuthError", "_err"]
 
 _LEAK_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen"})
 
@@ -61,11 +63,8 @@ def _new_game_id() -> str:
     return f"game-{os.getpid()}-{random.randint(1000, 9999)}"
 
 
-def _game_model_id(game_service: GameService, game_id: str) -> Optional[str]:
-    state = game_service.game_manager.load_state(game_id)
-    if not state:
-        return None
-    return state.get("model_name")
+def _game_state(game_service: GameService, game_id: str) -> Optional[Dict[str, Any]]:
+    return game_service.game_manager.load_state(game_id)
 
 
 def build_router(
@@ -92,13 +91,20 @@ def build_router(
             raise _AuthError(401, "Invalid API key")
         return AuthContext(model_id=model_id, key_fingerprint=key_fingerprint(raw))
 
-    def _require_game_access(game_id: str, auth: AuthContext) -> JSONResponse | None:
-        game_model = _game_model_id(_svc(), game_id)
-        if game_model is None:
-            return _err(404, f"Game {game_id} not found")
-        if game_model != auth.model_id:
-            return _err(401, "API key does not match this game")
-        return None
+    def _require_game_participant(
+        game_id: str, auth: AuthContext
+    ) -> JSONResponse | tuple[AuthContext, str]:
+        return require_game_participant(_svc(), game_id, auth, _err)
+
+    register_avaa_routes(
+        router,
+        svc_fn=_svc,
+        limits=limits,
+        err=_err,
+        sanitize=_sanitize_agent_payload,
+        new_game_id=_new_game_id,
+        auth_context=_auth_context,
+    )
 
     @router.get("/metrics")
     async def metrics():
@@ -196,21 +202,28 @@ def build_router(
 
     @router.get("/games/{game_id}/status")
     async def game_status(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        denied = _require_game_access(game_id, auth)
-        if denied:
-            return denied
-        result = _svc().status(game_id)
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        _, caller_color = access
+        result = _svc().status(game_id, caller_color=caller_color)
         if not result.get("ok"):
             return _err(404, result.get("error", "Game not found"))
         return _sanitize_agent_payload(result)
 
     @router.get("/games/{game_id}/board")
     async def game_board(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        denied = _require_game_access(game_id, auth)
-        if denied:
-            return denied
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        _, caller_color = access
+        state = _game_state(_svc(), game_id) or {}
+        if is_avaa_state(state) and state.get("status") == "in_progress":
+            status = _svc().status(game_id, caller_color=caller_color)
+            if status.get("ok") and not status.get("your_turn"):
+                return _err(403, "Not your turn")
         try:
-            png = _svc().get_board_bytes(game_id)
+            png = _svc().get_board_bytes(game_id, caller_color=caller_color)
         except ValueError as exc:
             return _err(404, str(exc))
         return Response(content=png, media_type="image/png")
@@ -230,16 +243,17 @@ def build_router(
         return await _do_move(game_id, body.move, auth)
 
     async def _do_move(game_id: str, move: str, auth: AuthContext):
-        denied = _require_game_access(game_id, auth)
-        if denied:
-            return denied
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        _, caller_color = access
         denied = limits.check_move(_svc(), auth)
         if denied:
             return denied
         move = (move or "").strip()
         if len(move) < 2:
             return _err(400, "Move required")
-        result = _svc().make_move(game_id, move)
+        result = _svc().make_move(game_id, move, caller_color=caller_color)
         if not result.get("ok"):
             return _err(400, result.get("error", "Move failed"))
         limits.record_move(auth)
@@ -247,19 +261,20 @@ def build_router(
 
     @router.post("/games/{game_id}/resign")
     async def game_resign(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        denied = _require_game_access(game_id, auth)
-        if denied:
-            return denied
-        result = _svc().resign(game_id)
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        _, caller_color = access
+        result = _svc().resign(game_id, caller_color=caller_color)
         if not result.get("ok"):
             return _err(400, result.get("error", "Resign failed"))
         return _sanitize_agent_payload(result)
 
     @router.get("/games/{game_id}/pgn")
     async def game_pgn(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        denied = _require_game_access(game_id, auth)
-        if denied:
-            return denied
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
         result = _svc().export_pgn(game_id)
         if not result.get("ok"):
             message = result.get("error", "PGN unavailable")
@@ -274,12 +289,3 @@ class _AuthError(Exception):
     def __init__(self, status: int, message: str):
         self.status = status
         self.message = message
-
-
-def mount_api_v1(app, get_game_service: Callable[[], GameService]) -> None:
-    router = build_router(get_game_service)
-    app.include_router(router)
-
-    @app.exception_handler(_AuthError)
-    async def _handle_auth_error(_request, exc: _AuthError):
-        return _err(exc.status, exc.message)

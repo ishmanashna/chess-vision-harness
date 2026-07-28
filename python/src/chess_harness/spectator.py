@@ -15,9 +15,11 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent_surface import agent_safe_spectator_state, debug_state_enabled
-from .api_v1 import mount_api_v1
+from .api_mount import mount_api_v1
+from .avaa import is_avaa_state
 from .board_controller import BoardController
 from .elo import ELOLadder
+from .game_types import GAME_TYPE_AGENT_VS_AGENT
 from .ladder_display import (
     PUBLIC_SITE_HEADER,
     SPECTATOR_PAGE_CSS,
@@ -66,10 +68,14 @@ def _game_summary(state: Dict[str, Any]) -> str:
 
 
 def _game_elo_change(state: Dict[str, Any], game_id: str) -> Optional[Dict[str, int]]:
+    if is_avaa_state(state):
+        return None
     return _get_controller().apply_elo_delta({**state, "game_id": game_id})
 
 
 def _format_elo_change(delta: Optional[Dict[str, int]], state: Dict[str, Any]) -> str:
+    if is_avaa_state(state):
+        return BoardController.format_avaa_elo_change(state)
     agent = state.get("model_display_name") or state.get("model_name") or "Agent"
     return BoardController.format_elo_change(delta, agent)
 
@@ -206,14 +212,19 @@ def _eval_ui(
     score_white: Optional[int],
     labels: Dict[str, str],
     agent_color: str = "WHITE",
+    *,
+    white_at_bottom: bool = False,
 ) -> Dict[str, Any]:
-    """Vertical eval aligned to board orientation (agent at bottom).
+    """Vertical eval aligned to board orientation.
 
-    Dark segment = Black's share. When the agent is Black (black at bottom of
-    the board), that segment grows from the bottom so the bar matches the board.
+    AvE: agent at bottom. AvaA: white at bottom (spectator board.png).
     """
-    stack = _board_stack_labels(labels, agent_color)
-    black_at_bottom = agent_color == "BLACK"
+    if white_at_bottom:
+        stack = {"top": labels["black"], "bottom": labels["white"]}
+        black_at_bottom = False
+    else:
+        stack = _board_stack_labels(labels, agent_color)
+        black_at_bottom = agent_color == "BLACK"
     base = {
         "black_label": labels["black"],
         "white_label": labels["white"],
@@ -265,14 +276,44 @@ def _move_rows(state: Dict[str, Any]) -> list[Dict[str, Any]]:
     return rows
 
 
+def _spectator_eval_ui(state: Dict[str, Any], score_white: Optional[int]) -> Dict[str, Any]:
+    labels = BoardController.side_labels(state)
+    if is_avaa_state(state):
+        return _eval_ui(score_white, labels, white_at_bottom=True)
+    return _eval_ui(score_white, labels, state.get("agent_color", "WHITE"))
+
+
 def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
     ctrl = _get_controller()
     board = chess.Board(state["board_fen"])
-    persp = ctrl._perspective(board, state["agent_color"])
     elo = ctrl._elo_context(state)
     score_white = _eval_position(state["board_fen"])
-    labels = BoardController.side_labels(state)
-    eval_ui = _eval_ui(score_white, labels, state["agent_color"])
+    eval_ui = _spectator_eval_ui(state, score_white)
+
+    if is_avaa_state(state):
+        white_name, black_name = BoardController.avaa_display_names(state)
+        mover = white_name if board.turn == chess.WHITE else black_name
+        turn = f"{mover} to move"
+        if board.is_check():
+            turn += " · check"
+        return {
+            "game_type": GAME_TYPE_AGENT_VS_AGENT,
+            "white_name": white_name,
+            "black_name": black_name,
+            "white_elo": elo.get("white_elo"),
+            "black_elo": elo.get("black_elo"),
+            "agent_name": white_name,
+            "opponent_label": black_name,
+            "move_number": board.fullmove_number,
+            "plies": len(state.get("moves", [])),
+            "turn_label": turn,
+            "eval_white_cp": score_white,
+            "eval_ui": eval_ui,
+            "board_url": f"/g/{game_id}/board.png",
+            "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
+        }
+
+    persp = ctrl._perspective(board, state["agent_color"])
     model = state.get("model_display_name") or state.get("model_name") or "Agent"
     opponent_label = BoardController.engine_display_label(state)
     turn = "Agent to move" if persp["your_turn"] else "Opponent to move"
@@ -296,6 +337,89 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
         "board_url": f"/g/{game_id}/board.png",
         "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
     }
+
+
+def _avaa_list_fields(state: Dict[str, Any], elo: Dict[str, Any]) -> Dict[str, Any]:
+    white_name, black_name = BoardController.avaa_display_names(state)
+    return {
+        "game_type": GAME_TYPE_AGENT_VS_AGENT,
+        "white_model_id": state.get("white_model_id"),
+        "black_model_id": state.get("black_model_id"),
+        "white_display_name": white_name,
+        "black_display_name": black_name,
+        "white_elo": elo.get("white_elo"),
+        "black_elo": elo.get("black_elo"),
+        "model_id": state.get("white_model_id"),
+        "model_name": white_name,
+        "agent_elo": elo.get("white_elo"),
+        "opponent_label": black_name,
+        "opponent_elo": elo.get("black_elo"),
+    }
+
+
+def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
+    state = g["state"]
+    game_id = g["game_id"]
+    ctrl = _get_controller()
+    revision = BoardController.game_revision(state)
+    avaa = is_avaa_state(state)
+    elo_delta = None
+    active_card = None
+    agent_outcome = None
+    if state.get("status") != "in_progress":
+        elo_delta = _format_elo_change(_game_elo_change(state, game_id), state)
+        if not avaa:
+            agent_outcome = BoardController.agent_outcome(
+                state["agent_color"], state.get("result")
+            )
+    else:
+        active_card = _active_card(state, game_id)
+
+    elo = ctrl._elo_context(state)
+    if avaa:
+        names = _avaa_list_fields(state, elo)
+        agent_name = names["model_name"]
+        opp_label = names["opponent_label"]
+    else:
+        labels = BoardController.side_labels(state)
+        agent_name = (
+            state.get("model_display_name")
+            or state.get("model_name")
+            or labels.get("agent")
+            or "Agent"
+        )
+        opp_label = BoardController.engine_display_label(state)
+        names = {}
+
+    row: Dict[str, Any] = {
+        "game_id": game_id,
+        "revision": revision,
+        "status": state.get("status"),
+        "result": state.get("result"),
+        "summary": _game_summary(state),
+        "elo_change": elo_delta,
+        "agent_outcome": agent_outcome,
+        "outcome_label": (agent_outcome or {}).get("label"),
+        "active_card": active_card,
+        "model_id": state.get("model_name"),
+        "model_name": agent_name,
+        "agent_elo": state.get("agent_elo"),
+        "opponent_id": state.get("opponent_id"),
+        "opponent_label": opp_label,
+        "opponent_elo": state.get("opponent_elo") or state.get("engine_elo"),
+        "last_activity": state.get("last_activity"),
+        "turn": active_card["turn_label"] if active_card else (
+            ctrl.format_spectator_summary(state).split(" — ", 1)[-1]
+            if state.get("status") == "in_progress"
+            else state.get("result") or "done"
+        ),
+    }
+    if avaa:
+        row.update(names)
+        row["game_type"] = GAME_TYPE_AGENT_VS_AGENT
+    elif state.get("game_type"):
+        row["game_type"] = state.get("game_type")
+    return row
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -340,17 +464,21 @@ async def root(request: Request):
     function renderActiveCard(g){
       const c=g.active_card||{};
       const ev=evalFromUi(c.eval_ui);
+      const avaa=c.game_type==='agent_vs_agent'||g.game_type==='agent_vs_agent';
       const oppLabel=c.opponent_label||c.engine_label||'Opponent';
-      const oppElo=c.opponent_elo!=null?c.opponent_elo:c.engine_elo;
-      const turnCls=c.your_turn?'turn-agent':'turn-opponent';
-      const agentElo=c.agent_elo!=null?' ('+c.agent_elo+')':'';
+      const oppElo=avaa?(c.black_elo!=null?c.black_elo:null):(c.opponent_elo!=null?c.opponent_elo:c.engine_elo);
+      const turnCls=avaa?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
+      const agentElo=avaa?(c.white_elo!=null?' ('+c.white_elo+')':''):(c.agent_elo!=null?' ('+c.agent_elo+')':'');
       const engElo=oppElo!=null?' ('+oppElo+')':'';
+      const avaaTag=avaa?' <span class="tag avaa">AvA</span>':'';
+      const whiteChip=avaa?`${c.white_name||c.agent_name||'White'}${agentElo} · WHITE`:`${c.agent_name||'Agent'}${agentElo} · ${c.agent_color||'?'}`;
+      const blackChip=avaa?`${c.black_name||oppLabel}${engElo} · BLACK`:`${oppLabel}${engElo}`;
       const el=document.createElement('div');
       el.className='active-card';
       el.dataset.gameId=g.game_id;
       el.innerHTML=`
         <div class="card-head">
-          <h3>${g.game_id} <span class="tag live">live</span></h3>
+          <h3>${g.game_id}${avaaTag} <span class="tag live">live</span></h3>
           <span class="turn-badge ${turnCls}">${c.turn_label||g.turn}</span>
         </div>
         <div class="card-body">
@@ -363,8 +491,8 @@ async def root(request: Request):
           </div>
           <div class="card-meta">
             <div class="chip-row">
-              <span class="chip chip-agent">${c.agent_name||'Agent'}${agentElo} · ${c.agent_color||'?'}</span>
-              <span class="chip chip-opponent">${oppLabel}${engElo}</span>
+              <span class="chip chip-agent">${whiteChip}</span>
+              <span class="chip chip-opponent">${blackChip}</span>
             </div>
             <div class="meta-line">${ev.white} vs ${ev.black} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves</div>
           </div>
@@ -376,7 +504,8 @@ async def root(request: Request):
     function updateActiveCard(el,g){
       const c=g.active_card||{};
       const ev=evalFromUi(c.eval_ui);
-      const turnCls=c.your_turn?'turn-agent':'turn-opponent';
+      const avaa=c.game_type==='agent_vs_agent'||g.game_type==='agent_vs_agent';
+      const turnCls=avaa?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
       el.querySelector('.turn-badge').className='turn-badge '+turnCls;
       el.querySelector('.turn-badge').textContent=c.turn_label||g.turn;
       const img=el.querySelector('.mini-board');
@@ -721,15 +850,21 @@ async def game_view(game_id: str):
         const m=line.match(/^\\[(\\w+)\\s+"(.*)"\\]/);
         if(m)tags[m[1]]=m[2];
       }});
-      const opponentName=nameWithoutElo(s.opponent_label||s.engine_label)||tags.EngineName||s.engine_name||'Opponent';
-      const model=s.model_display_name||s.model_name||'Agent';
       let whiteName='',blackName='',whiteElo=null,blackElo=null;
-      if(s.agent_color==='WHITE'){{
-        whiteName=model;blackName=opponentName;
-        whiteElo=s.agent_elo;blackElo=s.opponent_elo!=null?s.opponent_elo:s.engine_elo;
+      if(s.game_type==='agent_vs_agent'){{
+        whiteName=s.white_display_name||tags.White||'White';
+        blackName=s.black_display_name||tags.Black||'Black';
+        whiteElo=s.white_elo;blackElo=s.black_elo;
       }}else{{
-        whiteName=opponentName;blackName=model;
-        whiteElo=s.opponent_elo!=null?s.opponent_elo:s.engine_elo;blackElo=s.agent_elo;
+        const opponentName=nameWithoutElo(s.opponent_label||s.engine_label)||tags.EngineName||s.engine_name||'Opponent';
+        const model=s.model_display_name||s.model_name||'Agent';
+        if(s.agent_color==='WHITE'){{
+          whiteName=model;blackName=opponentName;
+          whiteElo=s.agent_elo;blackElo=s.opponent_elo!=null?s.opponent_elo:s.engine_elo;
+        }}else{{
+          whiteName=opponentName;blackName=model;
+          whiteElo=s.opponent_elo!=null?s.opponent_elo:s.engine_elo;blackElo=s.agent_elo;
+        }}
       }}
       const rows=[
         ['Game ID',s.game_id||tags.GameId||'{game_id}'],
@@ -737,6 +872,7 @@ async def game_view(game_id: str):
         ['White',playerLine(whiteName,whiteElo)],
         ['Black',playerLine(blackName,blackElo)],
       ];
+      if(s.game_type==='agent_vs_agent')rows.splice(1,0,['Type','Agent vs agent']);
       dl.innerHTML=rows.filter(r=>r[1]!=null&&r[1]!=='').map(r=>'<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>').join('');
     }}
 
@@ -821,53 +957,7 @@ async def list_games(
     else:
         games = games[offset:]
 
-    enriched = []
-    for g in games:
-        state = g["state"]
-        revision = BoardController.game_revision(state)
-        elo_delta = None
-        active_card = None
-        agent_outcome = None
-        if state.get("status") != "in_progress":
-            elo_delta = _format_elo_change(_game_elo_change(state, g["game_id"]), state)
-            agent_outcome = BoardController.agent_outcome(
-                state["agent_color"], state.get("result")
-            )
-        else:
-            active_card = _active_card(state, g["game_id"])
-        labels = BoardController.side_labels(state)
-        agent_name = (
-            state.get("model_display_name")
-            or state.get("model_name")
-            or labels.get("agent")
-            or "Agent"
-        )
-        opp_label = BoardController.engine_display_label(state)
-        enriched.append(
-            {
-                "game_id": g["game_id"],
-                "revision": revision,
-                "status": state.get("status"),
-                "result": state.get("result"),
-                "summary": _game_summary(state),
-                "elo_change": elo_delta,
-                "agent_outcome": agent_outcome,
-                "outcome_label": (agent_outcome or {}).get("label"),
-                "active_card": active_card,
-                "model_id": state.get("model_name"),
-                "model_name": agent_name,
-                "agent_elo": state.get("agent_elo"),
-                "opponent_id": state.get("opponent_id"),
-                "opponent_label": opp_label,
-                "opponent_elo": state.get("opponent_elo") or state.get("engine_elo"),
-                "last_activity": state.get("last_activity"),
-                "turn": active_card["turn_label"] if active_card else (
-                    _get_controller().format_spectator_summary(state).split(" — ", 1)[-1]
-                    if state.get("status") == "in_progress"
-                    else state.get("result") or "done"
-                ),
-            }
-        )
+    enriched = [_enrich_list_game(g) for g in games]
     return {
         "games": enriched,
         "total": total,
@@ -881,44 +971,67 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
     state = game_manager.load_state(game_id)
     if not state:
         raise HTTPException(404, "Game not found")
+    avaa = is_avaa_state(state)
     delta = _game_elo_change(state, game_id)
-    persp = _get_controller()._perspective(chess.Board(state["board_fen"]), state["agent_color"])
+    ctrl = _get_controller()
+    board = chess.Board(state["board_fen"])
     labels = BoardController.side_labels(state)
     score_white = _resolve_eval_cp(state, game_id)
-    outcome = BoardController.agent_outcome(state["agent_color"], state.get("result"))
-    ctrl = _get_controller()
-    end_reason_label = ctrl.resolve_end_reason(state, game_id) if state.get("status") != "in_progress" else None
-    pgn_headers = state.get("pgn_headers") or {}
-    engine_name = pgn_headers.get("EngineName", "Stockfish 17.1")
-    engine_label = BoardController.engine_display_label(state)
-    board_path = str(game_manager.get_board_path(game_id))
-    agent_elo = (
-        delta["elo_after"]
-        if delta
-        else round(_ladder().get_rating(state["model_name"]))
-        if state.get("model_name")
-        else None
+    eval_ui = _spectator_eval_ui(state, score_white)
+    end_reason_label = (
+        ctrl.resolve_end_reason(state, game_id) if state.get("status") != "in_progress" else None
     )
-    game_over = state.get("status") != "in_progress" or persp.get("game_over")
+    board_path = str(game_manager.get_board_path(game_id))
+    game_over = state.get("status") != "in_progress" or board.is_game_over()
+    elo_ctx = ctrl._elo_context(state)
+
+    if avaa:
+        white_name, black_name = BoardController.avaa_display_names(state)
+        outcome = None
+        agent_elo = elo_ctx.get("white_elo")
+        engine_elo = elo_ctx.get("black_elo")
+        engine_label = black_name
+        opponent_label = black_name
+        extra = _avaa_list_fields(state, elo_ctx)
+    else:
+        persp = ctrl._perspective(board, state["agent_color"])
+        outcome = BoardController.agent_outcome(state["agent_color"], state.get("result"))
+        game_over = state.get("status") != "in_progress" or persp.get("game_over")
+        pgn_headers = state.get("pgn_headers") or {}
+        engine_name = pgn_headers.get("EngineName", "Stockfish 17.1")
+        engine_label = BoardController.engine_display_label(state)
+        opponent_label = engine_label
+        agent_elo = (
+            delta["elo_after"]
+            if delta
+            else round(_ladder().get_rating(state["model_name"]))
+            if state.get("model_name")
+            else None
+        )
+        engine_elo = state.get("opponent_elo")
+        extra = {}
 
     if debug_state_enabled(debug):
-        return {
+        payload: Dict[str, Any] = {
             **state,
             "revision": BoardController.game_revision(state),
             "summary": _game_summary(state),
             "elo_change": _format_elo_change(delta, state),
             "end_reason_label": end_reason_label,
-            "engine_name": engine_name,
             "engine_label": engine_label,
             "agent_outcome": outcome if state.get("status") != "in_progress" else None,
             "move_rows": _move_rows(state),
-            "eval_ui": _eval_ui(score_white, labels, state["agent_color"]),
+            "eval_ui": eval_ui,
             "agent_elo": agent_elo,
-            "engine_elo": state.get("opponent_elo"),
+            "engine_elo": engine_elo,
             "game_over": game_over,
             "move_count": len(state.get("moves", [])),
             "board_path": board_path,
+            **extra,
         }
+        if not avaa:
+            payload["engine_name"] = engine_name
+        return payload
 
     return agent_safe_spectator_state(
         state,
@@ -928,11 +1041,13 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
         end_reason_label=end_reason_label,
         engine_label=engine_label,
         agent_outcome=outcome if state.get("status") != "in_progress" else None,
-        eval_ui=_eval_ui(score_white, labels, state["agent_color"]),
+        eval_ui=eval_ui,
         agent_elo=agent_elo,
-        engine_elo=state.get("opponent_elo"),
+        engine_elo=engine_elo,
         game_over=game_over,
         board_path=board_path,
+        opponent_label=opponent_label,
+        extra=extra,
     )
 
 
@@ -963,20 +1078,18 @@ async def get_eval(game_id: str):
         raise HTTPException(404, "Game not found")
     if state["status"] != "in_progress":
         score = _resolve_eval_cp(state, game_id)
-        labels = BoardController.side_labels(state)
         return {
             "ok": True,
             "score": score if score is not None else 0,
-            "eval_ui": _eval_ui(score, labels, state["agent_color"]),
+            "eval_ui": _spectator_eval_ui(state, score),
             "final": True,
         }
     try:
         score = _resolve_eval_cp(state, game_id)
-        labels = BoardController.side_labels(state)
         return {
             "ok": True,
             "score": score if score is not None else 0,
-            "eval_ui": _eval_ui(score, labels, state["agent_color"]),
+            "eval_ui": _spectator_eval_ui(state, score),
         }
     except Exception:
         return {"ok": False, "score": 0}

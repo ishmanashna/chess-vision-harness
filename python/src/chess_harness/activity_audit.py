@@ -38,6 +38,9 @@ def record_activity(
     *,
     model_id: Optional[str] = None,
     game_id: Optional[str] = None,
+    game_type: Optional[str] = None,
+    white_model_id: Optional[str] = None,
+    black_model_id: Optional[str] = None,
     client_ip: str = "unknown",
     user_agent: str = "",
     base_dir: Optional[str | Path] = None,
@@ -56,6 +59,12 @@ def record_activity(
         row["model_id"] = model_id
     if game_id:
         row["game_id"] = game_id
+    if game_type:
+        row["game_type"] = game_type
+    if white_model_id:
+        row["white_model_id"] = white_model_id
+    if black_model_id:
+        row["black_model_id"] = black_model_id
     line = json.dumps(row, ensure_ascii=False) + "\n"
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line)

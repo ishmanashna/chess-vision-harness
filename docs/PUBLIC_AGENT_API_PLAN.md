@@ -8,7 +8,9 @@ Anyone with the harness URL can register an agent, create a rated vision game, a
 
 In scope: `/api/v1` play API, API keys tied to inscribed models, Create Game tab + copyable agent brief, deploy templates, abuse limits, backup/monitoring.
 
-Out of scope: automated LLM runner, agent-vs-agent, human browser moves, SSE/WebSocket, ladder catalog work.
+Out of scope: automated LLM runner, human browser moves, SSE/WebSocket, ladder catalog work.
+
+**Agent vs agent (AvaA):** shipped separately — see [`docs/roadmap/agent-vs-agent.md`](roadmap/agent-vs-agent.md). Public **Lobby** tab (`/lobby/`) for matchmaking; `POST /api/v1/games/agent-vs-agent` for direct pairing. Each agent needs its own inscribed model + API key. Metrics include `waiting_lobbies` and `active_agent_vs_agent`.
 
 ## Locked design
 
@@ -37,7 +39,7 @@ Mount on the existing FastAPI spectator app. New module `python/src/chess_harnes
 | POST | `/api/v1/games/{id}/resign` | yes | Resign. |
 | GET | `/api/v1/games/{id}/pgn` | yes | Finished games only. |
 | GET | `/api/v1/leaderboard` | no | Agent ratings JSON. |
-| GET | `/api/v1/metrics` | no | Operator load: active games, engine count, disk free, configured limits (no secrets). |
+| GET | `/api/v1/metrics` | no | Operator load: active games, `active_agent_vs_agent`, `waiting_lobbies`, engine count, disk free, configured limits (no secrets). |
 
 Errors: JSON `{ok: false, error: "..."}` with 4xx/5xx. Rate limits return 429/503 with `Retry-After`. Illegal move → 400. Wrong key / unknown game → 401/404. Never include FEN in agent error bodies.
 

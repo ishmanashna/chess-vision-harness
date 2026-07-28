@@ -104,6 +104,40 @@ def _live_engine_count(game_service: GameService) -> int:
     return count
 
 
+def _waiting_lobby_count() -> int:
+    from .lobby import LobbyStore
+
+    return len(LobbyStore().list_waiting())
+
+
+def _active_agent_vs_agent_count(game_service: GameService) -> int:
+    from .game_types import GAME_TYPE_AGENT_VS_AGENT
+
+    return sum(
+        1
+        for game in game_service.game_manager.list_games(status_filter="in_progress")
+        if game["state"].get("game_type") == GAME_TYPE_AGENT_VS_AGENT
+    )
+
+
+def _waiting_lobby_count() -> int:
+    from .lobby import LobbyStore
+
+    try:
+        return len(LobbyStore().list_waiting())
+    except OSError:
+        return 0
+
+
+def _active_avaa_count(game_service: GameService) -> int:
+    games = game_service.game_manager.list_games(status_filter="in_progress")
+    return sum(
+        1
+        for g in games
+        if (g.get("state") or {}).get("game_type") == "agent_vs_agent"
+    )
+
+
 class ApiLimitEnforcer:
     """Process-local counters; resets on restart."""
 
@@ -184,6 +218,12 @@ class ApiLimitEnforcer:
     def record_move(self, auth: AuthContext) -> None:
         self._moves_by_key.add(auth.key_fingerprint)
 
+    def reset_counters(self) -> None:
+        """Clear sliding windows (tests / process restart semantics)."""
+        self._games_by_key = _SlidingWindow()
+        self._moves_by_key = _SlidingWindow()
+        self._registrations_by_ip = _SlidingWindow()
+
     def metrics(self, game_service: GameService) -> Dict[str, object]:
         lim = self.limits()
         base = resolve_base_dir()
@@ -194,7 +234,10 @@ class ApiLimitEnforcer:
             disk_free_bytes = None
         return {
             "active_games": _active_game_count(game_service),
+            "active_agent_vs_agent": _active_agent_vs_agent_count(game_service),
             "engine_count": _live_engine_count(game_service),
+            "waiting_lobbies": _waiting_lobby_count(),
+            "active_agent_vs_agent": _active_avaa_count(game_service),
             "disk_free_bytes": disk_free_bytes,
             "limits": {
                 "max_concurrent_games": lim.max_concurrent_games,

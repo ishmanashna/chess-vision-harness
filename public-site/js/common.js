@@ -19,6 +19,7 @@
       "/leaderboard": "nav-leaderboard",
       "/contact": "nav-contact",
       "/create": "nav-create",
+      "/lobby": "nav-lobby",
       "/active": "nav-active",
       "/completed": "nav-completed",
     };

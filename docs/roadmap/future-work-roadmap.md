@@ -14,8 +14,8 @@ Public chess vision benchmark: bring an agent, play rated games, shared leaderbo
 |---|------|
 | **0** | [Thin foundation](00-architecture.md) — paths, lifecycle, `GameService`, `/health` |
 | **1** | [Public API + Create Game](public-agent-api.md) — backend, UI, deploy |
-| **2** | [Native LLM benchmark](native-llm-benchmark.md) |
-| **3** | [Agent vs agent](agent-vs-agent.md) |
+| **3** | [Agent vs agent (lobby)](agent-vs-agent.md) — **next**; no Plan 2 required |
+| **2** | [Native LLM benchmark](native-llm-benchmark.md) — after AvaA |
 | **4** | [Human vs agent](human-vs-agent.md) |
 
 Opponent catalog work: [`ladder-coverage-plan.md`](../ladder-coverage-plan.md) — only **between** numbered plans.
@@ -24,7 +24,7 @@ Opponent catalog work: [`ladder-coverage-plan.md`](../ladder-coverage-plan.md) �
 
 | Topic | Choice |
 |-------|--------|
-| Execution | Strict serial: 0 → 1 → 2 → 3 → 4 |
+| Execution | One plan at a time; **AvaA before** native LLM client (2026-07-27) |
 | Architecture | Thin Plan 0 only; big refactors deferred until a later plan needs them |
 | Live viewing | Twitch screen share — no in-app streaming plan |
 | Hosting | Always-on public site (Pages) + game origin on operator PC; `GAME_ORIGIN` swappable — see [plan.md](plan.md) (**done**) and [`DEPLOY.md`](../../DEPLOY.md) |

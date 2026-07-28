@@ -32,13 +32,22 @@
   }
 
   function normalizeGame(game) {
+    var avaa = game.game_type === "agent_vs_agent";
+    var white = game.white_display_name || game.model_name || game.model_id || "—";
+    var black = game.black_display_name || game.opponent_label || game.opponent_id || "—";
     return {
       id: game.game_id || "",
-      agent: game.model_name || game.model_id || "—",
-      modelId: game.model_id || "",
-      agentElo: game.agent_elo != null ? Number(game.agent_elo) : null,
-      opponent: game.opponent_label || game.opponent_id || "—",
-      opponentElo: game.opponent_elo != null ? Number(game.opponent_elo) : null,
+      gameType: game.game_type || "",
+      isAvaa: avaa,
+      agent: avaa ? white : (game.model_name || game.model_id || "—"),
+      modelId: avaa ? (game.white_model_id || "") : (game.model_id || ""),
+      agentElo: avaa
+        ? (game.white_elo != null ? Number(game.white_elo) : null)
+        : (game.agent_elo != null ? Number(game.agent_elo) : null),
+      opponent: avaa ? black : (game.opponent_label || game.opponent_id || "—"),
+      opponentElo: avaa
+        ? (game.black_elo != null ? Number(game.black_elo) : null)
+        : (game.opponent_elo != null ? Number(game.opponent_elo) : null),
       result: game.turn || outcomeLabel(game) || game.status || "—",
       status: game.status || "—",
       when: game.last_activity || "",
@@ -72,21 +81,31 @@
       .map(function (g) {
         var elo =
           g.agentElo != null ? escapeHtml(String(g.agentElo)) : "—";
+        var oppElo =
+          g.opponentElo != null ? escapeHtml(String(g.opponentElo)) : "—";
+        var typeBadge = g.isAvaa
+          ? ' <span class="tag avaa" title="Agent vs agent">AvA</span>'
+          : "";
         return (
           "<tr>" +
           '<td><a href="/g/' +
           escapeHtml(g.id) +
           '"><code>' +
           escapeHtml(g.id) +
-          "</code></a></td>" +
+          "</code></a>" +
+          typeBadge +
+          "</td>" +
           "<td>" +
           escapeHtml(g.agent) +
+          (g.isAvaa ? ' <span class="sub">White</span>' : "") +
           "</td>" +
           '<td class="elo">' +
           elo +
           "</td>" +
           "<td>" +
           escapeHtml(g.opponent) +
+          (g.isAvaa ? ' <span class="sub">Black</span>' : "") +
+          (g.isAvaa ? ' <span class="elo">(' + oppElo + ")</span>" : "") +
           "</td>" +
           "<td>" +
           escapeHtml(g.result) +

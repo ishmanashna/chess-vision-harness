@@ -1,0 +1,187 @@
+"""Agent-vs-agent waiting lobbies (create / list / join / cancel)."""
+
+from __future__ import annotations
+
+import json
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from .paths import resolve_base_dir
+
+__all__ = ["LobbyStore", "ELO_BAND", "MAX_LOBBIES_PER_MODEL", "LOBBY_TTL_SEC"]
+
+ELO_BAND = 600
+MAX_LOBBIES_PER_MODEL = 2
+LOBBY_TTL_SEC = 1800  # align with idle timeout default
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _now_ts() -> float:
+    return time.time()
+
+
+class LobbyStore:
+    """File-backed waiting slots under ``.chess_harness/lobbies.json``."""
+
+    def __init__(self, path: Optional[Path] = None):
+        self.path = path or resolve_base_dir() / "lobbies.json"
+        self._data = self._load()
+
+    def _load(self) -> Dict[str, Any]:
+        if not self.path.exists():
+            return {"lobbies": []}
+        try:
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {"lobbies": []}
+
+    def _save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(self._data, indent=2) + "\n", encoding="utf-8")
+
+    def _lobbies(self) -> List[Dict[str, Any]]:
+        return list(self._data.setdefault("lobbies", []))
+
+    def prune_stale(self, now: Optional[float] = None) -> int:
+        now = _now_ts() if now is None else now
+        before = self._lobbies()
+        kept = [
+            lob
+            for lob in before
+            if lob.get("status") != "waiting"
+            or now - float(lob.get("created_ts") or 0) < LOBBY_TTL_SEC
+        ]
+        # Drop finished matched rows older than TTL too (keep list small)
+        kept = [
+            lob
+            for lob in kept
+            if lob.get("status") == "waiting"
+            or now - float(lob.get("created_ts") or 0) < LOBBY_TTL_SEC
+        ]
+        removed = len(before) - len(kept)
+        if removed:
+            self._data["lobbies"] = kept
+            self._save()
+        return removed
+
+    def list_waiting(self) -> List[Dict[str, Any]]:
+        self.prune_stale()
+        return [lob for lob in self._lobbies() if lob.get("status") == "waiting"]
+
+    def get(self, lobby_id: str) -> Optional[Dict[str, Any]]:
+        self.prune_stale()
+        for lob in self._lobbies():
+            if lob.get("lobby_id") == lobby_id:
+                return lob
+        return None
+
+    def count_waiting_for_model(self, model_id: str) -> int:
+        return sum(
+            1
+            for lob in self.list_waiting()
+            if lob.get("host_model_id") == model_id
+        )
+
+    def create_waiting(
+        self,
+        *,
+        host_model_id: str,
+        host_display_name: str,
+        host_elo: int,
+        color_offer: str,
+    ) -> Dict[str, Any]:
+        color = (color_offer or "random").lower()
+        if color not in ("white", "black", "random"):
+            raise ValueError("color_offer must be white, black, or random")
+        if self.count_waiting_for_model(host_model_id) >= MAX_LOBBIES_PER_MODEL:
+            raise ValueError(
+                f"Max {MAX_LOBBIES_PER_MODEL} waiting lobbies per model"
+            )
+        lob = {
+            "lobby_id": f"lobby-{uuid.uuid4().hex[:12]}",
+            "status": "waiting",
+            "host_model_id": host_model_id,
+            "host_display_name": host_display_name,
+            "host_elo": int(host_elo),
+            "color_offer": color,
+            "created": _now_iso(),
+            "created_ts": _now_ts(),
+            "game_id": None,
+            "white_model_id": None,
+            "black_model_id": None,
+        }
+        self._data.setdefault("lobbies", []).append(lob)
+        self._save()
+        return lob
+
+    def cancel(self, lobby_id: str, host_model_id: str) -> bool:
+        for lob in self._lobbies():
+            if lob.get("lobby_id") != lobby_id:
+                continue
+            if lob.get("host_model_id") != host_model_id:
+                return False
+            if lob.get("status") != "waiting":
+                return False
+            lob["status"] = "cancelled"
+            self._save()
+            return True
+        return False
+
+    def find_matchable(
+        self, joiner_model_id: str, joiner_elo: int
+    ) -> Optional[Dict[str, Any]]:
+        """Oldest waiting lobby within Elo band, not hosted by joiner."""
+        candidates = []
+        for lob in self.list_waiting():
+            if lob.get("host_model_id") == joiner_model_id:
+                continue
+            host_elo = int(lob.get("host_elo") or 0)
+            if abs(host_elo - int(joiner_elo)) > ELO_BAND:
+                continue
+            candidates.append(lob)
+        if not candidates:
+            return None
+        candidates.sort(key=lambda lob: float(lob.get("created_ts") or 0))
+        return candidates[0]
+
+    def mark_matched(
+        self,
+        lobby_id: str,
+        *,
+        game_id: str,
+        white_model_id: str,
+        black_model_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        for lob in self._lobbies():
+            if lob.get("lobby_id") != lobby_id:
+                continue
+            if lob.get("status") != "waiting":
+                return None
+            lob["status"] = "matched"
+            lob["game_id"] = game_id
+            lob["white_model_id"] = white_model_id
+            lob["black_model_id"] = black_model_id
+            lob["matched_at"] = _now_iso()
+            self._save()
+            return lob
+        return None
+
+
+def assign_colors(color_offer: str, host_model_id: str, joiner_model_id: str) -> Dict[str, str]:
+    """Return white_model_id / black_model_id for a match."""
+    import random
+
+    offer = (color_offer or "random").lower()
+    if offer == "white":
+        return {"white_model_id": host_model_id, "black_model_id": joiner_model_id}
+    if offer == "black":
+        return {"white_model_id": joiner_model_id, "black_model_id": host_model_id}
+    if random.choice([True, False]):
+        return {"white_model_id": host_model_id, "black_model_id": joiner_model_id}
+    return {"white_model_id": joiner_model_id, "black_model_id": host_model_id}

@@ -19,9 +19,16 @@ def _agent_outcome(agent_color: str, result: Optional[str]) -> Dict[str, str]:
     return BoardController.agent_outcome(agent_color, result or "")
 
 
-def agent_safe_status(state: Dict[str, Any], board_path: str, persp: Dict[str, Any]) -> Dict[str, Any]:
+def agent_safe_status(
+    state: Dict[str, Any],
+    board_path: str,
+    persp: Dict[str, Any],
+    *,
+    caller_color: Optional[str] = None,
+) -> Dict[str, Any]:
     """CLI/MCP status — metadata only, no position."""
     in_progress = state.get("status") == "in_progress"
+    color = caller_color or persp.get("agent_color") or state.get("agent_color")
     response: Dict[str, Any] = {
         "ok": True,
         "game_id": state.get("game_id"),
@@ -30,6 +37,8 @@ def agent_safe_status(state: Dict[str, Any], board_path: str, persp: Dict[str, A
         "board_path": board_path,
         **persp,
     }
+    if color:
+        response["agent_color"] = color
     # Finished/abandoned games keep a live board FEN; trust harness status, not board.is_game_over().
     if not in_progress:
         response["game_over"] = True
@@ -40,16 +49,26 @@ def agent_safe_status(state: Dict[str, Any], board_path: str, persp: Dict[str, A
     return response
 
 
-def agent_safe_board(state: Dict[str, Any], board_path: str, persp: Dict[str, Any]) -> Dict[str, Any]:
+def agent_safe_board(
+    state: Dict[str, Any],
+    board_path: str,
+    persp: Dict[str, Any],
+    *,
+    caller_color: Optional[str] = None,
+) -> Dict[str, Any]:
+    color = caller_color or persp.get("agent_color") or state.get("agent_color")
     response: Dict[str, Any] = {
         "ok": True,
         "game_id": state.get("game_id"),
         "board_path": board_path,
     }
+    if color:
+        response["agent_color"] = color
     if state.get("status") != "in_progress" or state.get("result"):
         response["result"] = state.get("result")
         response["game_over"] = True
-        response.update(_agent_outcome(state["agent_color"], state.get("result")))
+        if color:
+            response.update(_agent_outcome(color, state.get("result")))
     else:
         response["your_turn"] = persp.get("your_turn", False)
         response["game_over"] = False
@@ -70,20 +89,23 @@ def agent_safe_spectator_state(
     engine_elo: Optional[int],
     game_over: bool,
     board_path: str,
+    opponent_label: Optional[str] = None,
+    extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Public spectator API — no FEN or move list."""
-    return {
+    payload: Dict[str, Any] = {
         "game_id": state.get("game_id"),
         "revision": revision,
         "summary": summary,
         "status": state.get("status"),
+        "game_type": state.get("game_type"),
         "agent_color": state.get("agent_color"),
         "your_turn": state.get("status") == "in_progress" and not game_over,
         "game_over": game_over,
         "result": state.get("result"),
         "move_count": len(state.get("moves", [])),
         "opponent_id": state.get("opponent_id"),
-        "opponent_label": state.get("opponent_label"),
+        "opponent_label": opponent_label or state.get("opponent_label"),
         "opponent_elo": state.get("opponent_elo"),
         "model_name": state.get("model_name"),
         "model_display_name": state.get("model_display_name"),
@@ -97,3 +119,6 @@ def agent_safe_spectator_state(
         "board_path": board_path,
         "board_url": f"/g/{state.get('game_id')}/board.png",
     }
+    if extra:
+        payload.update(extra)
+    return payload

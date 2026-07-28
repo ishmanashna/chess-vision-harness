@@ -47,6 +47,11 @@ class GameManager:
     def get_board_path(self, game_id: str) -> Path:
         return self.get_game_dir(game_id) / "board.png"
 
+    def get_role_board_path(self, game_id: str, color: str) -> Path:
+        """Per-agent board PNG (white or black perspective)."""
+        suffix = "board_white.png" if color.upper() == "WHITE" else "board_black.png"
+        return self.get_game_dir(game_id) / suffix
+
     def get_pgn_path(self, game_id: str) -> Path:
         return self.get_game_dir(game_id) / "game.pgn"
 

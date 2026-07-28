@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from .agent_surface import agent_safe_board, agent_safe_status
+from .avaa import AvAAPlay, is_avaa_state
 from .elo import ELOLadder, ENGINE_DISPLAY_NAME, format_stockfish_label
 from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent_strength
 from .game_manager import GameBusyError, GameManager
+from .game_types import GAME_TYPE_AGENT_VS_AGENT
 from .models import ModelRegistry
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
@@ -24,7 +26,7 @@ from .limits import load_limits
 from .results import ResultsManager
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
-DEFAULT_GAME_TYPE = "agent_vs_engine"
+from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT
 
 
 class BoardController:
@@ -39,6 +41,25 @@ class BoardController:
         self.elo = ELOLadder(base_dir=str(game_manager.base_dir), registry=self.registry)
         self.results = ResultsManager(base_dir=str(game_manager.base_dir))
         # `engine` ignored — kept for backward-compatible test fixtures
+        self._avaa_play: Optional[AvAAPlay] = None
+
+    @property
+    def avaa(self) -> AvAAPlay:
+        if self._avaa_play is None:
+            self._avaa_play = AvAAPlay(self)
+        return self._avaa_play
+
+    def new_agent_vs_agent_game(
+        self,
+        game_id: str,
+        white_model_id: str,
+        black_model_id: str,
+        *,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        if not self.game_manager.validate_game_id(game_id):
+            return {"ok": False, "error": f"Invalid game_id: {game_id}"}
+        return self.avaa.new_game(game_id, white_model_id, black_model_id, force=force)
 
     def _get_eval_engine(self) -> EvalEngineAdapter:
         if self._eval_engine is None:
@@ -64,9 +85,19 @@ class BoardController:
         }
 
     def _elo_context(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        if is_avaa_state(state):
+            white_id = state.get("white_model_id")
+            black_id = state.get("black_model_id")
+            ctx: Dict[str, Any] = {"game_type": GAME_TYPE_AGENT_VS_AGENT}
+            if white_id:
+                ctx["white_elo"] = self._avaa_elo_value(state, "white", white_id)
+            if black_id:
+                ctx["black_elo"] = self._avaa_elo_value(state, "black", black_id)
+            return ctx
+
         model_id = state.get("model_name")
         opponent_elo = state.get("opponent_elo")
-        ctx: Dict[str, Any] = {
+        ctx = {
             "opponent_id": state.get("opponent_id"),
             "opponent_elo": opponent_elo,
             "engine_elo": opponent_elo,
@@ -76,6 +107,15 @@ class BoardController:
             ctx["model_id"] = model_id
             ctx["agent_elo"] = round(self.elo.get_rating(model_id))
         return ctx
+
+    def _avaa_elo_value(self, state: Dict[str, Any], color: str, model_id: str) -> int:
+        after = state.get(f"{color}_elo_after")
+        if after is not None:
+            return round(after)
+        before = state.get(f"{color}_elo_before")
+        if before is not None:
+            return round(before)
+        return round(self.elo.get_rating(model_id))
 
     def _resolve_opponent(
         self,
@@ -123,29 +163,43 @@ class BoardController:
         response.update(extra)
         return response
 
-    def _record_move_audit(self, state: Dict[str, Any], board: chess.Board, move_str: str) -> None:
+    def _record_move_audit(
+        self,
+        state: Dict[str, Any],
+        board: chess.Board,
+        move_str: str,
+        *,
+        by_color: Optional[str] = None,
+    ) -> None:
         audit = state.setdefault("move_audit", [])
-        audit.append(
-            {
-                "ts": datetime.now(timezone.utc).isoformat(),
-                "move_input": move_str,
-                "board_hash_before": hashlib.sha256(board.fen().encode()).hexdigest()[:16],
-            }
-        )
+        entry: Dict[str, Any] = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "move_input": move_str,
+            "board_hash_before": hashlib.sha256(board.fen().encode()).hexdigest()[:16],
+        }
+        if by_color:
+            entry["by_color"] = by_color
+        audit.append(entry)
 
     def game_audit(self, game_id: str) -> Dict[str, Any]:
         state = self.game_manager.load_state(game_id)
         if not state:
             return {"ok": False, "error": f"Game {game_id} not found"}
-        return {
+        audit: Dict[str, Any] = {
             "ok": True,
             "game_id": game_id,
             "status": state.get("status"),
             "move_count": len(state.get("moves", [])),
             "move_audit": state.get("move_audit", []),
-            "opponent_id": state.get("opponent_id"),
-            "opponent_uci_config": state.get("opponent_uci_config"),
         }
+        if is_avaa_state(state):
+            audit["game_type"] = GAME_TYPE_AGENT_VS_AGENT
+            audit["white_model_id"] = state.get("white_model_id")
+            audit["black_model_id"] = state.get("black_model_id")
+        else:
+            audit["opponent_id"] = state.get("opponent_id")
+            audit["opponent_uci_config"] = state.get("opponent_uci_config")
+        return audit
 
     def _touch_activity(self, state: Dict[str, Any]) -> None:
         state["last_activity"] = datetime.now(timezone.utc).isoformat()
@@ -214,7 +268,16 @@ class BoardController:
         )
 
     @staticmethod
+    def avaa_display_names(state: Dict[str, Any]) -> tuple[str, str]:
+        white = state.get("white_display_name") or state.get("white_model_id") or "White"
+        black = state.get("black_display_name") or state.get("black_model_id") or "Black"
+        return white, black
+
+    @staticmethod
     def side_labels(state: Dict[str, Any]) -> Dict[str, str]:
+        if is_avaa_state(state):
+            white, black = BoardController.avaa_display_names(state)
+            return {"white": white, "black": black}
         model = state.get("model_display_name") or state.get("model_name") or "Agent"
         engine = BoardController.engine_display_label(state)
         if state.get("agent_color") == "WHITE":
@@ -434,7 +497,14 @@ class BoardController:
         except GameBusyError as e:
             return {"ok": False, "error": str(e)}
 
-    def make_agent_move(self, game_id: str, move_str: str) -> Dict[str, Any]:
+    def make_agent_move(
+        self, game_id: str, move_str: str, *, caller_color: Optional[str] = None
+    ) -> Dict[str, Any]:
+        state = self.game_manager.load_state(game_id)
+        if state and is_avaa_state(state):
+            if not caller_color:
+                return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
+            return self.avaa.make_move(game_id, move_str, caller_color)
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -608,10 +678,28 @@ class BoardController:
         sign = "+" if change > 0 else ""
         return f"{agent_name} {delta['elo_before']} → {delta['elo_after']} ({sign}{change})"
 
-    def get_board(self, game_id: str) -> Dict[str, Any]:
+    @staticmethod
+    def format_avaa_elo_change(state: Dict[str, Any]) -> str:
+        white, black = BoardController.avaa_display_names(state)
+        parts: List[str] = []
+        for color, name in (("white", white), ("black", black)):
+            before = state.get(f"{color}_elo_before")
+            after = state.get(f"{color}_elo_after")
+            if before is None or after is None:
+                continue
+            delta = after - before
+            sign = "+" if delta > 0 else ""
+            parts.append(f"{name} {before} → {after} ({sign}{delta})")
+        return " · ".join(parts)
+
+    def get_board(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
         state = self.game_manager.load_state(game_id)
         if not state:
             return {"ok": False, "error": f"Game {game_id} not found"}
+        if is_avaa_state(state):
+            if not caller_color:
+                return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
+            return self.avaa.get_board(game_id, caller_color)
 
         board = chess.Board(state["board_fen"])
         board_path = self.game_manager.get_board_path(game_id)
@@ -647,6 +735,8 @@ class BoardController:
                     return {"ok": False, "error": f"Game {game_id} not found"}
                 if state["status"] != "in_progress":
                     return self._error(game_id, f"Game is already over: {state['result']}")
+                if is_avaa_state(state):
+                    return self.avaa.end_no_result(game_id, reason=reason)
 
                 agent_color = state["agent_color"]
                 result = "*"
@@ -691,7 +781,14 @@ class BoardController:
         except GameBusyError as e:
             return {"ok": False, "error": str(e)}
 
-    def resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
+    def resign(
+        self, game_id: str, reason: str = "resignation", *, caller_color: Optional[str] = None
+    ) -> Dict[str, Any]:
+        state = self.game_manager.load_state(game_id)
+        if state and is_avaa_state(state):
+            if not caller_color:
+                return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
+            return self.avaa.resign(game_id, caller_color, reason=reason)
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -785,10 +882,14 @@ class BoardController:
             "pgn_path": str(pgn_path),
         }
 
-    def status(self, game_id: str) -> Dict[str, Any]:
+    def status(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
         state = self.game_manager.load_state(game_id)
         if not state:
             return {"ok": False, "error": f"Game {game_id} not found"}
+        if is_avaa_state(state):
+            if not caller_color:
+                return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
+            return self.avaa.status(game_id, caller_color)
 
         board = chess.Board(state["board_fen"])
         persp = self._perspective(board, state["agent_color"])
@@ -806,6 +907,15 @@ class BoardController:
 
     def _matchup_line(self, state: Dict[str, Any], agent_elo: Optional[int] = None) -> str:
         """Standard notation: WHITE player first, BLACK player second."""
+        if is_avaa_state(state):
+            white, black = BoardController.avaa_display_names(state)
+            elo = self._elo_context(state)
+            white_elo = elo.get("white_elo")
+            black_elo = elo.get("black_elo")
+            white_part = f"{white} ({white_elo} ELO)" if white_elo is not None else white
+            black_part = f"{black} ({black_elo} ELO)" if black_elo is not None else black
+            return f"WHITE {white_part} vs BLACK {black_part}"
+
         elo = self._elo_context(state)
         model = state.get("model_display_name") or state.get("model_name") or "Agent"
         if agent_elo is None:
@@ -833,6 +943,19 @@ class BoardController:
 
     def format_spectator_summary(self, state: Dict[str, Any]) -> str:
         board = chess.Board(state["board_fen"])
+        if is_avaa_state(state):
+            matchup = self._matchup_line(state)
+            if state["status"] != "in_progress":
+                return f"{matchup} — {state.get('result', 'done')}"
+            if board.is_game_over():
+                return f"{matchup} — {board.result()}"
+            white, black = BoardController.avaa_display_names(state)
+            mover = white if board.turn == chess.WHITE else black
+            turn = f"{mover} to move"
+            if board.is_check():
+                turn += " (check)"
+            return f"{matchup} — {turn}"
+
         persp = self._perspective(board, state["agent_color"])
         delta = None
         agent_elo = None

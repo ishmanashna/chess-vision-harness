@@ -285,6 +285,14 @@ def opponent_elo_from_result(game: Dict[str, Any], catalog: Optional[OpponentCat
             pass
     if game.get("opponent_elo") is not None:
         return int(game["opponent_elo"])
+    opponent_model = game.get("opponent_model")
+    if opponent_model:
+        from .models import ModelRegistry
+
+        registry = ModelRegistry()
+        canonical = registry.normalize_result_model(opponent_model)
+        if canonical:
+            return round(registry.get_elo(canonical))
     skill = game.get("skill")
     if skill is not None:
         from .elo import LEGACY_SKILL_ELO

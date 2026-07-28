@@ -1,9 +1,10 @@
 # Plan 2: Native LLM benchmark (outbound client)
 
-Status: **planned**  
-Last updated: 2026-07-18  
+Status: **planned** (after [Agent vs agent](agent-vs-agent.md))  
+Last updated: 2026-07-27  
 **Prerequisite:** [Plan 1](public-agent-api.md) complete  
-**Next plan:** [Plan 3 — Agent vs agent](agent-vs-agent.md)
+**Note:** Not required for agent-vs-agent. AvaA ships with copy-paste briefs; this plan adds harness-owned provider clients for batch suites.  
+**Next plan:** [Plan 4 — Human vs agent](human-vs-agent.md) (or earlier if priorities change)
 
 ---
 
