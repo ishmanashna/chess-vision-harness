@@ -116,17 +116,10 @@
           '">' +
           escapeHtml(mode.short) +
           "</span>";
-        var agentSide =
-          g.isAvaa || (g.isHuman && g.agentColor === "WHITE")
-            ? ' <span class="sub">White</span>'
-            : g.isHuman && g.agentColor === "BLACK"
-              ? ' <span class="sub">Black</span>'
-              : "";
-        var oppSide = g.isAvaa
-          ? ' <span class="sub">Black</span>'
-          : g.isHuman
-            ? ' <span class="sub">Human</span>'
-            : "";
+        // AvA: color hints stay useful (both columns are agents). Never glue
+        // White/Black/Human onto AvH or AvE display names.
+        var agentSide = g.isAvaa ? ' <span class="sub">White</span>' : "";
+        var oppSide = g.isAvaa ? ' <span class="sub">Black</span>' : "";
         return (
           "<tr>" +
           '<td><a href="/g/' +
