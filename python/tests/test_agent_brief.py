@@ -8,6 +8,7 @@ from chess_harness.agent_brief import (
     public_base_url,
     render_agent_brief,
     render_agent_brief_avaa,
+    render_agent_brief_human,
 )
 
 
@@ -66,3 +67,23 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "rare" not in brief.lower()
     assert "Never use FEN" in brief
     assert "/move/e2e4" in brief
+
+
+def test_render_agent_brief_human_contains_poll_loop():
+    brief = render_agent_brief_human(
+        "http://127.0.0.1:8765",
+        "game-human-1",
+        "key-agent",
+        "black",
+        "Alice",
+    )
+    assert "game-human-1" in brief
+    assert "Authorization: Bearer key-agent" in brief
+    assert "You play: black" in brief
+    assert "Human opponent: Alice" in brief
+    assert "agent vs human" in brief.lower()
+    assert "unranked" in brief.lower()
+    assert "http://127.0.0.1:8765/api/v1/games/game-human-1/status" in brief
+    assert "your_turn" in brief
+    assert "poll" in brief.lower() or "Poll" in brief
+    assert "Never use FEN" in brief

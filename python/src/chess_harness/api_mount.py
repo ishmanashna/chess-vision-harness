@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from .api_limits import get_limit_enforcer
 from .api_v1 import _AuthError, _err, build_router
 from .game_service import GameService
+from .play_api import PlayAuthError, _err as _play_err, build_play_router
 
 __all__ = ["mount_api_v1"]
 
@@ -19,8 +20,10 @@ def mount_api_v1(app, get_game_service: Callable[[], GameService]) -> None:
     limits = get_limit_enforcer()
     router = build_router(get_game_service, limit_enforcer=limits)
     lobby_router = build_lobby_router(get_game_service, limit_enforcer=limits)
+    play_router = build_play_router(get_game_service)
     app.include_router(router)
     app.include_router(lobby_router)
+    app.include_router(play_router)
 
     @app.exception_handler(_AuthError)
     async def _handle_auth_error(_request, exc: _AuthError):
@@ -29,3 +32,7 @@ def mount_api_v1(app, get_game_service: Callable[[], GameService]) -> None:
     @app.exception_handler(LobbyAuthError)
     async def _handle_lobby_auth_error(_request, exc: LobbyAuthError):
         return _err(exc.status, exc.message)
+
+    @app.exception_handler(PlayAuthError)
+    async def _handle_play_auth_error(_request, exc: PlayAuthError):
+        return _play_err(exc.status, exc.message)

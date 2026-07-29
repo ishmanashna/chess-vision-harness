@@ -84,12 +84,13 @@ def agent_safe_spectator_state(
     end_reason_label: Optional[str],
     engine_label: str,
     agent_outcome: Optional[Dict[str, str]],
-    eval_ui: Dict[str, Any],
+    eval_ui: Optional[Dict[str, Any]],
     agent_elo: Optional[int],
     engine_elo: Optional[int],
     game_over: bool,
     board_path: str,
     opponent_label: Optional[str] = None,
+    show_eval: bool = True,
     extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Public spectator API — no FEN or move list."""
@@ -116,6 +117,7 @@ def agent_safe_spectator_state(
         "end_reason_label": end_reason_label,
         "agent_outcome": agent_outcome,
         "eval_ui": eval_ui,
+        "show_eval": show_eval,
         "board_path": board_path,
         "board_url": f"/g/{state.get('game_id')}/board.png",
     }

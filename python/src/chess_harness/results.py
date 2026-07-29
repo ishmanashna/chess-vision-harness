@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .elo import ELOLadder
+from .game_types import GAME_TYPE_HUMAN_VS_AGENT
 from .opponents import get_catalog
 from .paths import resolve_base_dir
 
@@ -102,6 +103,8 @@ class ResultsManager:
         counts: Dict[str, int] = defaultdict(int)
         registry = ModelRegistry()
         for result in self.load_results():
+            if result.get("game_type") == GAME_TYPE_HUMAN_VS_AGENT:
+                continue
             model_id = registry.normalize_result_model(result.get("model_name"))
             if model_id:
                 counts[model_id] += 1

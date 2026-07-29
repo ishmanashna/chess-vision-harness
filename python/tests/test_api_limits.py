@@ -175,6 +175,23 @@ def test_agent_registration_ip_limit(limit_client):
     assert blocked.headers.get("retry-after")
 
 
+def test_metrics_human_vs_agent_count(limit_client):
+    client, _, _ = limit_client
+    key = _register(client, "metrics-human-agent")
+    create = client.post(
+        "/api/v1/games/human",
+        headers=_auth(key),
+        json={"nickname": "Bob"},
+    )
+    assert create.status_code == 200, create.text
+
+    metrics = client.get("/api/v1/metrics")
+    assert metrics.status_code == 200
+    data = metrics.json()
+    assert data["active_human_vs_agent"] == 1
+    assert data["active_agent_vs_agent"] == 0
+
+
 def test_metrics_endpoint(limit_client):
     client, harness_dir, _ = limit_client
     key = _register(client, "metrics-agent")
@@ -189,6 +206,8 @@ def test_metrics_endpoint(limit_client):
     data = metrics.json()
     assert data["ok"] is True
     assert data["active_games"] == 1
+    assert data["active_agent_vs_agent"] == 0
+    assert data["active_human_vs_agent"] == 0
     assert "disk_free_bytes" in data
     assert data["disk_free_bytes"] is None or data["disk_free_bytes"] > 0
     assert data["limits"]["max_concurrent_games"] == 2

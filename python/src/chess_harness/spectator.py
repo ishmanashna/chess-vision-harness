@@ -19,7 +19,13 @@ from .api_mount import mount_api_v1
 from .avaa import is_avaa_state
 from .board_controller import BoardController
 from .elo import ELOLadder
-from .game_types import GAME_TYPE_AGENT_VS_AGENT
+from .game_types import GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
+from .spectator_human import (
+    human_active_card,
+    human_list_fields,
+    human_state_extra,
+    show_eval_for_state,
+)
 from .ladder_display import (
     PUBLIC_SITE_HEADER,
     SPECTATOR_PAGE_CSS,
@@ -30,6 +36,7 @@ from .ladder_display import (
     spectator_tabs,
 )
 from .create_game_page import handle_create_game_post, render_create_game_page
+from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
 from .continuous_calibration import can_continuously_calibrate, get_continuous_calibration
 from .engine import EvalEngineAdapter
@@ -67,12 +74,14 @@ def _game_summary(state: Dict[str, Any]) -> str:
 
 
 def _game_elo_change(state: Dict[str, Any], game_id: str) -> Optional[Dict[str, int]]:
-    if is_avaa_state(state):
+    if is_avaa_state(state) or is_human_vs_agent_state(state):
         return None
     return _get_controller().apply_elo_delta({**state, "game_id": game_id})
 
 
 def _format_elo_change(delta: Optional[Dict[str, int]], state: Dict[str, Any]) -> str:
+    if is_human_vs_agent_state(state):
+        return ""
     if is_avaa_state(state):
         return BoardController.format_avaa_elo_change(state)
     agent = state.get("model_display_name") or state.get("model_name") or "Agent"
@@ -139,6 +148,7 @@ def _get_game_service() -> GameService:
 
 
 mount_api_v1(app, _get_game_service)
+register_play_routes(app, lambda: game_manager)
 
 _public_site = _project_root / "public-site"
 if (_public_site / "css").is_dir():
@@ -249,6 +259,8 @@ def _eval_ui(
 
 
 def _resolve_eval_cp(state: Dict[str, Any], game_id: str) -> Optional[int]:
+    if not show_eval_for_state(state):
+        return None
     if state.get("last_eval_cp") is not None:
         return state["last_eval_cp"]
     if state.get("status") == "in_progress":
@@ -284,7 +296,11 @@ def _move_rows(state: Dict[str, Any]) -> list[Dict[str, Any]]:
     return rows
 
 
-def _spectator_eval_ui(state: Dict[str, Any], score_white: Optional[int]) -> Dict[str, Any]:
+def _spectator_eval_ui(
+    state: Dict[str, Any], score_white: Optional[int]
+) -> Optional[Dict[str, Any]]:
+    if not show_eval_for_state(state):
+        return None
     labels = BoardController.side_labels(state)
     if is_avaa_state(state):
         return _eval_ui(score_white, labels, white_at_bottom=True)
@@ -295,10 +311,10 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
     ctrl = _get_controller()
     board = chess.Board(state["board_fen"])
     elo = ctrl._elo_context(state)
-    score_white = _eval_position(state["board_fen"])
-    eval_ui = _spectator_eval_ui(state, score_white)
 
     if is_avaa_state(state):
+        score_white = _eval_position(state["board_fen"])
+        eval_ui = _spectator_eval_ui(state, score_white)
         white_name, black_name = BoardController.avaa_display_names(state)
         mover = white_name if board.turn == chess.WHITE else black_name
         turn = f"{mover} to move"
@@ -317,10 +333,16 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
             "turn_label": turn,
             "eval_white_cp": score_white,
             "eval_ui": eval_ui,
+            "show_eval": True,
             "board_url": f"/g/{game_id}/board.png",
             "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
         }
 
+    if is_human_vs_agent_state(state):
+        return human_active_card(state, game_id, board, elo)
+
+    score_white = _eval_position(state["board_fen"])
+    eval_ui = _spectator_eval_ui(state, score_white)
     persp = ctrl._perspective(board, state["agent_color"])
     model = state.get("model_display_name") or state.get("model_name") or "Agent"
     opponent_label = BoardController.engine_display_label(state)
@@ -342,6 +364,7 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
         "turn_label": turn,
         "eval_white_cp": score_white,
         "eval_ui": eval_ui,
+        "show_eval": True,
         "board_url": f"/g/{game_id}/board.png",
         "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
     }
@@ -371,6 +394,7 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     ctrl = _get_controller()
     revision = BoardController.game_revision(state)
     avaa = is_avaa_state(state)
+    human = is_human_vs_agent_state(state)
     elo_delta = None
     active_card = None
     agent_outcome = None
@@ -386,6 +410,10 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     elo = ctrl._elo_context(state)
     if avaa:
         names = _avaa_list_fields(state, elo)
+        agent_name = names["model_name"]
+        opp_label = names["opponent_label"]
+    elif human:
+        names = human_list_fields(state, elo)
         agent_name = names["model_name"]
         opp_label = names["opponent_label"]
     else:
@@ -411,7 +439,7 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
         "active_card": active_card,
         "model_id": state.get("model_name"),
         "model_name": agent_name,
-        "agent_elo": state.get("agent_elo"),
+        "agent_elo": elo.get("agent_elo") if human else state.get("agent_elo"),
         "opponent_id": state.get("opponent_id"),
         "opponent_label": opp_label,
         "opponent_elo": state.get("opponent_elo") or state.get("engine_elo"),
@@ -425,6 +453,8 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     if avaa:
         row.update(names)
         row["game_type"] = GAME_TYPE_AGENT_VS_AGENT
+    elif human:
+        row.update(names)
     elif state.get("game_type"):
         row["game_type"] = state.get("game_type")
     return row
@@ -473,28 +503,33 @@ async def root(request: Request):
       const c=g.active_card||{};
       const ev=evalFromUi(c.eval_ui);
       const avaa=c.game_type==='agent_vs_agent'||g.game_type==='agent_vs_agent';
-      const oppLabel=c.opponent_label||c.engine_label||'Opponent';
+      const human=c.game_type==='human_vs_agent'||g.game_type==='human_vs_agent';
+      const showEval=c.show_eval!==false&&!human;
+      const oppLabel=c.opponent_label||c.engine_label||(human?'Human':'Opponent');
       const oppElo=avaa?(c.black_elo!=null?c.black_elo:null):(c.opponent_elo!=null?c.opponent_elo:c.engine_elo);
-      const turnCls=avaa?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
+      const turnCls=avaa||human?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
       const agentElo=avaa?(c.white_elo!=null?' ('+c.white_elo+')':''):(c.agent_elo!=null?' ('+c.agent_elo+')':'');
       const engElo=oppElo!=null?' ('+oppElo+')':'';
       const avaaTag=avaa?' <span class="tag avaa">AvA</span>':'';
-      const whiteChip=avaa?`${c.white_name||c.agent_name||'White'}${agentElo} · WHITE`:`${c.agent_name||'Agent'}${agentElo} · ${c.agent_color||'?'}`;
-      const blackChip=avaa?`${c.black_name||oppLabel}${engElo} · BLACK`:`${oppLabel}${engElo}`;
+      const humanTag=human?' <span class="tag avaa" title="Agent vs human">AvH</span>':'';
+      const whiteChip=avaa?`${c.white_name||c.agent_name||'White'}${agentElo} · WHITE`:human?`${c.white_name||'White'}${c.agent_color==='WHITE'?agentElo:''}`:`${c.agent_name||'Agent'}${agentElo} · ${c.agent_color||'?'}`;
+      const blackChip=avaa?`${c.black_name||oppLabel}${engElo} · BLACK`:human?`${c.black_name||oppLabel}${c.agent_color==='BLACK'?agentElo:''}`:`${oppLabel}${engElo}`;
+      const metaNames=human?`${c.white_name||'White'} vs ${c.black_name||'Black'}`:`${ev.white} vs ${ev.black}`;
+      const evalBlock=showEval?`<div class="eval-col">
+              <div class="eval-track-v"><div class="eval-black" style="height:${ev.blackPct};${ev.blackAtBottom?'top:auto;bottom:0':'top:0;bottom:auto'}"></div></div>
+              <div class="eval-score-v">${ev.text}</div>
+            </div>`:'';
       const el=document.createElement('div');
       el.className='active-card';
       el.dataset.gameId=g.game_id;
       el.innerHTML=`
         <div class="card-head">
-          <h3>${g.game_id}${avaaTag} <span class="tag live">live</span></h3>
+          <h3>${g.game_id}${avaaTag}${humanTag} <span class="tag live">live</span></h3>
           <span class="turn-badge ${turnCls}">${c.turn_label||g.turn}</span>
         </div>
         <div class="card-body">
           <div class="board-eval-stage">
-            <div class="eval-col">
-              <div class="eval-track-v"><div class="eval-black" style="height:${ev.blackPct};${ev.blackAtBottom?'top:auto;bottom:0':'top:0;bottom:auto'}"></div></div>
-              <div class="eval-score-v">${ev.text}</div>
-            </div>
+            ${evalBlock}
             <a class="mini-board-wrap" href="/g/${g.game_id}"><img class="mini-board" src="${c.board_url}?v=${c.board_cache||0}" alt="board" onload="syncMiniEvalHeights()"/></a>
           </div>
           <div class="card-meta">
@@ -502,7 +537,7 @@ async def root(request: Request):
               <span class="chip chip-agent">${whiteChip}</span>
               <span class="chip chip-opponent">${blackChip}</span>
             </div>
-            <div class="meta-line">${ev.white} vs ${ev.black} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves</div>
+            <div class="meta-line">${metaNames} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves</div>
           </div>
         </div>
         <div class="card-foot"><a href="/g/${g.game_id}">Watch full board →</a></div>`;
@@ -513,15 +548,22 @@ async def root(request: Request):
       const c=g.active_card||{};
       const ev=evalFromUi(c.eval_ui);
       const avaa=c.game_type==='agent_vs_agent'||g.game_type==='agent_vs_agent';
-      const turnCls=avaa?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
+      const human=c.game_type==='human_vs_agent'||g.game_type==='human_vs_agent';
+      const showEval=c.show_eval!==false&&!human;
+      const turnCls=avaa||human?'turn-agent':(c.your_turn?'turn-agent':'turn-opponent');
       el.querySelector('.turn-badge').className='turn-badge '+turnCls;
       el.querySelector('.turn-badge').textContent=c.turn_label||g.turn;
       const img=el.querySelector('.mini-board');
       const nextSrc=`${c.board_url}?v=${c.board_cache||0}`;
       if(img.getAttribute('src')!==nextSrc)img.setAttribute('src',nextSrc);
-      applyEvalBar(el.querySelector('.eval-black'), ev);
-      el.querySelector('.eval-score-v').textContent=ev.text;
-      el.querySelector('.meta-line').textContent=`${ev.white} vs ${ev.black} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves`;
+      const bar=el.querySelector('.eval-black');
+      if(showEval&&bar){
+        applyEvalBar(bar, ev);
+        const score=el.querySelector('.eval-score-v');
+        if(score)score.textContent=ev.text;
+      }
+      const metaNames=human?`${c.white_name||'White'} vs ${c.black_name||'Black'}`:`${ev.white} vs ${ev.black}`;
+      el.querySelector('.meta-line').textContent=`${metaNames} · Move ${c.move_number||'?'} · ${c.plies||0} half-moves`;
       syncMiniEvalHeights();
     }
 
@@ -768,8 +810,8 @@ async def game_view(game_id: str):
           <dl class="meta-grid" id="state-meta">
             <dt>Result</dt><dd id="state-result">—</dd>
             <dt>Termination</dt><dd id="state-termination">—</dd>
-            <dt>Evaluation</dt><dd id="state-eval">—</dd>
-            <dt>ELO change</dt><dd id="state-elo">—</dd>
+            <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
+            <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
           </dl>
         </div>
         <div class="info-card">
@@ -785,7 +827,7 @@ async def game_view(game_id: str):
         <div class="board-stack">
           <div class="board-label black" id="lbl-black">Black</div>
           <div class="board-row">
-            <div class="eval-col-v">
+            <div class="eval-col-v" id="eval-col">
               <div class="eval-track-v" id="eval-track"><div class="eval-black" id="eval-black" style="height:50%"></div></div>
             </div>
             <img id="board" src="/g/{game_id}/board.png" alt="chess board"/>
@@ -824,24 +866,39 @@ async def game_view(game_id: str):
       const result=document.getElementById('state-result');
       const term=document.getElementById('state-termination');
       const evalEl=document.getElementById('state-eval');
+      const evalLabel=document.getElementById('state-eval-label');
       const eloEl=document.getElementById('state-elo');
+      const eloLabel=document.getElementById('state-elo-label');
+      const showEval=s.show_eval!==false&&s.game_type!=='human_vs_agent';
+      const showElo=showEval&&s.game_type!=='human_vs_agent';
+      const evalCol=document.getElementById('eval-col');
+      if(evalCol)evalCol.style.display=showEval?'':'none';
+      if(evalLabel)evalLabel.style.display=showEval?'':'none';
+      if(evalEl)evalEl.style.display=showEval?'':'none';
+      if(eloLabel)eloLabel.style.display=showElo?'':'none';
+      if(eloEl)eloEl.style.display=showElo?'':'none';
       if(result)result.textContent=s.game_over?(s.result||'—'):'In progress';
       if(term)term.textContent=s.end_reason_label||'—';
-      if(evalEl){{
+      if(evalEl&&showEval){{
         const t=ev&&ev.text&&ev.text!=='—'?ev.text:'—';
         evalEl.textContent=t;
       }}
-      if(eloEl)eloEl.textContent=s.elo_change||'No ELO change recorded yet.';
+      if(eloEl&&showElo)eloEl.textContent=s.elo_change||'No ELO change recorded yet.';
     }}
 
     function setLabels(ev,s){{
-      if(!ev)return;
-      document.getElementById('lbl-black').textContent=ev.top_label||ev.black_label||'Black';
-      document.getElementById('lbl-white').textContent=ev.bottom_label||ev.white_label||'White';
-      const bar=document.getElementById('eval-black');
-      bar.style.height=ev.black_pct||'50%';
-      if(ev.black_at_bottom){{bar.style.top='auto';bar.style.bottom='0';}}
-      else{{bar.style.top='0';bar.style.bottom='auto';}}
+      const showEval=s.show_eval!==false&&s.game_type!=='human_vs_agent';
+      if(ev&&showEval){{
+        document.getElementById('lbl-black').textContent=ev.top_label||ev.black_label||'Black';
+        document.getElementById('lbl-white').textContent=ev.bottom_label||ev.white_label||'White';
+        const bar=document.getElementById('eval-black');
+        bar.style.height=ev.black_pct||'50%';
+        if(ev.black_at_bottom){{bar.style.top='auto';bar.style.bottom='0';}}
+        else{{bar.style.top='0';bar.style.bottom='auto';}}
+      }}else if(s.white_display_name||s.black_display_name){{
+        document.getElementById('lbl-black').textContent=s.black_display_name||'Black';
+        document.getElementById('lbl-white').textContent=s.white_display_name||'White';
+      }}
       renderGameState(s,ev);
     }}
 
@@ -862,6 +919,11 @@ async def game_view(game_id: str):
         whiteName=s.white_display_name||tags.White||'White';
         blackName=s.black_display_name||tags.Black||'Black';
         whiteElo=s.white_elo;blackElo=s.black_elo;
+      }}else if(s.game_type==='human_vs_agent'){{
+        whiteName=s.white_display_name||tags.White||'White';
+        blackName=s.black_display_name||tags.Black||'Black';
+        if(s.agent_color==='WHITE'){{whiteElo=s.agent_elo;blackElo=null;}}
+        else{{whiteElo=null;blackElo=s.agent_elo;}}
       }}else{{
         const opponentName=nameWithoutElo(s.opponent_label||s.engine_label)||tags.EngineName||s.engine_name||'Opponent';
         const model=s.model_display_name||s.model_name||'Agent';
@@ -880,6 +942,7 @@ async def game_view(game_id: str):
         ['Black',playerLine(blackName,blackElo)],
       ];
       if(s.game_type==='agent_vs_agent')rows.splice(1,0,['Type','Agent vs agent']);
+      if(s.game_type==='human_vs_agent')rows.splice(1,0,['Type','Agent vs human (unranked)']);
       dl.innerHTML=rows.filter(r=>r[1]!=null&&r[1]!=='').map(r=>'<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>').join('');
     }}
 
@@ -908,9 +971,10 @@ async def game_view(game_id: str):
       try{{
         const s=await(await fetch('/api/games/{game_id}/state?debug=1')).json();
         const e=await(await fetch('/api/games/{game_id}/eval')).json();
-        const ev=(e.ok&&e.eval_ui)?e.eval_ui:(s.eval_ui||null);
+        const showEval=s.show_eval!==false&&e.show_eval!==false&&s.game_type!=='human_vs_agent';
+        const ev=showEval&&e.ok&&e.eval_ui?e.eval_ui:(showEval?s.eval_ui||null:null);
         if(ev)setLabels(ev,s);
-        else renderGameState(s,null);
+        else setLabels(null,s);
         const rev=s.revision||'';
         const plies=s.move_count!=null?s.move_count:(s.moves?s.moves.length:0);
         if(rev!==lastRevision||plies!==lastMoveCount){{
@@ -979,12 +1043,14 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
     if not state:
         raise HTTPException(404, "Game not found")
     avaa = is_avaa_state(state)
+    human = is_human_vs_agent_state(state)
     delta = _game_elo_change(state, game_id)
     ctrl = _get_controller()
     board = chess.Board(state["board_fen"])
     labels = BoardController.side_labels(state)
-    score_white = _resolve_eval_cp(state, game_id)
-    eval_ui = _spectator_eval_ui(state, score_white)
+    show_eval = show_eval_for_state(state)
+    score_white = _resolve_eval_cp(state, game_id) if show_eval else None
+    eval_ui = _spectator_eval_ui(state, score_white) if show_eval else None
     end_reason_label = (
         ctrl.resolve_end_reason(state, game_id) if state.get("status") != "in_progress" else None
     )
@@ -1000,6 +1066,17 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
         engine_label = black_name
         opponent_label = black_name
         extra = _avaa_list_fields(state, elo_ctx)
+    elif human:
+        from .spectator_human import human_display_names
+
+        white_name, black_name = human_display_names(state)
+        outcome = BoardController.agent_outcome(state["agent_color"], state.get("result"))
+        agent_elo = elo_ctx.get("agent_elo")
+        engine_elo = None
+        engine_label = white_name if state.get("human_color") == "WHITE" else black_name
+        opponent_label = state.get("human_nickname") or "Human"
+        extra = human_state_extra(state, elo_ctx)
+        game_over = state.get("status") != "in_progress" or board.is_game_over()
     else:
         persp = ctrl._perspective(board, state["agent_color"])
         outcome = BoardController.agent_outcome(state["agent_color"], state.get("result"))
@@ -1029,6 +1106,7 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
             "agent_outcome": outcome if state.get("status") != "in_progress" else None,
             "move_rows": _move_rows(state),
             "eval_ui": eval_ui,
+            "show_eval": show_eval,
             "agent_elo": agent_elo,
             "engine_elo": engine_elo,
             "game_over": game_over,
@@ -1049,6 +1127,7 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
         engine_label=engine_label,
         agent_outcome=outcome if state.get("status") != "in_progress" else None,
         eval_ui=eval_ui,
+        show_eval=show_eval,
         agent_elo=agent_elo,
         engine_elo=engine_elo,
         game_over=game_over,
@@ -1083,6 +1162,8 @@ async def get_eval(game_id: str):
     state = game_manager.load_state(game_id)
     if not state:
         raise HTTPException(404, "Game not found")
+    if not show_eval_for_state(state):
+        return {"ok": True, "show_eval": False}
     if state["status"] != "in_progress":
         score = _resolve_eval_cp(state, game_id)
         return {

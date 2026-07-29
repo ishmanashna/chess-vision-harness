@@ -4,6 +4,7 @@
   var pollTimer = null;
   var mode = "engine";
   var matchApi = window.CVH && window.CVH.createMatch;
+  var humanApi = window.CVH && window.CVH.createHuman;
 
   function escapeHtml(value) {
     return String(value)
@@ -84,34 +85,7 @@
   }
 
   function showResult(root, gameId, brief, matched) {
-    var result = root.querySelector("[data-create-result]");
-    var form = root.querySelector("[data-create-form]");
-    var tabs = root.querySelector(".mode-tabs");
-    if (form) form.hidden = true;
-    if (tabs) tabs.hidden = true;
-    if (!result) return;
-    result.hidden = false;
-    result.innerHTML =
-      '<div class="form-message form-message-ok">' +
-      (matched ? "Matched. " : "Game created. ") +
-      '<a href="/g/' + escapeHtml(gameId) + '">Spectate this game</a>' +
-      ' · <a href="/spectator/">Spectator</a></div>' +
-      '<p class="game-id-line">Game ID: <code>' + escapeHtml(gameId) + "</code></p>" +
-      '<div class="brief-wrap">' +
-      '<label for="agent-brief"><strong>Agent prompt</strong> — paste into your agent</label>' +
-      '<textarea id="agent-brief" readonly rows="18">' + escapeHtml(brief) + "</textarea>" +
-      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></div>';
-    var copyBtn = result.querySelector("[data-copy-brief]");
-    if (copyBtn) {
-      copyBtn.addEventListener("click", function () {
-        var ta = document.getElementById("agent-brief");
-        if (!ta) return;
-        ta.select();
-        navigator.clipboard.writeText(ta.value).catch(function () {
-          document.execCommand("copy");
-        });
-      });
-    }
+    if (humanApi) humanApi.showBriefResult(root, gameId, brief, matched, escapeHtml, "");
   }
 
   function matchHelpers() {
@@ -137,27 +111,28 @@
     });
   }
 
+  function normalizeMode(next) {
+    if (next === "avaa") return "avaa";
+    if (humanApi && humanApi.isHumanMode(next)) return "human";
+    return "engine";
+  }
+
   function setMode(root, next) {
-    mode = next === "avaa" ? "avaa" : "engine";
-    var heading = root.querySelector("[data-mode-heading]");
-    var submit = root.querySelector("[data-create-submit]");
-    var asideEngine = root.querySelector("[data-aside-engine]");
-    var asideAvaa = root.querySelector("[data-aside-avaa]");
+    mode = normalizeMode(next);
     root.querySelectorAll(".mode-tab").forEach(function (tab) {
       var active = tab.getAttribute("data-mode") === mode;
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", active ? "true" : "false");
     });
-    if (heading) heading.textContent = mode === "avaa" ? "Rated game vs agent" : "Rated game vs engine";
-    if (submit) submit.textContent = mode === "avaa" ? "Find match" : "Create rated game";
-    if (asideEngine) asideEngine.hidden = mode !== "engine";
-    if (asideAvaa) asideAvaa.hidden = mode !== "avaa";
-    try {
-      var url = new URL(window.location.href);
-      if (mode === "avaa") url.searchParams.set("mode", "avaa");
-      else url.searchParams.delete("mode");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    } catch (e) { /* ignore */ }
+    if (humanApi) {
+      humanApi.toggleHumanChrome(root, mode);
+      humanApi.updateUrlMode(mode);
+    }
+  }
+
+  function submitMessage() {
+    if (mode === "avaa") return "Finding match…";
+    return "Creating game…";
   }
 
   function mountCreatePage() {
@@ -168,18 +143,17 @@
     var modelSelect = root.querySelector("#model-select");
     var newModelId = root.querySelector("#new-model-id");
     var newModelName = root.querySelector("#new-model-name");
+    var humanNickname = root.querySelector("#human-nickname");
     var submitBtn = root.querySelector("[data-create-submit]");
     var messageEl = root.querySelector("[data-create-message]");
     var inscribeBtn = root.querySelector("[data-inscribe-submit]");
 
-    var initial =
-      (window.location.search || "").indexOf("mode=avaa") >= 0 ? "avaa" : "engine";
-    setMode(root, initial);
+    setMode(root, humanApi ? humanApi.parseModeFromUrl() : "engine");
 
     function enableForm(online) {
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
-      [modelSelect, newModelId, newModelName, submitBtn, inscribeBtn].forEach(
+      [modelSelect, newModelId, newModelName, humanNickname, submitBtn, inscribeBtn].forEach(
         function (el) {
           if (el) el.disabled = !online;
         }
@@ -240,14 +214,16 @@
         setMessage(messageEl, null, "");
         stopPoll();
         submitBtn.disabled = true;
-        setMessage(
-          messageEl,
-          "ok",
-          mode === "avaa" ? "Finding match…" : "Creating game…"
-        );
+        setMessage(messageEl, "ok", submitMessage());
 
         resolveModelAndKey(modelSelect, newModelId, newModelName)
           .then(function (ctx) {
+            if (humanApi && humanApi.isHumanMode(mode)) {
+              var nickname = (humanNickname && humanNickname.value || "").trim();
+              return humanApi.createHumanGame(apiJson, ctx.apiKey, nickname).then(function (game) {
+                return { kind: "human", game: game };
+              });
+            }
             if (mode === "avaa") {
               if (!matchApi) throw new Error("Matchmaking module missing.");
               return matchApi.findMatch(apiJson, ctx.apiKey).then(function (data) {
@@ -270,16 +246,19 @@
               );
               return;
             }
-            var game = ctx.game;
-            var gameId = game.game_id;
-            var brief = game.agent_brief;
-            if (!gameId) throw new Error("No game id returned.");
-            if (!brief) {
-              throw new Error(
-                "Server did not return agent_brief. Set CHESS_HARNESS_PUBLIC_URL on the game PC."
+            if (ctx.kind === "human") {
+              var humanGame = humanApi.requireBrief(ctx.game, true);
+              humanApi.showHumanResult(
+                root,
+                humanGame.game_id,
+                humanGame.agent_brief,
+                humanGame.play_token,
+                escapeHtml
               );
+              return;
             }
-            showResult(root, gameId, brief, false);
+            var game = humanApi ? humanApi.requireBrief(ctx.game, false) : ctx.game;
+            showResult(root, game.game_id, game.agent_brief, false);
           })
           .catch(function (err) {
             setMessage(messageEl, "error", err.message || "Request failed.");

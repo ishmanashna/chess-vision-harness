@@ -12,12 +12,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .board_controller import BoardController
-from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT
+from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
 from .game_manager import GameManager
 
 __all__ = [
     "DEFAULT_GAME_TYPE",
     "GAME_TYPE_AGENT_VS_AGENT",
+    "GAME_TYPE_HUMAN_VS_AGENT",
     "GameService",
 ]
 
@@ -90,6 +91,22 @@ class GameService:
             force=force,
         )
 
+    def new_human_vs_agent_game(
+        self,
+        game_id: str,
+        model_name: str,
+        *,
+        human_nickname: Optional[str] = None,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        self._prune_idle()
+        return self.controller.new_human_vs_agent_game(
+            game_id,
+            model_name,
+            human_nickname=human_nickname,
+            force=force,
+        )
+
     def make_move(
         self, game_id: str, move_str: str, *, caller_color: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -128,3 +145,21 @@ class GameService:
 
     def game_audit(self, game_id: str) -> Dict[str, Any]:
         return self.controller.game_audit(game_id)
+
+    def human_position(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_human import human_position
+
+        self._prune_idle()
+        return human_position(self.controller.human_play, game_id)
+
+    def make_human_move(self, game_id: str, move_str: str) -> Dict[str, Any]:
+        from .human_vs_agent_human import make_human_move
+
+        self._prune_idle()
+        return make_human_move(self.controller.human_play, game_id, move_str)
+
+    def human_resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
+        from .human_vs_agent_human import human_resign
+
+        self._prune_idle()
+        return human_resign(self.controller.human_play, game_id, reason=reason)

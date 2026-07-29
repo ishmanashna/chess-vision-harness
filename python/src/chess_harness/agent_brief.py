@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import os
 
-__all__ = ["public_base_url", "render_agent_brief", "render_agent_brief_avaa"]
+__all__ = [
+    "public_base_url",
+    "render_agent_brief",
+    "render_agent_brief_avaa",
+    "render_agent_brief_human",
+]
 
 
 def public_base_url() -> str:
@@ -120,6 +125,85 @@ Repeat until the game is finished or you resign:
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
    - No request body. No JSON.
    - After your move, your_turn becomes false until the opponent moves — go back to step 1.
+
+After the game ends: GET {pgn_url}
+
+Optional resign: POST {resign_url} (no body)
+
+## Rules
+
+- Board PNG is the ONLY source of position information.
+- Never use FEN or move lists from JSON.
+- Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
+- Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
+- Do NOT use chess engines or scripts to pick moves or list legal moves.
+
+## Examples
+
+# Poll status (do this first every iteration)
+GET {status_url}
+Header: {auth}
+
+# Board PNG (any time; required before you move)
+GET {board_url}
+Header: {auth}
+Save the response as an image and read it.
+
+# Move (e2e4) — move is in the path, empty body
+POST {move_base}/e2e4
+Header: {auth}
+
+# Same with curl.exe (Windows-safe; no JSON)
+curl.exe -s -H "{auth}" "{status_url}"
+curl.exe -s -H "{auth}" "{board_url}" -o board.png
+curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
+"""
+
+
+def render_agent_brief_human(
+    base_url: str,
+    game_id: str,
+    api_key: str,
+    color: str,
+    human_nickname: str,
+) -> str:
+    """Self-contained agent prompt for agent-vs-human play (unranked)."""
+    base = base_url.rstrip("/")
+    auth = f"Authorization: Bearer {api_key}"
+    board_url = f"{base}/api/v1/games/{game_id}/board"
+    move_base = f"{base}/api/v1/games/{game_id}/move"
+    pgn_url = f"{base}/api/v1/games/{game_id}/pgn"
+    resign_url = f"{base}/api/v1/games/{game_id}/resign"
+    status_url = f"{base}/api/v1/games/{game_id}/status"
+
+    return f"""You are playing chess in the Chess Vision Harness over HTTP (agent vs human).
+Vision-only benchmark — cheating invalidates the game. This game is unranked (no Elo change).
+
+Game ID: {game_id}
+You play: {color}
+Human opponent: {human_nickname}
+API base: {base}
+
+Auth header (every request):
+  {auth}
+
+## Play loop
+
+Repeat until the game is finished or you resign:
+
+1. GET {status_url}
+   - If game_over is true → GET {pgn_url} and stop.
+   - If your_turn is false → wait (sleep with backoff, e.g. 2s then 5s) and poll status again.
+     You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
+
+2. When your_turn is true: GET {board_url}
+   - Response is image/png — open and read this image every turn.
+   - The board PNG is the ONLY source of position information.
+
+3. POST {move_base}/{{move}}
+   - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
+   - No request body. No JSON.
+   - After your move, your_turn becomes false until the human moves — go back to step 1.
 
 After the game ends: GET {pgn_url}
 

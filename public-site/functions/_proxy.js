@@ -19,7 +19,9 @@ export function shouldProxyPath(pathname) {
     pathname.startsWith("/api/v1/") ||
     pathname === "/api/v1" ||
     pathname.startsWith("/api/games") ||
-    pathname.startsWith("/g/")
+    pathname.startsWith("/api/play") ||
+    pathname.startsWith("/g/") ||
+    pathname.startsWith("/play/")
   );
 }
 

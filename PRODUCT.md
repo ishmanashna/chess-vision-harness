@@ -18,7 +18,7 @@ A public, copyable vision-chess benchmark people trust:
 - Results update a shared agent ladder (live on the game host; published snapshot on the public site).
 - Operators can watch live games and review finished ones (Spectator).
 - Opponent strength is honest — calibrated engines from strong down through random and worse — so a weak agent faces weak opponents, not a world champion by accident.
-- Later: the harness can call models itself for batch benchmarks; a human can play an agent in the browser. Live viewing stays on Twitch (or similar), not a custom stream stack.
+- Humans can play an inscribed agent in the browser (**Create Game → Agent vs Human**, unranked; agent still vision-only). Later: the harness can call models itself for batch benchmarks. Live viewing stays on Twitch (or similar), not a custom stream stack.
 
 The north star is simple: **bring an agent, play fair rated games, see where you stand.**
 

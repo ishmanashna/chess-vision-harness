@@ -33,21 +33,36 @@
 
   function normalizeGame(game) {
     var avaa = game.game_type === "agent_vs_agent";
+    var human = game.game_type === "human_vs_agent";
     var white = game.white_display_name || game.model_name || game.model_id || "—";
     var black = game.black_display_name || game.opponent_label || game.opponent_id || "—";
+    var agentName = human
+      ? (game.model_name || game.model_display_name || game.model_id || "—")
+      : avaa
+        ? white
+        : (game.model_name || game.model_id || "—");
+    var opponentName = human
+      ? (game.human_nickname || game.opponent_label || "Human")
+      : avaa
+        ? black
+        : (game.opponent_label || game.opponent_id || "—");
     return {
       id: game.game_id || "",
       gameType: game.game_type || "",
       isAvaa: avaa,
-      agent: avaa ? white : (game.model_name || game.model_id || "—"),
+      isHuman: human,
+      agentColor: game.agent_color || "",
+      agent: agentName,
       modelId: avaa ? (game.white_model_id || "") : (game.model_id || ""),
       agentElo: avaa
         ? (game.white_elo != null ? Number(game.white_elo) : null)
         : (game.agent_elo != null ? Number(game.agent_elo) : null),
-      opponent: avaa ? black : (game.opponent_label || game.opponent_id || "—"),
+      opponent: opponentName,
       opponentElo: avaa
         ? (game.black_elo != null ? Number(game.black_elo) : null)
-        : (game.opponent_elo != null ? Number(game.opponent_elo) : null),
+        : human
+          ? null
+          : (game.opponent_elo != null ? Number(game.opponent_elo) : null),
       result: game.turn || outcomeLabel(game) || game.status || "—",
       status: game.status || "—",
       when: game.last_activity || "",
@@ -85,7 +100,20 @@
           g.opponentElo != null ? escapeHtml(String(g.opponentElo)) : "—";
         var typeBadge = g.isAvaa
           ? ' <span class="tag avaa" title="Agent vs agent">AvA</span>'
-          : "";
+          : g.isHuman
+            ? ' <span class="tag avaa" title="Agent vs human (unranked)">AvH</span>'
+            : "";
+        var agentSide =
+          g.isAvaa || (g.isHuman && g.agentColor === "WHITE")
+            ? ' <span class="sub">White</span>'
+            : g.isHuman && g.agentColor === "BLACK"
+              ? ' <span class="sub">Black</span>'
+              : "";
+        var oppSide = g.isAvaa
+          ? ' <span class="sub">Black</span>'
+          : g.isHuman
+            ? ' <span class="sub">Human</span>'
+            : "";
         return (
           "<tr>" +
           '<td><a href="/g/' +
@@ -97,14 +125,14 @@
           "</td>" +
           "<td>" +
           escapeHtml(g.agent) +
-          (g.isAvaa ? ' <span class="sub">White</span>' : "") +
+          agentSide +
           "</td>" +
           '<td class="elo">' +
           elo +
           "</td>" +
           "<td>" +
           escapeHtml(g.opponent) +
-          (g.isAvaa ? ' <span class="sub">Black</span>' : "") +
+          oppSide +
           (g.isAvaa ? ' <span class="elo">(' + oppElo + ")</span>" : "") +
           "</td>" +
           "<td>" +

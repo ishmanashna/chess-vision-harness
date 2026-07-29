@@ -17,7 +17,8 @@ from .avaa import AvAAPlay, is_avaa_state
 from .elo import ELOLadder, ENGINE_DISPLAY_NAME, format_stockfish_label
 from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent_strength
 from .game_manager import GameBusyError, GameManager
-from .game_types import GAME_TYPE_AGENT_VS_AGENT
+from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
+from .human_vs_agent import HumanVsAgentPlay
 from .models import ModelRegistry
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
@@ -26,7 +27,6 @@ from .limits import load_limits
 from .results import ResultsManager
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
-from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT
 
 
 class BoardController:
@@ -42,12 +42,19 @@ class BoardController:
         self.results = ResultsManager(base_dir=str(game_manager.base_dir))
         # `engine` ignored — kept for backward-compatible test fixtures
         self._avaa_play: Optional[AvAAPlay] = None
+        self._human_play: Optional[HumanVsAgentPlay] = None
 
     @property
     def avaa(self) -> AvAAPlay:
         if self._avaa_play is None:
             self._avaa_play = AvAAPlay(self)
         return self._avaa_play
+
+    @property
+    def human_play(self) -> HumanVsAgentPlay:
+        if self._human_play is None:
+            self._human_play = HumanVsAgentPlay(self)
+        return self._human_play
 
     def new_agent_vs_agent_game(
         self,
@@ -60,6 +67,20 @@ class BoardController:
         if not self.game_manager.validate_game_id(game_id):
             return {"ok": False, "error": f"Invalid game_id: {game_id}"}
         return self.avaa.new_game(game_id, white_model_id, black_model_id, force=force)
+
+    def new_human_vs_agent_game(
+        self,
+        game_id: str,
+        model_name: str,
+        *,
+        human_nickname: Optional[str] = None,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        if not self.game_manager.validate_game_id(game_id):
+            return {"ok": False, "error": f"Invalid game_id: {game_id}"}
+        return self.human_play.new_game(
+            game_id, model_name, human_nickname=human_nickname, force=force
+        )
 
     def _get_eval_engine(self) -> EvalEngineAdapter:
         if self._eval_engine is None:
@@ -277,6 +298,11 @@ class BoardController:
     def side_labels(state: Dict[str, Any]) -> Dict[str, str]:
         if is_avaa_state(state):
             white, black = BoardController.avaa_display_names(state)
+            return {"white": white, "black": black}
+        if is_human_vs_agent_state(state):
+            from .spectator_human import human_display_names
+
+            white, black = human_display_names(state)
             return {"white": white, "black": black}
         model = state.get("model_display_name") or state.get("model_name") or "Agent"
         engine = BoardController.engine_display_label(state)
@@ -505,6 +531,8 @@ class BoardController:
             if not caller_color:
                 return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
             return self.avaa.make_move(game_id, move_str, caller_color)
+        if state and is_human_vs_agent_state(state):
+            return self.human_play.make_move(game_id, move_str)
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -595,6 +623,8 @@ class BoardController:
             return self._error(game_id, f"Illegal move: {e}")
 
     def _try_snapshot_eval(self, state: Dict[str, Any], board: chess.Board) -> None:
+        if is_human_vs_agent_state(state):
+            return
         try:
             score = self._get_eval_engine().evaluate(board, depth=8)
             if score is not None:
@@ -700,6 +730,8 @@ class BoardController:
             if not caller_color:
                 return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
             return self.avaa.get_board(game_id, caller_color)
+        if is_human_vs_agent_state(state):
+            return self.human_play.get_board(game_id)
 
         board = chess.Board(state["board_fen"])
         board_path = self.game_manager.get_board_path(game_id)
@@ -728,6 +760,11 @@ class BoardController:
 
     def end_no_result(self, game_id: str, reason: str = "inactivity") -> Dict[str, Any]:
         """Finish a game with PGN result '*' — no win/loss/draw, no ELO change."""
+        state = self.game_manager.load_state(game_id)
+        if state and is_avaa_state(state):
+            return self.avaa.end_no_result(game_id, reason=reason)
+        if state and is_human_vs_agent_state(state):
+            return self.human_play.end_no_result(game_id, reason=reason)
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -735,8 +772,6 @@ class BoardController:
                     return {"ok": False, "error": f"Game {game_id} not found"}
                 if state["status"] != "in_progress":
                     return self._error(game_id, f"Game is already over: {state['result']}")
-                if is_avaa_state(state):
-                    return self.avaa.end_no_result(game_id, reason=reason)
 
                 agent_color = state["agent_color"]
                 result = "*"
@@ -789,6 +824,8 @@ class BoardController:
             if not caller_color:
                 return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
             return self.avaa.resign(game_id, caller_color, reason=reason)
+        if state and is_human_vs_agent_state(state):
+            return self.human_play.resign(game_id, reason=reason)
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -890,6 +927,8 @@ class BoardController:
             if not caller_color:
                 return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
             return self.avaa.status(game_id, caller_color)
+        if is_human_vs_agent_state(state):
+            return self.human_play.status(game_id)
 
         board = chess.Board(state["board_fen"])
         persp = self._perspective(board, state["agent_color"])
@@ -914,6 +953,24 @@ class BoardController:
             black_elo = elo.get("black_elo")
             white_part = f"{white} ({white_elo} ELO)" if white_elo is not None else white
             black_part = f"{black} ({black_elo} ELO)" if black_elo is not None else black
+            return f"WHITE {white_part} vs BLACK {black_part}"
+
+        if is_human_vs_agent_state(state):
+            from .spectator_human import human_display_names
+
+            white, black = human_display_names(state)
+            elo = self._elo_context(state)
+            agent_elo_val = agent_elo if agent_elo is not None else elo.get("agent_elo")
+            if state.get("agent_color") == "WHITE":
+                white_part = (
+                    f"{white} ({agent_elo_val} ELO)" if agent_elo_val is not None else white
+                )
+                black_part = black
+            else:
+                white_part = white
+                black_part = (
+                    f"{black} ({agent_elo_val} ELO)" if agent_elo_val is not None else black
+                )
             return f"WHITE {white_part} vs BLACK {black_part}"
 
         elo = self._elo_context(state)
@@ -950,6 +1007,21 @@ class BoardController:
             if board.is_game_over():
                 return f"{matchup} — {board.result()}"
             white, black = BoardController.avaa_display_names(state)
+            mover = white if board.turn == chess.WHITE else black
+            turn = f"{mover} to move"
+            if board.is_check():
+                turn += " (check)"
+            return f"{matchup} — {turn}"
+
+        if is_human_vs_agent_state(state):
+            from .spectator_human import human_display_names
+
+            matchup = self._matchup_line(state)
+            if state["status"] != "in_progress":
+                return f"{matchup} — {state.get('result', 'done')}"
+            if board.is_game_over():
+                return f"{matchup} — {board.result()}"
+            white, black = human_display_names(state)
             mover = white if board.turn == chess.WHITE else black
             turn = f"{mover} to move"
             if board.is_check():

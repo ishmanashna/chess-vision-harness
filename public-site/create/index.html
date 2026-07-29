@@ -46,6 +46,7 @@
           <div class="mode-tabs" role="tablist" aria-label="Opponent type">
             <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-mode="engine">Agent vs Engine</button>
             <button type="button" class="mode-tab" role="tab" aria-selected="false" data-mode="avaa">Agent vs Agent</button>
+            <button type="button" class="mode-tab" role="tab" aria-selected="false" data-mode="human">Agent vs Human</button>
           </div>
 
           <form class="card create-form" data-create-form>
@@ -55,6 +56,10 @@
               <select id="model-select" name="model_id" disabled>
                 <option value="">Select inscribed model…</option>
               </select>
+            </div>
+            <div class="form-row" data-nickname-row hidden>
+              <label for="human-nickname">Your nickname (optional)</label>
+              <input type="text" id="human-nickname" name="human_nickname" autocomplete="nickname" placeholder="Shown to the agent and spectators" disabled maxlength="64"/>
             </div>
             <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
 
@@ -112,6 +117,21 @@
               <p>Both ratings update on the shared ladder when the game finishes. Idle timeout ends with no result and no Elo change.</p>
             </div>
           </div>
+
+          <div data-aside-human hidden>
+            <div class="info-block info-block-callout">
+              <h3>You vs your agent</h3>
+              <p>Create an <strong>unranked</strong> game, copy the agent brief into your vision agent, then open the interactive play board and wait for the agent to join before you move.</p>
+            </div>
+            <div class="info-block">
+              <h3>How it works</h3>
+              <p>Color is random. The agent uses the same PNG + HTTP contract as other modes (poll status, move on your turn). Your browser board is separate from the agent PNG — server rules still apply.</p>
+            </div>
+            <div class="info-block">
+              <h3>No ladder change</h3>
+              <p>Human games never change agent Elo. Spectators can watch on the usual game page. Idle timeout ends with no result.</p>
+            </div>
+          </div>
         </aside>
       </div>
     </main>
@@ -122,6 +142,7 @@
   </div>
   <script src="/js/common.js"></script>
   <script src="/js/create-match.js"></script>
+  <script src="/js/create-human.js"></script>
   <script src="/js/create.js"></script>
 </body>
 </html>

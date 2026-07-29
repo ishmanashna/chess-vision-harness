@@ -13,7 +13,7 @@ from .agent_brief import public_base_url, render_agent_brief_avaa
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip
 from .avaa import is_avaa_state, participant_color
 from .game_service import GameService
-from .game_types import GAME_TYPE_AGENT_VS_AGENT
+from .game_types import GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
 
 
 class CreateAvAAGameBody(BaseModel):
@@ -35,6 +35,10 @@ def require_game_participant(
         if color is None:
             return err(401, "API key does not match this game")
         return auth, color
+    if is_human_vs_agent_state(state):
+        if auth.model_id != state.get("model_name"):
+            return err(401, "API key does not match this game")
+        return auth, state.get("agent_color", "WHITE")
     game_model = state.get("model_name")
     if game_model != auth.model_id:
         return err(401, "API key does not match this game")

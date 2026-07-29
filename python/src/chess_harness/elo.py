@@ -15,6 +15,7 @@ from .rating_math import k_factor, update_elo as rating_update_elo
 
 from .models import AGENT_START_ELO, ModelRegistry
 from .paths import resolve_base_dir
+from .game_types import GAME_TYPE_HUMAN_VS_AGENT
 
 # Re-export for backward compatibility
 __all__ = ["AGENT_START_ELO", "ELOLadder", "ENGINE_DISPLAY_NAME", "K_FACTOR", "LEGACY_SKILL_ELO"]
@@ -245,6 +246,8 @@ class ELOLadder:
                     if not line:
                         continue
                     game = json.loads(line)
+                    if game.get("game_type") == GAME_TYPE_HUMAN_VS_AGENT:
+                        continue
                     model = game.get("model_name", "LLM Agent")
                     result = game.get("result")
                     color = game.get("agent_color")

@@ -15,6 +15,7 @@ from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
 from .avaa_api import register_avaa_routes, require_game_participant
+from .human_vs_agent_api import register_human_vs_agent_routes
 from .commands import resolve_agent_color
 from .elo import ELOLadder
 from .game_service import GameService
@@ -92,6 +93,15 @@ def build_router(
         return require_game_participant(_svc(), game_id, auth, _err)
 
     register_avaa_routes(
+        router,
+        svc_fn=_svc,
+        limits=limits,
+        err=_err,
+        sanitize=_sanitize_agent_payload,
+        new_game_id=_new_game_id,
+        auth_context=_auth_context,
+    )
+    register_human_vs_agent_routes(
         router,
         svc_fn=_svc,
         limits=limits,

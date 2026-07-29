@@ -123,6 +123,16 @@ def _active_agent_vs_agent_count(game_service: GameService) -> int:
     )
 
 
+def _active_human_vs_agent_count(game_service: GameService) -> int:
+    from .game_types import GAME_TYPE_HUMAN_VS_AGENT
+
+    return sum(
+        1
+        for game in game_service.game_manager.list_games(status_filter="in_progress")
+        if (game.get("state") or {}).get("game_type") == GAME_TYPE_HUMAN_VS_AGENT
+    )
+
+
 class ApiLimitEnforcer:
     """Process-local counters; resets on restart."""
 
@@ -220,9 +230,9 @@ class ApiLimitEnforcer:
         return {
             "active_games": _active_game_count(game_service),
             "active_agent_vs_agent": _active_agent_vs_agent_count(game_service),
+            "active_human_vs_agent": _active_human_vs_agent_count(game_service),
             "engine_count": _live_engine_count(game_service),
             "waiting_lobbies": _waiting_lobby_count(),
-            "active_agent_vs_agent": _active_avaa_count(game_service),
             "disk_free_bytes": disk_free_bytes,
             "limits": {
                 "max_concurrent_games": lim.max_concurrent_games,
