@@ -16,7 +16,7 @@ import {
   PromotionDialog,
   PROMOTION_DIALOG_RESULT_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/promotion-dialog/PromotionDialog.js";
-import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.6/dist/chess.js";
+import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js";
 import { uciFromSquares } from "./play-api.js";
 
 const BOARD_ASSETS =
