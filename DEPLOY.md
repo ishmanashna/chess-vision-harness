@@ -35,7 +35,22 @@ https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `AUTH_SESSION_SECRET` | Pages deploy (GitHub Actions secrets, injected like `GAME_ORIGIN`) | Cosmetic Google sign-in on the public site — does **not** gate create/inscribe. Setup: [`deploy/pages.md`](deploy/pages.md). |
 | `CHESS_HARNESS_AUDIT_SALT` | Game PC / harness service | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl` (create/inscribe log). |
 
-Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the PC over localhost.
+Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). Calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` for explicit remote override. Do not rely on client IP behind Cloudflare Tunnel.
+
+### Local serve vs Pages (intentional diffs)
+
+When you run `chess-harness serve`, the origin serves the same `public-site/` HTML/CSS/JS as Pages for `/`, `/create/`, `/spectator/`, `/leaderboard/`, `/contact/`, and `/human/`. Shared static assets (`/css`, `/js`, `/data`, favicons) are mounted on the origin too.
+
+| Behavior | Pages (public) | Local origin (`chess-harness serve`) |
+|----------|----------------|--------------------------------------|
+| Home / nav chrome | `public-site/` static | Same static shell |
+| Leaderboard table | Snapshot from `public-site/data/leaderboard.json` | Same snapshot file; live `/api/v1/leaderboard` optional when online |
+| Google sign-in | OAuth via Pages Functions | Not available (cosmetic only; does not gate create) |
+| Agent brief base URL | `CHESS_HARNESS_PUBLIC_URL` (Pages hostname) | Defaults to `http://127.0.0.1:8765` unless you set `CHESS_HARNESS_PUBLIC_URL` |
+| Calibration UI | 404 (blocked at edge) | Available at `/calibration` on localhost only |
+| Create Game | Static shell + `/api/v1/*` proxy when online | Same static shell; APIs served directly (no proxy hop) |
+
+Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are removed — use `/spectator/` and `/api/v1` instead.
 
 ---
 
@@ -97,6 +112,8 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY` | No | Per API key (default `600`) |
 | `CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR` | No | Unauthenticated `POST /api/v1/agents` (default `10`) |
 | `CHESS_HARNESS_AUDIT_SALT` | No | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl`. Read with `chess-harness audit tail`. |
+| `CHESS_HARNESS_CALIBRATION_SECRET` | For calibration UI POSTs | Shared secret for `/api/calibration/*` mutations when the harness is reachable via tunnel. Injected into the local `/calibration` page for same-origin POSTs. |
+| `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION` | No | Set to `1` to allow calibration POSTs without the secret (explicit override; not recommended on exposed hosts). |
 
 Create Game briefs read `CHESS_HARNESS_PUBLIC_URL`. Without it, briefs default to `http://127.0.0.1:8765` (local only).
 

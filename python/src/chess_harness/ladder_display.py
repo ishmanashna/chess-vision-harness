@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+import os
 from typing import List, Optional, Tuple
 
 from .calibration_view import (
@@ -195,9 +197,17 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
     </body></html>"""
 
 
+def _calibration_secret_meta() -> str:
+    secret = os.environ.get("CHESS_HARNESS_CALIBRATION_SECRET", "").strip()
+    if not secret:
+        return ""
+    return f'<meta name="calibration-secret" content="{html.escape(secret, quote=True)}"/>'
+
+
 def render_calibration_html() -> str:
     return f"""<!DOCTYPE html><html><head><title>Calibration · Chess Vision Harness</title>
     {FAVICON_LINKS}
+    {_calibration_secret_meta()}
     {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
@@ -247,6 +257,15 @@ def render_calibration_html() -> str:
     <div id="game-feed" class="game-feed"></div>
     <script>
     function esc(s){{return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}}
+    function calHeaders(){{
+      const meta=document.querySelector('meta[name="calibration-secret"]');
+      const headers={{}};
+      if(meta&&meta.content)headers['CHESS_HARNESS_CALIBRATION_SECRET']=meta.content;
+      return headers;
+    }}
+    async function calPost(url){{
+      return fetch(url,{{method:'POST',headers:calHeaders()}});
+    }}
     function readParallel(id){{
       const inp=document.querySelector('input.cal-par[data-eid="'+id+'"]');
       const n=parseInt(inp&&inp.value?inp.value:'1',10);
@@ -259,7 +278,7 @@ def render_calibration_html() -> str:
     }}
     async function setPairingMode(mode){{
       try{{
-        await fetch('/api/calibration/pairing-mode?mode='+encodeURIComponent(mode),{{method:'POST'}});
+        await calPost('/api/calibration/pairing-mode?mode='+encodeURIComponent(mode));
       }}catch(e){{}}
     }}
     function onPairingModeChange(mode){{
@@ -270,13 +289,13 @@ def render_calibration_html() -> str:
     async function setFixedOpponent(opponent){{
       if(!opponent)return;
       try{{
-        await fetch('/api/calibration/fixed-opponent?opponent='+encodeURIComponent(opponent),{{method:'POST'}});
+        await calPost('/api/calibration/fixed-opponent?opponent='+encodeURIComponent(opponent));
       }}catch(e){{}}
     }}
     async function startAllEngines(btn){{
       if(btn)btn.disabled=true;
       try{{
-        await fetch('/api/calibration/start-all?parallel=1',{{method:'POST'}});
+        await calPost('/api/calibration/start-all?parallel=1');
       }}finally{{
         if(btn)btn.disabled=false;
         refresh();
@@ -285,7 +304,7 @@ def render_calibration_html() -> str:
     async function stopAllEngines(btn){{
       if(btn)btn.disabled=true;
       try{{
-        await fetch('/api/calibration/stop-all',{{method:'POST'}});
+        await calPost('/api/calibration/stop-all');
       }}finally{{
         if(btn)btn.disabled=false;
         refresh();
@@ -296,7 +315,7 @@ def render_calibration_html() -> str:
       let path='/api/calibration/continuous/'+encodeURIComponent(id)+(start?'/start':'/stop');
       if(start)path+='?parallel='+readParallel(id);
       try{{
-        await fetch(path,{{method:'POST'}});
+        await calPost(path);
       }}finally{{
         if(btn)btn.disabled=false;
         refresh();
@@ -403,6 +422,7 @@ PUBLIC_SITE_HEADER = """
       <nav class="site-nav" aria-label="Main">
         <a href="/" id="nav-home">Home</a>
         <a href="/spectator/" id="nav-spectator">Spectator</a>
+        <a href="/human/" id="nav-human">Play vs Agent</a>
         <a href="/create/" id="nav-create">Create Game</a>
         <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
         <a href="/contact/" id="nav-contact">Contact</a>

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import random
 from typing import Any, Callable, Dict, Optional
 
 from fastapi import Request
@@ -13,13 +11,10 @@ from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief_avaa
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip
 from .avaa import participant_color
+from .game_ids import new_game_id
 from .game_service import GameService
 from .game_types import GAME_TYPE_AGENT_VS_AGENT
 from .lobby import ELO_BAND, LobbyStore, assign_colors
-
-
-def new_game_id() -> str:
-    return f"game-{os.getpid()}-{random.randint(1000, 9999)}"
 
 
 def public_waiting_row(lob: Dict[str, Any]) -> Dict[str, Any]:

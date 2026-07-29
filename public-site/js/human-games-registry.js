@@ -62,12 +62,11 @@
   }
 
   function playHref(gameId, token) {
-    return (
-      "/play/" +
-      encodeURIComponent(gameId) +
-      "?token=" +
-      encodeURIComponent(token || "")
-    );
+    var path = "/play/" + encodeURIComponent(gameId);
+    if (token) {
+      return path + "?token=" + encodeURIComponent(token);
+    }
+    return path;
   }
 
   function sorted() {

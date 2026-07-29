@@ -8,6 +8,7 @@ import random
 from typing import Any, Dict, List, Optional
 
 from .elo import ELOLadder
+from .game_ids import new_game_id
 from .game_manager import GameManager
 from .game_service import GameService
 from .ladder_display import format_agent_leaderboard_cli, format_opponent_ladder_cli
@@ -236,7 +237,6 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
     from .serve_utils import ensure_port_available, remove_spectator_meta, write_spectator_meta
     from .spectator import app
 
-    os.environ.setdefault("CHESS_HARNESS_DEBUG", "1")
     ensure_port_available(host, port, force=force)
     from .engine_cleanup import kill_orphaned_harness_processes
 
@@ -306,4 +306,4 @@ def cmd_tournament_smoke(num_games: int = 3, opponent: str = "stockfish:5") -> D
 
 
 def default_game_id() -> str:
-    return f"game-{os.getpid()}-{random.randint(1000, 9999)}"
+    return new_game_id()

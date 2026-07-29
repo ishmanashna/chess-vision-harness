@@ -123,4 +123,27 @@ def test_agent_brief_documents_chat(human_client, monkeypatch):
     data = _create_human_game(client, api_key, monkeypatch=monkeypatch)
     brief = data.get("agent_brief") or ""
     assert "/api/v1/games/" in brief and "/chat" in brief
+    assert "chat_seq" in brief
     assert "social" in brief.lower() or "position source" in brief.lower()
+
+
+def test_status_includes_chat_seq_after_chat(human_client, monkeypatch):
+    client, _ = human_client
+    api_key, _ = _register_agent(client)
+    data = _create_human_game(client, api_key, nickname="Alice", monkeypatch=monkeypatch)
+    game_id = data["game_id"]
+    play_token = data["play_token"]
+
+    status_before = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(api_key))
+    assert status_before.status_code == 200
+    assert status_before.json().get("chat_seq") == 0
+
+    client.post(
+        f"/api/play/{game_id}/chat",
+        headers=_play_auth(play_token),
+        json={"text": "Hello agent"},
+    )
+
+    status_after = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(api_key))
+    assert status_after.status_code == 200
+    assert status_after.json().get("chat_seq") == 1

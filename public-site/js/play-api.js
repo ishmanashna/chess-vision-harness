@@ -1,6 +1,17 @@
 /** Human play API client (/api/play). */
 
-export function readPlayToken() {
+const SESSION_PREFIX = "cvh-play-token:";
+
+function sessionKey(gameId) {
+  return SESSION_PREFIX + String(gameId || "");
+}
+
+function gameIdFromPath() {
+  const parts = window.location.pathname.replace(/\/+$/, "").split("/");
+  return parts[parts.length - 1] || "";
+}
+
+function readQueryToken() {
   try {
     const params = new URLSearchParams(window.location.search);
     const q = params.get("token");
@@ -9,6 +20,80 @@ export function readPlayToken() {
     /* ignore */
   }
   return "";
+}
+
+function readSessionToken(gameId) {
+  try {
+    const stored = sessionStorage.getItem(sessionKey(gameId));
+    if (stored && stored.trim()) return stored.trim();
+  } catch (_e) {
+    /* ignore */
+  }
+  return "";
+}
+
+function readRegistryToken(gameId) {
+  try {
+    const registry = window.CVH && window.CVH.humanGames;
+    const entry = registry && registry.get ? registry.get(gameId) : null;
+    if (entry && entry.token) return String(entry.token);
+  } catch (_e) {
+    /* ignore */
+  }
+  return "";
+}
+
+function persistPlayToken(gameId, token, meta) {
+  if (!gameId || !token) return;
+  try {
+    sessionStorage.setItem(sessionKey(gameId), token);
+  } catch (_e) {
+    /* ignore */
+  }
+  try {
+    const registry = window.CVH && window.CVH.humanGames;
+    if (registry && registry.upsert) {
+      registry.upsert({
+        gameId,
+        token,
+        nickname: (meta && meta.nickname) || "",
+        agentName: (meta && meta.agentName) || "",
+      });
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+}
+
+function stripTokenFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("token")) return;
+    url.searchParams.delete("token");
+    const next = url.pathname + url.search + url.hash;
+    window.history.replaceState({}, "", next);
+  } catch (_e) {
+    /* ignore */
+  }
+}
+
+/**
+ * Resolve play token: ?token= → sessionStorage → localStorage registry;
+ * persist to session + registry, then strip ?token= from the URL.
+ */
+export function readPlayToken(gameId) {
+  const id = gameId || gameIdFromPath();
+  if (!id) return "";
+
+  const fromQuery = readQueryToken();
+  const fromSession = fromQuery ? "" : readSessionToken(id);
+  const fromRegistry = fromQuery || fromSession ? "" : readRegistryToken(id);
+  const token = fromQuery || fromSession || fromRegistry;
+  if (!token) return "";
+
+  persistPlayToken(id, token);
+  if (fromQuery) stripTokenFromUrl();
+  return token;
 }
 
 export function createPlayApi(gameId, token) {

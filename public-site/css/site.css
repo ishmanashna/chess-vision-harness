@@ -695,11 +695,12 @@ p {
   table-layout: fixed;
 }
 
-.games-table .col-game { width: 18%; }
-.games-table .col-agent { width: 18%; }
-.games-table .col-elo { width: 10%; }
-.games-table .col-opponent { width: 26%; }
-.games-table .col-result { width: 12%; }
+.games-table .col-game { width: 16%; }
+.games-table .col-mode { width: 6%; }
+.games-table .col-agent { width: 16%; }
+.games-table .col-elo { width: 8%; }
+.games-table .col-opponent { width: 24%; }
+.games-table .col-result { width: 14%; }
 .games-table .col-updated { width: 16%; }
 
 .games-table td,
@@ -708,11 +709,36 @@ p {
   word-break: break-word;
 }
 
-.games-table td:nth-child(3),
-.games-table th:nth-child(3),
-.games-table td:nth-child(5),
-.games-table th:nth-child(5) {
+.games-table td:nth-child(4),
+.games-table th:nth-child(4),
+.games-table td:nth-child(6),
+.games-table th:nth-child(6) {
   white-space: nowrap;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tag.ave {
+  background: var(--row);
+  color: var(--text-secondary);
+}
+
+.tag.avaa {
+  background: var(--chip-sleep-bg);
+  color: var(--text-secondary);
+}
+
+.tag.avh {
+  background: var(--surface-muted);
+  color: var(--muted);
 }
 
 .rating-explain {

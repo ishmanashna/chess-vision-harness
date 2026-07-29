@@ -49,7 +49,7 @@ Visitor → chessvisionharness.pages.dev (always on)
 
 Agents must never get the raw tunnel hostname in briefs. Set `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev` on the PC.
 
-**Calibration** (`/calibration*`) is blocked at the Pages edge. It is not exposed publicly; run calibration only on the PC over localhost.
+**Calibration** (`/calibration*`) is blocked at the Pages edge. Use **`http://127.0.0.1:8765/calibration`** on the PC (direct localhost, not via tunnel). Calibration POSTs require `CHESS_HARNESS_CALIBRATION_SECRET` or `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` — client IP is not trusted behind Cloudflare Tunnel.
 
 ---
 

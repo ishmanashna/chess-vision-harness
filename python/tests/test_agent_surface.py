@@ -95,6 +95,20 @@ def test_spectator_state_no_fen(ctrl, monkeypatch):
     assert data.get("game_id") == "surf5"
 
 
+def test_debug_param_ignored_without_env(ctrl, monkeypatch):
+    monkeypatch.delenv("CHESS_HARNESS_DEBUG", raising=False)
+    gm = ctrl.game_manager
+    monkeypatch.setattr("chess_harness.spectator.game_manager", gm)
+    ctrl.new_game("surf-debug", "white", 5, model_name="composer-2.5")
+    client = TestClient(app)
+    r = client.get("/api/games/surf-debug/state?debug=1")
+    assert r.status_code == 200
+    data = r.json()
+    assert "board_fen" not in data
+    assert "moves" not in data
+    assert "move_rows" not in data
+
+
 def test_move_audit_recorded(ctrl):
     ctrl.new_game("surf6", "white", 5, model_name="composer-2.5")
     ctrl.make_agent_move("surf6", "e2e4")

@@ -31,6 +31,14 @@
     }
   }
 
+  function modeLabel(gameType) {
+    if (gameType === "agent_vs_agent") return { short: "AvA", cls: "avaa", title: "Agent vs agent" };
+    if (gameType === "human_vs_agent") {
+      return { short: "AvH", cls: "avh", title: "Agent vs human (unranked)" };
+    }
+    return { short: "AvE", cls: "ave", title: "Agent vs engine" };
+  }
+
   function normalizeGame(game) {
     var avaa = game.game_type === "agent_vs_agent";
     var human = game.game_type === "human_vs_agent";
@@ -49,6 +57,7 @@
     return {
       id: game.game_id || "",
       gameType: game.game_type || "",
+      mode: modeLabel(game.game_type || "agent_vs_engine").short,
       isAvaa: avaa,
       isHuman: human,
       agentColor: game.agent_color || "",
@@ -90,7 +99,7 @@
 
   function renderRows(rows) {
     if (!rows.length) {
-      return '<tr><td colspan="6" class="empty-state">No games in this list right now.</td></tr>';
+      return '<tr><td colspan="7" class="empty-state">No games in this list right now.</td></tr>';
     }
     return rows
       .map(function (g) {
@@ -98,11 +107,15 @@
           g.agentElo != null ? escapeHtml(String(g.agentElo)) : "—";
         var oppElo =
           g.opponentElo != null ? escapeHtml(String(g.opponentElo)) : "—";
-        var typeBadge = g.isAvaa
-          ? ' <span class="tag avaa" title="Agent vs agent">AvA</span>'
-          : g.isHuman
-            ? ' <span class="tag avaa" title="Agent vs human (unranked)">AvH</span>'
-            : "";
+        var mode = modeLabel(g.gameType || (g.isAvaa ? "agent_vs_agent" : g.isHuman ? "human_vs_agent" : "agent_vs_engine"));
+        var modeBadge =
+          '<span class="tag ' +
+          mode.cls +
+          '" title="' +
+          escapeHtml(mode.title) +
+          '">' +
+          escapeHtml(mode.short) +
+          "</span>";
         var agentSide =
           g.isAvaa || (g.isHuman && g.agentColor === "WHITE")
             ? ' <span class="sub">White</span>'
@@ -120,8 +133,9 @@
           escapeHtml(g.id) +
           '"><code>' +
           escapeHtml(g.id) +
-          "</code></a>" +
-          typeBadge +
+          "</code></a></td>" +
+          "<td>" +
+          modeBadge +
           "</td>" +
           "<td>" +
           escapeHtml(g.agent) +
@@ -221,7 +235,7 @@
           })
           .catch(function () {
             tbody.innerHTML =
-              '<tr><td colspan="6" class="empty-state">Could not load live games.</td></tr>';
+              '<tr><td colspan="7" class="empty-state">Could not load live games.</td></tr>';
           });
       },
     });

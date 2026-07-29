@@ -226,6 +226,7 @@ class HumanVsAgentPlay:
         response["agent_joined"] = state.get("agent_joined", False)
         response["opponent_display_name"] = state.get("human_nickname") or "Human"
         response.update(draw_offer_payload(state, board, state["agent_color"]))
+        response["chat_seq"] = int(state.get("chat_seq") or 0)
         return response
 
     def get_board(self, game_id: str) -> Dict[str, Any]:

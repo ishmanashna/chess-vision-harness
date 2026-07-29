@@ -6,7 +6,7 @@ from typing import Any
 
 import chess
 
-__all__ = ["move_rows", "plies_detail", "moves_payload"]
+__all__ = ["move_rows", "moves_payload", "plies_detail", "spectator_moves_payload"]
 
 
 def move_rows(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -54,3 +54,14 @@ def moves_payload(state: dict[str, Any]) -> dict[str, Any]:
         "plies_detail": plies_detail(state),
         "move_rows": move_rows(state),
     }
+
+
+def spectator_moves_payload(state: dict[str, Any]) -> dict[str, Any]:
+    """Spectator moves with redaction for live rated (AvE/AvA) games."""
+    from .game_types import GAME_TYPE_HUMAN_VS_AGENT
+
+    moves = state.get("moves", [])
+    plies = len(moves)
+    if state.get("status") == "in_progress" and state.get("game_type") != GAME_TYPE_HUMAN_VS_AGENT:
+        return {"plies": plies, "plies_detail": [], "move_rows": []}
+    return moves_payload(state)

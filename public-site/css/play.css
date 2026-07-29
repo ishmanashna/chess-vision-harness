@@ -44,7 +44,7 @@
 
 .play-layout {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(280px, 1fr) minmax(180px, 240px);
+  grid-template-columns: minmax(260px, 320px) minmax(280px, 1fr) minmax(260px, 320px);
   gap: 20px;
   align-items: start;
   margin-bottom: 1.25rem;
@@ -81,14 +81,6 @@
 .play-chat-panel {
   min-height: 320px;
   max-height: min(70vh, 520px);
-}
-
-.play-chat-hint {
-  margin: 0;
-  padding: 0 16px 8px;
-  font-size: 0.78rem;
-  color: var(--faint);
-  line-height: 1.35;
 }
 
 .play-chat-log {

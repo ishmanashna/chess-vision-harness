@@ -16,8 +16,8 @@ export const PREMOVE_MARKER = {
   slice: "markerFrame",
 };
 
-export function createPremoveController(board, chess, humanSide) {
-  let premoveEnabled = false;
+export function createPremoveController(board, chess, humanSide, onPromoDialogClosed) {
+  let inputActive = false;
   let premoveUci = null;
   let promoDialogOpen = false;
 
@@ -70,17 +70,9 @@ export function createPremoveController(board, chess, humanSide) {
     showPremoveMarkers(premoveUci.slice(0, 2), premoveUci.slice(2, 4));
   }
 
-  function applyPremoveInputState(canPremove, inputEnabledRef) {
-    const want = !!canPremove;
-    if (want === premoveEnabled) return;
-    premoveEnabled = want;
-    if (want) {
-      inputEnabledRef.current = false;
-      board.enableMoveInput(premoveHandler, humanSide);
-    } else if (!inputEnabledRef.current) {
-      board.disableMoveInput();
-      if (!premoveUci) clearPremoveMarkers();
-    }
+  function onInputDisabled() {
+    inputActive = false;
+    if (!premoveUci) clearPremoveMarkers();
   }
 
   function premoveHandler(event) {
@@ -88,7 +80,7 @@ export function createPremoveController(board, chess, humanSide) {
     if (event.type !== INPUT_EVENT_TYPE.moveInputFinished) {
       event.chessboard.removeLegalMovesMarkers();
     }
-    if (!premoveEnabled) return false;
+    if (!inputActive) return false;
 
     if (event.type === INPUT_EVENT_TYPE.moveInputStarted) {
       const piece = chess.get(event.squareFrom);
@@ -118,6 +110,7 @@ export function createPremoveController(board, chess, humanSide) {
             const piece = result.piece.charAt(1).toLowerCase();
             setPremove(from, to, piece);
           }
+          if (onPromoDialogClosed) onPromoDialogClosed();
         });
         return true;
       }
@@ -128,10 +121,15 @@ export function createPremoveController(board, chess, humanSide) {
   }
 
   return {
-    applyPremoveInputState,
+    premoveHandler,
     getPremove: () => premoveUci,
     clearPremove,
     refreshMarkers,
+    setInputActive: (active) => {
+      inputActive = !!active;
+    },
+    isPromoDialogOpen: () => promoDialogOpen,
+    onInputDisabled,
     onContextMenu: (e) => {
       if (premoveUci) {
         e.preventDefault();

@@ -34,6 +34,7 @@ def render_play_page(game_id: str) -> str:
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="referrer" content="no-referrer"/>
   <title>Play — {gid}</title>
   {FAVICON_LINKS}
   {THEME_INIT_SCRIPT}
@@ -57,7 +58,6 @@ def render_play_page(game_id: str) -> str:
         <aside class="play-chat-col" aria-label="Chat">
           <div class="play-panel play-chat-panel" data-play-chat>
             <h2 class="play-panel-title">Chat</h2>
-            <p class="play-chat-hint">Social only — not a position source.</p>
             <div class="play-chat-log" data-chat-log role="log" aria-live="polite"></div>
             <form class="play-chat-form" data-chat-form>
               <textarea
@@ -67,6 +67,8 @@ def render_play_page(game_id: str) -> str:
                 maxlength="500"
                 placeholder="Message the agent…"
                 aria-label="Chat message"
+                spellcheck="false"
+                autocomplete="off"
               ></textarea>
               <button type="submit" class="btn btn-secondary play-chat-send" data-chat-send>Send</button>
             </form>
@@ -95,7 +97,7 @@ def render_play_page(game_id: str) -> str:
       </div>
       <p class="play-links">
         <a href="{spectate}">Spectate this game</a>
-        · <a href="/create/?mode=human">Create another game</a>
+        · <a href="/human/">Create another game</a>
       </p>
       <p class="play-meta">Game ID: <code>{gid}</code> · Unranked · 30 minutes without a move ends the game with no result (not a loss or draw). Illegal or off-turn moves are rejected with an error and play continues (no punishment). Cheating (engines, FEN, game files) invalidates the game.</p>
     </main>
@@ -118,4 +120,4 @@ def register_play_routes(
         state = get_game_manager().load_state(game_id)
         if state is None or not is_human_vs_agent_state(state):
             raise HTTPException(status_code=404, detail="Game not found")
-        return HTMLResponse(render_play_page(game_id))
+        return HTMLResponse(render_play_page(game_id), headers={"Referrer-Policy": "no-referrer"})

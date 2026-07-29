@@ -1,9 +1,7 @@
 (function () {
   "use strict";
 
-  var pollTimer = null;
-  var mode = "engine";
-  var matchApi = window.CVH && window.CVH.createMatch;
+  var humanApi = window.CVH && window.CVH.createHuman;
   var resultApi = window.CVH && window.CVH.createResult;
 
   function escapeHtml(value) {
@@ -39,17 +37,6 @@
     });
   }
 
-  function createEngineGame(apiKey) {
-    return apiJson("/api/v1/games", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: "Bearer " + apiKey,
-      },
-      body: "{}",
-    });
-  }
-
   function loadAgents(selectEl) {
     return apiJson("/api/v1/agents").then(function (data) {
       var agents = Array.isArray(data.agents) ? data.agents : [];
@@ -78,29 +65,6 @@
     el.textContent = text;
   }
 
-  function stopPoll() {
-    if (pollTimer) {
-      clearTimeout(pollTimer);
-      pollTimer = null;
-    }
-  }
-
-  function showResult(root, gameId, brief, matched) {
-    if (!resultApi) return;
-    resultApi.showBriefResult(root, gameId, brief, matched, { escapeHtml: escapeHtml });
-  }
-
-  function matchHelpers() {
-    return {
-      stopPoll: stopPoll,
-      setMessage: setMessage,
-      showResult: showResult,
-      schedule: function (fn, ms) {
-        pollTimer = setTimeout(fn, ms);
-      },
-    };
-  }
-
   function resolveModelAndKey(modelSelect, newModelId, newModelName) {
     var modelId = (modelSelect && modelSelect.value || "").trim();
     var freshId = (newModelId && newModelId.value || "").trim();
@@ -115,66 +79,27 @@
     });
   }
 
-  function parseModeFromUrl() {
-    var search = window.location.search || "";
-    if (search.indexOf("mode=avaa") >= 0) return "avaa";
-    return "engine";
-  }
+  function mountHumanHub() {
+    var root = document.querySelector("[data-human-page]");
+    if (!root || !humanApi || !resultApi) return;
 
-  function setMode(root, next) {
-    mode = next === "avaa" ? "avaa" : "engine";
-    root.querySelectorAll(".mode-tab").forEach(function (tab) {
-      var active = tab.getAttribute("data-mode") === mode;
-      tab.classList.toggle("is-active", active);
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-    });
-    var labels =
-      mode === "avaa"
-        ? { heading: "Rated game vs agent", submit: "Find match" }
-        : { heading: "Rated game vs engine", submit: "Create rated game" };
-    var heading = root.querySelector("[data-mode-heading]");
-    var submit = root.querySelector("[data-create-submit]");
-    var asideEngine = root.querySelector("[data-aside-engine]");
-    var asideAvaa = root.querySelector("[data-aside-avaa]");
-    if (heading) heading.textContent = labels.heading;
-    if (submit) submit.textContent = labels.submit;
-    if (asideEngine) asideEngine.hidden = mode !== "engine";
-    if (asideAvaa) asideAvaa.hidden = mode !== "avaa";
-    try {
-      var url = new URL(window.location.href);
-      if (mode === "avaa") url.searchParams.set("mode", "avaa");
-      else url.searchParams.delete("mode");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  function submitMessage() {
-    if (mode === "avaa") return "Finding match…";
-    return "Creating game…";
-  }
-
-  function mountCreatePage() {
-    var root = document.querySelector("[data-create-page]");
-    if (!root) return;
-
-    var form = root.querySelector("[data-create-form]");
+    var form = root.querySelector("[data-human-form]");
     var modelSelect = root.querySelector("#model-select");
     var newModelId = root.querySelector("#new-model-id");
     var newModelName = root.querySelector("#new-model-name");
-    var submitBtn = root.querySelector("[data-create-submit]");
-    var messageEl = root.querySelector("[data-create-message]");
+    var humanNickname = root.querySelector("#human-nickname");
+    var submitBtn = root.querySelector("[data-human-submit]");
+    var messageEl = root.querySelector("[data-human-message]");
     var inscribeBtn = root.querySelector("[data-inscribe-submit]");
-
-    setMode(root, parseModeFromUrl());
 
     function enableForm(online) {
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
-      [modelSelect, newModelId, newModelName, submitBtn, inscribeBtn].forEach(function (el) {
-        if (el) el.disabled = !online;
-      });
+      [modelSelect, newModelId, newModelName, humanNickname, submitBtn, inscribeBtn].forEach(
+        function (el) {
+          if (el) el.disabled = !online;
+        }
+      );
     }
 
     window.CVH.applyHealthUi({
@@ -185,14 +110,6 @@
           setMessage(messageEl, "error", err.message || "Could not load models.");
         });
       },
-    });
-
-    root.querySelectorAll(".mode-tab").forEach(function (tab) {
-      tab.addEventListener("click", function () {
-        stopPoll();
-        setMessage(messageEl, null, "");
-        setMode(root, tab.getAttribute("data-mode"));
-      });
     });
 
     if (inscribeBtn) {
@@ -229,37 +146,18 @@
       form.addEventListener("submit", function (event) {
         event.preventDefault();
         setMessage(messageEl, null, "");
-        stopPoll();
+        if (humanApi.stopWaitPoll) humanApi.stopWaitPoll();
         submitBtn.disabled = true;
-        setMessage(messageEl, "ok", submitMessage());
+        setMessage(messageEl, "ok", "Creating game…");
 
         resolveModelAndKey(modelSelect, newModelId, newModelName)
           .then(function (ctx) {
-            if (mode === "avaa") {
-              if (!matchApi) throw new Error("Matchmaking module missing.");
-              return matchApi.findMatch(apiJson, ctx.apiKey).then(function (data) {
-                return { kind: "avaa", data: data, apiKey: ctx.apiKey };
-              });
-            }
-            return createEngineGame(ctx.apiKey).then(function (game) {
-              return { kind: "engine", game: game };
-            });
+            var nickname = (humanNickname && humanNickname.value || "").trim();
+            return humanApi.createHumanGame(apiJson, ctx.apiKey, nickname);
           })
-          .then(function (ctx) {
-            if (ctx.kind === "avaa") {
-              matchApi.handleAvaaResponse(
-                apiJson,
-                root,
-                ctx.data,
-                ctx.apiKey,
-                messageEl,
-                matchHelpers()
-              );
-              return;
-            }
-            if (!resultApi) throw new Error("Result module missing.");
-            var game = resultApi.requireBrief(ctx.game, false);
-            showResult(root, game.game_id, game.agent_brief, false);
+          .then(function (game) {
+            var ready = resultApi.requireBrief(game, true);
+            humanApi.showHumanResult(root, ready, escapeHtml);
           })
           .catch(function (err) {
             setMessage(messageEl, "error", err.message || "Request failed.");
@@ -271,5 +169,5 @@
     }
   }
 
-  document.addEventListener("DOMContentLoaded", mountCreatePage);
+  document.addEventListener("DOMContentLoaded", mountHumanHub);
 })();

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import random
 from typing import Any, Callable, Dict, Optional
 
 from fastapi import APIRouter, Depends, Header, Request
@@ -20,6 +18,7 @@ from .chat_api import register_agent_chat_routes
 from .human_vs_agent_api import register_human_vs_agent_routes
 from .commands import resolve_agent_color
 from .elo import ELOLadder
+from .game_ids import new_game_id
 from .game_service import GameService
 from .models import ModelRegistry
 from .paths import resolve_base_dir
@@ -61,10 +60,6 @@ def _sanitize_agent_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def _new_game_id() -> str:
-    return f"game-{os.getpid()}-{random.randint(1000, 9999)}"
-
-
 def build_router(
     get_game_service: Callable[[], GameService],
     get_key_store: Optional[Callable[[], ApiKeyStore]] = None,
@@ -100,7 +95,7 @@ def build_router(
         limits=limits,
         err=_err,
         sanitize=_sanitize_agent_payload,
-        new_game_id=_new_game_id,
+        new_game_id=new_game_id,
         auth_context=_auth_context,
     )
     register_human_vs_agent_routes(
@@ -109,7 +104,7 @@ def build_router(
         limits=limits,
         err=_err,
         sanitize=_sanitize_agent_payload,
-        new_game_id=_new_game_id,
+        new_game_id=new_game_id,
         auth_context=_auth_context,
     )
 
@@ -177,7 +172,7 @@ def build_router(
             color = resolve_agent_color(body.agent_color)
         except ValueError as exc:
             return _err(400, str(exc))
-        game_id = _new_game_id()
+        game_id = new_game_id()
         result = _svc().new_game(
             game_id,
             color,

@@ -20,6 +20,7 @@
         <nav class="site-nav" aria-label="Main">
           <a href="/" id="nav-home">Home</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/human/" id="nav-human">Play vs Agent</a>
           <a href="/create/" id="nav-create">Create Game</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
           <a href="/contact/" id="nav-contact">Contact</a>
@@ -53,12 +54,13 @@
         <div data-games-live data-requires-origin hidden>
           <table class="leaderboard-table games-table" data-games-table aria-label="Active games">
             <colgroup>
-              <col class="col-game"/><col class="col-agent"/><col class="col-elo"/>
+              <col class="col-game"/><col class="col-mode"/><col class="col-agent"/><col class="col-elo"/>
               <col class="col-opponent"/><col class="col-result"/><col class="col-updated"/>
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" data-sort="id">Game</th>
+                <th scope="col" data-sort="mode">Mode</th>
                 <th scope="col" data-sort="agent">Agent</th>
                 <th scope="col" data-sort="agentElo">Elo</th>
                 <th scope="col" data-sort="opponent">Opponent</th>
@@ -67,7 +69,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-games-meta hidden></p>
@@ -79,12 +81,13 @@
         <div data-games-live data-requires-origin hidden>
           <table class="leaderboard-table games-table" data-games-table aria-label="Completed games">
             <colgroup>
-              <col class="col-game"/><col class="col-agent"/><col class="col-elo"/>
+              <col class="col-game"/><col class="col-mode"/><col class="col-agent"/><col class="col-elo"/>
               <col class="col-opponent"/><col class="col-result"/><col class="col-updated"/>
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" data-sort="id">Game</th>
+                <th scope="col" data-sort="mode">Mode</th>
                 <th scope="col" data-sort="agent">Agent</th>
                 <th scope="col" data-sort="agentElo">Elo</th>
                 <th scope="col" data-sort="opponent">Opponent</th>
@@ -93,7 +96,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-games-meta hidden></p>

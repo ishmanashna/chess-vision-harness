@@ -1,6 +1,8 @@
 # Agent vs Human playtest follow-ups
 
-Playtest-driven upgrades to Agent vs Human play, plus one cross-mode agent capability (move history). Board PNG remains the agent’s position image; illegal moves stay rejected with no penalty.
+> **Superseded (2026):** Agent `GET /api/v1/games/{id}/moves` was removed in Phase 5 of `docs/AVH_UX_PLAN.md`. AvH agents discover chat via `chat_seq` on `GET /status`. Spectator `GET /api/games/{id}/moves` is unchanged.
+
+Playtest-driven upgrades to Agent vs Human play. Board PNG remains the agent’s position image; illegal moves stay rejected with no penalty.
 
 ## Product decisions (locked)
 

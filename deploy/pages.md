@@ -13,7 +13,7 @@ This deploys the static site in `public-site/` to the Cloudflare Pages project *
 4. Permissions (exact):
    - **Account** → **Cloudflare Pages** → **Edit**
    - **Account** → **Account Settings** → **Read** (optional but helps Wrangler)
-5. Under **Account Resources**, include **Jvalladaresgay@gmail.com's Account** (your account).
+5. Under **Account Resources**, include **your Cloudflare account** (the account that owns the Pages project).
 6. Create token → copy it once.
 
 If deploy fails with `Authentication error [code: 10000]`, the token is missing **Cloudflare Pages → Edit**. Delete the old GitHub secret and paste a new token.

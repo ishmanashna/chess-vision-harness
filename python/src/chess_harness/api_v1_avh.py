@@ -1,4 +1,4 @@
-"""Agent vs human routes on /api/v1 (draw offers, move history)."""
+"""Agent vs human routes on /api/v1 (draw offers)."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ from fastapi.responses import JSONResponse
 from .api_limits import AuthContext
 from .game_service import GameService
 from .game_types import is_human_vs_agent_state
-from .move_rows import moves_payload
-
 __all__ = ["register_avh_agent_routes"]
 
 
@@ -73,18 +71,3 @@ def register_avh_agent_routes(
         if not result.get("ok"):
             return _draw_err(result)
         return sanitize(result)
-
-    @router.get("/games/{game_id}/moves")
-    async def game_moves(game_id: str, auth: AuthContext = Depends(auth_context)):
-        access = require_game_participant(game_id, auth)
-        if isinstance(access, JSONResponse):
-            return access
-        state = svc_fn().game_manager.load_state(game_id)
-        if not state:
-            return err(404, "Game not found")
-        if not is_human_vs_agent_state(state):
-            return err(
-                403,
-                "Move list only available for agent vs human games",
-            )
-        return {"ok": True, **moves_payload(state)}

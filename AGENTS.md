@@ -59,14 +59,24 @@ After your move, `your_turn` is false until the opponent moves. Status is requir
 
 ## Agent vs human
 
-Unranked browser play: operators use **Create Game → Agent vs Human**, paste the agent brief, and open the interactive play board. The agent still sees only the board PNG; games do not change agent Elo. Use the **AvaA-style turn loop** (poll `GET .../status` until `your_turn`, then board → move).
+Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the agent brief, and open the interactive play board. The agent still sees only the board PNG; games do not change agent Elo. Poll `GET .../status` each iteration; use draw flags and `chat_seq` from status to discover draw offers and new chat before moving.
+
+**Agent play loop (AvH):**
+
+1. `GET .../status` — if `game_over`, `GET .../pgn` and stop.
+2. Check draw flags from status (`draw_offer_pending`, `can_respond_draw`, `can_offer_draw`). Accept or decline human offers; offer on your turn when allowed.
+3. If `chat_seq` advanced since your last poll, `GET .../chat?since=` to read new messages (social only — not position).
+4. If `your_turn` is false, sleep with backoff and poll status again (board optional while waiting).
+5. When `your_turn` is true: `GET .../board` (PNG) → read the image → `POST .../move/{uci_or_san}`.
+6. Repeat from step 1 (move responses do not include chat or draw updates).
 
 | Step | HTTP |
 |------|------|
-| Poll turn / game state | **GET `/api/v1/games/{id}/status`** |
+| Poll turn / game state | **GET `/api/v1/games/{id}/status`** (includes `chat_seq`, draw flags) |
 | See position | **GET `/api/v1/games/{id}/board`** → PNG |
 | Submit move | `POST /api/v1/games/{id}/move/{uci_or_san}` (your turn only) |
-| Move history (optional) | **GET `/api/v1/games/{id}/moves`** → UCI+SAN plies, no FEN (AvH only) |
+| Chat (when `chat_seq` advances) | **GET `/api/v1/games/{id}/chat?since=N`** |
+| Draw offer / accept / decline | `POST .../draw/offer`, `.../draw/accept`, `.../draw/decline` |
 | Resign | `POST /api/v1/games/{id}/resign` |
 | After game ends | `GET /api/v1/games/{id}/pgn` |
 
@@ -86,16 +96,16 @@ Unranked browser play: operators use **Create Game → Agent vs Human**, paste t
 ## Ground truth
 
 - **`board.png` is the only source of current position information when choosing a move.**
-- JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count` are metadata — not the board.
-- **AvH exception:** `GET /api/v1/games/{id}/moves` returns full move history (UCI+SAN, no FEN) for agent vs human games only — use for recall, not as a substitute for the board image. Rated AvE/AvaA agents get 403 on this endpoint.
+- JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count`, `chat_seq`, and draw flags are metadata — not the board.
+- AvH agents discover new chat via `chat_seq` on `GET /status`; fetch `GET /chat?since=` only when `chat_seq` advances. Chat is social only — never a position source.
 
 ## Forbidden during an in-progress game
 
 - Read `.chess_harness/games/<id>/state.json`, `game.pgn`, or `results.jsonl`
 - Read any file under `.chess_harness/games/<id>/` **except** `board.png`
 - Call legacy spectator HTTP APIs (`GET /api/games/*` on the operator UI)
-- Export PGN while the game is in progress (AvH agents may use `/moves` for history instead)
-- Use move-list APIs on rated AvE/AvaA games (`GET /api/v1/games/{id}/moves` returns 403)
+- Export PGN while the game is in progress
+- Use agent move-list APIs (`GET /api/v1/games/{id}/moves` does not exist)
 - Run Stockfish, `python-chess`, or any engine/script to pick moves, list legal moves, or evaluate the position
 - Pass custom FEN to start a game (operator-only)
 - Use operator commands: `harness reset`, `models uninscribe`, `serve`, `leaderboard`, `tournament`, calibration scripts

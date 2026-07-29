@@ -52,7 +52,7 @@ async function main() {
   if (!root || !mount) return;
 
   const gameId = gameIdFromPath();
-  const token = readPlayToken();
+  const token = readPlayToken(gameId);
   if (!token) {
     showError(root, "Missing play token. Open this page from Create Game.");
     return;
@@ -128,8 +128,8 @@ async function main() {
 
     applyStatusUi(root, pos);
     updateMatchup(root, pos);
-    board.applyInputState(canHumanMove(pos));
-    board.applyPremoveInputState(canPremove(pos));
+    const inputErr = board.syncInputState(canHumanMove(pos), canPremove(pos));
+    if (inputErr) showError(root, inputErr);
     lastRenderedMoveCount = renderMoveList(root, pos, lastRenderedMoveCount);
     syncTabAttention(pos);
     prevYourTurn = !!pos.your_turn;

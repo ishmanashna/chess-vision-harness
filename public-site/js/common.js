@@ -19,13 +19,14 @@
       "/leaderboard": "nav-leaderboard",
       "/contact": "nav-contact",
       "/create": "nav-create",
+      "/human": "nav-human",
       "/spectator": "nav-spectator",
       "/active": "nav-spectator",
       "/completed": "nav-spectator",
     };
     var activeId = map[current];
     if (!activeId && current.indexOf("/g/") === 0) activeId = "nav-spectator";
-    if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-create";
+    if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-human";
     if (!activeId) return;
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
