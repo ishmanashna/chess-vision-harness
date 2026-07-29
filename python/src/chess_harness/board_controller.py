@@ -24,6 +24,7 @@ from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
 from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
+from .quality_finish import schedule_game_quality
 from .results import ResultsManager
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
@@ -588,6 +589,7 @@ class BoardController:
                     return {"ok": False, "error": "Failed to save game state"}
 
                 self._auto_save_pgn(game_id, state)
+                self._schedule_quality_if_scored(game_id, state)
 
                 board_path = self.game_manager.get_board_path(game_id)
                 try:
@@ -845,6 +847,7 @@ class BoardController:
                 self._try_snapshot_eval(state, board)
 
                 self._auto_save_pgn(game_id, state)
+                self._schedule_quality_if_scored(game_id, state)
                 opp_elo = state.get("opponent_elo")
                 if opp_elo is None:
                     opp_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
@@ -1086,3 +1089,7 @@ class BoardController:
             )
         except Exception:
             pass
+
+    def _schedule_quality_if_scored(self, game_id: str, state: Dict[str, Any]) -> None:
+        if state.get("status") == "finished" and state.get("result") not in (None, "*"):
+            schedule_game_quality(game_id, base_dir=str(self.game_manager.base_dir))

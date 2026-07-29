@@ -52,11 +52,12 @@ def play_resilient_match_worker(payload: dict) -> dict:
 
     match = match_from_dict(payload)
     try:
-        result = play_game_resilient(match)
+        result, uci_moves = play_game_resilient(match)
         return {
             "white_id": match.white_id,
             "black_id": match.black_id,
             "result": result,
+            "uci_moves": uci_moves,
         }
     finally:
         from calibration.engine_player import release_all_engines

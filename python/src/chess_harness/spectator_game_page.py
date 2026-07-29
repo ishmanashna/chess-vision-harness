@@ -83,6 +83,10 @@ def render_game_view_page(game_id: str) -> str:
             <dt>Termination</dt><dd id="state-termination">—</dd>
             <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
             <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
+            <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
+            <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
+            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">White play rating</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">—</dd>
+            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">Black play rating</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">—</dd>
           </dl>
         </div>
       </aside>
@@ -111,6 +115,9 @@ def render_game_view_page(game_id: str) -> str:
     let lastRevision='';
     let lastMoveCount=0;
     let lastPgn='';
+    const QUALITY_POLL_MAX=40;
+    let qualityWaitAttempts=0;
+    const PLAY_RATING_TIP='Calibrated strength from move quality — not ladder Elo.';
 
     function escHtml(s){{
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -123,6 +130,76 @@ def render_game_view_page(game_id: str) -> str:
       const stack=document.querySelector('.board-stack');
       if(board&&track&&board.offsetHeight)track.style.height=board.offsetHeight+'px';
       if(stack&&movesCol)movesCol.style.maxHeight=stack.offsetHeight+'px';
+    }}
+
+    function formatAccuracy(v){{
+      if(v==null||v==='')return'—';
+      return String(v)+'%';
+    }}
+
+    function formatPlayRating(v){{
+      if(v==null||v==='')return'—';
+      return String(Math.round(v));
+    }}
+
+    function sideNamesFromState(s, tags){{
+      tags=tags||{{}};
+      let whiteName='',blackName='';
+      if(s.game_type==='agent_vs_agent'){{
+        whiteName=s.white_display_name||tags.White||'White';
+        blackName=s.black_display_name||tags.Black||'Black';
+      }}else if(s.game_type==='human_vs_agent'){{
+        whiteName=s.white_display_name||tags.White||'White';
+        blackName=s.black_display_name||tags.Black||'Black';
+      }}else{{
+        const opponentName=nameWithoutElo(s.opponent_label||s.engine_label)||tags.EngineName||s.engine_name||'Opponent';
+        const model=s.model_display_name||s.model_name||'Agent';
+        if(s.agent_color==='WHITE'){{
+          whiteName=model;blackName=opponentName;
+        }}else{{
+          whiteName=opponentName;blackName=model;
+        }}
+      }}
+      return {{whiteName,blackName}};
+    }}
+
+    function renderQualityMetrics(s, tags){{
+      const show=s.game_over;
+      const rows=document.querySelectorAll('.quality-row');
+      rows.forEach(el=>{{el.style.display=show?'':'none';}});
+      if(!show)return;
+      const {{whiteName,blackName}}=sideNamesFromState(s, tags);
+      const wAcc=document.getElementById('state-acc-white-label');
+      const bAcc=document.getElementById('state-acc-black-label');
+      const wPr=document.getElementById('state-pr-white-label');
+      const bPr=document.getElementById('state-pr-black-label');
+      if(wAcc)wAcc.textContent=whiteName+' accuracy';
+      if(bAcc)bAcc.textContent=blackName+' accuracy';
+      if(wPr){{wPr.textContent=whiteName+' play rating';wPr.title=PLAY_RATING_TIP;}}
+      if(bPr){{bPr.textContent=blackName+' play rating';bPr.title=PLAY_RATING_TIP;}}
+      const accWhite=document.getElementById('state-acc-white');
+      const accBlack=document.getElementById('state-acc-black');
+      const prWhite=document.getElementById('state-pr-white');
+      const prBlack=document.getElementById('state-pr-black');
+      let wAcc=s.white_accuracy,bAcc=s.black_accuracy,wPr=s.white_play_rating,bPr=s.black_play_rating;
+      if(wAcc==null&&bAcc==null&&s.agent_accuracy!=null){{
+        if(s.agent_color==='WHITE')wAcc=s.agent_accuracy;
+        else bAcc=s.agent_accuracy;
+      }}
+      if(wPr==null&&bPr==null&&s.agent_play_rating!=null){{
+        if(s.agent_color==='WHITE')wPr=s.agent_play_rating;
+        else bPr=s.agent_play_rating;
+      }}
+      if(accWhite)accWhite.textContent=formatAccuracy(wAcc);
+      if(accBlack)accBlack.textContent=formatAccuracy(bAcc);
+      if(prWhite){{prWhite.textContent=formatPlayRating(wPr);prWhite.title=PLAY_RATING_TIP;}}
+      if(prBlack){{prBlack.textContent=formatPlayRating(bPr);prBlack.title=PLAY_RATING_TIP;}}
+    }}
+
+    function shouldKeepPolling(s){{
+      if(!s.game_over)return true;
+      if(s.quality_at)return false;
+      return qualityWaitAttempts<QUALITY_POLL_MAX;
     }}
 
     function playerLine(name,elo){{
@@ -212,6 +289,7 @@ def render_game_view_page(game_id: str) -> str:
       if(s.game_type==='agent_vs_agent')rows.splice(1,0,['Type','Agent vs agent']);
       if(s.game_type==='human_vs_agent')rows.splice(1,0,['Type','Agent vs human (unranked)']);
       dl.innerHTML=rows.filter(r=>r[1]!=null&&r[1]!=='').map(r=>'<dt>'+escHtml(r[0])+'</dt><dd>'+escHtml(r[1])+'</dd>').join('');
+      renderQualityMetrics(s, tags);
     }}
 
     function renderMoves(rows,plies){{
@@ -255,7 +333,8 @@ def render_game_view_page(game_id: str) -> str:
         if(p.pgn)lastPgn=p.pgn;
         renderMeta(lastPgn,s);
         syncHeights();
-        if(s.game_over && pollTimer){{clearInterval(pollTimer);pollTimer=null;}}
+        if(s.game_over&&!s.quality_at&&qualityWaitAttempts<QUALITY_POLL_MAX)qualityWaitAttempts++;
+        if(!shouldKeepPolling(s)&&pollTimer){{clearInterval(pollTimer);pollTimer=null;}}
       }}catch(e){{}}
     }}
     document.getElementById('board').onload=syncHeights;

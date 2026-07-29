@@ -46,6 +46,22 @@ def split_opponent_ladder(
     return sub1320, stockfish
 
 
+def _format_quality_cli_suffix(entry: dict) -> str:
+    acc = entry.get("mean_accuracy")
+    pr = entry.get("mean_play_rating")
+    if acc is None and pr is None:
+        return ""
+    parts = []
+    if acc is not None:
+        parts.append(f"acc {acc}%")
+    if pr is not None:
+        parts.append(f"play {round(pr)}")
+    qg = int(entry.get("quality_games", 0))
+    if qg:
+        parts.append(f"{qg} quality")
+    return " — " + ", ".join(parts) if parts else ""
+
+
 def format_agent_leaderboard_cli(ladder: ELOLadder) -> str:
     board = ladder.get_leaderboard()
     if not board:
@@ -56,7 +72,10 @@ def format_agent_leaderboard_cli(ladder: ELOLadder) -> str:
         games = entry.get("games", 0)
         g = f"{games} game" + ("" if games == 1 else "s")
         disabled = "" if entry.get("enabled", True) else " [disabled]"
-        lines.append(f"  {i}. {label} ({entry['model']}): {entry['elo']} ELO — {g}{disabled}")
+        quality = _format_quality_cli_suffix(entry)
+        lines.append(
+            f"  {i}. {label} ({entry['model']}): {entry['elo']} ELO — {g}{quality}{disabled}"
+        )
     return "\n".join(lines)
 
 

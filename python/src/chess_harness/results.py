@@ -4,11 +4,15 @@ Results handling for Chess Vision Harness.
 
 import json
 from collections import defaultdict
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
+
+import filelock
 
 from .elo import ELOLadder
-from .game_types import GAME_TYPE_HUMAN_VS_AGENT
+from .game_types import GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
+from .models import ModelRegistry
 from .opponents import get_catalog
 from .paths import resolve_base_dir
 
@@ -27,6 +31,39 @@ class ResultsManager:
                 f.write(json.dumps(result) + "\n")
             return True
         except OSError:
+            return False
+
+    @contextmanager
+    def _results_lock(self) -> Iterator[None]:
+        lock_path = self.results_file.with_suffix(".jsonl.lock")
+        lock = filelock.FileLock(lock_path, timeout=30)
+        lock.acquire()
+        try:
+            yield
+        finally:
+            if lock.is_locked:
+                lock.release()
+
+    def upsert_quality_fields(
+        self, game_id: str, model_id: str, fields: Dict[str, Any]
+    ) -> bool:
+        """Patch quality columns on the results.jsonl row for (game_id, model_name)."""
+        try:
+            with self._results_lock():
+                results = self.load_results()
+                updated = False
+                for row in results:
+                    if row.get("game_id") == game_id and row.get("model_name") == model_id:
+                        row.update(fields)
+                        updated = True
+                if not updated:
+                    return False
+                self.base_dir.mkdir(parents=True, exist_ok=True)
+                with open(self.results_file, "w", encoding="utf-8") as f:
+                    for row in results:
+                        f.write(json.dumps(row) + "\n")
+                return True
+        except (OSError, filelock.Timeout):
             return False
 
     def get_result_for_game(self, game_id: str) -> Optional[Dict[str, Any]]:
@@ -96,12 +133,13 @@ class ResultsManager:
                 skill_stats[skill]["losses"] += 1
         return dict(skill_stats)
 
-    def count_by_model(self) -> Dict[str, int]:
-        """Count finished games per canonical model id."""
-        from .models import ModelRegistry
+    def _registry(self) -> ModelRegistry:
+        return ModelRegistry(self.base_dir / "models.json")
 
+    def count_by_model(self) -> Dict[str, int]:
+        """Count finished games per canonical model id (Elo ladder; excludes AvH)."""
         counts: Dict[str, int] = defaultdict(int)
-        registry = ModelRegistry()
+        registry = self._registry()
         for result in self.load_results():
             if result.get("game_type") == GAME_TYPE_HUMAN_VS_AGENT:
                 continue
@@ -109,6 +147,51 @@ class ResultsManager:
             if model_id:
                 counts[model_id] += 1
         return dict(counts)
+
+    def aggregate_quality_by_model(self) -> Dict[str, Dict[str, Any]]:
+        """Per-model quality means from results.jsonl (includes AvH; excludes *; AvA deduped)."""
+        registry = self._registry()
+        seen_avaa: set[tuple[str, str]] = set()
+        acc_sum: Dict[str, float] = defaultdict(float)
+        acc_n: Dict[str, int] = defaultdict(int)
+        pr_sum: Dict[str, float] = defaultdict(float)
+        pr_n: Dict[str, int] = defaultdict(int)
+        quality_games: Dict[str, int] = defaultdict(int)
+
+        for row in self.load_results():
+            result = row.get("result")
+            if result is None or result == "*":
+                continue
+            model_id = registry.normalize_result_model(row.get("model_name"))
+            if not model_id:
+                continue
+            game_id = row.get("game_id")
+            if row.get("game_type") == GAME_TYPE_AGENT_VS_AGENT:
+                key = (str(game_id), model_id)
+                if key in seen_avaa:
+                    continue
+                seen_avaa.add(key)
+
+            accuracy = row.get("accuracy")
+            if accuracy is None:
+                continue
+            quality_games[model_id] += 1
+            acc_sum[model_id] += float(accuracy)
+            acc_n[model_id] += 1
+            play_rating = row.get("play_rating")
+            if play_rating is not None:
+                pr_sum[model_id] += float(play_rating)
+                pr_n[model_id] += 1
+
+        out: Dict[str, Dict[str, Any]] = {}
+        for model_id in quality_games:
+            entry: Dict[str, Any] = {"quality_games": quality_games[model_id]}
+            if acc_n[model_id]:
+                entry["mean_accuracy"] = round(acc_sum[model_id] / acc_n[model_id], 2)
+            if pr_n[model_id]:
+                entry["mean_play_rating"] = round(pr_sum[model_id] / pr_n[model_id], 2)
+            out[model_id] = entry
+        return out
 
     def calculate_winrate(self, skill: Optional[int] = None) -> float:
         results = self.load_results()

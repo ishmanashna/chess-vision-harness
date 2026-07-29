@@ -97,12 +97,22 @@
       });
   }
 
-  function renderLeaderboardRows(agents, limit) {
+  function formatQualityMean(value, suffix) {
+    if (value == null || value === "") return "—";
+    var n = Number(value);
+    if (isNaN(n)) return "—";
+    return suffix ? String(n) + suffix : String(n);
+  }
+
+  function renderLeaderboardRows(agents, limit, fullColumns) {
     var sorted = sortAgents(agents);
     var slice = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
+    var colCount = fullColumns ? 7 : 5;
     if (!slice.length) {
       return (
-        '<tr><td colspan="5" class="empty-state">No rated agents yet. When games finish, the ladder snapshot will appear here.</td></tr>'
+        '<tr><td colspan="' +
+        colCount +
+        '" class="empty-state">No rated agents yet. When games finish, the ladder snapshot will appear here.</td></tr>'
       );
     }
     return slice
@@ -114,6 +124,14 @@
         var eloClass = provisional ? "elo provisional" : "elo";
         var titleAttr = provisional
           ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
+          : "";
+        var accCell = fullColumns
+          ? "<td>" +
+            escapeHtml(formatQualityMean(agent.mean_accuracy, "%")) +
+            "</td>"
+          : "";
+        var playCell = fullColumns
+          ? "<td>" + escapeHtml(formatQualityMean(agent.mean_play_rating)) + "</td>"
           : "";
         return (
           "<tr>" +
@@ -130,6 +148,8 @@
           ">" +
           escapeHtml(formatElo(agent)) +
           "</td>" +
+          accCell +
+          playCell +
           "<td>" +
           games +
           "</td>" +
@@ -168,11 +188,14 @@
     options = options || {};
     var limit = options.limit;
     var showMeta = options.showMeta !== false;
+    var fullColumns =
+      options.fullColumns === true ||
+      container.hasAttribute("data-leaderboard-full");
     fetchLeaderboard()
       .then(function (data) {
         var tbody = container.querySelector("tbody");
         if (!tbody) return;
-        tbody.innerHTML = renderLeaderboardRows(data.agents, limit);
+        tbody.innerHTML = renderLeaderboardRows(data.agents, limit, fullColumns);
         if (showMeta) {
           var meta = container.querySelector("[data-snapshot-meta]");
           if (meta) {
@@ -186,8 +209,11 @@
       .catch(function () {
         var tbody = container.querySelector("tbody");
         if (tbody) {
+          var colCount = fullColumns ? 7 : 5;
           tbody.innerHTML =
-            '<tr><td colspan="5" class="empty-state">Could not load leaderboard snapshot.</td></tr>';
+            '<tr><td colspan="' +
+            colCount +
+            '" class="empty-state">Could not load leaderboard snapshot.</td></tr>';
         }
       });
   }

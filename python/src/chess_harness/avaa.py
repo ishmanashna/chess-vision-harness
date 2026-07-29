@@ -169,6 +169,7 @@ class AvAAPlay:
                     return {"ok": False, "error": "Failed to save game state"}
 
                 self.ctrl._auto_save_pgn(game_id, state)
+                self.ctrl._schedule_quality_if_scored(game_id, state)
                 render_avaa_boards(self.ctrl, self.gm, board, game_id, state)
                 return avaa_move_response(self.gm, self.ctrl, game_id, state, board, caller_color)
         except GameBusyError as e:
@@ -215,6 +216,7 @@ class AvAAPlay:
                 board = chess.Board(state["board_fen"])
                 finish_avaa_game(self.ctrl, self.gm, game_id, state, board, result, reason)
                 self.ctrl._auto_save_pgn(game_id, state)
+                self.ctrl._schedule_quality_if_scored(game_id, state)
 
                 if not self.gm.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}

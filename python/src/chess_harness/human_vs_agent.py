@@ -204,6 +204,7 @@ class HumanVsAgentPlay:
                     return {"ok": False, "error": "Failed to save game state"}
 
                 self.ctrl._auto_save_pgn(game_id, state)
+                self.ctrl._schedule_quality_if_scored(game_id, state)
                 board_path = self.gm.get_board_path(game_id)
                 try:
                     self.ctrl._render_state_board(board, board_path, state)
@@ -261,6 +262,7 @@ class HumanVsAgentPlay:
                 board = chess.Board(state["board_fen"])
                 finish_human_vs_agent_game(self.ctrl, self.gm, game_id, state, board, result, reason)
                 self.ctrl._auto_save_pgn(game_id, state)
+                self.ctrl._schedule_quality_if_scored(game_id, state)
 
                 if not self.gm.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}

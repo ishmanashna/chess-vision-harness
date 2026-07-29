@@ -196,6 +196,24 @@ def main(argv: list[str] | None = None) -> None:
     elif args[0] == "migrate-results":
         commands.cmd_migrate_results()
 
+    elif args[0] in ("analyse-quality", "quality-backfill"):
+        game_id = None
+        force = False
+        i = 1
+        while i < len(args):
+            if args[i] == "--game-id" and i + 1 < len(args):
+                game_id = args[i + 1]
+                i += 2
+            elif args[i] == "--force":
+                force = True
+                i += 1
+            else:
+                print(
+                    "Usage: chess-harness analyse-quality [--game-id ID] [--force]"
+                )
+                sys.exit(1)
+        sys.exit(commands.cmd_analyse_quality(game_id, force=force))
+
     elif args[0] == "opponents":
         if len(args) < 2 or args[1] == "list":
             commands.cmd_opponents_list()

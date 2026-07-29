@@ -82,6 +82,7 @@ def accept_draw(play: HumanVsAgentPlay, game_id: str, by_color: str) -> Dict[str
                 play.ctrl, play.gm, game_id, state, board, "1/2-1/2", "agreement"
             )
             play.ctrl._auto_save_pgn(game_id, state)
+            play.ctrl._schedule_quality_if_scored(game_id, state)
             if not play.gm.save_state(game_id, state):
                 return {"ok": False, "error": "Failed to save game state"}
 

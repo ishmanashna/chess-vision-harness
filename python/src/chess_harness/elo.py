@@ -202,10 +202,13 @@ class ELOLadder:
     def get_leaderboard(self) -> List[Dict]:
         from .results import ResultsManager
 
-        game_counts = ResultsManager(base_dir=str(self.base_dir)).count_by_model()
+        results = ResultsManager(base_dir=str(self.base_dir))
+        game_counts = results.count_by_model()
+        quality_stats = results.aggregate_quality_by_model()
         board = []
         for model in self.registry.list_models():
             model_id = model["id"]
+            qs = quality_stats.get(model_id, {})
             board.append(
                 {
                     "model": model_id,
@@ -213,6 +216,9 @@ class ELOLadder:
                     "elo": round(model.get("elo", AGENT_START_ELO)),
                     "games": game_counts.get(model_id, 0),
                     "enabled": model.get("enabled", True),
+                    "mean_accuracy": qs.get("mean_accuracy"),
+                    "mean_play_rating": qs.get("mean_play_rating"),
+                    "quality_games": int(qs.get("quality_games", 0)),
                 }
             )
         board.sort(key=lambda x: -x["elo"])

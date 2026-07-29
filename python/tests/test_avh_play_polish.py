@@ -113,6 +113,20 @@ def test_spectator_game_page_avh_eval_trusts_api_flag():
     assert "showElo=showEval&&s.game_type!=='human_vs_agent'" in html
 
 
+def test_spectator_game_page_quality_metrics():
+    html = render_game_view_page("game-quality-ui")
+    assert "state-acc-white" in html
+    assert "state-pr-black" in html
+    assert "quality-row" in html
+    assert "formatAccuracy" in html
+    assert "renderQualityMetrics" in html
+    assert "shouldKeepPolling" in html
+    assert "quality_at" in html
+    assert "not ladder Elo" in html
+    assert "white_accuracy" in html
+    assert "play rating" in html
+
+
 def test_show_eval_for_state_true_for_human_vs_agent():
     state = {"game_type": "human_vs_agent", "status": "in_progress"}
     assert show_eval_for_state(state) is True

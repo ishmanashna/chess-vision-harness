@@ -30,6 +30,8 @@ from calibration.play_config import MatchConfig, PlayConfig  # noqa: E402
 from calibration.ratings import CalibrationLadder, is_anchor  # noqa: E402
 from calibration.worker import play_resilient_match_worker  # noqa: E402
 
+from .play_rating import process_calibration_game_quality
+
 CONTINUOUS_SUITE = "continuous"
 DEFAULT_MOVETIME_MS = 100
 DEFAULT_MAX_PLIES = 200
@@ -426,14 +428,14 @@ class ContinuousCalibrationManager:
         self._recent_games.append(entry)
         self._recent_games = self._recent_games[-30:]
 
-    async def _play_match_in_pool(self, match: MatchConfig) -> Optional[str]:
+    async def _play_match_in_pool(self, match: MatchConfig) -> Dict[str, Any]:
         loop = asyncio.get_running_loop()
         outcome = await loop.run_in_executor(
             self._ensure_executor(),
             play_resilient_match_worker,
             match.to_dict(),
         )
-        return outcome.get("result")
+        return outcome
 
     async def _run_loop(self, engine_id: str) -> None:
         stop = self._stop_events[engine_id]
@@ -457,7 +459,7 @@ class ContinuousCalibrationManager:
                 match = build_random_match(engine_id, opponent_id, rng=rng)
                 self._bump_in_flight(match.white_id, match.black_id, 1)
                 try:
-                    result = await self._play_match_in_pool(match)
+                    outcome = await self._play_match_in_pool(match)
                 except asyncio.CancelledError:
                     raise
                 finally:
@@ -465,6 +467,9 @@ class ContinuousCalibrationManager:
 
                 if stop.is_set():
                     break
+
+                result = outcome.get("result")
+                uci_moves = outcome.get("uci_moves") or []
 
                 if result is None:
                     self._skipped_games += 1
@@ -500,6 +505,14 @@ class ContinuousCalibrationManager:
                         result=result,
                         updates=updates,
                     )
+                    if uci_moves:
+                        await asyncio.to_thread(
+                            process_calibration_game_quality,
+                            record,
+                            match.white_id,
+                            match.black_id,
+                            uci_moves,
+                        )
                     await self._schedule_save()
         except asyncio.CancelledError:
             pass

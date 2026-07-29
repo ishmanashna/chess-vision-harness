@@ -36,5 +36,6 @@ def test_play_game_resilient_skips_on_persistent_timeout():
             pass
 
     with patch("calibration.resilient_game.EnginePlayer", FakePlayer):
-        result = play_game_resilient(match, max_move_retries=2)
+        result, moves = play_game_resilient(match, max_move_retries=2)
     assert result is None
+    assert moves == []

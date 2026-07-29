@@ -123,4 +123,17 @@ def agent_safe_spectator_state(
     }
     if extra:
         payload.update(extra)
+    for key in (
+        "quality_at",
+        "quality_thin",
+        "quality_depth",
+        "white_accuracy",
+        "black_accuracy",
+        "white_play_rating",
+        "black_play_rating",
+        "agent_accuracy",
+        "agent_play_rating",
+    ):
+        if key in state:
+            payload[key] = state[key]
     return payload

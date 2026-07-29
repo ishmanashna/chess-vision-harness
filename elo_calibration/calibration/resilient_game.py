@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import chess
 import chess.engine
@@ -20,15 +20,16 @@ def play_game_resilient(
     *,
     uci_timeout: float = CALIBRATION_UCI_TIMEOUT,
     max_move_retries: int = MAX_MOVE_RETRIES,
-) -> Optional[str]:
+) -> Tuple[Optional[str], List[str]]:
     """
-    Play a calibration game. Returns result string, or None if abandoned (no ELO update).
+    Play a calibration game. Returns (result, uci_moves); result is None if abandoned.
     On move timeout, retries with a fresh engine subprocess; never records a forfeit.
     """
     start_fen = chess.STARTING_FEN if match.start_fen == "startpos" else match.start_fen
     board = chess.Board(start_fen)
     white = EnginePlayer(match.white_id, match.white, uci_timeout=uci_timeout)
     black = EnginePlayer(match.black_id, match.black, uci_timeout=uci_timeout)
+    uci_moves: List[str] = []
     try:
         plies = 0
         while not board.is_game_over() and plies < match.max_plies:
@@ -37,12 +38,13 @@ def play_game_resilient(
             else:
                 move, black = _play_move_resilient(black, board, uci_timeout, max_move_retries)
             if move is None:
-                return None
+                return None, uci_moves
+            uci_moves.append(move.uci())
             board.push(move)
             plies += 1
         if board.is_game_over():
-            return board.result(claim_draw=True) or "1/2-1/2"
-        return "1/2-1/2"
+            return board.result(claim_draw=True) or "1/2-1/2", uci_moves
+        return "1/2-1/2", uci_moves
     finally:
         release_all_engines()
 

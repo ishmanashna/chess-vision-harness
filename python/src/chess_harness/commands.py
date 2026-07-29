@@ -305,5 +305,62 @@ def cmd_tournament_smoke(num_games: int = 3, opponent: str = "stockfish:5") -> D
         tm.controller.opponent_mgr.release()
 
 
+def cmd_analyse_quality(
+    game_id: Optional[str] = None,
+    force: bool = False,
+) -> int:
+    """Re-analyse finished harness games from game.pgn (not calibration jsonl)."""
+    from .quality_finish import run_game_quality
+
+    gm = _game_manager()
+    base = str(gm.base_dir)
+
+    if game_id:
+        candidates = [game_id]
+    else:
+        candidates = [
+            g["game_id"]
+            for g in gm.list_games(status_filter="finished")
+            if g["state"].get("result") != "*"
+            and gm.get_pgn_path(g["game_id"]).exists()
+        ]
+
+    analysed = 0
+    skipped = 0
+    failed = 0
+
+    for gid in candidates:
+        state = gm.load_state(gid)
+        if not state or state.get("status") != "finished":
+            print(f"  skip {gid}: not finished")
+            skipped += 1
+            continue
+        if state.get("result") == "*":
+            print(f"  skip {gid}: no result")
+            skipped += 1
+            continue
+        if not gm.get_pgn_path(gid).exists():
+            print(f"  skip {gid}: no game.pgn")
+            skipped += 1
+            continue
+        if state.get("quality_at") and not force:
+            print(f"  skip {gid}: already analysed (use --force to redo)")
+            skipped += 1
+            continue
+        try:
+            if run_game_quality(gid, base_dir=base, force=force):
+                print(f"  ok {gid}")
+                analysed += 1
+            else:
+                print(f"  skip {gid}: analysis did not complete")
+                skipped += 1
+        except Exception as exc:
+            print(f"  fail {gid}: {exc}")
+            failed += 1
+
+    print(f"Quality backfill: {analysed} analysed, {skipped} skipped, {failed} failed")
+    return 1 if failed else 0
+
+
 def default_game_id() -> str:
     return new_game_id()
