@@ -410,7 +410,12 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
         }
 
     if is_human_vs_agent_state(state):
-        return human_active_card(state, game_id, board, elo)
+        card = human_active_card(state, game_id, board, elo)
+        score_white = _eval_position(state["board_fen"])
+        card["eval_white_cp"] = score_white
+        card["eval_ui"] = _spectator_eval_ui(state, score_white)
+        card["show_eval"] = True
+        return card
 
     score_white = _eval_position(state["board_fen"])
     eval_ui = _spectator_eval_ui(state, score_white)

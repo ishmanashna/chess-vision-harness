@@ -22,7 +22,7 @@ def render_game_view_page(game_id: str) -> str:
     <style>
     .game-sub{{margin:0 0 18px;color:var(--muted);font-size:.9rem}}
     .game-sub code{{font-size:.88em}}
-    .layout{{display:grid;grid-template-columns:minmax(280px,360px) auto minmax(200px,280px);gap:28px;align-items:start}}
+    .layout{{display:grid;grid-template-columns:minmax(280px,360px) max-content minmax(200px,280px);gap:16px;align-items:start;justify-content:center;width:fit-content;max-width:100%;margin:0 auto}}
     .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .info-col{{display:flex;flex-direction:column;gap:16px}}
     .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
@@ -31,10 +31,11 @@ def render_game_view_page(game_id: str) -> str:
     .meta-grid dt{{color:var(--faint);margin:0}}
     .meta-grid dd{{margin:0;color:var(--text-secondary);word-break:break-word}}
     #state-result{{font-weight:700}}
-    .actions{{display:flex;flex-direction:column;gap:8px}}
-    .game-view .btn{{display:block;width:100%;padding:9px 12px;font-size:.86em;border:1px solid var(--border-strong);border-radius:6px;background:var(--btn-bg);color:var(--text);cursor:pointer;text-align:center;text-decoration:none}}
-    .game-view .btn:hover{{background:var(--btn-hover);border-color:var(--border-strong)}}
-    .btn-hint{{font-size:.78em;color:var(--faint);min-height:1.2em}}
+    .export-links{{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--row);font-size:.84em}}
+    .export-link,.export-links a{{background:none;border:none;padding:0;font:inherit;color:var(--link);cursor:pointer;text-decoration:underline;text-underline-offset:2px}}
+    .export-link:hover,.export-links a:hover{{opacity:.85}}
+    .export-sep{{color:var(--faint);user-select:none}}
+    .export-hint{{font-size:.9em;color:var(--faint);min-height:1.2em}}
     .board-col{{display:flex;justify-content:center}}
     .board-stack{{display:inline-flex;flex-direction:column;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:0 1px 4px var(--shadow,rgba(0,0,0,.06))}}
     .board-label{{padding:11px 16px;text-align:center;font-size:.93em;font-weight:600;background:var(--bg-elevated);color:var(--text)}}
@@ -45,7 +46,7 @@ def render_game_view_page(game_id: str) -> str:
     .eval-col-v{{display:flex;flex-direction:column;align-items:center;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg-elevated);padding:0}}
     .eval-track-v{{width:18px;background:var(--surface);position:relative;flex-shrink:0;border:1px solid var(--border-strong);border-radius:2px;flex:1;min-height:120px;margin:0}}
     .eval-black{{position:absolute;top:0;left:0;right:0;background:var(--text);transition:height .5s ease}}
-    #board{{display:block;background:var(--surface);width:min(calc(100vh - 220px),calc(100vw - 640px),600px);height:auto}}
+    #board{{display:block;background:var(--surface);width:min(600px,calc(100vh - 220px),calc(100vw - 768px));height:auto}}
     .moves-col{{display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 140px)}}
     .moves-col .panel{{background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:200px;overflow:hidden}}
     .moves-col .panel h2{{padding:14px 16px 0;margin:0}}
@@ -55,7 +56,7 @@ def render_game_view_page(game_id: str) -> str:
     .move-row .mn{{color:var(--faint);text-align:right;font-size:.82em}}
     .move-row .w.on,.move-row .b.on{{font-weight:700}}
     @media(max-width:960px){{
-      .layout{{grid-template-columns:1fr;gap:24px}}
+      .layout{{grid-template-columns:1fr;gap:20px;width:100%;justify-content:stretch}}
       .moves-col{{max-height:320px}}
       #board{{width:100%;max-width:480px}}
     }}
@@ -68,6 +69,12 @@ def render_game_view_page(game_id: str) -> str:
         <div class="info-card">
           <h2>Game info</h2>
           <dl class="meta-grid" id="meta"></dl>
+          <div class="export-links">
+            <a href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
+            <span class="export-sep" aria-hidden="true">·</span>
+            <button type="button" class="export-link" id="copy-pgn">Copy PGN</button>
+            <span class="export-hint" id="action-hint"></span>
+          </div>
         </div>
         <div class="info-card">
           <h2>Game state</h2>
@@ -77,14 +84,6 @@ def render_game_view_page(game_id: str) -> str:
             <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
             <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
           </dl>
-        </div>
-        <div class="info-card">
-          <h2>Export</h2>
-          <div class="actions">
-            <a class="btn" href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
-            <button type="button" class="btn" id="copy-pgn">Copy PGN</button>
-            <span class="btn-hint" id="action-hint"></span>
-          </div>
         </div>
       </aside>
       <div class="col board-col" id="board-col">
@@ -138,7 +137,7 @@ def render_game_view_page(game_id: str) -> str:
       const evalLabel=document.getElementById('state-eval-label');
       const eloEl=document.getElementById('state-elo');
       const eloLabel=document.getElementById('state-elo-label');
-      const showEval=s.show_eval!==false&&s.game_type!=='human_vs_agent';
+      const showEval=s.show_eval!==false;
       const showElo=showEval&&s.game_type!=='human_vs_agent';
       const evalCol=document.getElementById('eval-col');
       if(evalCol)evalCol.style.display=showEval?'':'none';
@@ -156,7 +155,7 @@ def render_game_view_page(game_id: str) -> str:
     }}
 
     function setLabels(ev,s){{
-      const showEval=s.show_eval!==false&&s.game_type!=='human_vs_agent';
+      const showEval=s.show_eval!==false;
       if(ev&&showEval){{
         document.getElementById('lbl-black').textContent=ev.top_label||ev.black_label||'Black';
         document.getElementById('lbl-white').textContent=ev.bottom_label||ev.white_label||'White';
@@ -240,7 +239,7 @@ def render_game_view_page(game_id: str) -> str:
       try{{
         const s=await(await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/state')).json();
         const e=await(await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/eval')).json();
-        const showEval=s.show_eval!==false&&e.show_eval!==false&&s.game_type!=='human_vs_agent';
+        const showEval=s.show_eval!==false&&e.show_eval!==false;
         const ev=showEval&&e.ok&&e.eval_ui?e.eval_ui:(showEval?s.eval_ui||null:null);
         if(ev)setLabels(ev,s);
         else setLabels(null,s);

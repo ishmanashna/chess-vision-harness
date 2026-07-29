@@ -28,7 +28,7 @@ def test_side_labels_human():
     }
 
 
-def test_active_card_human_no_eval():
+def test_active_card_human_show_eval():
     state = {
         "game_type": GAME_TYPE_HUMAN_VS_AGENT,
         "human_nickname": "Alice",
@@ -43,8 +43,8 @@ def test_active_card_human_no_eval():
     card = _active_card(state, "g-human")
     assert card["game_type"] == GAME_TYPE_HUMAN_VS_AGENT
     assert card["turn_label"] == "Alice to move"
-    assert card["eval_ui"] is None
-    assert card["show_eval"] is False
+    assert card["show_eval"] is True
+    assert card["eval_ui"] is not None
     assert card["agent_elo"] is not None
 
 
@@ -64,15 +64,15 @@ def test_spectator_list_state_and_eval_human(human_client, monkeypatch):
     assert "to move" in row["turn"]
     assert row.get("elo_change") in ("", None)
     card = row["active_card"]
-    assert card["show_eval"] is False
-    assert card["eval_ui"] is None
+    assert card["show_eval"] is True
+    assert card["eval_ui"] is not None
 
     state = client.get(f"/api/games/{game_id}/state")
     assert state.status_code == 200
     body = state.json()
     assert body["game_type"] == GAME_TYPE_HUMAN_VS_AGENT
-    assert body["show_eval"] is False
-    assert body.get("eval_ui") is None
+    assert body["show_eval"] is True
+    assert body.get("eval_ui") is not None
     assert body["white_display_name"] == "Human Agent"
     assert body["black_display_name"] == "Alice"
     assert body["agent_elo"] is not None
@@ -80,4 +80,6 @@ def test_spectator_list_state_and_eval_human(human_client, monkeypatch):
 
     eval_resp = client.get(f"/api/games/{game_id}/eval")
     assert eval_resp.status_code == 200
-    assert eval_resp.json() == {"ok": True, "show_eval": False}
+    eval_body = eval_resp.json()
+    assert eval_body["ok"] is True
+    assert eval_body.get("eval_ui") is not None

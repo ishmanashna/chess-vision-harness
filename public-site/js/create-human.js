@@ -62,12 +62,9 @@
       '<p class="human-wait-status is-waiting" data-human-wait-status aria-live="polite">' +
       "<strong>Waiting for agent…</strong> Paste the brief into your agent. " +
       "You will be taken to the play board when the agent joins.</p>" +
-      '<div class="brief-wrap">' +
-      '<label for="agent-brief"><strong>Agent prompt</strong> — paste into your agent</label>' +
-      '<textarea id="agent-brief" readonly rows="18">' +
-      escapeHtml(brief) +
-      "</textarea>" +
-      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></div>';
+      (resultApi && resultApi.renderBriefCollapsible
+        ? resultApi.renderBriefCollapsible(brief, escapeHtml)
+        : "");
 
     if (resultApi && resultApi.wireCopyBrief) resultApi.wireCopyBrief(result);
 

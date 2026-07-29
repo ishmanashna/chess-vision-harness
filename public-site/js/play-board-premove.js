@@ -95,7 +95,15 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
       promoDialogOpen = false;
       const from = event.squareFrom;
       const to = event.squareTo;
-      if (setPremove(from, to, event.promotion || undefined)) return true;
+      if (setPremove(from, to, event.promotion || undefined)) {
+        const restore = () => {
+          board.setPosition(chess.fen(), false).then(() => refreshMarkers());
+        };
+        const proc = event.chessboard.state.moveInputProcess;
+        if (proc) proc.then(restore);
+        else restore();
+        return true;
+      }
 
       const tmp = boardWithHumanToMove();
       const candidates = tmp.moves({ square: from, verbose: true });
@@ -108,7 +116,9 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
           promoDialogOpen = false;
           if (result.type === PROMOTION_DIALOG_RESULT_TYPE.pieceSelected) {
             const piece = result.piece.charAt(1).toLowerCase();
-            setPremove(from, to, piece);
+            if (setPremove(from, to, piece)) {
+              board.setPosition(chess.fen(), false).then(() => refreshMarkers());
+            }
           }
           if (onPromoDialogClosed) onPromoDialogClosed();
         });

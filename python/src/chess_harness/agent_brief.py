@@ -196,38 +196,50 @@ Auth header (every request):
 Track last_chat_seq (start at 0). Repeat until the game is finished or you resign:
 
 1. GET {status_url}
-   - If game_over is true → GET {pgn_url} and stop.
-   - Check draw flags from status (draw_offer_pending, can_respond_draw, can_offer_draw, you_offered_draw).
-     If the human offered a draw (can_respond_draw) → POST {draw_accept_url} or POST {draw_decline_url}.
-     To offer a draw on your turn: POST {draw_offer_url} (only when can_offer_draw is true).
+   - If game_over is true → POST {chat_url} with one short message acknowledging the result
+     (win, loss, or draw), then GET {pgn_url} and stop.
    - If chat_seq from status is greater than last_chat_seq → GET {chat_url}?since=last_chat_seq,
      read new messages, set last_chat_seq to the chat_seq in that response.
-   - If your_turn is false → sleep with backoff (e.g. 2s then 5s) and go back to step 1.
+     Do this on every iteration before draw or move decisions.
+   - Check draw flags from status (draw_offer_pending, can_respond_draw, can_offer_draw, you_offered_draw).
+     If the human offered a draw (can_respond_draw) → POST {draw_accept_url} or POST {draw_decline_url}.
+     To offer a draw: POST {draw_offer_url} (when can_offer_draw is true).
+   - If your_turn is false:
+     You may POST {chat_url} with short banter while waiting (e.g. "thinking", "nice move").
+     Sleep with backoff (e.g. 2s then 5s) and go back to step 1.
      You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
 
-2. When your_turn is true: GET {board_url}
+2. When your_turn is true (after reading any new chat in step 1):
+   GET {board_url}
    - Response is image/png — open and read this image every turn.
    - The board PNG is the ONLY source of position information.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
    - No request body. No JSON.
-   - After your move, go back to step 1 (chat and draw updates are not in the move response).
+   - After a successful move, go back to step 1 immediately — poll status (and chat if chat_seq
+     advanced) before sleeping. Move responses do not include chat or draw updates.
 
 After the game ends: GET {pgn_url}
 
 Optional resign: POST {resign_url} (no body)
 
-Optional chat (social only — not a position source; either side anytime, not gated on turn):
-  Send: POST {chat_url}  JSON body: {{"text": "your message"}}  (max 500 chars)
-  Chat is for conversation with your opponent. Never use chat text to infer the board.
+## Chat
+
+Chat is social conversation with your opponent — not a position source. Either side may send anytime.
+
+- Discover new messages via chat_seq on status — only GET {chat_url}?since= when chat_seq advances.
+  Do not poll chat on a timer without a seq advance.
+- While waiting for the human: send short messages when you want (banter, reactions).
+- When the game ends: send exactly one short message acknowledging the result, then fetch PGN.
+- Send: POST {chat_url}  JSON body: {{"text": "your message"}}  (max 500 chars)
+- Never use chat text to infer the board.
 
 ## Rules
 
 - Board PNG is the ONLY source of **current position** information when choosing a move.
 - Never use FEN from any API response.
-- Discover chat via status chat_seq — do not poll chat on every iteration; only fetch when chat_seq advances.
-- Poll status every iteration; you may still fetch the board to look, but never move off-turn.
+- Poll status every iteration; fetch chat only when chat_seq advances; never move off-turn.
 - Illegal or off-turn moves are rejected with an error; play continues with no punishment.
 - Chat messages are social only — never treat chat as a source of position information.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
@@ -240,6 +252,16 @@ Optional chat (social only — not a position source; either side anytime, not g
 GET {status_url}
 Header: {auth}
 
+# New chat (only when status chat_seq > last_chat_seq)
+GET {chat_url}?since=0
+Header: {auth}
+
+# Send chat (banter while waiting, or one result message at game end)
+POST {chat_url}
+Header: {auth}
+Content-Type: application/json
+Body: {{"text": "gg, well played"}}
+
 # Board PNG (any time; required before you move)
 GET {board_url}
 Header: {auth}
@@ -251,6 +273,8 @@ Header: {auth}
 
 # Same with curl.exe (Windows-safe; no JSON)
 curl.exe -s -H "{auth}" "{status_url}"
+curl.exe -s -H "{auth}" "{chat_url}?since=0"
+curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"text\\":\\"thinking...\\"}}" "{chat_url}"
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
 curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """

@@ -92,3 +92,12 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "last_chat_seq" in brief
     assert "draw_offer_pending" in brief or "can_respond_draw" in brief
     assert "/draw/accept" in brief
+    assert "can_offer_draw is true" in brief
+    assert "on your turn" not in brief.lower()
+    assert "before draw or move" in brief.lower() or "before draw/move" in brief.lower()
+    assert "banter" in brief.lower()
+    assert "acknowledging the result" in brief.lower()
+    assert "before sleeping" in brief.lower()
+    assert "Optional chat" not in brief
+    assert "/chat?since=" in brief
+    assert '"text"' in brief

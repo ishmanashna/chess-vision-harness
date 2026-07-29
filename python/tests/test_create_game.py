@@ -108,7 +108,8 @@ def test_human_hub_serves_static(create_client):
     assert resp.status_code == 200
     assert "Play vs Agent" in resp.text
     assert 'data-human-page' in resp.text
-    assert "Your games" in resp.text
+    assert "Your games" not in resp.text
+    assert "Resume saved games in Spectator" in resp.text
 
 
 def test_create_game_via_api_v1(create_client):

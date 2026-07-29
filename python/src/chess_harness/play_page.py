@@ -49,23 +49,20 @@ def render_play_page(game_id: str) -> str:
     {PUBLIC_SITE_HEADER}
     <main class="play-main" data-play-root>
       <header class="play-header">
-        <h2>Play board</h2>
-        <p class="play-matchup" data-play-matchup>Loading…</p>
-        <p class="play-status" data-play-status aria-live="polite">Loading…</p>
+        <p class="play-header-line" data-play-header-line aria-live="polite">Loading…</p>
       </header>
       <p class="play-error" data-play-error role="alert"></p>
       <div class="play-layout">
         <aside class="play-chat-col" aria-label="Chat">
-          <div class="play-panel play-chat-panel" data-play-chat>
-            <h2 class="play-panel-title">Chat</h2>
+          <div class="play-chat-panel" data-play-chat>
             <div class="play-chat-log" data-chat-log role="log" aria-live="polite"></div>
             <form class="play-chat-form" data-chat-form>
               <textarea
                 class="play-chat-input"
                 data-chat-input
-                rows="2"
+                rows="1"
                 maxlength="500"
-                placeholder="Message the agent…"
+                placeholder="Message…"
                 aria-label="Chat message"
                 spellcheck="false"
                 autocomplete="off"
@@ -99,7 +96,6 @@ def render_play_page(game_id: str) -> str:
         <a href="{spectate}">Spectate this game</a>
         · <a href="/human/">Create another game</a>
       </p>
-      <p class="play-meta">Game ID: <code>{gid}</code> · Unranked · 30 minutes without a move ends the game with no result (not a loss or draw). Illegal or off-turn moves are rejected with an error and play continues (no punishment). Cheating (engines, FEN, game files) invalidates the game.</p>
     </main>
     <footer class="site-footer">
       <p>Chess Vision Harness</p>

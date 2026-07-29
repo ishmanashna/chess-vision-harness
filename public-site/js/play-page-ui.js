@@ -36,20 +36,12 @@ export function statusText(pos) {
 }
 
 export function applyStatusUi(root, pos) {
-  const statusEl = root.querySelector("[data-play-status]");
   const resignBtn = root.querySelector("[data-resign]");
   const drawOfferBtn = root.querySelector("[data-draw-offer]");
   const drawAcceptBtn = root.querySelector("[data-draw-accept]");
   const drawDeclineBtn = root.querySelector("[data-draw-decline]");
   const boardWrap = root.querySelector("[data-board-wrap]");
-  if (!statusEl) return;
-
-  const text = statusText(pos);
-  statusEl.textContent = text;
-  statusEl.classList.remove("is-your-turn", "is-waiting", "is-over");
-  if (pos.game_over) statusEl.classList.add("is-over");
-  else if (!pos.agent_joined) statusEl.classList.add("is-waiting");
-  else if (pos.your_turn) statusEl.classList.add("is-your-turn");
+  updatePlayHeader(root, pos);
 
   if (resignBtn) resignBtn.disabled = !!pos.game_over;
   if (drawOfferBtn) {
@@ -100,9 +92,7 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-export function updateMatchup(root, pos) {
-  const el = root.querySelector("[data-play-matchup]");
-  if (!el) return;
+function buildMatchupHtml(pos) {
   const human = pos.human_nickname || "You";
   const agent = pos.agent_display_name || "Agent";
   const elo = formatAgentElo(pos);
@@ -110,9 +100,26 @@ export function updateMatchup(root, pos) {
   const colorPart = pos.human_color
     ? ` · you play ${escapeHtml(normalizeColor(pos.human_color))}`
     : "";
-  el.innerHTML =
+  return (
     `<strong>${escapeHtml(human)}</strong> vs <strong>${escapeHtml(agentLabel)}</strong>` +
-    colorPart;
+    colorPart
+  );
+}
+
+function updatePlayHeader(root, pos) {
+  const el = root.querySelector("[data-play-header-line]");
+  if (!el) return;
+  const status = statusText(pos);
+  el.innerHTML =
+    `${buildMatchupHtml(pos)} · <span class="play-header-status">${escapeHtml(status)}</span>`;
+  el.classList.remove("is-your-turn", "is-waiting", "is-over");
+  if (pos.game_over) el.classList.add("is-over");
+  else if (!pos.agent_joined) el.classList.add("is-waiting");
+  else if (pos.your_turn) el.classList.add("is-your-turn");
+}
+
+export function updateMatchup(root, pos) {
+  updatePlayHeader(root, pos);
 }
 
 export function renderMoveList(root, pos, lastRenderedCount) {

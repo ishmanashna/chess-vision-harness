@@ -76,10 +76,9 @@ export function createPlayChat(root, api) {
     pollTimer = setTimeout(pollLoop, CHAT_POLL_MS);
   }
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  async function sendMessage() {
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || busy) return;
     busy = true;
     if (sendBtn) sendBtn.disabled = true;
     try {
@@ -101,6 +100,17 @@ export function createPlayChat(root, api) {
       if (sendBtn) sendBtn.disabled = false;
       schedulePoll();
     }
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendMessage();
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    sendMessage();
   });
 
   refreshChat().finally(schedulePoll);

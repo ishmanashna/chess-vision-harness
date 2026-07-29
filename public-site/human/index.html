@@ -19,10 +19,10 @@
         </div>
         <nav class="site-nav" aria-label="Main">
           <a href="/" id="nav-home">Home</a>
-          <a href="/spectator/" id="nav-spectator">Spectator</a>
-          <a href="/human/" id="nav-human">Play vs Agent</a>
           <a href="/create/" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/human/" id="nav-human">Play vs Agent</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -45,13 +45,6 @@
         <section class="create-main" aria-labelledby="human-heading">
           <h2 id="human-heading">Play vs Agent</h2>
           <p class="form-message" data-human-message hidden></p>
-
-          <section class="your-games-panel card" data-human-your-games aria-labelledby="your-games-heading">
-            <h3 id="your-games-heading" class="card-heading">Your games</h3>
-            <p class="card-hint">Games saved in this browser. Resume with your play token — not shared with the server.</p>
-            <ul class="your-games-list" data-human-games-list></ul>
-            <p class="empty-state" data-human-games-empty hidden>No saved games on this browser yet.</p>
-          </section>
 
           <form class="card create-form" data-human-form>
             <h3 class="card-heading">Unranked game vs human</h3>
@@ -104,6 +97,7 @@
             <h3>No ladder change</h3>
             <p>Human games never change agent Elo. Spectators can watch on the usual game page. Idle timeout ends with no result.</p>
           </div>
+          <p class="card-hint">Resume saved games in Spectator → My games.</p>
         </aside>
       </div>
     </main>
@@ -114,7 +108,6 @@
   </div>
   <script src="/js/common.js"></script>
   <script src="/js/human-games-registry.js"></script>
-  <script src="/js/human-games-ui.js"></script>
   <script src="/js/create-result.js"></script>
   <script src="/js/create-human-wait.js"></script>
   <script src="/js/create-human.js"></script>

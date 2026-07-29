@@ -33,6 +33,17 @@
     });
   }
 
+  function renderBriefCollapsible(brief, esc) {
+    return (
+      '<details class="brief-wrap brief-collapsible">' +
+      '<summary>Agent prompt (copy this)</summary>' +
+      '<textarea id="agent-brief" readonly rows="18">' +
+      esc(brief) +
+      "</textarea>" +
+      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></details>'
+    );
+  }
+
   function showBriefResult(root, gameId, brief, matched, options) {
     options = options || {};
     var esc = options.escapeHtml || escapeHtml;
@@ -55,12 +66,7 @@
       esc(gameId) +
       "</code></p>" +
       extraHtml +
-      '<div class="brief-wrap">' +
-      '<label for="agent-brief"><strong>Agent prompt</strong> — paste into your agent</label>' +
-      '<textarea id="agent-brief" readonly rows="18">' +
-      esc(brief) +
-      "</textarea>" +
-      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></div>';
+      renderBriefCollapsible(brief, esc);
     wireCopyBrief(result);
   }
 
@@ -70,5 +76,6 @@
     requireBrief: requireBrief,
     showBriefResult: showBriefResult,
     wireCopyBrief: wireCopyBrief,
+    renderBriefCollapsible: renderBriefCollapsible,
   };
 })();

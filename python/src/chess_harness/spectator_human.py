@@ -1,4 +1,4 @@
-"""Spectator helpers for human-vs-agent games (no eval, display-only agent Elo)."""
+"""Spectator helpers for human-vs-agent games (eval shown; games stay unranked)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import chess
 
-from .game_types import GAME_TYPE_HUMAN_VS_AGENT, is_human_vs_agent_state
+from .game_types import GAME_TYPE_HUMAN_VS_AGENT
 
 __all__ = [
     "GAME_TYPE_HUMAN_VS_AGENT",
@@ -19,7 +19,7 @@ __all__ = [
 
 
 def show_eval_for_state(state: dict) -> bool:
-    return not is_human_vs_agent_state(state)
+    return True
 
 
 def human_display_names(state: dict) -> tuple[str, str]:
@@ -44,7 +44,7 @@ def human_list_fields(state: dict, elo: Dict[str, Any]) -> Dict[str, Any]:
         "model_name": state.get("model_display_name") or state.get("model_name") or "Agent",
         "agent_elo": agent_elo,
         "opponent_label": state.get("human_nickname") or "Human",
-        "show_eval": False,
+        "show_eval": True,
     }
 
 
@@ -67,9 +67,7 @@ def human_active_card(state: dict, game_id: str, board: chess.Board, elo: Dict[s
         "move_number": board.fullmove_number,
         "plies": len(state.get("moves", [])),
         "turn_label": turn,
-        "eval_white_cp": None,
-        "eval_ui": None,
-        "show_eval": False,
+        "show_eval": True,
         "board_url": f"/g/{game_id}/board.png",
         "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
     }

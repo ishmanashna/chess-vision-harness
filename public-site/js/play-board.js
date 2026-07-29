@@ -90,12 +90,17 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
   }
 
   function disableLibraryInput() {
-    if (activeInputMode === INPUT_MODE.none) return;
     if (isPromoDialogOpen()) return;
-    board.disableMoveInput();
+    if (!board.isMoveInputEnabled()) {
+      activeInputMode = INPUT_MODE.none;
+      inputEnabledRef.current = false;
+      premove.setInputActive(false);
+      return;
+    }
     if (activeInputMode === INPUT_MODE.premove) {
       premove.onInputDisabled();
     }
+    board.disableMoveInput();
     activeInputMode = INPUT_MODE.none;
     inputEnabledRef.current = false;
     premove.setInputActive(false);
@@ -109,28 +114,49 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
     return `Board input failed: ${msg}`;
   }
 
+  function enableLibraryInput(handler, mode) {
+    try {
+      board.enableMoveInput(handler, humanSide);
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      if (!msg.includes("already enabled")) {
+        return inputEnableError(err);
+      }
+      board.disableMoveInput();
+      try {
+        board.enableMoveInput(handler, humanSide);
+      } catch (retryErr) {
+        return inputEnableError(retryErr);
+      }
+    }
+    activeInputMode = mode;
+    inputEnabledRef.current = mode === INPUT_MODE.move;
+    premove.setInputActive(mode === INPUT_MODE.premove);
+    return null;
+  }
+
   function applyDesiredInputState() {
     const want = targetInputMode();
-    if (want === activeInputMode) return null;
 
     if (want === INPUT_MODE.none) {
+      if (activeInputMode === INPUT_MODE.none && !board.isMoveInputEnabled()) {
+        return null;
+      }
       disableLibraryInput();
       return null;
     }
 
     if (isPromoDialogOpen()) return null;
 
-    if (activeInputMode !== INPUT_MODE.none) {
-      board.disableMoveInput();
+    if (want === activeInputMode && board.isMoveInputEnabled()) {
+      return null;
+    }
+
+    if (board.isMoveInputEnabled()) {
       if (activeInputMode === INPUT_MODE.premove) {
         premove.onInputDisabled();
       }
-    } else {
-      try {
-        board.disableMoveInput();
-      } catch (_) {
-        /* library may already be disabled */
-      }
+      board.disableMoveInput();
     }
     activeInputMode = INPUT_MODE.none;
     inputEnabledRef.current = false;
@@ -138,16 +164,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
 
     const handler =
       want === INPUT_MODE.move ? inputHandler : premove.premoveHandler;
-    try {
-      board.enableMoveInput(handler, humanSide);
-    } catch (err) {
-      return inputEnableError(err);
-    }
-
-    activeInputMode = want;
-    inputEnabledRef.current = want === INPUT_MODE.move;
-    premove.setInputActive(want === INPUT_MODE.premove);
-    return null;
+    return enableLibraryInput(handler, want);
   }
 
   function syncInputState(canMove, canPremove) {

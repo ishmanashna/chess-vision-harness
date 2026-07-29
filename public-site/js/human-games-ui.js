@@ -74,12 +74,6 @@
     window.CVH.refreshHumanGamesLists = refresh;
   }
 
-  function mountHumanHubYourGames(humanRoot) {
-    var panel = humanRoot && humanRoot.querySelector("[data-human-your-games]");
-    if (!panel) return;
-    mountYourGamesPanel(panel);
-  }
-
   function mountSpectatorMyGames(spectatorRoot) {
     var panel = spectatorRoot && spectatorRoot.querySelector("[data-spec-panel='mygames']");
     if (!panel) return;
@@ -87,8 +81,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    var humanRoot = document.querySelector("[data-human-page]");
-    if (humanRoot) mountHumanHubYourGames(humanRoot);
     var spectatorRoot = document.querySelector("[data-spectator-page]");
     if (spectatorRoot) mountSpectatorMyGames(spectatorRoot);
   });

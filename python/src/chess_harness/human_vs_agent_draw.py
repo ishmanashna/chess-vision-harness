@@ -20,15 +20,13 @@ def draw_offer_payload(state: Dict[str, Any], board: chess.Board, color: str) ->
     """UI/status flags for one principal (WHITE or BLACK)."""
     offer = state.get("draw_offer")
     in_progress = state.get("status") == "in_progress"
-    side = chess.WHITE if color == "WHITE" else chess.BLACK
-    your_turn = in_progress and board.turn == side
     offered_by = offer.get("offered_by") if offer else None
     pending = bool(offer)
     return {
         "draw_offer_pending": pending,
         "draw_offered_by": offered_by,
         "you_offered_draw": pending and offered_by == color,
-        "can_offer_draw": in_progress and your_turn and not pending,
+        "can_offer_draw": in_progress and not pending,
         "can_respond_draw": in_progress and pending and offered_by != color,
     }
 
@@ -45,9 +43,6 @@ def offer_draw(play: HumanVsAgentPlay, game_id: str, by_color: str) -> Dict[str,
                 return play.ctrl._error(game_id, f"Game is already over: {state['result']}")
 
             board = chess.Board(state["board_fen"])
-            side = play.ctrl._agent_color(by_color)
-            if board.turn != side:
-                return play.ctrl._error(game_id, "Not your turn")
             if state.get("draw_offer"):
                 return play.ctrl._error(game_id, "A draw offer is already pending")
 

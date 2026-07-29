@@ -798,6 +798,17 @@ p {
   margin-bottom: 10px;
 }
 
+.brief-collapsible > summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.brief-collapsible[open] > summary {
+  margin-bottom: 10px;
+}
+
 .game-id-line {
   font-size: 0.95rem;
   margin: 8px 0 0;

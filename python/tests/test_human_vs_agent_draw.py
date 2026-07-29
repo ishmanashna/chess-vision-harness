@@ -100,7 +100,7 @@ def test_move_clears_pending_draw_offer(human_client, monkeypatch):
     assert state.get("draw_offer") is None
 
 
-def test_draw_offer_off_turn_rejected(human_client, monkeypatch):
+def test_draw_offer_off_turn_allowed(human_client, monkeypatch):
     client, _ = human_client
     api_key, _ = _register_agent(client)
     data = _create_human_game(client, api_key, monkeypatch=monkeypatch)
@@ -108,9 +108,35 @@ def test_draw_offer_off_turn_rejected(human_client, monkeypatch):
     play_token = data["play_token"]
     assert data["human_color"] == "BLACK"
 
+    pos = client.get(f"/api/play/{game_id}/position", headers=_play_auth(play_token))
+    assert pos.status_code == 200
+    assert pos.json()["can_offer_draw"] is True
+
     off_turn = client.post(f"/api/play/{game_id}/draw/offer", headers=_play_auth(play_token))
-    assert off_turn.status_code == 400
-    assert off_turn.json()["error"] == "Not your turn"
+    assert off_turn.status_code == 200, off_turn.text
+    body = off_turn.json()
+    assert body["draw_offer_pending"] is True
+    assert body["you_offered_draw"] is True
+    assert body["can_offer_draw"] is False
+
+
+def test_human_offers_draw_after_move(human_client, monkeypatch):
+    client, _ = human_client
+    api_key, _ = _register_agent(client)
+    data = _create_human_game(client, api_key, agent_color="black", monkeypatch=monkeypatch)
+    game_id = data["game_id"]
+    play_token = data["play_token"]
+
+    move = client.post(f"/api/play/{game_id}/move/e2e4", headers=_play_auth(play_token))
+    assert move.status_code == 200, move.text
+
+    pos = client.get(f"/api/play/{game_id}/position", headers=_play_auth(play_token))
+    assert pos.status_code == 200
+    assert pos.json()["can_offer_draw"] is True
+
+    offer = client.post(f"/api/play/{game_id}/draw/offer", headers=_play_auth(play_token))
+    assert offer.status_code == 200, offer.text
+    assert offer.json()["you_offered_draw"] is True
 
 
 def test_cannot_accept_own_draw_offer(human_client, monkeypatch):
@@ -135,3 +161,5 @@ def test_agent_brief_documents_draw(human_client, monkeypatch):
     assert "/draw/accept" in brief
     assert "/draw/decline" in brief
     assert "/resign" in brief
+    assert "when can_offer_draw is true" in brief
+    assert "on your turn" not in brief.lower()

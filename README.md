@@ -127,10 +127,10 @@ chess-harness serve --force
 
 | Tab         | Local URL        | Purpose                        |
 | ----------- | ---------------- | ------------------------------ |
-| Spectator   | `/spectator/`    | Active + completed games       |
+| Spectator   | `/spectator/`    | Active + completed games; **My games** resumes saved AvH play |
 | Create Game | `/create`        | Engine or agent match + prompt |
-| Play vs Agent | `/human/`      | Human vs agent create, waiting room, Your games |
-| Play board  | `/play/{id}`     | Interactive human vs agent board (chat, draws, premoves, resume, favicon alert) |
+| Play vs Agent | `/human/`      | Human vs agent create and waiting room (resume saved games in **Spectator → My games**) |
+| Play board  | `/play/{id}`     | Interactive human vs agent board (chat, draws, premoves, favicon alert) |
 | Calibration | `/calibration`   | Continuous engine calibration  |
 | ELO Ladder  | `/leaderboard`   | Agent + opponent ratings       |
 
