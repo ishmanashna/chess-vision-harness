@@ -55,8 +55,7 @@ _finished_eval_cache: Dict[str, int] = {}
 _EVAL_TTL = 2.0
 
 NAV = (
-    '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; '
-    '<a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/spectator/">&larr; Spectator</a> &nbsp;|&nbsp; '
     '<a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; '
     '<a class="back" href="/leaderboard">ELO Ladder</a> &nbsp;|&nbsp; '
     '<button type="button" class="theme-toggle theme-toggle-inline" data-theme-toggle>Dark mode</button>'
@@ -710,17 +709,14 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
     header = PUBLIC_SITE_HEADER
-    html = f"""<!DOCTYPE html><html><head><title>{game_id} · Chess Vision Harness</title>
+    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{game_id} · Chess Vision Harness</title>
     {THEME_INIT_SCRIPT}
     <link rel="stylesheet" href="/css/site.css"/>
     <style>
-    {SPECTATOR_PAGE_CSS}
-    *{{box-sizing:border-box}}
-    body{{padding:0;min-height:100vh}}
-    .site-chrome{{padding-bottom:0}}
-    .site-chrome .site-header{{margin-bottom:0}}
-    a{{color:var(--link);text-decoration:none}}a:hover{{text-decoration:underline}}
-    .layout{{display:grid;grid-template-columns:minmax(280px,360px) auto minmax(200px,280px);gap:28px;align-items:start;padding:24px 32px 40px;max-width:1320px;margin:0 auto}}
+    .game-sub{{margin:0 0 18px;color:var(--muted);font-size:.9rem}}
+    .game-sub code{{font-size:.88em}}
+    .layout{{display:grid;grid-template-columns:minmax(280px,360px) auto minmax(200px,280px);gap:28px;align-items:start}}
     .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .info-col{{display:flex;flex-direction:column;gap:16px}}
     .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
@@ -730,11 +726,11 @@ async def game_view(game_id: str):
     .meta-grid dd{{margin:0;color:var(--text-secondary);word-break:break-word}}
     #state-result{{font-weight:700}}
     .actions{{display:flex;flex-direction:column;gap:8px}}
-    .btn{{display:block;width:100%;padding:9px 12px;font-size:.86em;border:1px solid var(--border-strong);border-radius:6px;background:var(--btn-bg);color:var(--text);cursor:pointer;text-align:center;text-decoration:none}}
-    .btn:hover{{background:var(--btn-hover);border-color:var(--border-strong)}}
+    .game-view .btn{{display:block;width:100%;padding:9px 12px;font-size:.86em;border:1px solid var(--border-strong);border-radius:6px;background:var(--btn-bg);color:var(--text);cursor:pointer;text-align:center;text-decoration:none}}
+    .game-view .btn:hover{{background:var(--btn-hover);border-color:var(--border-strong)}}
     .btn-hint{{font-size:.78em;color:var(--faint);min-height:1.2em}}
     .board-col{{display:flex;justify-content:center}}
-    .board-stack{{display:inline-flex;flex-direction:column;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:0 1px 4px var(--shadow)}}
+    .board-stack{{display:inline-flex;flex-direction:column;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:0 1px 4px var(--shadow,rgba(0,0,0,.06))}}
     .board-label{{padding:11px 16px;text-align:center;font-size:.93em;font-weight:600;background:var(--bg-elevated);color:var(--text)}}
     .board-label.black{{border-bottom:1px solid var(--border)}}
     .board-label.white{{border-top:1px solid var(--border)}}
@@ -742,9 +738,9 @@ async def game_view(game_id: str):
     .board-row{{display:flex;align-items:stretch}}
     .eval-col-v{{display:flex;flex-direction:column;align-items:center;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg-elevated);padding:0}}
     .eval-track-v{{width:18px;background:var(--surface);position:relative;flex-shrink:0;border:1px solid var(--border-strong);border-radius:2px;flex:1;min-height:120px;margin:0}}
-    .eval-black{{position:absolute;top:0;left:0;right:0;background:var(--eval-fill);transition:height .5s ease}}
-    #board{{display:block;background:var(--surface);width:min(calc(100vh - 180px),calc(100vw - 560px),600px);height:auto}}
-    .moves-col{{display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 100px)}}
+    .eval-black{{position:absolute;top:0;left:0;right:0;background:var(--text);transition:height .5s ease}}
+    #board{{display:block;background:var(--surface);width:min(calc(100vh - 220px),calc(100vw - 640px),600px);height:auto}}
+    .moves-col{{display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 140px)}}
     .moves-col .panel{{background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:200px;overflow:hidden}}
     .moves-col .panel h2{{padding:14px 16px 0;margin:0}}
     .moves-scroll{{overflow-y:auto;flex:1;padding:8px 12px 14px}}
@@ -757,8 +753,10 @@ async def game_view(game_id: str):
       .moves-col{{max-height:320px}}
       #board{{width:100%;max-width:480px}}
     }}
-    </style></head><body>
+    </style></head><body class="game-view">
+    <div class="wrap">
     {header}
+    <p class="game-sub">Spectating <code>{game_id}</code></p>
     <div class="layout">
       <aside class="col info-col">
         <div class="info-card">
@@ -802,6 +800,7 @@ async def game_view(game_id: str):
         </div>
       </aside>
     </div>
+    </div>
     <script>
     let lastRevision='';
     let lastMoveCount=0;
@@ -810,7 +809,6 @@ async def game_view(game_id: str):
     function syncHeights(){{
       const board=document.getElementById('board');
       const track=document.getElementById('eval-track');
-      const boardCol=document.getElementById('board-col');
       const movesCol=document.getElementById('moves-col');
       const stack=document.querySelector('.board-stack');
       if(board&&track&&board.offsetHeight)track.style.height=board.offsetHeight+'px';

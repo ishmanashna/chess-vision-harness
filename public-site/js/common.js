@@ -24,6 +24,7 @@
       "/completed": "nav-spectator",
     };
     var activeId = map[current];
+    if (!activeId && current.indexOf("/g/") === 0) activeId = "nav-spectator";
     if (!activeId) return;
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");

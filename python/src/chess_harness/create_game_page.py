@@ -81,7 +81,7 @@ def render_create_game_page(
         parts.extend([
             '<div class="ok-box">Game created. '
             f'<a href="/g/{_esc(success_game_id)}">Spectate this game</a>'
-            ' · <a href="/?tab=active">Active</a></div>',
+            ' · <a href="/spectator/">Spectator</a></div>',
             f'<p class="game-id">Game ID: <code>{_esc(success_game_id)}</code></p>',
             '<div class="brief-wrap">',
             '<label for="brief"><strong>Agent prompt</strong> — paste into your agent</label>',

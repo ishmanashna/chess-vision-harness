@@ -390,18 +390,17 @@ THEME_TOGGLE_SCRIPT = """
 """
 
 PUBLIC_SITE_HEADER = """
-<div class="wrap site-chrome">
   <header class="site-header">
     <div class="header-top">
       <div class="header-brand">
         <h1 class="site-title">Chess Vision Harness</h1>
       </div>
       <nav class="site-nav" aria-label="Main">
-        <a href="/">Home</a>
-        <a href="/spectator/">Spectator</a>
-        <a href="/create/">Create Game</a>
-        <a href="/leaderboard/">Leaderboard</a>
-        <a href="/contact/">Contact</a>
+        <a href="/" id="nav-home">Home</a>
+        <a href="/spectator/" id="nav-spectator">Spectator</a>
+        <a href="/create/" id="nav-create">Create Game</a>
+        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/contact/" id="nav-contact">Contact</a>
       </nav>
       <div class="header-controls">
         <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
@@ -412,12 +411,10 @@ PUBLIC_SITE_HEADER = """
       </div>
     </div>
   </header>
-</div>
 """
 
 NAV = (
-    '<a class="back" href="/?tab=active">&larr; Active</a> &nbsp;|&nbsp; '
-    '<a class="back" href="/?tab=done">Completed</a> &nbsp;|&nbsp; '
+    '<a class="back" href="/spectator/">&larr; Spectator</a> &nbsp;|&nbsp; '
     '<a class="back" href="/calibration">Calibration</a> &nbsp;|&nbsp; '
     '<a class="back" href="/leaderboard">ELO Ladder</a> &nbsp;|&nbsp; '
     '<button type="button" class="theme-toggle theme-toggle-inline" data-theme-toggle>Dark mode</button>'
@@ -506,8 +503,7 @@ SPECTATOR_PAGE_CSS = """
 def spectator_tabs(active: str) -> str:
     return (
         '<div class="tabs">'
-        f'<a href="/?tab=active"{" class=active" if active == "active" else ""}>Active</a>'
-        f'<a href="/?tab=done"{" class=active" if active == "done" else ""}>Completed</a>'
+        f'<a href="/spectator/"{" class=active" if active in ("active", "done", "spectator") else ""}>Spectator</a>'
         f'<a href="/create"{" class=active" if active == "create" else ""}>Create Game</a>'
         f'<a href="/calibration"{" class=active" if active == "calibration" else ""}>Calibration</a>'
         f'<a href="/leaderboard"{" class=active" if active == "ladder" else ""}>ELO Ladder</a>'

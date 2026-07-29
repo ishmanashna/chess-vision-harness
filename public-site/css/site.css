@@ -25,6 +25,7 @@
   --banner-offline-fg: #7a4a12;
   --form-ok-bg: #edf7f0;
   --form-ok-border: #b8dfc4;
+  --shadow: rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="dark"] {
@@ -54,6 +55,7 @@
   --banner-offline-fg: #e0a46a;
   --form-ok-bg: #1a2a20;
   --form-ok-border: #2e4a38;
+  --shadow: rgba(0, 0, 0, 0.35);
 }
 
 *,
