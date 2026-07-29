@@ -27,6 +27,7 @@ from .spectator_human import (
     show_eval_for_state,
 )
 from .ladder_display import (
+    FAVICON_LINKS,
     PUBLIC_SITE_HEADER,
     SPECTATOR_PAGE_CSS,
     THEME_INIT_SCRIPT,
@@ -273,27 +274,8 @@ def _resolve_eval_cp(state: Dict[str, Any], game_id: str) -> Optional[int]:
     return score
 
 
-def _move_rows(state: Dict[str, Any]) -> list[Dict[str, Any]]:
-    """Build Lichess-style move rows (SAN) from stored UCI plies."""
-    moves = state.get("moves", [])
-    if not moves:
-        return []
-    board = chess.Board(state.get("start_fen", chess.STARTING_FEN))
-    rows: list[Dict[str, Any]] = []
-    i = 0
-    move_num = 1
-    while i < len(moves):
-        white = board.san(chess.Move.from_uci(moves[i]))
-        board.push(chess.Move.from_uci(moves[i]))
-        i += 1
-        black = ""
-        if i < len(moves):
-            black = board.san(chess.Move.from_uci(moves[i]))
-            board.push(chess.Move.from_uci(moves[i]))
-            i += 1
-        rows.append({"num": move_num, "white": white, "black": black})
-        move_num += 1
-    return rows
+from .move_rows import move_rows as _move_rows
+from .move_rows import moves_payload
 
 
 def _spectator_eval_ui(
@@ -467,6 +449,7 @@ async def root(request: Request):
         tab = "active"
     html = (
         f"""<!DOCTYPE html><html><head><title>Chess Vision Harness</title>
+    {FAVICON_LINKS}
     {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
@@ -752,6 +735,7 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 async def game_view(game_id: str):
     header = PUBLIC_SITE_HEADER
     html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+    {FAVICON_LINKS}
     <title>{game_id} · Chess Vision Harness</title>
     {THEME_INIT_SCRIPT}
     <link rel="stylesheet" href="/css/site.css"/>
@@ -969,20 +953,21 @@ async def game_view(game_id: str):
 
     async function u(){{
       try{{
-        const s=await(await fetch('/api/games/{game_id}/state?debug=1')).json();
+        const s=await(await fetch('/api/games/{game_id}/state')).json();
         const e=await(await fetch('/api/games/{game_id}/eval')).json();
         const showEval=s.show_eval!==false&&e.show_eval!==false&&s.game_type!=='human_vs_agent';
         const ev=showEval&&e.ok&&e.eval_ui?e.eval_ui:(showEval?s.eval_ui||null:null);
         if(ev)setLabels(ev,s);
         else setLabels(null,s);
         const rev=s.revision||'';
-        const plies=s.move_count!=null?s.move_count:(s.moves?s.moves.length:0);
+        const plies=s.move_count!=null?s.move_count:0;
         if(rev!==lastRevision||plies!==lastMoveCount){{
           lastRevision=rev;lastMoveCount=plies;
-          if(s.move_rows)renderMoves(s.move_rows,plies);
+          const m=await(await fetch('/api/games/{game_id}/moves')).json();
+          if(m.move_rows)renderMoves(m.move_rows,plies);
           document.getElementById('board').src='/g/{game_id}/board.png?v='+rev;
         }}
-        const p=await(await fetch('/api/games/{game_id}/pgn?debug=1')).json();
+        const p=await(await fetch('/api/games/{game_id}/pgn')).json();
         if(p.pgn)lastPgn=p.pgn;
         renderMeta(lastPgn,s);
         syncHeights();
@@ -1135,6 +1120,14 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
         opponent_label=opponent_label,
         extra=extra,
     )
+
+
+@app.get("/api/games/{game_id}/moves")
+async def get_game_moves(game_id: str):
+    state = game_manager.load_state(game_id)
+    if not state:
+        raise HTTPException(404, "Game not found")
+    return moves_payload(state)
 
 
 @app.get("/api/games/{game_id}/pgn")

@@ -66,6 +66,7 @@ Unranked browser play: operators use **Create Game → Agent vs Human**, paste t
 | Poll turn / game state | **GET `/api/v1/games/{id}/status`** |
 | See position | **GET `/api/v1/games/{id}/board`** → PNG |
 | Submit move | `POST /api/v1/games/{id}/move/{uci_or_san}` (your turn only) |
+| Move history (optional) | **GET `/api/v1/games/{id}/moves`** → UCI+SAN plies, no FEN (AvH only) |
 | Resign | `POST /api/v1/games/{id}/resign` |
 | After game ends | `GET /api/v1/games/{id}/pgn` |
 
@@ -84,15 +85,17 @@ Unranked browser play: operators use **Create Game → Agent vs Human**, paste t
 
 ## Ground truth
 
-- **`board.png` is the only source of position information.**
+- **`board.png` is the only source of current position information when choosing a move.**
 - JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count` are metadata — not the board.
+- **AvH exception:** `GET /api/v1/games/{id}/moves` returns full move history (UCI+SAN, no FEN) for agent vs human games only — use for recall, not as a substitute for the board image. Rated AvE/AvaA agents get 403 on this endpoint.
 
 ## Forbidden during an in-progress game
 
 - Read `.chess_harness/games/<id>/state.json`, `game.pgn`, or `results.jsonl`
 - Read any file under `.chess_harness/games/<id>/` **except** `board.png`
 - Call legacy spectator HTTP APIs (`GET /api/games/*` on the operator UI)
-- Export PGN while the game is in progress
+- Export PGN while the game is in progress (AvH agents may use `/moves` for history instead)
+- Use move-list APIs on rated AvE/AvaA games (`GET /api/v1/games/{id}/moves` returns 403)
 - Run Stockfish, `python-chess`, or any engine/script to pick moves, list legal moves, or evaluate the position
 - Pass custom FEN to start a game (operator-only)
 - Use operator commands: `harness reset`, `models uninscribe`, `serve`, `leaderboard`, `tournament`, calibration scripts

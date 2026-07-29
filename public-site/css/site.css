@@ -786,6 +786,50 @@ p {
   padding: 5px 10px;
 }
 
+.your-games-panel {
+  margin: 16px 0;
+}
+
+.your-games-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.your-games-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.your-games-item:last-child {
+  border-bottom: none;
+}
+
+.your-games-label {
+  font-weight: 600;
+}
+
+.your-games-when {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.human-wait-status {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.human-wait-status.is-waiting strong {
+  color: var(--accent, #2563eb);
+}
+
 .site-footer {
   margin-top: 48px;
   padding-top: 16px;

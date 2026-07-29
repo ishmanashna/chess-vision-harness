@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .agent_surface import agent_safe_board, agent_safe_status
 from .game_types import GAME_TYPE_HUMAN_VS_AGENT, is_human_vs_agent_state
+from .human_vs_agent_draw import clear_draw_offer, draw_offer_payload
 from .human_vs_agent_finish import finish_human_vs_agent_game
 
 if TYPE_CHECKING:
@@ -119,6 +120,7 @@ class HumanVsAgentPlay:
                         "GameType": GAME_TYPE_HUMAN_VS_AGENT,
                     },
                     "moves": [],
+                    "draw_offer": None,
                 }
                 self.ctrl._touch_activity(state)
                 if not self.gm.save_state(game_id, state):
@@ -174,6 +176,7 @@ class HumanVsAgentPlay:
                 if isinstance(move, dict):
                     return move
 
+                clear_draw_offer(state)
                 self.ctrl._record_move_audit(state, board, move_str, by_color=agent_color)
                 try:
                     board.push(move)
@@ -222,6 +225,7 @@ class HumanVsAgentPlay:
         response = agent_safe_status(state, str(self.gm.get_board_path(game_id)), persp)
         response["agent_joined"] = state.get("agent_joined", False)
         response["opponent_display_name"] = state.get("human_nickname") or "Human"
+        response.update(draw_offer_payload(state, board, state["agent_color"]))
         return response
 
     def get_board(self, game_id: str) -> Dict[str, Any]:
@@ -250,6 +254,7 @@ class HumanVsAgentPlay:
                     return self.ctrl._error(game_id, f"Game is already over: {state['result']}")
 
                 ensure_agent_joined(self.ctrl, game_id, state)
+                clear_draw_offer(state)
                 agent_color = state["agent_color"]
                 result = "0-1" if agent_color == "WHITE" else "1-0"
                 board = chess.Board(state["board_fen"])

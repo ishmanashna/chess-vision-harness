@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  var activeWaitPoll = null;
+
   function createHumanGame(apiJson, apiKey, nickname) {
     var body = {};
     if (nickname) body.nickname = nickname;
@@ -53,12 +55,21 @@
     var asideAvaa = root.querySelector("[data-aside-avaa]");
     var asideHuman = root.querySelector("[data-aside-human]");
     var nicknameRow = root.querySelector("[data-nickname-row]");
+    var yourGames = root.querySelector("[data-human-your-games]");
     if (heading) heading.textContent = labels.heading;
     if (submit) submit.textContent = labels.submit;
     if (asideEngine) asideEngine.hidden = mode !== "engine";
     if (asideAvaa) asideAvaa.hidden = mode !== "avaa";
     if (asideHuman) asideHuman.hidden = mode !== "human";
     if (nicknameRow) nicknameRow.hidden = mode !== "human";
+    if (yourGames) yourGames.hidden = mode !== "human";
+  }
+
+  function stopWaitPoll() {
+    if (activeWaitPoll) {
+      activeWaitPoll.stop();
+      activeWaitPoll = null;
+    }
   }
 
   function showBriefResult(root, gameId, brief, matched, escapeHtml, extraHtml) {
@@ -110,19 +121,82 @@
     return game;
   }
 
-  function showHumanResult(root, gameId, brief, playToken, escapeHtml) {
-    var playHref =
-      "/play/" + encodeURIComponent(gameId) + "?token=" + encodeURIComponent(playToken || "");
-    showBriefResult(
-      root,
-      gameId,
-      brief,
-      false,
-      escapeHtml,
-      '<p class="play-link-line"><a class="btn btn-primary" href="' +
-        escapeHtml(playHref) +
-        '">Open play board</a></p>'
-    );
+  function saveHumanGame(game) {
+    var registry = window.CVH && window.CVH.humanGames;
+    if (!registry) return;
+    registry.upsert({
+      gameId: game.game_id,
+      token: game.play_token,
+      nickname: game.human_nickname || "",
+      agentName: game.model_display_name || game.model_name || "",
+    });
+    if (window.CVH.refreshHumanGamesLists) window.CVH.refreshHumanGamesLists();
+  }
+
+  function showHumanResult(root, game, escapeHtml) {
+    var gameId = game.game_id;
+    var brief = game.agent_brief;
+    var playToken = game.play_token;
+    var waitApi = window.CVH && window.CVH.createHumanWait;
+    var registry = window.CVH && window.CVH.humanGames;
+
+    stopWaitPoll();
+    saveHumanGame(game);
+
+    var result = root.querySelector("[data-create-result]");
+    var form = root.querySelector("[data-create-form]");
+    var tabs = root.querySelector(".mode-tabs");
+    if (form) form.hidden = true;
+    if (tabs) tabs.hidden = true;
+    if (!result) return;
+
+    result.hidden = false;
+    result.innerHTML =
+      '<div class="form-message form-message-ok">Game created. Copy the agent prompt below.</div>' +
+      '<p class="game-id-line">Game ID: <code>' +
+      escapeHtml(gameId) +
+      "</code></p>" +
+      '<p class="human-wait-status is-waiting" data-human-wait-status aria-live="polite">' +
+      "<strong>Waiting for agent…</strong> Paste the brief into your agent. " +
+      "You will be taken to the play board when the agent joins.</p>" +
+      '<div class="brief-wrap">' +
+      '<label for="agent-brief"><strong>Agent prompt</strong> — paste into your agent</label>' +
+      '<textarea id="agent-brief" readonly rows="18">' +
+      escapeHtml(brief) +
+      "</textarea>" +
+      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></div>';
+
+    var copyBtn = result.querySelector("[data-copy-brief]");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        var ta = document.getElementById("agent-brief");
+        if (!ta) return;
+        ta.select();
+        navigator.clipboard.writeText(ta.value).catch(function () {
+          document.execCommand("copy");
+        });
+      });
+    }
+
+    if (!waitApi || !registry) return;
+
+    var waitStatus = result.querySelector("[data-human-wait-status]");
+    activeWaitPoll = waitApi.startWaitingPoll(gameId, playToken, {
+      onJoined: function () {
+        location.replace(registry.playHref(gameId, playToken));
+      },
+      onGameOver: function () {
+        registry.remove(gameId);
+        if (window.CVH.refreshHumanGamesLists) window.CVH.refreshHumanGamesLists();
+        if (waitStatus) {
+          waitStatus.textContent = "Game ended before the agent joined.";
+          waitStatus.classList.remove("is-waiting");
+        }
+      },
+      onError: function () {
+        /* keep polling */
+      },
+    });
   }
 
   window.CVH = window.CVH || {};
@@ -135,5 +209,6 @@
     showHumanResult: showHumanResult,
     requireBrief: requireBrief,
     isHumanMode: isHumanMode,
+    stopWaitPoll: stopWaitPoll,
   };
 })();

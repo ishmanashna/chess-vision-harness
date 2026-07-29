@@ -104,6 +104,11 @@ def test_human_agent_game_over_http(human_client, monkeypatch):
     assert body["your_turn"] is False
     assert body.get("fen")
     assert body["game_over"] is False
+    assert body.get("human_color") == "BLACK"
+    assert body.get("agent_joined") is True
+    assert "legal_moves_uci" in body
+    assert body.get("agent_display_name")
+    assert body.get("agent_elo") is not None
 
     agent_move2 = client.post(f"/api/v1/games/{game_id}/move/g1f3", headers=_auth(api_key))
     assert agent_move2.status_code == 200, agent_move2.text
@@ -116,8 +121,33 @@ def test_human_agent_game_over_http(human_client, monkeypatch):
 
     pos = client.get(f"/api/play/{game_id}/position", headers=_play_auth(play_token))
     assert pos.status_code == 200
-    assert pos.json()["move_count"] == 4
-    assert pos.json()["agent_joined"] is True
+    pos_json = pos.json()
+    assert pos_json["move_count"] == 4
+    assert pos_json["agent_joined"] is True
+    assert pos_json.get("human_color") == "BLACK"
+    assert pos_json.get("agent_elo") is not None
+
+
+def test_play_position_includes_move_rows(human_client, monkeypatch):
+    client, _ = human_client
+    api_key, _ = _register_agent(client)
+    data = _create_human_game(client, api_key, monkeypatch=monkeypatch)
+    game_id = data["game_id"]
+    play_token = data["play_token"]
+
+    client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth(api_key))
+    client.post(
+        f"/api/play/{game_id}/move/e7e5",
+        headers=_play_auth(play_token),
+    )
+
+    pos = client.get(f"/api/play/{game_id}/position", headers=_play_auth(play_token))
+    assert pos.status_code == 200
+    body = pos.json()
+    assert body["move_rows"] == [
+        {"num": 1, "white": "e4", "black": "e5"},
+    ]
+    assert body["move_count"] == 2
 
 
 def test_play_page_html(human_client, monkeypatch):
@@ -131,7 +161,13 @@ def test_play_page_html(human_client, monkeypatch):
     body = page.text
     assert "play-page.js" in body
     assert "data-play-root" in body
+    assert "data-play-moves" in body
+    assert "data-draw-offer" in body
+    assert "data-download-board" in body
+    assert "favicon.ico" in body
     assert f"/g/{game_id}" in body
+    assert "common.js" in body
+    assert "btn.addEventListener('click',function(){apply(current()" not in body
 
     missing = client.get("/play/not-a-game")
     assert missing.status_code == 404
@@ -176,3 +212,28 @@ def test_play_position_idle_end_reason(human_client, monkeypatch):
     assert body["result"] == "*"
     assert body["end_reason"] == "inactivity"
     assert body["end_reason_label"] == "No result (idle timeout)"
+
+
+def test_play_board_png_human_orientation(human_client, monkeypatch):
+    client, harness_dir = human_client
+    api_key, _ = _register_agent(client)
+    data = _create_human_game(client, api_key, agent_color="black", monkeypatch=monkeypatch)
+    game_id = data["game_id"]
+    play_token = data["play_token"]
+
+    client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth(api_key))
+
+    no_auth = client.get(f"/api/play/{game_id}/board.png")
+    assert no_auth.status_code == 401
+
+    agent_png = harness_dir / "games" / game_id / "board.png"
+    assert agent_png.exists()
+    agent_bytes = agent_png.read_bytes()
+
+    human_png = client.get(
+        f"/api/play/{game_id}/board.png",
+        headers=_play_auth(play_token),
+    )
+    assert human_png.status_code == 200, human_png.text
+    assert human_png.headers["content-type"] == "image/png"
+    assert human_png.content != agent_bytes

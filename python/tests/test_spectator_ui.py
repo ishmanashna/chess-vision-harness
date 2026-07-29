@@ -3,7 +3,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from chess_harness.spectator import _board_stack_labels, _eval_ui, _move_rows
+from chess_harness.move_rows import move_rows as _move_rows
+from chess_harness.spectator import _board_stack_labels, _eval_ui
 
 
 def test_board_stack_labels_flipped_for_black_agent():

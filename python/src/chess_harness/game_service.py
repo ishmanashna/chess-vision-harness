@@ -163,3 +163,63 @@ class GameService:
 
         self._prune_idle()
         return human_resign(self.controller.human_play, game_id, reason=reason)
+
+    def human_draw_offer(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import offer_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return offer_draw(self.controller.human_play, game_id, state["human_color"])
+
+    def human_draw_accept(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import accept_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return accept_draw(self.controller.human_play, game_id, state["human_color"])
+
+    def human_draw_decline(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import decline_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return decline_draw(self.controller.human_play, game_id, state["human_color"])
+
+    def human_board_png(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_human import human_board_png_bytes
+
+        self._prune_idle()
+        return human_board_png_bytes(self.controller.human_play, game_id)
+
+    def agent_draw_offer(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import offer_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return offer_draw(self.controller.human_play, game_id, state["agent_color"])
+
+    def agent_draw_accept(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import accept_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return accept_draw(self.controller.human_play, game_id, state["agent_color"])
+
+    def agent_draw_decline(self, game_id: str) -> Dict[str, Any]:
+        from .human_vs_agent_draw import decline_draw
+
+        self._prune_idle()
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        return decline_draw(self.controller.human_play, game_id, state["agent_color"])

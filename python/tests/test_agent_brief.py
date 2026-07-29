@@ -87,3 +87,5 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
     assert "Never use FEN" in brief
+    assert "/moves" in brief
+    assert "memory" in brief.lower() or "recall" in brief.lower()

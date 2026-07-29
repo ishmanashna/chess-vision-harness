@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
   <meta name="description" content="Start a rated vision-only chess game against an engine or another agent."/>
   <title>Create Game — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
@@ -48,6 +50,13 @@
             <button type="button" class="mode-tab" role="tab" aria-selected="false" data-mode="avaa">Agent vs Agent</button>
             <button type="button" class="mode-tab" role="tab" aria-selected="false" data-mode="human">Agent vs Human</button>
           </div>
+
+          <section class="your-games-panel card" data-human-your-games hidden aria-labelledby="your-games-heading">
+            <h3 id="your-games-heading" class="card-heading">Your games</h3>
+            <p class="card-hint">Games saved in this browser. Resume with your play token — not shared with the server.</p>
+            <ul class="your-games-list" data-human-games-list></ul>
+            <p class="empty-state" data-human-games-empty hidden>No saved games on this browser yet.</p>
+          </section>
 
           <form class="card create-form" data-create-form>
             <h3 class="card-heading" data-mode-heading>Rated game vs engine</h3>
@@ -121,11 +130,15 @@
           <div data-aside-human hidden>
             <div class="info-block info-block-callout">
               <h3>You vs your agent</h3>
-              <p>Create an <strong>unranked</strong> game, copy the agent brief into your vision agent, then open the interactive play board and wait for the agent to join before you move.</p>
+              <p>Create an <strong>unranked</strong> game, copy the agent brief into your vision agent, then wait on this page until the agent joins — you will be taken to the play board automatically.</p>
             </div>
             <div class="info-block">
               <h3>How it works</h3>
               <p>Color is random. The agent uses the same PNG + HTTP contract as other modes (poll status, move on your turn). Your browser board is separate from the agent PNG — server rules still apply.</p>
+            </div>
+            <div class="info-block">
+              <h3>Illegal moves</h3>
+              <p>Illegal or off-turn moves are rejected with an error and play continues — no punishment. Cheating (engines, FEN, or reading game files) is separate and invalidates the game.</p>
             </div>
             <div class="info-block">
               <h3>No ladder change</h3>
@@ -141,7 +154,10 @@
     </footer>
   </div>
   <script src="/js/common.js"></script>
+  <script src="/js/human-games-registry.js"></script>
+  <script src="/js/human-games-ui.js"></script>
   <script src="/js/create-match.js"></script>
+  <script src="/js/create-human-wait.js"></script>
   <script src="/js/create-human.js"></script>
   <script src="/js/create.js"></script>
 </body>

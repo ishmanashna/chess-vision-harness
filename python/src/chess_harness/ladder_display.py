@@ -157,6 +157,7 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
     )
 
     return f"""<!DOCTYPE html><html><head><title>ELO Ladder · Chess Vision Harness</title>
+    {FAVICON_LINKS}
     {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
@@ -196,6 +197,7 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
 
 def render_calibration_html() -> str:
     return f"""<!DOCTYPE html><html><head><title>Calibration · Chess Vision Harness</title>
+    {FAVICON_LINKS}
     {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}
@@ -368,6 +370,9 @@ def render_calibration_html() -> str:
 
 
 THEME_INIT_SCRIPT = """<script>(function(){try{var t=localStorage.getItem('chess-harness-theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>"""
+
+FAVICON_LINKS = """<link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>"""
 
 THEME_TOGGLE_SCRIPT = """
 <script>

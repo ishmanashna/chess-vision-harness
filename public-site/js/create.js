@@ -82,6 +82,7 @@
       clearTimeout(pollTimer);
       pollTimer = null;
     }
+    if (humanApi && humanApi.stopWaitPoll) humanApi.stopWaitPoll();
   }
 
   function showResult(root, gameId, brief, matched) {
@@ -248,13 +249,7 @@
             }
             if (ctx.kind === "human") {
               var humanGame = humanApi.requireBrief(ctx.game, true);
-              humanApi.showHumanResult(
-                root,
-                humanGame.game_id,
-                humanGame.agent_brief,
-                humanGame.play_token,
-                escapeHtml
-              );
+              humanApi.showHumanResult(root, humanGame, escapeHtml);
               return;
             }
             var game = humanApi ? humanApi.requireBrief(ctx.game, false) : ctx.game;

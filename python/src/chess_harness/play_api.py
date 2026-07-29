@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Optional
 
 from fastapi import APIRouter, Depends, Header, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
+from .chat_api import register_play_chat_routes
 from .game_service import GameService
 from .game_types import is_human_vs_agent_state
 from .human_vs_agent import verify_play_token
@@ -62,6 +63,15 @@ def build_play_router(get_game_service: Callable[[], GameService]) -> APIRouter:
             return _err(404, result.get("error", "Game not found"))
         return result
 
+    @router.get("/{game_id}/board.png")
+    async def play_board_png(game_id: str, _state: Dict[str, Any] = Depends(_require_human_game)):
+        result = _svc().human_board_png(game_id)
+        if not result.get("ok"):
+            message = result.get("error", "Board not found")
+            status = 404 if "not found" in message.lower() else 500
+            return _err(status, message)
+        return Response(content=result["png"], media_type="image/png")
+
     @router.get("/{game_id}/status")
     async def play_status(game_id: str, _state: Dict[str, Any] = Depends(_require_human_game)):
         result = _svc().human_position(game_id)
@@ -93,5 +103,36 @@ def build_play_router(get_game_service: Callable[[], GameService]) -> APIRouter:
             status = 404 if "not found" in message.lower() else 400
             return _err(status, message)
         return result
+
+    def _draw_err(result: Dict[str, Any]) -> JSONResponse:
+        message = result.get("error", "Draw action failed")
+        status = 404 if "not found" in message.lower() else 400
+        return _err(status, message)
+
+    @router.post("/{game_id}/draw/offer")
+    async def play_draw_offer(game_id: str, _state: Dict[str, Any] = Depends(_require_human_game)):
+        result = _svc().human_draw_offer(game_id)
+        if not result.get("ok"):
+            return _draw_err(result)
+        pos = _svc().human_position(game_id)
+        return pos if pos.get("ok") else result
+
+    @router.post("/{game_id}/draw/accept")
+    async def play_draw_accept(game_id: str, _state: Dict[str, Any] = Depends(_require_human_game)):
+        result = _svc().human_draw_accept(game_id)
+        if not result.get("ok"):
+            return _draw_err(result)
+        pos = _svc().human_position(game_id)
+        return pos if pos.get("ok") else result
+
+    @router.post("/{game_id}/draw/decline")
+    async def play_draw_decline(game_id: str, _state: Dict[str, Any] = Depends(_require_human_game)):
+        result = _svc().human_draw_decline(game_id)
+        if not result.get("ok"):
+            return _draw_err(result)
+        pos = _svc().human_position(game_id)
+        return pos if pos.get("ok") else result
+
+    register_play_chat_routes(router, _svc, _require_human_game, _err)
 
     return router

@@ -1,8 +1,13 @@
 (function () {
   "use strict";
 
+  function normalizeTab(name) {
+    if (name === "completed" || name === "mygames") return name;
+    return "active";
+  }
+
   function setTab(root, name) {
-    var next = name === "completed" ? "completed" : "active";
+    var next = normalizeTab(name);
     root.querySelectorAll("[data-spec-tab]").forEach(function (tab) {
       var active = tab.getAttribute("data-spec-tab") === next;
       tab.classList.toggle("is-active", active);
@@ -13,22 +18,28 @@
     });
     try {
       var url = new URL(window.location.href);
-      if (next === "completed") url.searchParams.set("tab", "completed");
-      else url.searchParams.delete("tab");
+      if (next === "active") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", next);
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     } catch (_err) {
       /* ignore */
     }
+    if (next === "mygames" && window.CVH && window.CVH.refreshHumanGamesLists) {
+      window.CVH.refreshHumanGamesLists();
+    }
+  }
+
+  function initialTab() {
+    var search = window.location.search || "";
+    if (search.indexOf("tab=mygames") >= 0) return "mygames";
+    if (search.indexOf("tab=completed") >= 0) return "completed";
+    return "active";
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     var root = document.querySelector("[data-spectator-page]");
     if (!root) return;
-    var initial =
-      (window.location.search || "").indexOf("tab=completed") >= 0
-        ? "completed"
-        : "active";
-    setTab(root, initial);
+    setTab(root, initialTab());
     root.querySelectorAll("[data-spec-tab]").forEach(function (tab) {
       tab.addEventListener("click", function () {
         setTab(root, tab.getAttribute("data-spec-tab"));

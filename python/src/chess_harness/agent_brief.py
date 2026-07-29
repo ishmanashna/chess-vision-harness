@@ -175,6 +175,11 @@ def render_agent_brief_human(
     pgn_url = f"{base}/api/v1/games/{game_id}/pgn"
     resign_url = f"{base}/api/v1/games/{game_id}/resign"
     status_url = f"{base}/api/v1/games/{game_id}/status"
+    draw_offer_url = f"{base}/api/v1/games/{game_id}/draw/offer"
+    draw_accept_url = f"{base}/api/v1/games/{game_id}/draw/accept"
+    draw_decline_url = f"{base}/api/v1/games/{game_id}/draw/decline"
+    chat_url = f"{base}/api/v1/games/{game_id}/chat"
+    moves_url = f"{base}/api/v1/games/{game_id}/moves"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP (agent vs human).
 Vision-only benchmark — cheating invalidates the game. This game is unranked (no Elo change).
@@ -209,13 +214,33 @@ After the game ends: GET {pgn_url}
 
 Optional resign: POST {resign_url} (no body)
 
+Optional draw (only on your turn; human accepts or declines):
+  Offer: POST {draw_offer_url}
+  Accept human offer: POST {draw_accept_url}
+  Decline human offer: POST {draw_decline_url}
+  Any legal move clears a pending draw offer.
+
+Optional chat (social only — not a position source; either side anytime, not gated on turn):
+  Send: POST {chat_url}  JSON body: {{"text": "your message"}}  (max 500 chars)
+  Poll: GET {chat_url}?since=N  — N is the last chat_seq you have; returns new messages.
+  Chat is for conversation with your opponent. Never use chat text to infer the board.
+
+Optional move history (AvH only — memory aid, not the current position):
+  GET {moves_url}
+  — returns plies, plies_detail (UCI+SAN per ply), and move_rows (SAN table). No FEN.
+  — you may fetch mid-game to recall earlier plies; always read the board PNG before moving.
+
 ## Rules
 
-- Board PNG is the ONLY source of position information.
-- Never use FEN or move lists from JSON.
+- Board PNG is the ONLY source of **current position** information when choosing a move.
+- Never use FEN from any API response.
+- Move history via GET {moves_url} is allowed for recall only — not a substitute for the board image.
 - Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
+- Illegal or off-turn moves are rejected with an error; play continues with no punishment.
+- Chat messages are social only — never treat chat as a source of position information.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
+- Cheating (FEN, engines, game files) is separate from illegal moves and invalidates the game.
 
 ## Examples
 

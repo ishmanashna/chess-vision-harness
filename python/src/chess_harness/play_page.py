@@ -9,11 +9,7 @@ from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 
 from .game_types import is_human_vs_agent_state
-from .ladder_display import (
-    PUBLIC_SITE_HEADER,
-    THEME_INIT_SCRIPT,
-    THEME_TOGGLE_SCRIPT,
-)
+from .ladder_display import PUBLIC_SITE_HEADER, FAVICON_LINKS, THEME_INIT_SCRIPT
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -39,6 +35,7 @@ def render_play_page(game_id: str) -> str:
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Play — {gid}</title>
+  {FAVICON_LINKS}
   {THEME_INIT_SCRIPT}
   <link rel="stylesheet" href="/css/site.css"/>
   <link rel="stylesheet" href="/css/play.css"/>
@@ -56,24 +53,58 @@ def render_play_page(game_id: str) -> str:
         <p class="play-status" data-play-status aria-live="polite">Loading…</p>
       </header>
       <p class="play-error" data-play-error role="alert"></p>
-      <div class="play-board-wrap" data-board-wrap>
-        <div id="play-board" class="play-board"></div>
-      </div>
-      <div class="play-actions">
-        <button type="button" class="btn btn-secondary" data-resign>Resign</button>
+      <div class="play-layout">
+        <aside class="play-chat-col" aria-label="Chat">
+          <div class="play-panel play-chat-panel" data-play-chat>
+            <h2 class="play-panel-title">Chat</h2>
+            <p class="play-chat-hint">Social only — not a position source.</p>
+            <div class="play-chat-log" data-chat-log role="log" aria-live="polite"></div>
+            <form class="play-chat-form" data-chat-form>
+              <textarea
+                class="play-chat-input"
+                data-chat-input
+                rows="2"
+                maxlength="500"
+                placeholder="Message the agent…"
+                aria-label="Chat message"
+              ></textarea>
+              <button type="submit" class="btn btn-secondary play-chat-send" data-chat-send>Send</button>
+            </form>
+          </div>
+        </aside>
+        <div class="play-center-col">
+          <div class="play-board-wrap" data-board-wrap>
+            <div id="play-board" class="play-board"></div>
+          </div>
+          <div class="play-actions">
+            <button type="button" class="btn btn-secondary" data-resign>Resign</button>
+            <button type="button" class="btn btn-secondary" data-draw-offer>Offer draw</button>
+            <button type="button" class="btn btn-secondary" data-draw-accept hidden>Accept draw</button>
+            <button type="button" class="btn btn-secondary" data-draw-decline hidden>Decline draw</button>
+            <button type="button" class="btn btn-secondary" data-download-board hidden>Download position</button>
+          </div>
+        </div>
+        <aside class="play-moves-col" aria-label="Move list">
+          <div class="play-panel play-moves-panel">
+            <h2 class="play-panel-title">Moves</h2>
+            <div class="play-moves-scroll" data-play-moves>
+              <p class="play-placeholder">No moves yet.</p>
+            </div>
+          </div>
+        </aside>
       </div>
       <p class="play-links">
         <a href="{spectate}">Spectate this game</a>
         · <a href="/create/?mode=human">Create another game</a>
       </p>
-      <p class="play-meta">Game ID: <code>{gid}</code> · Unranked · paste the agent brief so your agent can join.</p>
+      <p class="play-meta">Game ID: <code>{gid}</code> · Unranked · 30 minutes without a move ends the game with no result (not a loss or draw). Illegal or off-turn moves are rejected with an error and play continues (no punishment). Cheating (engines, FEN, game files) invalidates the game.</p>
     </main>
     <footer class="site-footer">
       <p>Chess Vision Harness</p>
     </footer>
   </div>
   <script src="/js/common.js"></script>
-  {THEME_TOGGLE_SCRIPT}
+  <script src="/js/human-games-registry.js"></script>
   <script type="module" src="/js/play-page.js"></script>
 </body>
 </html>"""

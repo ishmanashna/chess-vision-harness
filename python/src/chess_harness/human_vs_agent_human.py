@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import chess
 from typing import Any, Dict, TYPE_CHECKING
 
 from .game_types import is_human_vs_agent_state
+from .human_vs_agent_draw import clear_draw_offer, draw_offer_payload
 from .human_vs_agent_finish import finish_human_vs_agent_game
+from .move_rows import move_rows
 
 if TYPE_CHECKING:
     from .human_vs_agent import HumanVsAgentPlay
@@ -37,7 +42,10 @@ def human_position(play: HumanVsAgentPlay, game_id: str) -> Dict[str, Any]:
         "agent_display_name": state.get("model_display_name") or state.get("model_name"),
         "human_nickname": state.get("human_nickname"),
         "move_count": len(state.get("moves", [])),
+        "move_rows": move_rows(state),
     }
+    payload.update(play.ctrl._elo_context(state))
+    payload.update(draw_offer_payload(state, board, human_col))
     if game_over:
         reason = state.get("end_reason")
         if reason:
@@ -48,6 +56,31 @@ def human_position(play: HumanVsAgentPlay, game_id: str) -> Dict[str, Any]:
     if in_progress and not game_over:
         payload["legal_moves_uci"] = [m.uci() for m in board.legal_moves]
     return payload
+
+
+def human_board_png_bytes(play: HumanVsAgentPlay, game_id: str) -> Dict[str, Any]:
+    """Render board PNG with human at bottom (play-token export only)."""
+    state = play.gm.load_state(game_id)
+    if not state or not is_human_vs_agent_state(state):
+        return {"ok": False, "error": f"Game {game_id} not found"}
+
+    board = chess.Board(state["board_fen"])
+    human_col = str(state["human_color"]).lower()
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        out = Path(tmp.name)
+    try:
+        play.ctrl.renderer.render_board(
+            board,
+            out,
+            last_moves=play.ctrl.highlight_moves(state),
+            agent_color=human_col,
+            check_square=board.king(board.turn) if board.is_check() else None,
+        )
+        return {"ok": True, "png": out.read_bytes()}
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to render board: {e}"}
+    finally:
+        out.unlink(missing_ok=True)
 
 
 def _human_end_reason_label(play: HumanVsAgentPlay, state: Dict[str, Any], game_id: str) -> str | None:
@@ -63,6 +96,8 @@ def _human_end_reason_label(play: HumanVsAgentPlay, state: Dict[str, Any], game_
         if human_resigned:
             human = state.get("human_nickname") or "Human"
             return f"{human} resigned"
+    if reason == "agreement":
+        return "Draw by agreement"
     return play.ctrl.resolve_end_reason(state, game_id)
 
 
@@ -87,6 +122,7 @@ def make_human_move(play: HumanVsAgentPlay, game_id: str, move_str: str) -> Dict
             if isinstance(move, dict):
                 return move
 
+            clear_draw_offer(state)
             play.ctrl._record_move_audit(state, board, move_str, by_color=human_col)
             try:
                 board.push(move)
@@ -136,6 +172,7 @@ def human_resign(play: HumanVsAgentPlay, game_id: str, reason: str = "resignatio
             if state["status"] != "in_progress":
                 return play.ctrl._error(game_id, f"Game is already over: {state['result']}")
 
+            clear_draw_offer(state)
             human_col = state["human_color"]
             result = "0-1" if human_col == "WHITE" else "1-0"
             board = chess.Board(state["board_fen"])
@@ -158,21 +195,5 @@ def human_resign(play: HumanVsAgentPlay, game_id: str, reason: str = "resignatio
 def _human_move_response(
     play: HumanVsAgentPlay, game_id: str, state: Dict[str, Any], board: chess.Board
 ) -> Dict[str, Any]:
-    human_col = state["human_color"]
-    human_side = play.ctrl._agent_color(human_col)
-    in_progress = state["status"] == "in_progress"
-    game_over = not in_progress or board.is_game_over()
-
-    response: Dict[str, Any] = {
-        "ok": True,
-        "game_id": game_id,
-        "fen": board.fen(),
-        "move_count": len(state.get("moves", [])),
-        "game_over": game_over,
-    }
-    if state.get("result"):
-        response["result"] = state["result"]
-        response["your_turn"] = False
-    else:
-        response["your_turn"] = in_progress and board.turn == human_side
-    return response
+    del state, board  # position is reloaded from persisted state
+    return human_position(play, game_id)

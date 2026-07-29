@@ -4,38 +4,22 @@
 
 import { createPlayApi, normalizeColor, readPlayToken } from "./play-api.js";
 import { createPlayBoard } from "./play-board.js";
+import { createPlayChat } from "./play-chat.js";
+import { setupBoardDownload } from "./play-export.js";
+import { canPremove, tryFirePremove } from "./play-premove.js";
+import {
+  applyStatusUi,
+  createTabAttention,
+  renderMoveList,
+  showError,
+  updateMatchup,
+} from "./play-page-ui.js";
 
 const POLL_WAIT_MS = 2500;
 
 function gameIdFromPath() {
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || "";
-}
-
-function formatResult(result) {
-  if (!result) return "Game over";
-  if (result === "1/2-1/2") return "Draw";
-  if (result === "1-0") return "White wins";
-  if (result === "0-1") return "Black wins";
-  return `Result: ${result}`;
-}
-
-function gameOverStatus(pos) {
-  if (pos.end_reason === "inactivity" || pos.result === "*") {
-    return pos.end_reason_label || "No result (idle timeout)";
-  }
-  const summary = formatResult(pos.result);
-  if (pos.end_reason_label && pos.end_reason !== "inactivity") {
-    return `${summary} — ${pos.end_reason_label}`;
-  }
-  return summary;
-}
-
-function statusText(pos) {
-  if (pos.game_over) return gameOverStatus(pos);
-  if (!pos.agent_joined) return "Waiting for agent…";
-  if (pos.your_turn) return "Your turn";
-  return "Agent's turn…";
 }
 
 function canHumanMove(pos) {
@@ -46,51 +30,20 @@ function canHumanMove(pos) {
   );
 }
 
-function applyStatusUi(root, pos) {
-  const statusEl = root.querySelector("[data-play-status]");
-  const resignBtn = root.querySelector("[data-resign]");
-  const boardWrap = root.querySelector("[data-board-wrap]");
-  if (!statusEl) return;
-
-  const text = statusText(pos);
-  statusEl.textContent = text;
-  statusEl.classList.remove("is-your-turn", "is-waiting", "is-over");
-  if (pos.game_over) statusEl.classList.add("is-over");
-  else if (!pos.agent_joined) statusEl.classList.add("is-waiting");
-  else if (pos.your_turn) statusEl.classList.add("is-your-turn");
-
-  if (resignBtn) resignBtn.disabled = !!pos.game_over;
-  if (boardWrap) boardWrap.classList.toggle("is-disabled", !canHumanMove(pos));
-}
-
-function showError(root, message) {
-  const el = root.querySelector("[data-play-error]");
-  if (!el) return;
-  if (message) {
-    el.textContent = message;
-    el.classList.add("is-visible");
+function syncHumanGameRegistry(gameId, token, pos) {
+  const registry = window.CVH && window.CVH.humanGames;
+  if (!registry) return;
+  if (pos.game_over) {
+    registry.remove(gameId);
   } else {
-    el.textContent = "";
-    el.classList.remove("is-visible");
+    registry.upsert({
+      gameId,
+      token,
+      nickname: pos.human_nickname || "",
+      agentName: pos.agent_display_name || "",
+    });
   }
-}
-
-function updateMatchup(root, pos) {
-  const el = root.querySelector("[data-play-matchup]");
-  if (!el) return;
-  const human = pos.human_nickname || "You";
-  const agent = pos.agent_display_name || "Agent";
-  el.innerHTML =
-    `<strong>${escapeHtml(human)}</strong> vs <strong>${escapeHtml(agent)}</strong>` +
-    ` · you play ${escapeHtml(normalizeColor(pos.human_color))}`;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  if (window.CVH.refreshHumanGamesLists) window.CVH.refreshHumanGamesLists();
 }
 
 async function main() {
@@ -106,9 +59,15 @@ async function main() {
   }
 
   const api = createPlayApi(gameId, token);
+  createPlayChat(root, api);
+  const syncTabAttention = createTabAttention(document.title);
   let pollTimer = null;
   let busy = false;
   let lastMoveCount = -1;
+  let lastRenderedMoveCount = -1;
+  let cachedHumanColor = null;
+  let lastFen = null;
+  let prevYourTurn = null;
 
   const board = createPlayBoard(
     mount,
@@ -132,14 +91,50 @@ async function main() {
   );
 
   async function syncFromServer(pos, animate) {
-    const human = normalizeColor(pos.human_color);
-    board.setHumanColor(human);
+    if (pos.game_over && board.getPremove()) {
+      board.clearPremove();
+    }
+
+    if (pos.human_color) {
+      const human = normalizeColor(pos.human_color);
+      if (human !== cachedHumanColor) {
+        board.setHumanColor(human);
+        cachedHumanColor = human;
+      }
+    }
     board.syncLegalUci(pos.legal_moves_uci);
-    await board.setPosition(pos.fen, animate);
+    if (pos.fen && pos.fen !== lastFen) {
+      await board.setPosition(pos.fen, animate);
+      lastFen = pos.fen;
+    }
+
+    const turnEdge = prevYourTurn === false && !!pos.your_turn;
+    if (turnEdge && board.getPremove() && !busy) {
+      busy = true;
+      try {
+        const fired = await tryFirePremove(board, api, pos, prevYourTurn);
+        if (fired) {
+          await syncFromServer(fired, true);
+          return;
+        }
+      } catch (err) {
+        showError(root, err.message || "Premove rejected");
+        await refreshPosition(true);
+        return;
+      } finally {
+        busy = false;
+      }
+    }
+
     applyStatusUi(root, pos);
     updateMatchup(root, pos);
     board.applyInputState(canHumanMove(pos));
+    board.applyPremoveInputState(canPremove(pos));
+    lastRenderedMoveCount = renderMoveList(root, pos, lastRenderedMoveCount);
+    syncTabAttention(pos);
+    prevYourTurn = !!pos.your_turn;
     lastMoveCount = pos.move_count ?? lastMoveCount;
+    syncHumanGameRegistry(gameId, token, pos);
   }
 
   async function refreshPosition(forceAnimate) {
@@ -193,6 +188,39 @@ async function main() {
       }
     });
   }
+
+  async function drawAction(fn, errLabel) {
+    busy = true;
+    showError(root, "");
+    try {
+      const res = await fn();
+      await syncFromServer(res, false);
+    } catch (err) {
+      showError(root, err.message || errLabel);
+      await refreshPosition(false);
+    } finally {
+      busy = false;
+      schedulePoll();
+    }
+  }
+
+  const drawOfferBtn = root.querySelector("[data-draw-offer]");
+  if (drawOfferBtn) {
+    drawOfferBtn.addEventListener("click", () => drawAction(api.postDrawOffer, "Draw offer failed"));
+  }
+  const drawAcceptBtn = root.querySelector("[data-draw-accept]");
+  if (drawAcceptBtn) {
+    drawAcceptBtn.addEventListener("click", () => {
+      if (!window.confirm("Accept draw?")) return;
+      drawAction(api.postDrawAccept, "Accept draw failed");
+    });
+  }
+  const drawDeclineBtn = root.querySelector("[data-draw-decline]");
+  if (drawDeclineBtn) {
+    drawDeclineBtn.addEventListener("click", () => drawAction(api.postDrawDecline, "Decline draw failed"));
+  }
+
+  setupBoardDownload(root, board, api, gameId);
 
   try {
     await refreshPosition(false);

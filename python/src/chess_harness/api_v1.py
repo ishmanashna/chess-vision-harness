@@ -15,6 +15,8 @@ from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
 from .avaa_api import register_avaa_routes, require_game_participant
+from .api_v1_avh import register_avh_agent_routes
+from .chat_api import register_agent_chat_routes
 from .human_vs_agent_api import register_human_vs_agent_routes
 from .commands import resolve_agent_color
 from .elo import ELOLadder
@@ -270,6 +272,15 @@ def build_router(
             return _err(400, result.get("error", "Resign failed"))
         return _sanitize_agent_payload(result)
 
+    register_avh_agent_routes(
+        router,
+        _svc,
+        auth_context=_auth_context,
+        require_game_participant=_require_game_participant,
+        sanitize=_sanitize_agent_payload,
+        err=_err,
+    )
+
     @router.get("/games/{game_id}/pgn")
     async def game_pgn(game_id: str, auth: AuthContext = Depends(_auth_context)):
         access = _require_game_participant(game_id, auth)
@@ -281,6 +292,14 @@ def build_router(
             status = 404 if "not found" in message.lower() else 400
             return _err(status, message)
         return {"ok": True, "pgn": result["pgn"]}
+
+    register_agent_chat_routes(
+        router,
+        _svc,
+        auth_context=_auth_context,
+        require_game_participant=_require_game_participant,
+        err=_err,
+    )
 
     return router
 

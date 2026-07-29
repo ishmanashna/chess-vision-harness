@@ -14,6 +14,8 @@ from .api_limits import AuthContext, get_limit_enforcer, key_fingerprint
 from .commands import resolve_agent_color
 from .game_service import GameService
 from .ladder_display import (
+    FAVICON_LINKS,
+    PUBLIC_SITE_HEADER,
     SPECTATOR_PAGE_CSS,
     THEME_INIT_SCRIPT,
     THEME_TOGGLE_SCRIPT,
@@ -118,6 +120,7 @@ def render_create_game_page(
     """
 
     return f"""<!DOCTYPE html><html><head><title>Create Game · Chess Vision Harness</title>
+    {FAVICON_LINKS}
     {THEME_INIT_SCRIPT}
     <style>
     {SPECTATOR_PAGE_CSS}

@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
   <meta name="description" content="Watch active and completed chess games on Chess Vision Harness."/>
   <title>Spectator — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
@@ -38,6 +40,7 @@
       <div class="mode-tabs" role="tablist" aria-label="Game list">
         <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-spec-tab="active">Active</button>
         <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="completed">Completed</button>
+        <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="mygames">My games</button>
       </div>
 
       <div class="banner-offline" data-offline-only role="status">
@@ -96,6 +99,13 @@
           <p class="snapshot-meta" data-games-meta hidden></p>
         </div>
       </section>
+
+      <section class="offline-panel your-games-panel" aria-labelledby="mygames-heading" data-spec-panel="mygames" hidden>
+        <h3 id="mygames-heading">My games</h3>
+        <p class="card-hint">Human games saved in this browser. Resume with your play token — not stored on the server.</p>
+        <ul class="your-games-list" data-human-games-list></ul>
+        <p class="empty-state" data-human-games-empty hidden>No saved games on this browser yet.</p>
+      </section>
     </main>
 
     <footer class="site-footer">
@@ -103,6 +113,8 @@
     </footer>
   </div>
   <script src="/js/common.js"></script>
+  <script src="/js/human-games-registry.js"></script>
+  <script src="/js/human-games-ui.js"></script>
   <script src="/js/games-list.js"></script>
   <script src="/js/spectator-tabs.js"></script>
 </body>

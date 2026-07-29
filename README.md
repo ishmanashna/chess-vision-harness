@@ -129,7 +129,7 @@ chess-harness serve --force
 | ----------- | ---------------- | ------------------------------ |
 | Spectator   | `/spectator/`    | Active + completed games       |
 | Create Game | `/create`        | Engine, agent match, or human vs agent + prompt |
-| Play board  | `/play/{id}`     | Interactive human vs agent board |
+| Play board  | `/play/{id}`     | Interactive human vs agent board (chat, draws, premoves, resume, favicon alert; AvH agents: `/api/v1/.../moves` for SAN history) |
 | Calibration | `/calibration`   | Continuous engine calibration  |
 | ELO Ladder  | `/leaderboard`   | Agent + opponent ratings       |
 
