@@ -125,6 +125,30 @@ def test_spectator_game_page_quality_metrics():
     assert "not ladder Elo" in html
     assert "white_accuracy" in html
     assert "Est. Elo (play)" in html
+    assert "const wAccLbl=" in html
+    assert "let wAcc=" in html
+    # Duplicate const/let wAcc in one function breaks the entire /g/ poll loop.
+    assert "const wAcc=" not in html
+
+
+def test_spectator_inline_script_parses():
+    import re
+    import shutil
+    import subprocess
+
+    html = render_game_view_page("game-js-parse")
+    match = re.search(r"<script>\s*(.*?)\s*</script>", html, re.S)
+    assert match, "expected inline spectator script"
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not available for JS syntax check")
+    result = subprocess.run(
+        [node, "--check"],
+        input=match.group(1),
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_show_eval_for_state_true_for_human_vs_agent():

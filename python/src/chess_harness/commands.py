@@ -359,6 +359,11 @@ def cmd_analyse_quality(
             failed += 1
 
     print(f"Quality backfill: {analysed} analysed, {skipped} skipped, {failed} failed")
+    if analysed:
+        from .snapshot_leaderboard import export_leaderboard_snapshot
+
+        out = export_leaderboard_snapshot()
+        print(f"Wrote leaderboard snapshot: {out}")
     return 1 if failed else 0
 
 

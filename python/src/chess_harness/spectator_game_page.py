@@ -169,14 +169,14 @@ def render_game_view_page(game_id: str) -> str:
       rows.forEach(el=>{{el.style.display=show?'':'none';}});
       if(!show)return;
       const {{whiteName,blackName}}=sideNamesFromState(s, tags);
-      const wAcc=document.getElementById('state-acc-white-label');
-      const bAcc=document.getElementById('state-acc-black-label');
-      const wPr=document.getElementById('state-pr-white-label');
-      const bPr=document.getElementById('state-pr-black-label');
-      if(wAcc)wAcc.textContent=whiteName+' accuracy';
-      if(bAcc)bAcc.textContent=blackName+' accuracy';
-      if(wPr){{wPr.textContent=whiteName+' Est. Elo (play)';wPr.title=PLAY_RATING_TIP;}}
-      if(bPr){{bPr.textContent=blackName+' Est. Elo (play)';bPr.title=PLAY_RATING_TIP;}}
+      const wAccLbl=document.getElementById('state-acc-white-label');
+      const bAccLbl=document.getElementById('state-acc-black-label');
+      const wPrLbl=document.getElementById('state-pr-white-label');
+      const bPrLbl=document.getElementById('state-pr-black-label');
+      if(wAccLbl)wAccLbl.textContent=whiteName+' accuracy';
+      if(bAccLbl)bAccLbl.textContent=blackName+' accuracy';
+      if(wPrLbl){{wPrLbl.textContent=whiteName+' Est. Elo (play)';wPrLbl.title=PLAY_RATING_TIP;}}
+      if(bPrLbl){{bPrLbl.textContent=blackName+' Est. Elo (play)';bPrLbl.title=PLAY_RATING_TIP;}}
       const accWhite=document.getElementById('state-acc-white');
       const accBlack=document.getElementById('state-acc-black');
       const prWhite=document.getElementById('state-pr-white');
