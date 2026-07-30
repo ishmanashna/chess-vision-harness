@@ -16,6 +16,7 @@
     var o = game.agent_outcome;
     if (o && typeof o === "object" && o.label) return String(o.label);
     if (typeof o === "string") return o;
+    if (game.result === "*") return String(game.end_reason_label || "No result");
     if (game.result) return String(game.result);
     return "";
   }
@@ -42,41 +43,55 @@
   function normalizeGame(game) {
     var avaa = game.game_type === "agent_vs_agent";
     var human = game.game_type === "human_vs_agent";
-    var white = game.white_display_name || game.model_name || game.model_id || "—";
-    var black = game.black_display_name || game.opponent_label || game.opponent_id || "—";
-    var agentName = human
-      ? (game.model_name || game.model_display_name || game.model_id || "—")
-      : avaa
-        ? white
-        : (game.model_name || game.model_id || "—");
-    var opponentName = human
-      ? (game.human_nickname || game.opponent_label || "Human")
-      : avaa
-        ? black
-        : (game.opponent_label || game.opponent_id || "—");
+    var white = nameWithoutElo(game.white_display_name || game.model_name || game.model_id || "—");
+    var black = nameWithoutElo(game.black_display_name || game.opponent_label || game.opponent_id || "—");
     return {
       id: game.game_id || "",
       gameType: game.game_type || "",
       mode: modeLabel(game.game_type || "agent_vs_engine").short,
       isAvaa: avaa,
       isHuman: human,
-      agentColor: game.agent_color || "",
-      agent: agentName,
-      modelId: avaa ? (game.white_model_id || "") : (game.model_id || ""),
-      agentElo: avaa
-        ? (game.white_elo != null ? Number(game.white_elo) : null)
-        : (game.agent_elo != null ? Number(game.agent_elo) : null),
-      opponent: opponentName,
-      opponentElo: avaa
-        ? (game.black_elo != null ? Number(game.black_elo) : null)
-        : human
-          ? null
-          : (game.opponent_elo != null ? Number(game.opponent_elo) : null),
-      result: game.turn || outcomeLabel(game) || game.status || "—",
+      white: white,
+      whiteElo: game.white_elo != null ? Number(game.white_elo) : null,
+      black: black,
+      blackElo: game.black_elo != null ? Number(game.black_elo) : null,
+      accuracy: qualityPair(game, "accuracy"),
+      estimatedElo: qualityPair(game, "play_rating"),
+      result: resultLabel(game),
       status: game.status || "—",
       when: game.last_activity || "",
       whenMs: game.last_activity ? Date.parse(game.last_activity) || 0 : 0,
     };
+  }
+
+  function nameWithoutElo(value) {
+    return String(value || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+  }
+
+  function formatAccuracy(value) {
+    return value == null || value === "" ? "—" : String(value) + "%";
+  }
+
+  function formatEstimatedElo(value) {
+    return value == null || value === "" ? "—" : String(Math.round(Number(value)));
+  }
+
+  function qualityPair(game, field) {
+    var formatter = field === "accuracy" ? formatAccuracy : formatEstimatedElo;
+    var white = game["white_" + field];
+    var black = game["black_" + field];
+    if (white != null || black != null) {
+      return formatter(white) + " / " + formatter(black);
+    }
+    var agent = game["agent_" + field];
+    return formatter(agent);
+  }
+
+  function resultLabel(game) {
+    if (game.turn === "*") return String(game.end_reason_label || "No result");
+    if (game.result === "*") return String(game.end_reason_label || "No result");
+    if (game.turn) return String(game.turn);
+    return outcomeLabel(game) || game.status || "—";
   }
 
   function sortGames(rows, key, dir) {
@@ -84,7 +99,7 @@
     return rows.slice().sort(function (a, b) {
       var va;
       var vb;
-      if (key === "agentElo" || key === "opponentElo" || key === "whenMs") {
+      if (key === "whiteElo" || key === "blackElo" || key === "whenMs") {
         va = a[key] == null ? -Infinity : a[key];
         vb = b[key] == null ? -Infinity : b[key];
         if (va !== vb) return va < vb ? -mult : mult;
@@ -99,14 +114,12 @@
 
   function renderRows(rows) {
     if (!rows.length) {
-      return '<tr><td colspan="7" class="empty-state">No games in this list right now.</td></tr>';
+      return '<tr><td colspan="10" class="empty-state">No games in this list right now.</td></tr>';
     }
     return rows
       .map(function (g) {
-        var elo =
-          g.agentElo != null ? escapeHtml(String(g.agentElo)) : "—";
-        var oppElo =
-          g.opponentElo != null ? escapeHtml(String(g.opponentElo)) : "—";
+        var whiteElo = g.whiteElo != null ? escapeHtml(String(g.whiteElo)) : "—";
+        var blackElo = g.blackElo != null ? escapeHtml(String(g.blackElo)) : "—";
         var mode = modeLabel(g.gameType || (g.isAvaa ? "agent_vs_agent" : g.isHuman ? "human_vs_agent" : "agent_vs_engine"));
         var modeBadge =
           '<span class="tag ' +
@@ -116,10 +129,6 @@
           '">' +
           escapeHtml(mode.short) +
           "</span>";
-        // AvA: color hints stay useful (both columns are agents). Never glue
-        // White/Black/Human onto AvH or AvE display names.
-        var agentSide = g.isAvaa ? ' <span class="sub">White</span>' : "";
-        var oppSide = g.isAvaa ? ' <span class="sub">Black</span>' : "";
         return (
           "<tr>" +
           '<td><a href="/g/' +
@@ -131,16 +140,22 @@
           modeBadge +
           "</td>" +
           "<td>" +
-          escapeHtml(g.agent) +
-          agentSide +
+          escapeHtml(g.white) +
           "</td>" +
           '<td class="elo">' +
-          elo +
+          whiteElo +
           "</td>" +
           "<td>" +
-          escapeHtml(g.opponent) +
-          oppSide +
-          (g.isAvaa ? ' <span class="elo">(' + oppElo + ")</span>" : "") +
+          escapeHtml(g.black) +
+          "</td>" +
+          '<td class="elo">' +
+          blackElo +
+          "</td>" +
+          '<td class="quality">' +
+          escapeHtml(g.accuracy) +
+          "</td>" +
+          '<td class="elo quality">' +
+          escapeHtml(g.estimatedElo) +
           "</td>" +
           "<td>" +
           escapeHtml(g.result) +
@@ -194,7 +209,7 @@
             sortDir = sortDir === "asc" ? "desc" : "asc";
           } else {
             sortKey = key;
-            sortDir = key === "whenMs" || key === "agentElo" ? "desc" : "asc";
+            sortDir = key === "whenMs" || key === "whiteElo" || key === "blackElo" ? "desc" : "asc";
           }
           try {
             localStorage.setItem(
@@ -228,7 +243,7 @@
           })
           .catch(function () {
             tbody.innerHTML =
-              '<tr><td colspan="7" class="empty-state">Could not load live games.</td></tr>';
+              '<tr><td colspan="10" class="empty-state">Could not load live games.</td></tr>';
           });
       },
     });

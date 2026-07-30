@@ -100,3 +100,48 @@ def test_count_by_model(tmp_path, monkeypatch):
     counts = ResultsManager(base_dir=str(base)).count_by_model()
     assert counts["composer-2.5"] == 1
     assert counts["mimo-v2.5"] == 1
+
+
+def test_count_by_model_skips_no_result(tmp_path, monkeypatch):
+    base = tmp_path / "chess_harness"
+    base.mkdir()
+    models_file = base / "models.json"
+    models_file.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {"id": "agent-a", "name": "A", "inscribed": "x", "elo": 500},
+                ]
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("chess_harness.models.resolve_models_file", lambda: models_file)
+
+    results = base / "results.jsonl"
+    results.write_text(
+        json.dumps(
+            {
+                "game_id": "rated",
+                "model_name": "agent-a",
+                "skill": 1,
+                "agent_color": "WHITE",
+                "result": "1-0",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "game_id": "idle",
+                "model_name": "agent-a",
+                "skill": 1,
+                "agent_color": "WHITE",
+                "result": "*",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    counts = ResultsManager(base_dir=str(base)).count_by_model()
+    assert counts["agent-a"] == 1

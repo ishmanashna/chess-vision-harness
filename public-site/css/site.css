@@ -723,13 +723,14 @@ p {
   table-layout: fixed;
 }
 
-.games-table .col-game { width: 16%; }
-.games-table .col-mode { width: 6%; }
-.games-table .col-agent { width: 16%; }
-.games-table .col-elo { width: 8%; }
-.games-table .col-opponent { width: 24%; }
+.games-table .col-game { width: 12%; }
+.games-table .col-mode { width: 5%; }
+.games-table .col-side { width: 11%; }
+.games-table .col-elo { width: 7%; }
+.games-table .col-quality { width: 8%; }
+.games-table .col-est-elo { width: 8%; }
 .games-table .col-result { width: 14%; }
-.games-table .col-updated { width: 16%; }
+.games-table .col-updated { width: 12%; }
 
 .games-table td,
 .games-table th {
@@ -740,7 +741,11 @@ p {
 .games-table td:nth-child(4),
 .games-table th:nth-child(4),
 .games-table td:nth-child(6),
-.games-table th:nth-child(6) {
+.games-table th:nth-child(6),
+.games-table td:nth-child(7),
+.games-table th:nth-child(7),
+.games-table td:nth-child(8),
+.games-table th:nth-child(8) {
   white-space: nowrap;
 }
 

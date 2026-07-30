@@ -367,6 +367,52 @@ def cmd_analyse_quality(
     return 1 if failed else 0
 
 
+def cmd_prune_no_result(
+    *,
+    export_snapshot: bool = True,
+    dry_run: bool = False,
+) -> int:
+    """Remove finished no-result games (result * / idle timeout) and their results rows."""
+    gm = _game_manager()
+    rm = ResultsManager(base_dir=str(gm.base_dir))
+
+    candidates: List[str] = []
+    for g in gm.list_games(status_filter="finished"):
+        state = g["state"]
+        if state.get("result") == "*" or state.get("end_reason") == "inactivity":
+            candidates.append(g["game_id"])
+
+    if not candidates:
+        print("No no-result games to prune.")
+        return 0
+
+    removed = 0
+    failed = 0
+    for gid in sorted(candidates):
+        if dry_run:
+            print(f"  would remove {gid}")
+            continue
+        rows_removed = rm.remove_game_results(gid)
+        if gm.delete_game(gid):
+            print(f"  removed {gid} ({rows_removed} result row(s))")
+            removed += 1
+        else:
+            print(f"  fail {gid}: could not delete game directory")
+            failed += 1
+
+    if dry_run:
+        print(f"Would prune {len(candidates)} no-result game(s) (dry run)")
+        return 0
+
+    print(f"Pruned {removed} no-result game(s)")
+    if removed and export_snapshot:
+        from .snapshot_leaderboard import export_leaderboard_snapshot
+
+        out = export_leaderboard_snapshot()
+        print(f"Wrote leaderboard snapshot: {out}")
+    return 1 if failed else 0
+
+
 def cmd_rebuild_estimation_samples() -> int:
     """Rebuild play-rating samples from continuous games.jsonl uci_moves rows."""
     from .play_rating import rebuild_estimation_samples

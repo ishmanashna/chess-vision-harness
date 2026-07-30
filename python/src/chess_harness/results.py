@@ -147,11 +147,13 @@ class ResultsManager:
         return ModelRegistry(self.base_dir / "models.json")
 
     def count_by_model(self) -> Dict[str, int]:
-        """Count finished games per canonical model id (Elo ladder; excludes AvH)."""
+        """Count finished games per canonical model id (Elo ladder; excludes AvH and *)."""
         counts: Dict[str, int] = defaultdict(int)
         registry = self._registry()
         for result in self.load_results():
             if result.get("game_type") == GAME_TYPE_HUMAN_VS_AGENT:
+                continue
+            if result.get("result") == "*":
                 continue
             model_id = registry.normalize_result_model(result.get("model_name"))
             if model_id:

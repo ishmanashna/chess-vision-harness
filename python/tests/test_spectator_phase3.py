@@ -52,7 +52,8 @@ def test_meta_grid_dd_wraps_words_not_chars():
 def test_spectator_quality_visible_before_game_over():
     html = render_game_view_page("mid-quality")
     assert "hasQualityMetrics" in html
-    assert "s.game_over||hasQualityMetrics(s)" in html
+    assert "isQualityPending" in html
+    assert "hasQualityMetrics(s)||pending" in html
     assert "Estimated Elo" in html
     assert "Est. Elo (play)" not in html
 

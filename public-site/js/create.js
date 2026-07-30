@@ -3,6 +3,8 @@
 
   var pollTimer = null;
   var mode = "engine";
+  var activeLobbyId = null;
+  var activeLobbyApiKey = null;
   var matchApi = window.CVH && window.CVH.createMatch;
   var resultApi = window.CVH && window.CVH.createResult;
 
@@ -85,16 +87,54 @@
     }
   }
 
-  function showResult(root, gameId, brief, matched) {
-    if (!resultApi) return;
-    resultApi.showBriefResult(root, gameId, brief, matched, { escapeHtml: escapeHtml });
+  function setAvaaWaiting(root, submitBtn, waiting) {
+    if (waiting) root.dataset.avaaWaiting = "1";
+    else delete root.dataset.avaaWaiting;
+    if (submitBtn) submitBtn.disabled = waiting;
   }
 
-  function matchHelpers() {
+  function beginWaiting(root, submitBtn, lobbyId, apiKey) {
+    activeLobbyId = lobbyId;
+    activeLobbyApiKey = apiKey;
+    setAvaaWaiting(root, submitBtn, true);
+  }
+
+  function clearWaiting(root, submitBtn) {
+    activeLobbyId = null;
+    activeLobbyApiKey = null;
+    setAvaaWaiting(root, submitBtn, false);
+  }
+
+  function cancelActiveLobby() {
+    if (!activeLobbyId || !activeLobbyApiKey || !matchApi || !matchApi.cancelLobby) {
+      return Promise.resolve();
+    }
+    return matchApi.cancelLobby(apiJson, activeLobbyId, activeLobbyApiKey);
+  }
+
+  function showResult(root, gameId, brief, matched, messageEl, options) {
+    if (!resultApi) return;
+    setMessage(messageEl || root.querySelector("[data-create-message]"), null, "");
+    resultApi.showBriefResult(root, gameId, brief, matched, Object.assign({ escapeHtml: escapeHtml }, options || {}));
+  }
+
+  function matchHelpers(root, messageEl, submitBtn) {
     return {
       stopPoll: stopPoll,
       setMessage: setMessage,
-      showResult: showResult,
+      showResult: function (r, gameId, brief, matched, msgEl, opts) {
+        clearWaiting(root, submitBtn);
+        showResult(r, gameId, brief, matched, msgEl, opts);
+      },
+      beginWaiting: function (lobbyId, apiKey) {
+        beginWaiting(root, submitBtn, lobbyId, apiKey || activeLobbyApiKey);
+      },
+      clearWaiting: function () {
+        clearWaiting(root, submitBtn);
+      },
+      setSubmitDisabled: function (disabled) {
+        setAvaaWaiting(root, submitBtn, disabled);
+      },
       schedule: function (fn, ms) {
         pollTimer = setTimeout(fn, ms);
       },
@@ -172,9 +212,11 @@
     function enableForm(online) {
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
-      [modelSelect, newModelId, newModelName, submitBtn, inscribeBtn].forEach(function (el) {
+      var waiting = !!root.dataset.avaaWaiting;
+      [modelSelect, newModelId, newModelName, inscribeBtn].forEach(function (el) {
         if (el) el.disabled = !online;
       });
+      if (submitBtn) submitBtn.disabled = !online || waiting;
     }
 
     window.CVH.applyHealthUi({
@@ -190,8 +232,11 @@
     root.querySelectorAll(".mode-tab").forEach(function (tab) {
       tab.addEventListener("click", function () {
         stopPoll();
-        setMessage(messageEl, null, "");
-        setMode(root, tab.getAttribute("data-mode"));
+        cancelActiveLobby().finally(function () {
+          clearWaiting(root, submitBtn);
+          setMessage(messageEl, null, "");
+          setMode(root, tab.getAttribute("data-mode"));
+        });
       });
     });
 
@@ -228,14 +273,26 @@
     if (form) {
       form.addEventListener("submit", function (event) {
         event.preventDefault();
+        if (root.dataset.avaaWaiting) return;
         setMessage(messageEl, null, "");
         stopPoll();
         submitBtn.disabled = true;
         setMessage(messageEl, "ok", submitMessage());
 
-        resolveModelAndKey(modelSelect, newModelId, newModelName)
+        var cancelPromise =
+          mode === "avaa"
+            ? cancelActiveLobby().then(function () {
+                clearWaiting(root, submitBtn);
+              })
+            : Promise.resolve();
+
+        cancelPromise
+          .then(function () {
+            return resolveModelAndKey(modelSelect, newModelId, newModelName);
+          })
           .then(function (ctx) {
             if (mode === "avaa") {
+              activeLobbyApiKey = ctx.apiKey;
               if (!matchApi) throw new Error("Matchmaking module missing.");
               return matchApi.findMatch(apiJson, ctx.apiKey).then(function (data) {
                 return { kind: "avaa", data: data, apiKey: ctx.apiKey };
@@ -247,25 +304,27 @@
           })
           .then(function (ctx) {
             if (ctx.kind === "avaa") {
+              activeLobbyApiKey = ctx.apiKey;
               matchApi.handleAvaaResponse(
                 apiJson,
                 root,
                 ctx.data,
                 ctx.apiKey,
                 messageEl,
-                matchHelpers()
+                matchHelpers(root, messageEl, submitBtn)
               );
               return;
             }
             if (!resultApi) throw new Error("Result module missing.");
             var game = resultApi.requireBrief(ctx.game, false);
-            showResult(root, game.game_id, game.agent_brief, false);
+            showResult(root, game.game_id, game.agent_brief, false, messageEl);
           })
           .catch(function (err) {
+            clearWaiting(root, submitBtn);
             setMessage(messageEl, "error", err.message || "Request failed.");
           })
           .finally(function () {
-            submitBtn.disabled = false;
+            if (!root.dataset.avaaWaiting && submitBtn) submitBtn.disabled = false;
           });
       });
     }

@@ -4,6 +4,7 @@ Spectator web interface for Chess Vision Harness.
 
 import asyncio
 import json
+import re
 import time
 from typing import Any, Dict, Optional
 
@@ -14,7 +15,11 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .agent_surface import agent_safe_spectator_state, debug_state_enabled
+from .agent_surface import (
+    agent_safe_spectator_state,
+    debug_state_enabled,
+    quality_fields_from_state,
+)
 from .api_mount import mount_api_v1
 from .avaa import is_avaa_state
 from .board_controller import BoardController
@@ -503,6 +508,64 @@ def _avaa_list_fields(state: Dict[str, Any], elo: Dict[str, Any]) -> Dict[str, A
     }
 
 
+def _display_name_without_elo(value: Any) -> str:
+    """Remove a trailing, presentation-only Elo suffix from a player label."""
+    return re.sub(r"\s*\(\d+\)\s*$", "", str(value or "")).strip()
+
+
+def _side_list_fields(
+    state: Dict[str, Any], elo: Dict[str, Any], *, avaa: bool, human: bool
+) -> Dict[str, Any]:
+    """Return white/black display and ladder Elo values for every game mode."""
+    if avaa:
+        return _avaa_list_fields(state, elo)
+    if human:
+        fields = human_list_fields(state, elo)
+        agent_elo = elo.get("agent_elo")
+        fields.update(
+            {
+                "white_display_name": _display_name_without_elo(
+                    fields["white_display_name"]
+                ),
+                "black_display_name": _display_name_without_elo(
+                    fields["black_display_name"]
+                ),
+                "white_elo": agent_elo
+                if state.get("agent_color") == "WHITE"
+                else None,
+                "black_elo": agent_elo
+                if state.get("agent_color") == "BLACK"
+                else None,
+            }
+        )
+        return fields
+
+    labels = BoardController.side_labels(state)
+    agent_name = _display_name_without_elo(
+        state.get("model_display_name")
+        or state.get("model_name")
+        or labels.get("agent")
+        or "Agent"
+    )
+    opponent_name = _display_name_without_elo(
+        BoardController.engine_display_label(state) or "Opponent"
+    )
+    agent_elo = elo.get("agent_elo")
+    opponent_elo = elo.get("opponent_elo", elo.get("engine_elo"))
+    if state.get("agent_color") == "WHITE":
+        white_name, black_name = agent_name, opponent_name
+        white_elo, black_elo = agent_elo, opponent_elo
+    else:
+        white_name, black_name = opponent_name, agent_name
+        white_elo, black_elo = opponent_elo, agent_elo
+    return {
+        "white_display_name": white_name,
+        "black_display_name": black_name,
+        "white_elo": white_elo,
+        "black_elo": black_elo,
+    }
+
+
 def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     state = g["state"]
     game_id = g["game_id"]
@@ -525,30 +588,32 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
         active_card = _active_card(state, game_id)
 
     elo = ctrl._elo_context(state)
+    names = _side_list_fields(state, elo, avaa=avaa, human=human)
     if avaa:
-        names = _avaa_list_fields(state, elo)
         agent_name = names["model_name"]
         opp_label = names["opponent_label"]
     elif human:
-        names = human_list_fields(state, elo)
         agent_name = names["model_name"]
         opp_label = names["opponent_label"]
     else:
-        labels = BoardController.side_labels(state)
         agent_name = (
             state.get("model_display_name")
             or state.get("model_name")
-            or labels.get("agent")
             or "Agent"
         )
-        opp_label = BoardController.engine_display_label(state)
-        names = {}
+        opp_label = _display_name_without_elo(BoardController.engine_display_label(state))
 
+    end_reason_label = (
+        ctrl.resolve_end_reason(state, game_id)
+        if state.get("status") != "in_progress"
+        else None
+    )
     row: Dict[str, Any] = {
         "game_id": game_id,
         "revision": revision,
         "status": state.get("status"),
         "result": state.get("result"),
+        "end_reason_label": end_reason_label,
         "summary": _game_summary(state),
         "elo_change": elo_delta,
         "agent_outcome": agent_outcome,
@@ -570,14 +635,18 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
         "turn": active_card["turn_label"] if active_card else (
             ctrl.format_spectator_summary(state).split(" — ", 1)[-1]
             if state.get("status") == "in_progress"
-            else state.get("result") or "done"
+            else (
+                ctrl.resolve_end_reason(state, game_id) or "No result"
+                if state.get("result") == "*"
+                else state.get("result") or "done"
+            )
         ),
     }
+    row.update(quality_fields_from_state(state, include_provisional=True))
+    row.update(names)
     if avaa:
-        row.update(names)
         row["game_type"] = GAME_TYPE_AGENT_VS_AGENT
     elif human:
-        row.update(names)
         row["game_type"] = GAME_TYPE_HUMAN_VS_AGENT
     else:
         row["game_type"] = state.get("game_type") or DEFAULT_GAME_TYPE

@@ -195,7 +195,7 @@ def test_aggregate_quality_by_model_rules(tmp_path):
     _write_warm_map(cal_root, knots)
 
     rm = ResultsManager(base_dir=str(harness))
-    assert rm.count_by_model()["agent-a"] == 4  # Elo count: includes * and AvA dupes, excludes AvH
+    assert rm.count_by_model()["agent-a"] == 3  # Elo count: excludes * and AvH; AvA dupes still count
     agg = rm.aggregate_quality_by_model(cal_root=cal_root)
     mean_a = round((80.0 + 70.0 + 60.0) / 3, 2)
     assert agg["agent-a"] == {

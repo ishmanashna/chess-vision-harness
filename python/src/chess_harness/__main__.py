@@ -196,6 +196,11 @@ def main(argv: list[str] | None = None) -> None:
     elif args[0] == "migrate-results":
         commands.cmd_migrate_results()
 
+    elif args[0] == "prune-no-result":
+        dry_run = "--dry-run" in args
+        export_snapshot = "--no-snapshot" not in args
+        sys.exit(commands.cmd_prune_no_result(export_snapshot=export_snapshot, dry_run=dry_run))
+
     elif args[0] in ("analyse-quality", "quality-backfill"):
         game_id = None
         force = False

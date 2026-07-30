@@ -142,7 +142,12 @@ def test_spectator_game_page_quality_metrics():
     assert html.index("state-acc-black-label") < html.index("state-pr-black-label")
 
 
-def test_spectator_game_page_avh_chat_toggle():
+def test_spectator_game_page_quality_analysing_pending():
+    html = render_game_view_page("game-quality-pending")
+    assert "isQualityPending" in html
+    assert "Analysing…" in html
+    assert "quality-pending" in html
+    assert "s.result!=='*'" in html
     html = render_game_view_page("game-chat-toggle")
     assert 'id="info-panel-toggle"' in html
     assert 'id="spec-chat-panel"' in html

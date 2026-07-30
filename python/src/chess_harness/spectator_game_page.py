@@ -47,6 +47,7 @@ def render_game_view_page(game_id: str) -> str:
     .meta-grid{{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:.86em;line-height:1.45}}
     .meta-grid dt{{color:var(--faint);margin:0}}
     .meta-grid dd{{margin:0;color:var(--text-secondary);overflow-wrap:break-word;word-break:normal;min-width:0}}
+    .quality-pending{{color:var(--faint);font-style:italic}}
     #state-result{{font-weight:700}}
     .export-links{{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--row);font-size:.84em}}
     .export-link,.export-links a{{background:none;border:none;padding:0;font:inherit;color:var(--link);cursor:pointer;text-decoration:underline;text-underline-offset:2px}}
@@ -256,8 +257,13 @@ def render_game_view_page(game_id: str) -> str:
         ||s.white_play_rating!=null||s.black_play_rating!=null||s.agent_play_rating!=null;
     }}
 
+    function isQualityPending(s){{
+      return s.game_over&&!s.quality_at&&s.result&&s.result!=='*'&&!hasQualityMetrics(s);
+    }}
+
     function renderQualityMetrics(s, tags){{
-      const show=s.game_over||hasQualityMetrics(s);
+      const pending=isQualityPending(s);
+      const show=hasQualityMetrics(s)||pending||(s.game_over&&s.result&&s.result!=='*');
       const rows=document.querySelectorAll('.quality-row');
       rows.forEach(el=>{{el.style.display=show?'':'none';}});
       if(!show)return;
@@ -283,6 +289,16 @@ def render_game_view_page(game_id: str) -> str:
         if(s.agent_color==='WHITE')wPr=s.agent_play_rating;
         else bPr=s.agent_play_rating;
       }}
+      const valueEls=[accWhite,accBlack,prWhite,prBlack];
+      if(pending){{
+        valueEls.forEach(el=>{{
+          if(!el)return;
+          el.textContent='Analysing…';
+          el.classList.add('quality-pending');
+        }});
+        return;
+      }}
+      valueEls.forEach(el=>{{if(el)el.classList.remove('quality-pending');}});
       if(accWhite)accWhite.textContent=formatAccuracy(wAcc);
       if(accBlack)accBlack.textContent=formatAccuracy(bAcc);
       if(prWhite){{prWhite.textContent=formatPlayRating(wPr);prWhite.title=PLAY_RATING_TIP;}}
@@ -292,6 +308,7 @@ def render_game_view_page(game_id: str) -> str:
     function shouldKeepPolling(s){{
       if(!s.game_over)return true;
       if(s.quality_at)return false;
+      if(s.result==='*')return false;
       return qualityWaitAttempts<QUALITY_POLL_MAX;
     }}
 
@@ -436,7 +453,7 @@ def render_game_view_page(game_id: str) -> str:
         renderMeta(lastPgn,s);
         if(isAvhGame)await pollChat();
         syncHeights();
-        if(s.game_over&&!s.quality_at&&qualityWaitAttempts<QUALITY_POLL_MAX)qualityWaitAttempts++;
+        if(s.game_over&&!s.quality_at&&s.result!=='*'&&qualityWaitAttempts<QUALITY_POLL_MAX)qualityWaitAttempts++;
         if(!shouldKeepPolling(s)&&pollTimer){{clearInterval(pollTimer);pollTimer=null;}}
       }}catch(e){{}}
     }}

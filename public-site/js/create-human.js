@@ -35,7 +35,16 @@
     if (window.CVH.refreshHumanGamesLists) window.CVH.refreshHumanGamesLists();
   }
 
+  function clearPendingMessage(root, selector) {
+    var el = root.querySelector(selector);
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = "";
+    el.className = "form-message";
+  }
+
   function showHumanResult(root, game, escapeHtml) {
+    clearPendingMessage(root, "[data-human-message]");
     var resultApi = window.CVH && window.CVH.createResult;
     var gameId = game.game_id;
     var brief = game.agent_brief;

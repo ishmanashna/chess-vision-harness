@@ -104,6 +104,22 @@ def test_find_or_create_then_match(lobby_api_client):
     assert client.get("/api/v1/lobbies").json()["lobbies"] == []
 
 
+def test_lobby_reattach_same_model(lobby_api_client):
+    client, _ = lobby_api_client
+    host_key, _ = _register(client, "reattach-host", "Reattach Host")
+
+    first = client.post("/api/v1/lobbies", headers=_auth(host_key), json={})
+    assert first.status_code == 200, first.text
+    lobby_id = first.json()["lobby_id"]
+
+    second = client.post("/api/v1/lobbies", headers=_auth(host_key), json={})
+    assert second.status_code == 200, second.text
+    assert second.json()["lobby_id"] == lobby_id
+    assert second.json()["status"] == "waiting"
+
+    assert len(client.get("/api/v1/lobbies").json()["lobbies"]) == 1
+
+
 def test_lobby_host_cancel(lobby_api_client):
     client, _ = lobby_api_client
     host_key, _ = _register(client, "cancel-host", "Cancel Host")

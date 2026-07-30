@@ -116,14 +116,15 @@ def build_lobby_router(
                 return result
             return result
 
-        try:
+        existing = store.find_waiting_for_model(auth.model_id)
+        if existing is not None:
+            lob = existing
+        else:
             lob = store.create_waiting(
                 host_model_id=auth.model_id,
                 host_display_name=display_name,
                 host_elo=joiner_elo,
             )
-        except ValueError as exc:
-            return _err(400, str(exc))
 
         return {
             "ok": True,

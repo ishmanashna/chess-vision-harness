@@ -157,6 +157,7 @@
           })
           .then(function (game) {
             var ready = resultApi.requireBrief(game, true);
+            setMessage(messageEl, null, "");
             humanApi.showHumanResult(root, ready, escapeHtml);
           })
           .catch(function (err) {

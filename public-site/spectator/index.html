@@ -54,22 +54,26 @@
         <div data-games-live data-requires-origin hidden>
           <table class="leaderboard-table games-table" data-games-table aria-label="Active games">
             <colgroup>
-              <col class="col-game"/><col class="col-mode"/><col class="col-agent"/><col class="col-elo"/>
-              <col class="col-opponent"/><col class="col-result"/><col class="col-updated"/>
+              <col class="col-game"/><col class="col-mode"/><col class="col-side"/><col class="col-elo"/>
+              <col class="col-side"/><col class="col-elo"/><col class="col-quality"/><col class="col-est-elo"/>
+              <col class="col-result"/><col class="col-updated"/>
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" data-sort="id">Game</th>
                 <th scope="col" data-sort="mode">Mode</th>
-                <th scope="col" data-sort="agent">Agent</th>
-                <th scope="col" data-sort="agentElo">Elo</th>
-                <th scope="col" data-sort="opponent">Opponent</th>
+                <th scope="col" data-sort="white">White</th>
+                <th scope="col" data-sort="whiteElo">White Elo</th>
+                <th scope="col" data-sort="black">Black</th>
+                <th scope="col" data-sort="blackElo">Black Elo</th>
+                <th scope="col" data-sort="accuracy">Acc.</th>
+                <th scope="col" data-sort="estimatedElo">Est. Elo</th>
                 <th scope="col" data-sort="result">Turn / result</th>
                 <th scope="col" data-sort="whenMs">Updated</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+              <tr><td colspan="10" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-games-meta hidden></p>
@@ -81,22 +85,26 @@
         <div data-games-live data-requires-origin hidden>
           <table class="leaderboard-table games-table" data-games-table aria-label="Completed games">
             <colgroup>
-              <col class="col-game"/><col class="col-mode"/><col class="col-agent"/><col class="col-elo"/>
-              <col class="col-opponent"/><col class="col-result"/><col class="col-updated"/>
+              <col class="col-game"/><col class="col-mode"/><col class="col-side"/><col class="col-elo"/>
+              <col class="col-side"/><col class="col-elo"/><col class="col-quality"/><col class="col-est-elo"/>
+              <col class="col-result"/><col class="col-updated"/>
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" data-sort="id">Game</th>
                 <th scope="col" data-sort="mode">Mode</th>
-                <th scope="col" data-sort="agent">Agent</th>
-                <th scope="col" data-sort="agentElo">Elo</th>
-                <th scope="col" data-sort="opponent">Opponent</th>
+                <th scope="col" data-sort="white">White</th>
+                <th scope="col" data-sort="whiteElo">White Elo</th>
+                <th scope="col" data-sort="black">Black</th>
+                <th scope="col" data-sort="blackElo">Black Elo</th>
+                <th scope="col" data-sort="accuracy">Acc.</th>
+                <th scope="col" data-sort="estimatedElo">Est. Elo</th>
                 <th scope="col" data-sort="result">Turn / result</th>
                 <th scope="col" data-sort="whenMs">Updated</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+              <tr><td colspan="10" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-games-meta hidden></p>

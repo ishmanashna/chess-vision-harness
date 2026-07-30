@@ -8,7 +8,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from chess_harness.lobby import (
     ELO_BAND,
     LobbyStore,
-    MAX_LOBBIES_PER_MODEL,
     assign_colors,
 )
 
@@ -28,23 +27,34 @@ def test_create_list_cancel(tmp_path):
     assert store.list_waiting() == []
 
 
-def test_max_lobbies_per_model(tmp_path):
+def test_reattach_waiting_lobby(tmp_path):
     store = LobbyStore(tmp_path / "lobbies.json")
-    for _ in range(MAX_LOBBIES_PER_MODEL):
-        store.create_waiting(
-            host_model_id="host-a",
-            host_display_name="Host A",
-            host_elo=500,
-        )
-    try:
-        store.create_waiting(
-            host_model_id="host-a",
-            host_display_name="Host A",
-            host_elo=500,
-        )
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
+    first = store.create_waiting(
+        host_model_id="host-a",
+        host_display_name="Host A",
+        host_elo=500,
+    )
+    second = store.create_waiting(
+        host_model_id="host-a",
+        host_display_name="Host A",
+        host_elo=500,
+    )
+    assert second["lobby_id"] != first["lobby_id"]
+    assert store.find_waiting_for_model("host-a")["lobby_id"] == first["lobby_id"]
+    assert len(store.list_waiting()) == 2
+
+
+def test_find_waiting_for_model(tmp_path):
+    store = LobbyStore(tmp_path / "lobbies.json")
+    assert store.find_waiting_for_model("host-a") is None
+    lob = store.create_waiting(
+        host_model_id="host-a",
+        host_display_name="Host A",
+        host_elo=500,
+    )
+    found = store.find_waiting_for_model("host-a")
+    assert found is not None
+    assert found["lobby_id"] == lob["lobby_id"]
 
 
 def test_find_matchable_elo_band(tmp_path):

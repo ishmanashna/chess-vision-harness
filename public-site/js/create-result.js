@@ -49,10 +49,19 @@
     );
   }
 
+  function clearPendingMessage(root, selector) {
+    var el = root.querySelector(selector);
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = "";
+    el.className = "form-message";
+  }
+
   function showBriefResult(root, gameId, brief, matched, options) {
     options = options || {};
     var esc = options.escapeHtml || escapeHtml;
     var extraHtml = options.extraHtml || "";
+    clearPendingMessage(root, "[data-create-message]");
     var result = root.querySelector("[data-create-result]");
     var form = root.querySelector("[data-create-form]");
     var tabs = root.querySelector(".mode-tabs");
@@ -73,6 +82,11 @@
       extraHtml +
       renderBriefCollapsible(brief, esc);
     wireCopyBrief(result);
+    if (matched && options.autoRedirectMs) {
+      window.setTimeout(function () {
+        window.location.assign("/g/" + gameId);
+      }, options.autoRedirectMs);
+    }
   }
 
   window.CVH = window.CVH || {};

@@ -60,7 +60,10 @@ def test_spectator_list_state_and_eval_human(human_client, monkeypatch):
     assert row["game_type"] == GAME_TYPE_HUMAN_VS_AGENT
     assert row["model_name"] == "Human Agent"
     assert row["opponent_label"] == "Alice"
-    assert row["agent_elo"] is not None
+    assert row["white_display_name"]
+    assert row["black_display_name"] == "Alice"
+    assert row["white_elo"] is not None
+    assert row["black_elo"] is None
     assert "to move" in row["turn"]
     assert row.get("elo_change") in ("", None)
     card = row["active_card"]
