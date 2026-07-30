@@ -21,7 +21,11 @@
 
   function renderEngineRows(opponents) {
     var list = Array.isArray(opponents) ? opponents.slice() : [];
+    // Floaters first (they carry Accuracy / Est. Elo), then anchors by Elo.
     list.sort(function (a, b) {
+      var aAnchor = a.anchor ? 1 : 0;
+      var bAnchor = b.anchor ? 1 : 0;
+      if (aAnchor !== bAnchor) return aAnchor - bAnchor;
       return (Number(b.elo) || 0) - (Number(a.elo) || 0);
     });
     if (!list.length) {
