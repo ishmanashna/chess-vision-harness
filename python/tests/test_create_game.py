@@ -92,7 +92,12 @@ def test_create_game_get_renders_static_shell(create_client):
     assert 'name="api_key"' not in resp.text
     assert 'name="opponent"' not in resp.text
     assert 'name="agent_color"' not in resp.text
-
+    assert 'data-pairing="find"' in resp.text
+    assert 'data-pairing="direct"' in resp.text
+    assert 'id="white-model-select"' in resp.text
+    assert 'id="black-model-select"' in resp.text
+    assert "create-result.js" in resp.text
+    assert "showDualBriefResult" in (client.get("/js/create-result.js").text)
 
 def test_create_human_mode_redirects(create_client):
     client, _ = create_client
@@ -106,7 +111,7 @@ def test_human_hub_serves_static(create_client):
     client, _ = create_client
     resp = client.get("/human/")
     assert resp.status_code == 200
-    assert "Play vs Agent" in resp.text
+    assert "Playground" in resp.text
     assert 'data-human-page' in resp.text
     assert "Your games" not in resp.text
     assert "Resume saved games in Spectator" in resp.text

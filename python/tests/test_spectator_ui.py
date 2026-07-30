@@ -20,6 +20,18 @@ def test_eval_ui_includes_stack_labels_for_black_agent():
     assert ui["black_at_bottom"] is True
 
 
+def test_eval_ui_white_at_bottom_for_spectator():
+    ui = _eval_ui(
+        90,
+        {"black": "Composer 2.5", "white": "Patricia 5 (800)"},
+        "BLACK",
+        white_at_bottom=True,
+    )
+    assert ui["top_label"] == "Composer 2.5"
+    assert ui["bottom_label"] == "Patricia 5 (800)"
+    assert ui["black_at_bottom"] is False
+
+
 def test_eval_ui_white_agent_black_from_top():
     ui = _eval_ui(90, {"black": "Engine", "white": "Agent"}, "WHITE")
     assert ui["black_at_bottom"] is False

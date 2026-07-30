@@ -80,7 +80,7 @@ def render_play_page(game_id: str) -> str:
             <button type="button" class="btn btn-secondary" data-draw-offer>Offer draw</button>
             <button type="button" class="btn btn-secondary" data-draw-accept hidden>Accept draw</button>
             <button type="button" class="btn btn-secondary" data-draw-decline hidden>Decline draw</button>
-            <button type="button" class="btn btn-secondary" data-clear-premove hidden>Cancel premove</button>
+            <button type="button" class="btn btn-secondary" data-clear-premove hidden>Cancel premoves</button>
           </div>
         </div>
         <aside class="play-moves-col" aria-label="Move list">
@@ -94,14 +94,14 @@ def render_play_page(game_id: str) -> str:
       </div>
       <p class="play-links">
         <a href="{spectate}">Spectate this game</a>
-        · <a href="/human/">Create another game</a>
+        · <a href="/human/">Create another Playground game</a>
         <span class="play-download-slot" data-download-slot hidden>
           · <button type="button" class="export-link" data-download-board>Download position</button>
         </span>
       </p>
     </main>
     <footer class="site-footer">
-      <p>Chess Vision Harness</p>
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
   <script src="/js/common.js"></script>

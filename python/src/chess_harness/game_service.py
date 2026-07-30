@@ -3,7 +3,7 @@ Thin facade over BoardController — single mutation path for adapters.
 
 Engine lifecycle: opponent and eval engines are released after new_game and
 make_move. resign prunes idle games but does not acquire engines. Read-only
-calls (status, board, pgn, audit) skip prune and release.
+calls (status, board, imagine, pgn, audit) skip prune and release.
 """
 
 from __future__ import annotations
@@ -139,6 +139,10 @@ class GameService:
         if not result.get("ok"):
             raise ValueError(result.get("error", "board unavailable"))
         return Path(result["board_path"]).read_bytes()
+
+    def imagine_board(self, game_id: str, moves: list[str]) -> Dict[str, Any]:
+        """Hypothetical line → PNG bytes. No prune, idle touch, or state writes."""
+        return self.controller.imagine_board(game_id, moves)
 
     def export_pgn(self, game_id: str, *, allow_in_progress: bool = False) -> Dict[str, Any]:
         return self.controller.export_pgn(game_id, allow_in_progress=allow_in_progress)

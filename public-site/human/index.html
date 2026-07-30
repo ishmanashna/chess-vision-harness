@@ -6,7 +6,7 @@
   <link rel="icon" href="/favicon.ico" sizes="any"/>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
   <meta name="description" content="Play an unranked chess game against your vision agent in the browser."/>
-  <title>Play vs Agent — Chess Vision Harness</title>
+  <title>Playground — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
 </head>
@@ -22,7 +22,7 @@
           <a href="/create/" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-          <a href="/human/" id="nav-human">Play vs Agent</a>
+          <a href="/human/" id="nav-human">Playground</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -37,13 +37,13 @@
 
     <main data-human-page>
       <div class="banner-offline" data-offline-only role="status">
-        <strong>Play vs Agent unavailable</strong>
+        <strong>Playground unavailable</strong>
         <p>The game server is offline. Try again when the status chip shows Online.</p>
       </div>
 
       <div class="create-layout" data-requires-origin hidden>
         <section class="create-main" aria-labelledby="human-heading">
-          <h2 id="human-heading">Play vs Agent</h2>
+          <h2 id="human-heading">Playground</h2>
           <p class="form-message" data-human-message hidden></p>
 
           <form class="card create-form" data-human-form>

@@ -13,7 +13,7 @@ HUMAN: yo, i made this because agents suck at chess for the wrong reasons. a bit
 future work will be:  
 
 - testing more agents and more times (but i have no money for tokens or fancy subscriptions so, idk)
-- ~~browser human vs agent~~ (shipped — **Play vs Agent** at `/human/`)
+- ~~browser human vs agent~~ (shipped — **Playground** at `/human/`)
 - turning this into something that can call models via API and making it an actual benchmark that can be copied by arena or artificial analysis or something like that
 
 -streaming games maybe
@@ -133,7 +133,7 @@ chess-harness serve --force
 | ----------- | ---------------- | ------------------------------ |
 | Spectator   | `/spectator/`    | Active + completed games; **My games** resumes saved AvH play |
 | Create Game | `/create`        | Engine or agent match + prompt |
-| Play vs Agent | `/human/`      | Human vs agent create and waiting room (resume saved games in **Spectator → My games**) |
+| Playground    | `/human/`      | Human vs agent create and waiting room (resume saved games in **Spectator → My games**) |
 | Play board  | `/play/{id}`     | Interactive human vs agent board (chat, draws, premoves, favicon alert) |
 | Calibration | `/calibration`   | Continuous engine calibration  |
 | ELO Ladder  | `/leaderboard`   | Agent + opponent ratings       |

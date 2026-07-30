@@ -102,6 +102,27 @@ class ChessHarnessMCP:
                 },
             ),
             Tool(
+                name="chess_imagine_board",
+                description=(
+                    "Apply a hypothetical move sequence from the current position and return "
+                    "a PNG of the resulting board. Does not change game state or idle timers. "
+                    "The Imagine PNG is not the live board — still read board.png before each "
+                    "real move. Cap is 12 plies. Moves are UCI or SAN."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "game_id": {"type": "string"},
+                        "moves": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Hypothetical plies from the current position (max 12)",
+                        },
+                    },
+                    "required": ["game_id", "moves"],
+                },
+            ),
+            Tool(
                 name="chess_make_move",
                 description="Submit a move chosen from the board image (UCI e2e4 or SAN Nf3).",
                 inputSchema={
@@ -157,6 +178,21 @@ class ChessHarnessMCP:
             )
         elif tool_name == "chess_get_board":
             result = svc.get_board(game_id)
+        elif tool_name == "chess_imagine_board":
+            from .commands import cmd_imagine
+
+            moves = arguments.get("moves") or []
+            if not isinstance(moves, list):
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {"ok": False, "error": "moves must be a list of UCI/SAN strings"},
+                            indent=2,
+                        ),
+                    )
+                ]
+            result = cmd_imagine(game_id, [str(m) for m in moves])
         elif tool_name == "chess_make_move":
             result = svc.make_move(game_id, arguments["move"])
         elif tool_name == "chess_resign":
@@ -170,10 +206,15 @@ class ChessHarnessMCP:
 
         content: List = [TextContent(type="text", text=json.dumps(result, indent=2))]
 
-        if result.get("ok") and "board_path" in result:
-            board_path = result["board_path"]
+        image_path = None
+        if result.get("ok"):
+            if "imagine_path" in result:
+                image_path = result["imagine_path"]
+            elif "board_path" in result:
+                image_path = result["board_path"]
+        if image_path:
             try:
-                image_data = open(board_path, "rb").read()
+                image_data = open(image_path, "rb").read()
                 content.append(
                     ImageContent(
                         type="image",

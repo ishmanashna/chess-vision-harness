@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import chess
+import shutil
 from typing import TYPE_CHECKING, Any, Dict
+
+import chess
 
 from .agent_surface import quality_fields_from_state
 
@@ -19,25 +21,20 @@ def render_avaa_boards(
     game_id: str,
     state: Dict[str, Any],
 ) -> None:
+    """Render one white-bottom board.png; role paths alias the same pixels."""
     highlights = ctrl.highlight_moves(state)
-    renderer = ctrl.renderer
-    for color in ("white", "black"):
-        path = gm.get_role_board_path(game_id, color)
-        renderer.render_board(
-            board,
-            path,
-            last_moves=highlights,
-            agent_color=color,
-            check_square=board.king(board.turn) if board.is_check() else None,
-        )
     spectator_path = gm.get_board_path(game_id)
-    renderer.render_board(
+    ctrl.renderer.render_board(
         board,
         spectator_path,
         last_moves=highlights,
-        agent_color="white",
+        bottom_color="white",
         check_square=board.king(board.turn) if board.is_check() else None,
     )
+    for color in ("white", "black"):
+        path = gm.get_role_board_path(game_id, color)
+        if path.resolve() != spectator_path.resolve():
+            shutil.copyfile(spectator_path, path)
 
 
 def avaa_move_response(

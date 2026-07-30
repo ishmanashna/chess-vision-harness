@@ -13,7 +13,7 @@ Vision-only benchmark. Cheating invalidates the game.
 5. Repeat step 3 until the game ends or you resign.
 6. After the game ends: `chess-harness pgn <game_id>`.
 
-MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image), `chess_make_move`, `chess_status`, `chess_resign`, `chess_export_pgn` (finished games only).
+MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image), `chess_imagine_board` (hypothetical), `chess_make_move`, `chess_status`, `chess_resign`, `chess_export_pgn` (finished games only).
 
 ## Remote HTTP (`/api/v1`)
 
@@ -29,6 +29,7 @@ For API-only clients (no UI): `POST /api/v1/agents` mints a key once; then `POST
 |------|------|
 | Start game (API client) | `POST /api/v1/games` |
 | See position | **GET `/api/v1/games/{id}/board`** → PNG only |
+| Imagine line (optional) | `POST /api/v1/games/{id}/imagine` with `{ "moves": ["e2e4", ...] }` → hypothetical PNG |
 | Submit move | `POST /api/v1/games/{id}/move/{uci_or_san}` (no body) |
 | Check turn (optional) | `GET /api/v1/games/{id}/status` |
 | Resign | `POST /api/v1/games/{id}/resign` |
@@ -53,13 +54,14 @@ After your move, `your_turn` is false until the opponent moves. Status is requir
 |------|------|
 | Poll turn / game state | **GET `/api/v1/games/{id}/status`** |
 | See position | **GET `/api/v1/games/{id}/board`** → PNG (allowed anytime) |
+| Imagine line (optional) | `POST /api/v1/games/{id}/imagine` with `{ "moves": [...] }` → hypothetical PNG |
 | Submit move | `POST /api/v1/games/{id}/move/{uci_or_san}` (no body; your turn only) |
 | Resign | `POST /api/v1/games/{id}/resign` |
 | After game ends | `GET /api/v1/games/{id}/pgn` |
 
 ## Agent vs human
 
-Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the agent brief, and open the interactive play board. The agent still sees only the board PNG; games do not change agent Elo. Poll `GET .../status` each iteration; use draw flags and `chat_seq` from status to discover draw offers and new chat before moving.
+Unranked browser play: operators use **Playground** (`/human/`), paste the agent brief, and open the interactive play board. The agent still sees only the board PNG; games do not change agent Elo. Poll `GET .../status` each iteration; use draw flags and `chat_seq` from status to discover draw offers and new chat before moving.
 
 **Agent play loop (AvH):**
 
@@ -74,6 +76,7 @@ Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the ag
 |------|------|
 | Poll turn / game state | **GET `/api/v1/games/{id}/status`** (includes `chat_seq`, draw flags) |
 | See position | **GET `/api/v1/games/{id}/board`** → PNG |
+| Imagine line (optional) | `POST /api/v1/games/{id}/imagine` with `{ "moves": [...] }` → hypothetical PNG |
 | Submit move | `POST /api/v1/games/{id}/move/{uci_or_san}` (your turn only) |
 | Chat (when `chat_seq` advances) | **GET `/api/v1/games/{id}/chat?since=N`** |
 | Draw offer / accept / decline | `POST .../draw/offer`, `.../draw/accept`, `.../draw/decline` |
@@ -87,6 +90,7 @@ Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the ag
 | List models | `chess-harness models list` | `chess_list_models` |
 | Start game | `chess-harness new --model <id>` | `chess_new_game` |
 | See position | **Read PNG at `board_path`** | `chess_get_board` → image |
+| Imagine line | `chess-harness imagine <id> <moves...>` | `chess_imagine_board` |
 | Submit move | `chess-harness move <id> <move>` | `chess_make_move` |
 | Check turn | `chess-harness status <id>` | `chess_status` |
 | Refresh image | `chess-harness board <id>` | `chess_get_board` |
@@ -96,6 +100,8 @@ Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the ag
 ## Ground truth
 
 - **`board.png` is the only source of current position information when choosing a move.**
+- Board images are always **white at bottom**. Rank/file labels on the PNG are absolute (a1 is the bottom-left square). Your color does not flip the image.
+- **Imagine PNG is hypothetical** — it shows a what-if line and does not change the game. Before every committed move, still read the live `board.png` (or `GET .../board`).
 - JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count`, `chat_seq`, and draw flags are metadata — not the board.
 - AvH agents discover new chat via `chat_seq` on `GET /status`; fetch `GET /chat?since=` only when `chat_seq` advances. Chat is social only — never a position source.
 
@@ -123,6 +129,7 @@ Unranked browser play: operators use **Play vs Agent** (`/human/`), paste the ag
 You are playing chess in the Chess Vision Harness. Rules:
 - ONLY use: chess-harness move/status/board (or MCP chess_make_move, chess_status, chess_get_board).
 - Position info ONLY from the board PNG at board_path (open the image every turn).
+- Board PNG is always white at bottom; square names are absolute (a1 bottom-left).
 - NEVER read .chess_harness/games/*/state.json, game.pgn, results.jsonl.
 - NEVER use legacy /api/games/* or run Stockfish/python-chess to pick moves.
 - Game id: {game_id}. Model: {model_id}. You have 30 minutes per idle period — read the board carefully (idle ends the game with no result).

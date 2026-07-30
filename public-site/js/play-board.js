@@ -37,7 +37,6 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
   let pendingUci = null;
   let promoDialogOpen = false;
   let humanSide = humanColor === "black" ? COLOR.black : COLOR.white;
-  let displayedFen = chess.fen();
 
   let activeInputMode = INPUT_MODE.none;
   let desiredMove = false;
@@ -61,7 +60,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
     ],
   });
 
-  const premove = createPremoveController(board, chess, humanSide, {
+  const premove = createPremoveController(board, chess, () => humanSide, {
     onPromoDialogClosed: () => {
       resumeInput();
     },
@@ -187,11 +186,10 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
   }
 
   function setPosition(fen, animate) {
-    if (fen === displayedFen) return Promise.resolve();
-    displayedFen = fen;
     chess.load(fen);
     pendingUci = null;
-    return board.setPosition(fen, !!animate).then(() => premove.refreshMarkers());
+    // Ghost (if any) is layered on server truth without chess.load of the virtual FEN.
+    return premove.syncDisplay(!!animate);
   }
 
   function finishLocalMove(from, to, promotion) {
@@ -238,7 +236,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
       const uci = finishLocalMove(from, to, event.promotion || undefined);
       if (uci) {
         event.chessboard.state.moveInputProcess.then(() => {
-          board.setPosition(chess.fen(), true);
+          premove.syncDisplay(true);
         });
         return true;
       }
@@ -255,14 +253,14 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
             const piece = result.piece.charAt(1).toLowerCase();
             const ok = finishLocalMove(from, to, piece);
             if (ok) {
-              board.setPosition(chess.fen(), true).then(() => submitPending());
+              premove.syncDisplay(true).then(() => submitPending());
             } else {
-              board.setPosition(chess.fen(), false);
+              premove.syncDisplay(false);
               resumeInput();
             }
           } else {
             pendingUci = null;
-            board.setPosition(chess.fen(), false);
+            premove.syncDisplay(false);
             resumeInput();
           }
         });
@@ -292,8 +290,10 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
       board.setOrientation(humanSide);
     },
     syncInputState,
-    getPremove: premove.getPremove,
-    clearPremove: premove.clearPremove,
+    getPremove: premove.peek,
+    peekPremove: premove.peek,
+    dequeuePremove: premove.dequeue,
+    clearPremove: premove.clear,
     exportPngBlob: () => exportBoardPngBlob(mountEl),
   };
 }

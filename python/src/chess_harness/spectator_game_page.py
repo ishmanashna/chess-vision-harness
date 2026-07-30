@@ -81,6 +81,7 @@ def render_game_view_page(game_id: str) -> str:
     </style></head><body class="game-view">
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
+    <main>
     <p class="game-sub">Spectating <code>{gid}</code></p>
     <div class="layout">
       <aside class="col info-col">
@@ -137,6 +138,10 @@ def render_game_view_page(game_id: str) -> str:
         </div>
       </aside>
     </div>
+    </main>
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
     </div>
     <script>
     const GAME_ID={gid_js};

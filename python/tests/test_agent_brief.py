@@ -31,6 +31,7 @@ def test_render_agent_brief_contains_play_loop():
     assert "You are playing chess" in brief
     assert "image/png" in brief.lower()
     assert "Never use FEN" in brief
+    assert "white at bottom" in brief.lower()
     assert "Play loop" in brief
     assert "/move/e2e4" in brief
     assert "No request body" in brief or "no JSON" in brief.lower()
@@ -66,6 +67,7 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "while waiting" in brief.lower() or "look at the position" in brief.lower()
     assert "rare" not in brief.lower()
     assert "Never use FEN" in brief
+    assert "white at bottom" in brief.lower()
     assert "/move/e2e4" in brief
 
 
@@ -87,6 +89,7 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
     assert "Never use FEN" in brief
+    assert "white at bottom" in brief.lower()
     assert "/moves" not in brief
     assert "chat_seq" in brief
     assert "last_chat_seq" in brief

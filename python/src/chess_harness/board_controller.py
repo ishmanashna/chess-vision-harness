@@ -28,6 +28,7 @@ from .quality_finish import schedule_game_quality, schedule_provisional_game_qua
 from .results import ResultsManager
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
+MAX_IMAGINE_PLIES = 12
 
 
 class BoardController:
@@ -254,6 +255,11 @@ class BoardController:
             state = self.game_manager.load_state(game_id)
             if not state or state.get("status") != "in_progress":
                 continue
+            if is_avaa_state(state):
+                from .avaa import awaiting_joins
+
+                if awaiting_joins(state):
+                    continue
             if self._idle_seconds(game_id, state) >= idle_limit:
                 result = self.end_no_result(game_id, reason="inactivity")
                 if result.get("ok"):
@@ -285,7 +291,7 @@ class BoardController:
             board,
             board_path,
             last_moves=self.highlight_moves(state),
-            agent_color=state["agent_color"].lower(),
+            bottom_color="white",
             check_square=board.king(board.turn) if board.is_check() else None,
         )
 
@@ -751,15 +757,71 @@ class BoardController:
         persp = self._perspective(board, state["agent_color"])
         return agent_safe_board(state, str(board_path), persp)
 
+    def imagine_board(self, game_id: str, moves: List[str]) -> Dict[str, Any]:
+        """Apply a hypothetical line from the current FEN and render a PNG.
+
+        Read-only: does not touch activity, joined flags, board.png, moves, or audit.
+        """
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        if not isinstance(moves, list):
+            return {"ok": False, "error": "moves must be a list of UCI/SAN strings"}
+        if len(moves) > MAX_IMAGINE_PLIES:
+            return {
+                "ok": False,
+                "error": f"Too many moves (max {MAX_IMAGINE_PLIES} plies)",
+            }
+
+        board = chess.Board(state["board_fen"])
+        applied: List[chess.Move] = []
+        for index, raw in enumerate(moves):
+            move_str = str(raw or "").strip()
+            if not move_str:
+                return {
+                    "ok": False,
+                    "error": f"Empty move at index {index}",
+                    "index": index,
+                }
+            parsed = self._parse_move(board, game_id, move_str)
+            if isinstance(parsed, dict):
+                err = parsed.get("error", f"Illegal move: {move_str}")
+                return {"ok": False, "error": err, "index": index}
+            board.push(parsed)
+            applied.append(parsed)
+
+        try:
+            png = self.renderer.render_board_bytes(
+                board,
+                last_moves=applied[-2:] if applied else None,
+                bottom_color="white",
+                check_square=board.king(board.turn) if board.is_check() else None,
+            )
+        except Exception as e:
+            return {"ok": False, "error": f"Failed to render imagined board: {e}"}
+
+        return {
+            "ok": True,
+            "game_id": game_id,
+            "png_bytes": png,
+            "applied_count": len(applied),
+            "hypothetical": True,
+        }
+
     def refresh_board_image(self, game_id: str) -> bool:
         """Re-render board PNG (e.g. after renderer defaults change)."""
         state = self.game_manager.load_state(game_id)
         if not state:
             return False
         board = chess.Board(state["board_fen"])
-        board_path = self.game_manager.get_board_path(game_id)
         try:
-            self._render_state_board(board, board_path, state)
+            if is_avaa_state(state):
+                from .avaa_render import render_avaa_boards
+
+                render_avaa_boards(self, self.game_manager, board, game_id, state)
+            else:
+                board_path = self.game_manager.get_board_path(game_id)
+                self._render_state_board(board, board_path, state)
             return True
         except Exception:
             return False

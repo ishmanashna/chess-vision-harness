@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-30T14:53:52.000Z",
+  "generated_at": "2026-07-30T18:53:20.000Z",
   "agents": [
     {
       "id": "grok-4.5-high",
@@ -14,22 +14,22 @@
     {
       "id": "mimo-v2.5",
       "name": "MiMo V2.5",
-      "elo": 418,
+      "elo": 344,
       "games": 4,
       "provisional": true,
-      "mean_accuracy": 62.31,
-      "mean_play_rating": 509,
-      "quality_games": 3
+      "mean_accuracy": 62.9,
+      "mean_play_rating": 517,
+      "quality_games": 4
     },
     {
       "id": "composer-2.5",
       "name": "Composer 2.5",
-      "elo": 292,
-      "games": 10,
+      "elo": 248,
+      "games": 9,
       "provisional": true,
-      "mean_accuracy": 66.85,
-      "mean_play_rating": 668,
-      "quality_games": 8
+      "mean_accuracy": 62.14,
+      "mean_play_rating": 506,
+      "quality_games": 7
     }
   ],
   "opponents": [

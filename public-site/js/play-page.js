@@ -124,6 +124,7 @@ async function main() {
       try {
         const fired = await tryFirePremove(board, api, pos, prevYourTurn);
         if (fired) {
+          lastFen = fired.fen || lastFen;
           await syncFromServer(fired, true);
           return;
         }

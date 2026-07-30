@@ -107,6 +107,10 @@ def test_avaa_new_game_no_engine(avaa_client):
     assert (game_dir / "board.png").exists()
     assert (game_dir / "board_white.png").exists()
     assert (game_dir / "board_black.png").exists()
+    # Role boards alias the same white-bottom content as spectator board.png
+    canonical = (game_dir / "board.png").read_bytes()
+    assert (game_dir / "board_white.png").read_bytes() == canonical
+    assert (game_dir / "board_black.png").read_bytes() == canonical
 
 
 def test_avaa_turn_and_board_access(avaa_client):
@@ -121,6 +125,7 @@ def test_avaa_turn_and_board_access(avaa_client):
     black_board_wait = client.get(f"/api/v1/games/{game_id}/board", headers=_auth(black_key))
     assert black_board_wait.status_code == 200
     assert black_board_wait.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert black_board_wait.content == white_board.content
 
     move = client.post(
         f"/api/v1/games/{game_id}/move/e2e4",
@@ -204,3 +209,142 @@ def test_avaa_participant_auth(avaa_client):
     assert black_create.status_code == 200
     assert black_create.json().get("agent_color") == "BLACK"
     assert black_create.json().get("your_turn") is False
+
+
+def test_avaa_refresh_board_image(avaa_client):
+    """AvA refresh must call render_avaa_boards (no KeyError on agent_color)."""
+    client, harness_dir = avaa_client
+    white_key, _, white_id, black_id = _register_pair(client)
+    game_id = _create_avaa(client, white_key, white_id, black_id)
+    game_dir = harness_dir / "games" / game_id
+    for name in ("board.png", "board_white.png", "board_black.png"):
+        (game_dir / name).unlink()
+
+    from chess_harness.spectator import _get_controller
+
+    assert _get_controller().refresh_board_image(game_id) is True
+    canonical = (game_dir / "board.png").read_bytes()
+    assert canonical[:8] == b"\x89PNG\r\n\x1a\n"
+    assert (game_dir / "board_white.png").read_bytes() == canonical
+    assert (game_dir / "board_black.png").read_bytes() == canonical
+
+
+def test_avaa_reject_same_model(avaa_client):
+    client, _ = avaa_client
+    white = client.post("/api/v1/agents", json={"id": "same-model", "name": "Same"})
+    assert white.status_code == 200
+    key = white.json()["api_key"]
+    create = client.post(
+        "/api/v1/games/agent-vs-agent",
+        headers=_auth(key),
+        json={"white_model_id": "same-model", "black_model_id": "same-model"},
+    )
+    assert create.status_code == 400
+    assert "differ" in create.json().get("error", "").lower()
+
+
+def test_avaa_direct_dual_briefs(avaa_client):
+    client, harness_dir = avaa_client
+    white_key, black_key, white_id, black_id = _register_pair(client)
+    create = client.post(
+        "/api/v1/games/agent-vs-agent",
+        headers=_auth(white_key),
+        json={
+            "white_model_id": white_id,
+            "black_model_id": black_id,
+            "peer_api_key": black_key,
+        },
+    )
+    assert create.status_code == 200, create.text
+    data = create.json()
+    assert data["ok"] is True
+    assert "agent_brief" in data
+    assert data["white"]["model_id"] == white_id
+    assert data["black"]["model_id"] == black_id
+    assert white_key in data["white"]["agent_brief"]
+    assert black_key in data["black"]["agent_brief"]
+    assert black_key not in data["agent_brief"]
+    assert data["white"]["agent_brief"] != data["black"]["agent_brief"]
+
+    # Single-key create (Find match / API client) still returns only caller brief.
+    solo = client.post(
+        "/api/v1/games/agent-vs-agent",
+        headers=_auth(white_key),
+        json={"white_model_id": white_id, "black_model_id": black_id},
+    )
+    assert solo.status_code == 200
+    solo_data = solo.json()
+    assert "white" not in solo_data
+    assert "black" not in solo_data
+    assert "agent_brief" in solo_data
+
+    state = GameManager(str(harness_dir)).load_state(data["game_id"])
+    assert state["white_joined"] is False
+    assert state["black_joined"] is False
+
+
+def test_avaa_joined_on_status_board_move_not_imagine(avaa_client):
+    client, harness_dir = avaa_client
+    white_key, black_key, white_id, black_id = _register_pair(client)
+    game_id = _create_avaa(client, white_key, white_id, black_id)
+    gm = GameManager(str(harness_dir))
+
+    imag = client.post(
+        f"/api/v1/games/{game_id}/imagine",
+        headers=_auth(white_key),
+        json={"moves": ["e2e4"]},
+    )
+    assert imag.status_code == 200
+    state = gm.load_state(game_id)
+    assert state["white_joined"] is False
+    assert state["black_joined"] is False
+
+    status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(white_key))
+    assert status.status_code == 200
+    body = status.json()
+    assert body["white_joined"] is True
+    assert body["black_joined"] is False
+    state = gm.load_state(game_id)
+    assert state["white_joined"] is True
+    assert state["black_joined"] is False
+
+    board = client.get(f"/api/v1/games/{game_id}/board", headers=_auth(black_key))
+    assert board.status_code == 200
+    state = gm.load_state(game_id)
+    assert state["white_joined"] is True
+    assert state["black_joined"] is True
+
+    spec = client.get(f"/api/games/{game_id}/state")
+    assert spec.status_code == 200
+    assert spec.json()["white_joined"] is True
+    assert spec.json()["black_joined"] is True
+
+
+def test_avaa_idle_deferred_until_both_joined(avaa_client, monkeypatch):
+    from chess_harness.limits import HarnessLimits
+    from chess_harness.spectator import _get_controller
+
+    client, harness_dir = avaa_client
+    white_key, black_key, white_id, black_id = _register_pair(client)
+    game_id = _create_avaa(client, white_key, white_id, black_id)
+
+    monkeypatch.setattr(
+        "chess_harness.board_controller.load_limits",
+        lambda: HarnessLimits(idle_timeout_sec=0),
+    )
+    ctrl = _get_controller()
+    ended = ctrl.check_idle_games()
+    assert game_id not in ended
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state["status"] == "in_progress"
+
+    client.get(f"/api/v1/games/{game_id}/status", headers=_auth(white_key))
+    ended = ctrl.check_idle_games()
+    assert game_id not in ended
+
+    client.get(f"/api/v1/games/{game_id}/status", headers=_auth(black_key))
+    ended = ctrl.check_idle_games()
+    assert game_id in ended
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state["status"] == "finished"
+    assert state["result"] == "*"

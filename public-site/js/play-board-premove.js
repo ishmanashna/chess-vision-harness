@@ -1,7 +1,8 @@
-/** Premove input + markers for cm-chessboard play widget.
+/** Multi-premove queue + ghost display for cm-chessboard play widget.
  *
- * Lichess/chess.com pattern: queue while opponent thinks; piece snaps back;
- * green frame markers show the queued move; Escape / right-click / Cancel clears.
+ * Server `chess` stays truth. Queue is client-only. Ghost = virtual FEN from
+ * server + queued plies via board.setPosition — never chess.load for ghosts.
+ * Escape / right-click / Cancel clears the whole queue and restores server.
  */
 
 import {
@@ -20,44 +21,100 @@ export const PREMOVE_MARKER = {
   slice: "markerFrame",
 };
 
-export function createPremoveController(board, chess, humanSide, callbacks) {
+function parseUci(uci) {
+  return {
+    from: uci.slice(0, 2),
+    to: uci.slice(2, 4),
+    promotion: uci.length > 4 ? uci[4] : undefined,
+  };
+}
+
+export function createPremoveController(board, chess, getHumanSide, callbacks) {
   const onPromoDialogClosed =
     typeof callbacks === "function" ? callbacks : callbacks && callbacks.onPromoDialogClosed;
   const onPremoveChange =
     typeof callbacks === "object" && callbacks ? callbacks.onPremoveChange : null;
 
   let inputActive = false;
-  let premoveUci = null;
+  /** @type {string[]} */
+  let queue = [];
   let promoDialogOpen = false;
+  let displayedFen = null;
 
-  function humanPieceChar() {
-    return humanSide === COLOR.white ? "w" : "b";
+  function humanSide() {
+    return typeof getHumanSide === "function" ? getHumanSide() : getHumanSide;
   }
 
-  function boardWithHumanToMove() {
-    const tmp = new Chess(chess.fen());
+  function humanPieceChar() {
+    return humanSide() === COLOR.white ? "w" : "b";
+  }
+
+  function forceHumanToMove(tmp) {
     const parts = tmp.fen().split(" ");
     parts[1] = humanPieceChar();
     tmp.load(parts.join(" "));
     return tmp;
   }
 
+  function applyUci(tmp, uci) {
+    const { from, to, promotion } = parseUci(uci);
+    const moveObj = { from, to };
+    if (promotion) moveObj.promotion = promotion;
+    return tmp.move(moveObj);
+  }
+
+  /** Virtual board after all queued plies (human forced before each). */
+  function virtualBoardFromQueue() {
+    const tmp = new Chess(chess.fen());
+    for (const uci of queue) {
+      forceHumanToMove(tmp);
+      if (!applyUci(tmp, uci)) break;
+    }
+    return tmp;
+  }
+
+  /** Board used to validate / show legal moves for the next enqueue. */
+  function boardForNextPremove() {
+    return forceHumanToMove(virtualBoardFromQueue());
+  }
+
   function clearPremoveMarkers() {
     board.removeMarkers(PREMOVE_MARKER.id);
   }
 
-  function showPremoveMarkers(from, to) {
+  function showQueueMarkers() {
     clearPremoveMarkers();
-    board.addMarker(from, PREMOVE_MARKER.id);
-    board.addMarker(to, PREMOVE_MARKER.id);
+    for (const uci of queue) {
+      const { from, to } = parseUci(uci);
+      board.addMarker(from, PREMOVE_MARKER.id);
+      board.addMarker(to, PREMOVE_MARKER.id);
+    }
   }
 
   function notifyPremoveChange() {
-    if (onPremoveChange) onPremoveChange(premoveUci);
+    if (onPremoveChange) onPremoveChange(peek());
+  }
+
+  function targetDisplayFen() {
+    if (!queue.length) return chess.fen();
+    return virtualBoardFromQueue().fen();
+  }
+
+  function syncDisplay(animate) {
+    const fen = targetDisplayFen();
+    const doAnimate = !!animate;
+    if (fen === displayedFen && !doAnimate) {
+      showQueueMarkers();
+      return Promise.resolve();
+    }
+    displayedFen = fen;
+    return board.setPosition(fen, doAnimate).then(() => {
+      showQueueMarkers();
+    });
   }
 
   function tryPremoveUci(from, to, promotion) {
-    const tmp = boardWithHumanToMove();
+    const tmp = boardForNextPremove();
     const moveObj = { from, to };
     if (promotion) moveObj.promotion = promotion;
     const result = tmp.move(moveObj);
@@ -65,33 +122,46 @@ export function createPremoveController(board, chess, humanSide, callbacks) {
     return uciFromSquares(from, to, promotion);
   }
 
-  function setPremove(from, to, promotion) {
+  function enqueue(from, to, promotion, opts) {
     const uci = tryPremoveUci(from, to, promotion);
     if (!uci) return false;
-    premoveUci = uci;
-    showPremoveMarkers(from, to);
+    queue.push(uci);
     notifyPremoveChange();
+    const defer = opts && opts.deferDisplay;
+    if (defer) {
+      queueMicrotask(() => syncDisplay(false));
+    } else {
+      syncDisplay(false);
+    }
     return true;
   }
 
-  function clearPremove() {
-    if (!premoveUci) {
-      clearPremoveMarkers();
-      return;
-    }
-    premoveUci = null;
-    clearPremoveMarkers();
-    notifyPremoveChange();
+  function peek() {
+    return queue.length ? queue[0] : null;
   }
 
-  function refreshMarkers() {
-    if (!premoveUci) return;
-    showPremoveMarkers(premoveUci.slice(0, 2), premoveUci.slice(2, 4));
+  function dequeue(skipDisplay) {
+    if (!queue.length) return null;
+    const uci = queue.shift();
+    if (!skipDisplay) syncDisplay(false);
+    notifyPremoveChange();
+    return uci;
+  }
+
+  function clear() {
+    if (!queue.length) {
+      clearPremoveMarkers();
+      syncDisplay(false);
+      return;
+    }
+    queue = [];
+    clearPremoveMarkers();
+    syncDisplay(false);
+    notifyPremoveChange();
   }
 
   function onInputDisabled() {
     inputActive = false;
-    if (!premoveUci) clearPremoveMarkers();
   }
 
   function premoveHandler(event) {
@@ -102,9 +172,9 @@ export function createPremoveController(board, chess, humanSide, callbacks) {
     if (!inputActive) return false;
 
     if (event.type === INPUT_EVENT_TYPE.moveInputStarted) {
-      const piece = chess.get(event.squareFrom);
+      const tmp = boardForNextPremove();
+      const piece = tmp.get(event.squareFrom);
       if (!piece || piece.color !== humanPieceChar()) return false;
-      const tmp = boardWithHumanToMove();
       const moves = tmp.moves({ square: event.squareFrom, verbose: true });
       event.chessboard.addLegalMovesMarkers(moves);
       return moves.length > 0;
@@ -115,28 +185,27 @@ export function createPremoveController(board, chess, humanSide, callbacks) {
       const from = event.squareFrom;
       const to = event.squareTo;
 
-      // Queue and snap the piece back (return false). Returning true used to
-      // leave cm-chessboard thinking a real move completed → stuck input.
-      if (setPremove(from, to, event.promotion || undefined)) {
+      // Enqueue and snap the piece back (return false). Ghost refresh via
+      // syncDisplay shows the virtual position without chess.load.
+      if (enqueue(from, to, event.promotion || undefined, { deferDisplay: true })) {
         return false;
       }
 
-      const tmp = boardWithHumanToMove();
+      const tmp = boardForNextPremove();
       const candidates = tmp.moves({ square: from, verbose: true });
       const needsPromo = candidates.some((m) => m.promotion && m.to === to);
       if (needsPromo) {
         promoDialogOpen = true;
         const promoColor =
-          humanSide === COLOR.white ? COLOR.white : COLOR.black;
+          humanSide() === COLOR.white ? COLOR.white : COLOR.black;
         event.chessboard.showPromotionDialog(to, promoColor, (result) => {
           promoDialogOpen = false;
           if (result.type === PROMOTION_DIALOG_RESULT_TYPE.pieceSelected) {
             const piece = result.piece.charAt(1).toLowerCase();
-            setPremove(from, to, piece);
+            enqueue(from, to, piece);
           }
           if (onPromoDialogClosed) onPromoDialogClosed();
         });
-        // Snap back while the dialog is open; markers appear after selection.
         return false;
       }
       return false;
@@ -146,26 +215,29 @@ export function createPremoveController(board, chess, humanSide, callbacks) {
   }
 
   function onKeyDown(e) {
-    if (e.key === "Escape" && premoveUci) {
+    if (e.key === "Escape" && queue.length) {
       e.preventDefault();
-      clearPremove();
+      clear();
     }
   }
 
   return {
     premoveHandler,
-    getPremove: () => premoveUci,
-    clearPremove,
-    refreshMarkers,
+    peek,
+    dequeue,
+    clear,
+    getPremove: peek,
+    clearPremove: clear,
+    syncDisplay,
     setInputActive: (active) => {
       inputActive = !!active;
     },
     isPromoDialogOpen: () => promoDialogOpen,
     onInputDisabled,
     onContextMenu: (e) => {
-      if (premoveUci) {
+      if (queue.length) {
         e.preventDefault();
-        clearPremove();
+        clear();
       }
     },
     onKeyDown,

@@ -67,6 +67,26 @@ def cmd_board(game_id: str) -> Dict[str, Any]:
     return _game_service().get_board(game_id)
 
 
+def cmd_imagine(game_id: str, moves: List[str]) -> Dict[str, Any]:
+    """Write a hypothetical-line PNG outside the game dir; does not change state."""
+    import tempfile
+    from pathlib import Path
+
+    result = _game_service().imagine_board(game_id, moves)
+    if not result.get("ok"):
+        return {k: v for k, v in result.items() if k != "png_bytes"}
+    fd, path = tempfile.mkstemp(suffix=".png", prefix="chess-imagine-")
+    os.close(fd)
+    Path(path).write_bytes(result["png_bytes"])
+    return {
+        "ok": True,
+        "game_id": game_id,
+        "imagine_path": path,
+        "applied_count": result.get("applied_count", 0),
+        "hypothetical": True,
+    }
+
+
 def cmd_pgn(game_id: str) -> Dict[str, Any]:
     return _game_service().export_pgn(game_id)
 
@@ -411,6 +431,58 @@ def cmd_prune_no_result(
         out = export_leaderboard_snapshot()
         print(f"Wrote leaderboard snapshot: {out}")
     return 1 if failed else 0
+
+
+def cmd_remove_game(
+    game_id: str,
+    *,
+    export_snapshot: bool = True,
+    dry_run: bool = False,
+) -> int:
+    """Remove one game from results + disk, then rebuild Elo and leaderboard snapshot."""
+    gm = _game_manager()
+    if not gm.validate_game_id(game_id):
+        print(f"Invalid game_id: {game_id}")
+        return 1
+
+    rm = ResultsManager(base_dir=str(gm.base_dir))
+    dir_exists = gm.get_game_dir(game_id).exists()
+    result_rows = sum(1 for row in rm.load_results() if row.get("game_id") == game_id)
+
+    if not dir_exists and result_rows == 0:
+        print(f"No game or results found for {game_id}")
+        return 1
+
+    if dry_run:
+        if result_rows:
+            print(f"  would remove {result_rows} result row(s) for {game_id}")
+        if dir_exists:
+            print(f"  would delete game directory {game_id}")
+        print("  would rebuild-elo")
+        if export_snapshot:
+            print("  would export leaderboard snapshot")
+        print(f"Would remove game {game_id} (dry run)")
+        return 0
+
+    rows_removed = rm.remove_game_results(game_id)
+    print(f"  removed {rows_removed} result row(s) for {game_id}")
+
+    if dir_exists:
+        if gm.delete_game(game_id):
+            print(f"  deleted game directory {game_id}")
+        else:
+            print(f"  fail {game_id}: could not delete game directory")
+            return 1
+    else:
+        print(f"  no game directory for {game_id}")
+
+    cmd_rebuild_elo()
+    if export_snapshot:
+        from .snapshot_leaderboard import export_leaderboard_snapshot
+
+        out = export_leaderboard_snapshot()
+        print(f"Wrote leaderboard snapshot: {out}")
+    return 0
 
 
 def cmd_rebuild_estimation_samples() -> int:

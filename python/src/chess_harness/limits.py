@@ -25,6 +25,7 @@ class HarnessLimits:
     max_engine_processes: int = 12
     max_games_per_hour_per_key: int = 20
     max_moves_per_hour_per_key: int = 600
+    max_imagines_per_hour_per_key: int = 300
     idle_timeout_sec: int = 1800
     max_agent_registrations_per_ip_per_hour: int = 10
 
@@ -36,6 +37,9 @@ def load_limits() -> HarnessLimits:
         max_engine_processes=_int_env("CHESS_HARNESS_MAX_ENGINE_PROCESSES", 12),
         max_games_per_hour_per_key=_int_env("CHESS_HARNESS_MAX_GAMES_PER_HOUR_PER_KEY", 20),
         max_moves_per_hour_per_key=_int_env("CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY", 600),
+        max_imagines_per_hour_per_key=_int_env(
+            "CHESS_HARNESS_MAX_IMAGINES_PER_HOUR_PER_KEY", 300
+        ),
         idle_timeout_sec=_int_env("CHESS_HARNESS_IDLE_TIMEOUT_SEC", 1800, minimum=60),
         max_agent_registrations_per_ip_per_hour=_int_env(
             "CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR", 10

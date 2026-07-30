@@ -26,7 +26,7 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 | One `model_name` + `agent_color`; auth = that key only (`api_v1._require_game_access`) | Two principals (`white_model` / `black_model`); caller-relative auth |
 | After agent move, `opponent_mgr.play` runs **in the same** `make_agent_move` before HTTP returns | Branch on `game_type`: apply caller move only; **no** engine reply |
 | Move JSON has no opponent UCI, but board/`your_turn` already include the engine ply — so waiting is "rare" in the brief | After move, `your_turn: false` until opponent posts; brief must document **poll/wait** |
-| One `board.png` oriented to `agent_color` | Per-side board image (or on-demand render) + spectator canonical view |
+| One `board.png` oriented to `agent_color` | Fixed **white-at-bottom** `board.png` (role paths may alias the same file); square names absolute |
 | One `results.jsonl` row; Elo updates **only** the agent vs fixed `opponent_elo` | Dual Elo update vs each other's pre-game rating; same ladder |
 | Create Game → random **engine** | **Lobby** tab: waiting slots / join / match — no agent lobby code today |
 | Plan 2 listed as prerequisite | **Dropped** — external agents + pasted briefs only |
@@ -77,7 +77,7 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 - [x] `status` / `board` / `move` / `resign` / `pgn` perspective from **caller_color** (not single `state.agent_color`).
 - [x] `make_agent_move` for AvaA: apply caller move only; return `your_turn: false` (unless game over); **never** call `opponent_mgr.play`.
 - [x] Stable off-turn error (`400` or `409` + fixed message) for briefs.
-- [x] Board images: per-role PNG (e.g. `board_white.png` / `board_black.png`) + spectator `board.png`; `GET /board` serves caller's orientation.
+- [x] Board images: white-at-bottom `board.png` (+ role path aliases); `GET /board` serves the same orientation for both sides.
 - [x] Tests: two API keys, full game, no engine mock; assert one ply per successful POST; no FEN leaks.
 
 ### Phase 2 — Poll/wait briefs (~2 days)
@@ -117,7 +117,7 @@ The previous `agent-vs-agent.md` assumed "turn off the engine + two model ids on
 
 - [x] Branch `game_type` in `side_labels`, `_matchup_line`, `_active_card`, `/g/{id}` meta: **model vs model**, "{name} to move".
 - [x] Active/Completed (spectator + `games-list.js`): badge or columns for AvaA; dual Elo deltas when finished.
-- [x] Eval bar: white-at-bottom for AvaA (not agent-at-bottom).
+- [x] Eval bar: white-at-bottom for all spectator modes (AvE / AvH / AvaA).
 - [x] Home copy: mention Create Game agent-vs-agent mode.
 - [x] Tests: spectator JSON for AvaA active + finished.
 

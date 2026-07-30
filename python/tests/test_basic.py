@@ -115,6 +115,27 @@ class TestBoardController:
         assert state["status"] == "in_progress"
         assert state["agent_color"] == "BLACK"
         assert len(state["moves"]) == 1  # Engine's first move
+
+        # Agent-as-black board PNG is still white-at-bottom
+        import chess
+        from chess_harness.render_pillow import ChessBoardRenderer
+
+        board_path = game_manager.get_board_path("test2")
+        assert board_path.exists()
+        board = chess.Board(state["board_fen"])
+        highlights = controller.highlight_moves(state)
+        check = board.king(board.turn) if board.is_check() else None
+        ref_white = Path(game_manager.base_dir) / "_orient_white.png"
+        ref_black = Path(game_manager.base_dir) / "_orient_black.png"
+        renderer = ChessBoardRenderer()
+        renderer.render_board(
+            board, ref_white, last_moves=highlights, bottom_color="white", check_square=check
+        )
+        renderer.render_board(
+            board, ref_black, last_moves=highlights, bottom_color="black", check_square=check
+        )
+        assert board_path.read_bytes() == ref_white.read_bytes()
+        assert board_path.read_bytes() != ref_black.read_bytes()
     
     def test_invalid_game_id(self, controller):
         """Test starting a game with invalid game ID."""

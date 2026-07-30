@@ -146,6 +146,7 @@ class ApiLimitEnforcer:
         self._limits = limits
         self._games_by_key = _SlidingWindow()
         self._moves_by_key = _SlidingWindow()
+        self._imagines_by_key = _SlidingWindow()
         self._registrations_by_ip = _SlidingWindow()
 
     def limits(self) -> HarnessLimits:
@@ -213,10 +214,25 @@ class ApiLimitEnforcer:
     def record_move(self, auth: AuthContext) -> None:
         self._moves_by_key.add(auth.key_fingerprint)
 
+    def check_imagine(self, auth: AuthContext) -> Optional[JSONResponse]:
+        lim = self.limits()
+        fp = auth.key_fingerprint
+        if self._imagines_by_key.count(fp) >= lim.max_imagines_per_hour_per_key:
+            return limit_error(
+                429,
+                f"API key imagine limit exceeded ({lim.max_imagines_per_hour_per_key}/hour)",
+                self._imagines_by_key.retry_after(fp, lim.max_imagines_per_hour_per_key),
+            )
+        return None
+
+    def record_imagine(self, auth: AuthContext) -> None:
+        self._imagines_by_key.add(auth.key_fingerprint)
+
     def reset_counters(self) -> None:
         """Clear sliding windows (tests / process restart semantics)."""
         self._games_by_key = _SlidingWindow()
         self._moves_by_key = _SlidingWindow()
+        self._imagines_by_key = _SlidingWindow()
         self._registrations_by_ip = _SlidingWindow()
 
     def metrics(self, game_service: GameService) -> Dict[str, object]:
@@ -239,6 +255,7 @@ class ApiLimitEnforcer:
                 "max_engine_processes": lim.max_engine_processes,
                 "max_games_per_hour_per_key": lim.max_games_per_hour_per_key,
                 "max_moves_per_hour_per_key": lim.max_moves_per_hour_per_key,
+                "max_imagines_per_hour_per_key": lim.max_imagines_per_hour_per_key,
                 "idle_timeout_sec": lim.idle_timeout_sec,
             },
             "engine_count_note": (

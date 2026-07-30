@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, Response
@@ -25,7 +25,7 @@ from .paths import resolve_base_dir
 
 __all__ = ["build_router", "_AuthError", "_err"]
 
-_LEAK_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen"})
+_LEAK_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen", "png_bytes"})
 
 
 class RegisterAgentBody(BaseModel):
@@ -40,6 +40,10 @@ class CreateGameBody(BaseModel):
 
 class MoveBody(BaseModel):
     move: str = Field(..., min_length=2)
+
+
+class ImagineBody(BaseModel):
+    moves: List[str] = Field(default_factory=list)
 
 
 def _err(status: int, message: str) -> JSONResponse:
@@ -97,6 +101,7 @@ def build_router(
         sanitize=_sanitize_agent_payload,
         new_game_id=new_game_id,
         auth_context=_auth_context,
+        key_store_fn=_keys,
     )
     register_human_vs_agent_routes(
         router,
@@ -224,6 +229,37 @@ def build_router(
         except ValueError as exc:
             return _err(404, str(exc))
         return Response(content=png, media_type="image/png")
+
+    @router.post("/games/{game_id}/imagine")
+    async def game_imagine(
+        game_id: str,
+        body: ImagineBody,
+        auth: AuthContext = Depends(_auth_context),
+    ):
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        denied = limits.check_imagine(auth)
+        if denied:
+            return denied
+        result = _svc().imagine_board(game_id, list(body.moves))
+        if not result.get("ok"):
+            content: Dict[str, Any] = {
+                "ok": False,
+                "error": result.get("error", "Imagine failed"),
+            }
+            if "index" in result:
+                content["index"] = result["index"]
+            return JSONResponse(status_code=400, content=content)
+        limits.record_imagine(auth)
+        return Response(
+            content=result["png_bytes"],
+            media_type="image/png",
+            headers={
+                "X-Imagine": "1",
+                "X-Imagine-Plies": str(result.get("applied_count", 0)),
+            },
+        )
 
     @router.post("/games/{game_id}/move/{move}")
     async def game_move_path(

@@ -27,6 +27,33 @@ def participant_color(state: Dict[str, Any], model_id: str) -> Optional[str]:
     return None
 
 
+def join_flag_key(caller_color: str) -> str:
+    return "white_joined" if caller_color == "WHITE" else "black_joined"
+
+
+def both_sides_joined(state: Dict[str, Any]) -> bool:
+    return bool(state.get("white_joined")) and bool(state.get("black_joined"))
+
+
+def awaiting_joins(state: Dict[str, Any]) -> bool:
+    """True when this AvA game tracks joins and either side has not connected yet."""
+    if "white_joined" not in state and "black_joined" not in state:
+        return False
+    return not both_sides_joined(state)
+
+
+def ensure_side_joined(
+    ctrl: "BoardController", game_id: str, state: Dict[str, Any], caller_color: str
+) -> None:
+    """Mark white/black joined on first authenticated board/status/move (not Imagine)."""
+    key = join_flag_key(caller_color)
+    if state.get(key):
+        return
+    state[key] = True
+    ctrl._touch_activity(state)
+    ctrl.game_manager.save_state(game_id, state)
+
+
 class AvAAPlay:
     """AvaA mutations delegated from BoardController."""
 
@@ -97,6 +124,8 @@ class AvAAPlay:
                         "GameType": GAME_TYPE_AGENT_VS_AGENT,
                     },
                     "moves": [],
+                    "white_joined": False,
+                    "black_joined": False,
                 }
                 self.ctrl._touch_activity(state)
                 if not self.gm.save_state(game_id, state):
@@ -111,6 +140,8 @@ class AvAAPlay:
                     "black_model_id": black_id,
                     "white_display_name": white_name,
                     "black_display_name": black_name,
+                    "white_joined": False,
+                    "black_joined": False,
                     "board_path": str(self.gm.get_board_path(game_id)),
                     "your_turn": True,
                     "agent_color": "WHITE",
@@ -133,6 +164,7 @@ class AvAAPlay:
                 if state["status"] != "in_progress":
                     return self.ctrl._error(game_id, f"Game is already over: {state['result']}")
 
+                ensure_side_joined(self.ctrl, game_id, state, caller_color)
                 board = chess.Board(state["board_fen"])
                 side = self.ctrl._agent_color(caller_color)
                 if board.turn != side:
@@ -180,12 +212,15 @@ class AvAAPlay:
         if not state or not is_avaa_state(state):
             return {"ok": False, "error": f"Game {game_id} not found"}
 
+        ensure_side_joined(self.ctrl, game_id, state, caller_color)
         board = chess.Board(state["board_fen"])
         board_path = str(self.gm.get_role_board_path(game_id, caller_color))
         persp = self.ctrl._perspective(board, caller_color)
         response = agent_safe_status(state, board_path, persp)
         response["agent_color"] = caller_color
         response["opponent_display_name"] = self._opponent_name(state, caller_color)
+        response["white_joined"] = bool(state.get("white_joined"))
+        response["black_joined"] = bool(state.get("black_joined"))
         return response
 
     def get_board(self, game_id: str, caller_color: str) -> Dict[str, Any]:
@@ -193,6 +228,7 @@ class AvAAPlay:
         if not state or not is_avaa_state(state):
             return {"ok": False, "error": f"Game {game_id} not found"}
 
+        ensure_side_joined(self.ctrl, game_id, state, caller_color)
         board = chess.Board(state["board_fen"])
         board_path = self.gm.get_role_board_path(game_id, caller_color)
         if not board_path.exists():

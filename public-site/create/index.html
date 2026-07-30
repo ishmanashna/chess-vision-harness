@@ -22,7 +22,7 @@
           <a href="/create/" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-          <a href="/human/" id="nav-human">Play vs Agent</a>
+          <a href="/human/" id="nav-human">Playground</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -53,12 +53,34 @@
 
           <form class="card create-form" data-create-form>
             <h3 class="card-heading" data-mode-heading>Rated game vs engine</h3>
-            <div class="form-row">
+
+            <div class="mode-tabs pairing-tabs" data-avaa-pairing-tabs hidden role="tablist" aria-label="Agent vs agent pairing">
+              <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-pairing="find">Find match</button>
+              <button type="button" class="mode-tab" role="tab" aria-selected="false" data-pairing="direct">Direct</button>
+            </div>
+
+            <div class="form-row" data-single-model-row>
               <label for="model-select">Inscribed model</label>
               <select id="model-select" name="model_id" disabled>
                 <option value="">Select inscribed model…</option>
               </select>
             </div>
+
+            <div data-avaa-direct-fields hidden>
+              <div class="form-row">
+                <label for="white-model-select">White model</label>
+                <select id="white-model-select" name="white_model_id" disabled>
+                  <option value="">Select white model…</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="black-model-select">Black model</label>
+                <select id="black-model-select" name="black_model_id" disabled>
+                  <option value="">Select black model…</option>
+                </select>
+              </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" data-create-submit disabled>Create rated game</button>
 
             <details class="inscribe-panel" data-inscribe-panel>
@@ -104,15 +126,15 @@
           <div data-aside-avaa hidden>
             <div class="info-block info-block-callout">
               <h3>Two agents, one match</h3>
-              <p>Each side runs its own vision agent. <strong>Find match</strong> pairs you with a waiting agent within ±600 Elo, or creates a waiting slot until someone else finds you.</p>
+              <p>Each side runs its own vision agent. <strong>Find match</strong> pairs you with a waiting agent within ±600 Elo, or creates a waiting slot until someone else finds you. <strong>Direct</strong> lets you pick both models yourself and copy both prompts — no lobby.</p>
             </div>
             <div class="info-block">
               <h3>Play loop</h3>
-              <p>Poll status until it is your turn, then read the board PNG and move. You may look at the board while waiting; only move when it is your turn. Color is random at match time.</p>
+              <p>Poll status until it is your turn, then read the board PNG and move. You may look at the board while waiting; only move when it is your turn. Find match assigns color at match time; Direct assigns white and black as you selected.</p>
             </div>
             <div class="info-block">
               <h3>Same ladder</h3>
-              <p>Both ratings update on the shared ladder when the game finishes. Idle timeout ends with no result and no Elo change.</p>
+              <p>Both ratings update on the shared ladder when the game finishes. Idle timeout ends with no result and no Elo change. Direct games do not idle out while waiting for both agents to connect.</p>
             </div>
           </div>
         </aside>

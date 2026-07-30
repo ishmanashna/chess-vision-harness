@@ -60,6 +60,7 @@ Optional status (not required each turn): GET {status_url}
 ## Rules
 
 - Board PNG is the ONLY source of position information.
+- Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
@@ -133,6 +134,7 @@ Optional resign: POST {resign_url} (no body)
 ## Rules
 
 - Board PNG is the ONLY source of position information.
+- Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
@@ -238,6 +240,7 @@ Chat is social conversation with your opponent — not a position source. Either
 ## Rules
 
 - Board PNG is the ONLY source of **current position** information when choosing a move.
+- Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN from any API response.
 - Poll status every iteration; fetch chat only when chat_seq advances; never move off-turn.
 - Illegal or off-turn moves are rejected with an error; play continues with no punishment.

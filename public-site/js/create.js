@@ -3,6 +3,7 @@
 
   var pollTimer = null;
   var mode = "engine";
+  var pairing = "find";
   var activeLobbyId = null;
   var activeLobbyApiKey = null;
   var matchApi = window.CVH && window.CVH.createMatch;
@@ -52,17 +53,46 @@
     });
   }
 
-  function loadAgents(selectEl) {
+  function createDirectAvaa(whiteKey, blackKey, whiteId, blackId) {
+    return apiJson("/api/v1/games/agent-vs-agent", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer " + whiteKey,
+      },
+      body: JSON.stringify({
+        white_model_id: whiteId,
+        black_model_id: blackId,
+        peer_api_key: blackKey,
+      }),
+    });
+  }
+
+  function fillModelSelect(selectEl, agents, placeholder) {
+    var html = '<option value="">' + escapeHtml(placeholder) + "</option>";
+    agents.forEach(function (agent) {
+      var id = agent.id || "";
+      var label = agent.name && agent.name !== id ? agent.name + " (" + id + ")" : id;
+      html +=
+        '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + "</option>";
+    });
+    selectEl.innerHTML = html;
+  }
+
+  function loadAgents(selectEls) {
+    var selects = Array.isArray(selectEls) ? selectEls : [selectEls];
     return apiJson("/api/v1/agents").then(function (data) {
       var agents = Array.isArray(data.agents) ? data.agents : [];
-      var html = '<option value="">Select inscribed model…</option>';
-      agents.forEach(function (agent) {
-        var id = agent.id || "";
-        var label = agent.name && agent.name !== id ? agent.name + " (" + id + ")" : id;
-        html +=
-          '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + "</option>";
+      selects.forEach(function (selectEl) {
+        if (!selectEl) return;
+        var placeholder =
+          selectEl.id === "white-model-select"
+            ? "Select white model…"
+            : selectEl.id === "black-model-select"
+              ? "Select black model…"
+              : "Select inscribed model…";
+        fillModelSelect(selectEl, agents, placeholder);
       });
-      selectEl.innerHTML = html;
       return agents;
     });
   }
@@ -85,6 +115,7 @@
       clearTimeout(pollTimer);
       pollTimer = null;
     }
+    if (resultApi && resultApi.stopJoinPoll) resultApi.stopJoinPoll();
   }
 
   function setAvaaWaiting(root, submitBtn, waiting) {
@@ -151,7 +182,27 @@
     }
     return registerAgent(chosenId, freshId ? freshName || undefined : undefined).then(function (reg) {
       if (!reg.api_key) throw new Error("No API key returned.");
-      return { apiKey: reg.api_key };
+      return { apiKey: reg.api_key, modelId: chosenId };
+    });
+  }
+
+  function resolveDirectPair(whiteSelect, blackSelect) {
+    var whiteId = (whiteSelect && whiteSelect.value || "").trim();
+    var blackId = (blackSelect && blackSelect.value || "").trim();
+    if (!whiteId || !blackId) {
+      return Promise.reject(new Error("Select both white and black models."));
+    }
+    if (whiteId === blackId) {
+      return Promise.reject(new Error("White and black models must differ."));
+    }
+    return Promise.all([registerAgent(whiteId), registerAgent(blackId)]).then(function (regs) {
+      if (!regs[0].api_key || !regs[1].api_key) throw new Error("No API key returned.");
+      return {
+        whiteId: whiteId,
+        blackId: blackId,
+        whiteKey: regs[0].api_key,
+        blackKey: regs[1].api_key,
+      };
     });
   }
 
@@ -161,25 +212,64 @@
     return "engine";
   }
 
+  function applyPairingVisibility(root) {
+    var pairingTabs = root.querySelector("[data-avaa-pairing-tabs]");
+    var singleRow = root.querySelector("[data-single-model-row]");
+    var directFields = root.querySelector("[data-avaa-direct-fields]");
+    var isAvaa = mode === "avaa";
+    var isDirect = isAvaa && pairing === "direct";
+    if (pairingTabs) pairingTabs.hidden = !isAvaa;
+    if (singleRow) singleRow.hidden = isDirect;
+    if (directFields) directFields.hidden = !isDirect;
+    if (pairingTabs) {
+      pairingTabs.querySelectorAll("[data-pairing]").forEach(function (tab) {
+        var active = tab.getAttribute("data-pairing") === pairing;
+        tab.classList.toggle("is-active", active);
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    }
+  }
+
+  function setPairing(root, next) {
+    pairing = next === "direct" ? "direct" : "find";
+    applyPairingVisibility(root);
+    updateSubmitLabel(root);
+  }
+
+  function updateSubmitLabel(root) {
+    var submit = root.querySelector("[data-create-submit]");
+    if (!submit) return;
+    if (mode === "avaa") {
+      submit.textContent = pairing === "direct" ? "Create direct game" : "Find match";
+    } else {
+      submit.textContent = "Create rated game";
+    }
+  }
+
   function setMode(root, next) {
     mode = next === "avaa" ? "avaa" : "engine";
-    root.querySelectorAll(".mode-tab").forEach(function (tab) {
+    if (mode !== "avaa") pairing = "find";
+    root.querySelectorAll(".mode-tabs:not(.pairing-tabs) .mode-tab").forEach(function (tab) {
       var active = tab.getAttribute("data-mode") === mode;
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", active ? "true" : "false");
     });
-    var labels =
-      mode === "avaa"
-        ? { heading: "Rated game vs agent", submit: "Find match" }
-        : { heading: "Rated game vs engine", submit: "Create rated game" };
     var heading = root.querySelector("[data-mode-heading]");
-    var submit = root.querySelector("[data-create-submit]");
     var asideEngine = root.querySelector("[data-aside-engine]");
     var asideAvaa = root.querySelector("[data-aside-avaa]");
-    if (heading) heading.textContent = labels.heading;
-    if (submit) submit.textContent = labels.submit;
+    if (heading) {
+      if (mode === "avaa" && pairing === "direct") {
+        heading.textContent = "Rated Direct (pick both sides)";
+      } else if (mode === "avaa") {
+        heading.textContent = "Rated game vs agent";
+      } else {
+        heading.textContent = "Rated game vs engine";
+      }
+    }
     if (asideEngine) asideEngine.hidden = mode !== "engine";
     if (asideAvaa) asideAvaa.hidden = mode !== "avaa";
+    applyPairingVisibility(root);
+    updateSubmitLabel(root);
     try {
       var url = new URL(window.location.href);
       if (mode === "avaa") url.searchParams.set("mode", "avaa");
@@ -191,6 +281,7 @@
   }
 
   function submitMessage() {
+    if (mode === "avaa" && pairing === "direct") return "Creating Direct game…";
     if (mode === "avaa") return "Finding match…";
     return "Creating game…";
   }
@@ -201,6 +292,8 @@
 
     var form = root.querySelector("[data-create-form]");
     var modelSelect = root.querySelector("#model-select");
+    var whiteSelect = root.querySelector("#white-model-select");
+    var blackSelect = root.querySelector("#black-model-select");
     var newModelId = root.querySelector("#new-model-id");
     var newModelName = root.querySelector("#new-model-name");
     var submitBtn = root.querySelector("[data-create-submit]");
@@ -213,8 +306,13 @@
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
       var waiting = !!root.dataset.avaaWaiting;
-      [modelSelect, newModelId, newModelName, inscribeBtn].forEach(function (el) {
-        if (el) el.disabled = !online;
+      [modelSelect, whiteSelect, blackSelect, newModelId, newModelName, inscribeBtn].forEach(
+        function (el) {
+          if (el) el.disabled = !online;
+        }
+      );
+      root.querySelectorAll("[data-avaa-pairing-tabs] .mode-tab").forEach(function (tab) {
+        tab.disabled = !online;
       });
       if (submitBtn) submitBtn.disabled = !online || waiting;
     }
@@ -222,20 +320,37 @@
     window.CVH.applyHealthUi({
       onHealth: function (health) {
         enableForm(health.online);
-        if (!health.online || !modelSelect) return;
-        loadAgents(modelSelect).catch(function (err) {
+        if (!health.online) return;
+        loadAgents([modelSelect, whiteSelect, blackSelect]).catch(function (err) {
           setMessage(messageEl, "error", err.message || "Could not load models.");
         });
       },
     });
 
-    root.querySelectorAll(".mode-tab").forEach(function (tab) {
+    root.querySelectorAll(".mode-tabs:not(.pairing-tabs) .mode-tab").forEach(function (tab) {
       tab.addEventListener("click", function () {
         stopPoll();
         cancelActiveLobby().finally(function () {
           clearWaiting(root, submitBtn);
           setMessage(messageEl, null, "");
           setMode(root, tab.getAttribute("data-mode"));
+        });
+      });
+    });
+
+    root.querySelectorAll("[data-avaa-pairing-tabs] .mode-tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        if (root.dataset.avaaWaiting) return;
+        stopPoll();
+        cancelActiveLobby().finally(function () {
+          clearWaiting(root, submitBtn);
+          setMessage(messageEl, null, "");
+          setPairing(root, tab.getAttribute("data-pairing"));
+          var heading = root.querySelector("[data-mode-heading]");
+          if (heading && mode === "avaa") {
+            heading.textContent =
+              pairing === "direct" ? "Rated Direct (pick both sides)" : "Rated game vs agent";
+          }
         });
       });
     });
@@ -259,7 +374,7 @@
             );
             if (newModelId) newModelId.value = "";
             if (newModelName) newModelName.value = "";
-            if (modelSelect) return loadAgents(modelSelect);
+            return loadAgents([modelSelect, whiteSelect, blackSelect]);
           })
           .catch(function (err) {
             setMessage(messageEl, "error", err.message || "Inscribe failed.");
@@ -288,21 +403,39 @@
 
         cancelPromise
           .then(function () {
-            return resolveModelAndKey(modelSelect, newModelId, newModelName);
-          })
-          .then(function (ctx) {
-            if (mode === "avaa") {
-              activeLobbyApiKey = ctx.apiKey;
-              if (!matchApi) throw new Error("Matchmaking module missing.");
-              return matchApi.findMatch(apiJson, ctx.apiKey).then(function (data) {
-                return { kind: "avaa", data: data, apiKey: ctx.apiKey };
+            if (mode === "avaa" && pairing === "direct") {
+              return resolveDirectPair(whiteSelect, blackSelect).then(function (pair) {
+                return createDirectAvaa(
+                  pair.whiteKey,
+                  pair.blackKey,
+                  pair.whiteId,
+                  pair.blackId
+                ).then(function (game) {
+                  return { kind: "direct", game: game };
+                });
               });
             }
-            return createEngineGame(ctx.apiKey).then(function (game) {
-              return { kind: "engine", game: game };
+            return resolveModelAndKey(modelSelect, newModelId, newModelName).then(function (ctx) {
+              if (mode === "avaa") {
+                activeLobbyApiKey = ctx.apiKey;
+                if (!matchApi) throw new Error("Matchmaking module missing.");
+                return matchApi.findMatch(apiJson, ctx.apiKey).then(function (data) {
+                  return { kind: "avaa", data: data, apiKey: ctx.apiKey };
+                });
+              }
+              return createEngineGame(ctx.apiKey).then(function (game) {
+                return { kind: "engine", game: game };
+              });
             });
           })
           .then(function (ctx) {
+            if (ctx.kind === "direct") {
+              if (!resultApi || !resultApi.showDualBriefResult) {
+                throw new Error("Result module missing.");
+              }
+              resultApi.showDualBriefResult(root, ctx.game, { escapeHtml: escapeHtml });
+              return;
+            }
             if (ctx.kind === "avaa") {
               activeLobbyApiKey = ctx.apiKey;
               matchApi.handleAvaaResponse(

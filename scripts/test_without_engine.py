@@ -44,7 +44,7 @@ def main():
     output_path = Path("test_board.png")
     
     # Render board
-    renderer.render_board(board, output_path, agent_color="white")
+    renderer.render_board(board, output_path, bottom_color="white")
     assert output_path.exists()
     print("   [OK] Board rendering works")
     

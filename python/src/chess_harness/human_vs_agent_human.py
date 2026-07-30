@@ -73,7 +73,7 @@ def human_board_png_bytes(play: HumanVsAgentPlay, game_id: str) -> Dict[str, Any
             board,
             out,
             last_moves=play.ctrl.highlight_moves(state),
-            agent_color=human_col,
+            bottom_color=human_col,
             check_square=board.king(board.turn) if board.is_check() else None,
         )
         return {"ok": True, "png": out.read_bytes()}

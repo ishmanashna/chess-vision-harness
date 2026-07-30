@@ -354,7 +354,7 @@ def _eval_position(fen: str) -> Optional[int]:
 
 
 def _board_stack_labels(labels: Dict[str, str], agent_color: str) -> Dict[str, str]:
-    """Map chess-color labels to physical top/bottom on the rendered board (agent at bottom)."""
+    """Map chess-color labels to physical top/bottom (legacy agent-at-bottom helper)."""
     if agent_color == "BLACK":
         return {"top": labels["white"], "bottom": labels["black"]}
     return {"top": labels["black"], "bottom": labels["white"]}
@@ -369,7 +369,7 @@ def _eval_ui(
 ) -> Dict[str, Any]:
     """Vertical eval aligned to board orientation.
 
-    AvE: agent at bottom. AvaA: white at bottom (spectator board.png).
+    Spectator board.png is always white-at-bottom; pass white_at_bottom=True.
     """
     if white_at_bottom:
         stack = {"top": labels["black"], "bottom": labels["white"]}
@@ -417,9 +417,7 @@ def _spectator_eval_ui(
     if not show_eval_for_state(state):
         return None
     labels = BoardController.side_labels(state)
-    if is_avaa_state(state):
-        return _eval_ui(score_white, labels, white_at_bottom=True)
-    return _eval_ui(score_white, labels, state.get("agent_color", "WHITE"))
+    return _eval_ui(score_white, labels, white_at_bottom=True)
 
 
 def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
@@ -500,6 +498,8 @@ def _avaa_list_fields(state: Dict[str, Any], elo: Dict[str, Any]) -> Dict[str, A
         "black_display_name": black_name,
         "white_elo": elo.get("white_elo"),
         "black_elo": elo.get("black_elo"),
+        "white_joined": bool(state.get("white_joined")),
+        "black_joined": bool(state.get("black_joined")),
         "model_id": state.get("white_model_id"),
         "model_name": white_name,
         "agent_elo": elo.get("white_elo"),

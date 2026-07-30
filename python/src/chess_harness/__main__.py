@@ -80,6 +80,14 @@ def main(argv: list[str] | None = None) -> None:
         game_id = args[1] if len(args) > 1 else "default"
         print(json.dumps(commands.cmd_board(game_id), indent=2))
 
+    elif args[0] == "imagine":
+        if len(args) < 2:
+            print("Usage: chess-harness imagine <game_id> [moves...]")
+            sys.exit(1)
+        game_id = args[1]
+        moves = args[2:]
+        print(json.dumps(commands.cmd_imagine(game_id, moves), indent=2))
+
     elif args[0] == "status":
         game_id = args[1] if len(args) > 1 else "default"
         print(json.dumps(commands.cmd_status(game_id), indent=2))
@@ -200,6 +208,19 @@ def main(argv: list[str] | None = None) -> None:
         dry_run = "--dry-run" in args
         export_snapshot = "--no-snapshot" not in args
         sys.exit(commands.cmd_prune_no_result(export_snapshot=export_snapshot, dry_run=dry_run))
+
+    elif args[0] == "remove-game":
+        if len(args) < 2 or args[1].startswith("--"):
+            print("Usage: chess-harness remove-game <game_id> [--dry-run] [--no-snapshot]")
+            sys.exit(1)
+        game_id = args[1]
+        dry_run = "--dry-run" in args
+        export_snapshot = "--no-snapshot" not in args
+        sys.exit(
+            commands.cmd_remove_game(
+                game_id, export_snapshot=export_snapshot, dry_run=dry_run
+            )
+        )
 
     elif args[0] in ("analyse-quality", "quality-backfill"):
         game_id = None

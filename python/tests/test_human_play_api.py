@@ -217,7 +217,8 @@ def test_play_position_idle_end_reason(human_client, monkeypatch):
 def test_play_board_png_human_orientation(human_client, monkeypatch):
     client, harness_dir = human_client
     api_key, _ = _register_agent(client)
-    data = _create_human_game(client, api_key, agent_color="black", monkeypatch=monkeypatch)
+    # Agent white → human black: human export is black-bottom; agent PNG is white-bottom.
+    data = _create_human_game(client, api_key, agent_color="white", monkeypatch=monkeypatch)
     game_id = data["game_id"]
     play_token = data["play_token"]
 

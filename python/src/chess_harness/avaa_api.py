@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief_avaa
+from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip
 from .avaa import is_avaa_state, participant_color
 from .game_service import GameService
@@ -19,6 +20,8 @@ from .game_types import GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
 class CreateAvAAGameBody(BaseModel):
     white_model_id: str = Field(..., min_length=1, max_length=64)
     black_model_id: str = Field(..., min_length=1, max_length=64)
+    # Optional peer key so Create Game Direct can return both briefs once (operator session only).
+    peer_api_key: Optional[str] = Field(None, min_length=1, max_length=256)
 
 
 def require_game_participant(
@@ -45,6 +48,26 @@ def require_game_participant(
     return auth, state.get("agent_color", "WHITE")
 
 
+def _side_brief(
+    state: Dict[str, Any],
+    game_id: str,
+    color: str,
+    raw_key: str,
+) -> str:
+    opponent = (
+        state.get("black_display_name")
+        if color == "WHITE"
+        else state.get("white_display_name")
+    ) or "Opponent"
+    return render_agent_brief_avaa(
+        public_base_url(),
+        game_id,
+        raw_key,
+        color.lower(),
+        str(opponent),
+    )
+
+
 def register_avaa_routes(
     router: APIRouter,
     *,
@@ -54,7 +77,10 @@ def register_avaa_routes(
     sanitize: Callable[[Dict[str, Any]], Dict[str, Any]],
     new_game_id: Callable[[], str],
     auth_context: Callable[..., AuthContext],
+    key_store_fn: Optional[Callable[[], ApiKeyStore]] = None,
 ) -> None:
+    keys_fn = key_store_fn or ApiKeyStore
+
     @router.post("/games/agent-vs-agent")
     async def create_agent_vs_agent_game(
         body: CreateAvAAGameBody,
@@ -64,12 +90,29 @@ def register_avaa_routes(
     ):
         from .models import ModelRegistry
 
+        if body.white_model_id.strip() == body.black_model_id.strip():
+            return err(400, "white_model_id and black_model_id must differ")
+
         registry = ModelRegistry()
         for model_id in (body.white_model_id, body.black_model_id):
             if not registry.is_inscribed(model_id):
                 return err(400, f"Model '{model_id}' is not inscribed")
         if auth.model_id not in (body.white_model_id, body.black_model_id):
             return err(401, "API key must belong to white_model_id or black_model_id")
+
+        peer_model_id: Optional[str] = None
+        peer_raw = (body.peer_api_key or "").strip()
+        if peer_raw:
+            peer_model_id = keys_fn().verify(peer_raw)
+            if not peer_model_id:
+                return err(401, "Invalid peer_api_key")
+            expected_peer = (
+                body.black_model_id
+                if auth.model_id == body.white_model_id
+                else body.white_model_id
+            )
+            if peer_model_id != expected_peer:
+                return err(401, "peer_api_key must belong to the other model in this game")
 
         denied = limits.check_create_game(svc_fn(), auth)
         if denied:
@@ -109,16 +152,17 @@ def register_avaa_routes(
         if authorization and authorization.lower().startswith("bearer "):
             raw_key = authorization[7:].strip()
         if raw_key and caller_color:
-            opponent = (
-                state.get("black_display_name")
-                if caller_color == "WHITE"
-                else state.get("white_display_name")
-            ) or "Opponent"
-            payload["agent_brief"] = render_agent_brief_avaa(
-                public_base_url(),
-                resolved_id,
-                raw_key,
-                caller_color.lower(),
-                str(opponent),
-            )
+            payload["agent_brief"] = _side_brief(state, resolved_id, caller_color, raw_key)
+
+        if peer_raw and peer_model_id and raw_key:
+            white_key = raw_key if auth.model_id == body.white_model_id else peer_raw
+            black_key = peer_raw if auth.model_id == body.white_model_id else raw_key
+            payload["white"] = {
+                "model_id": state.get("white_model_id") or body.white_model_id,
+                "agent_brief": _side_brief(state, resolved_id, "WHITE", white_key),
+            }
+            payload["black"] = {
+                "model_id": state.get("black_model_id") or body.black_model_id,
+                "agent_brief": _side_brief(state, resolved_id, "BLACK", black_key),
+            }
         return payload

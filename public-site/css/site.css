@@ -64,6 +64,10 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   margin: 0;
@@ -71,7 +75,10 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  min-height: 100%;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 a {
@@ -83,10 +90,15 @@ a {
   max-width: none;
   margin: 0;
   padding: 20px clamp(20px, 3vw, 48px) 56px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 main {
   width: 100%;
+  flex: 1;
 }
 
 .site-header {
@@ -263,7 +275,6 @@ p {
 }
 
 .lead {
-  font-size: 1.05rem;
   color: var(--text);
   max-width: 48rem;
   line-height: 1.6;
@@ -682,6 +693,23 @@ p {
   font-weight: 600;
 }
 
+.pairing-tabs {
+  margin: 0 0 14px;
+}
+
+.dual-briefs {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.brief-side-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+
 .create-aside h2 {
   margin-top: 0;
 }
@@ -909,7 +937,7 @@ p {
 }
 
 .site-footer {
-  margin-top: 48px;
+  margin-top: auto;
   padding-top: 16px;
   border-top: 1px solid var(--border);
   font-size: 0.8rem;

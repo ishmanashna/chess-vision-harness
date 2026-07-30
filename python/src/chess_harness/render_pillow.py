@@ -2,66 +2,53 @@
 Pillow-based chess board renderer (primary renderer).
 """
 
-import os
+import io
 from pathlib import Path
-from typing import Optional
+from typing import BinaryIO, Optional, Union
 
 import chess
 from PIL import Image, ImageDraw, ImageFont
 
 
-class ChessBoardRenderer:
-    """Renders chess boards as PNG images using Pillow."""
+_STAUNTY_DIR = Path(__file__).resolve().parent / "assets" / "staunty"
 
-    LIGHT_SQUARE = (240, 217, 181)
-    DARK_SQUARE = (181, 136, 99)
+# chess.Piece.symbol() -> staunty asset stem (cm-chessboard sprite ids)
+_PIECE_FILES = {
+    "P": "wp",
+    "N": "wn",
+    "B": "wb",
+    "R": "wr",
+    "Q": "wq",
+    "K": "wk",
+    "p": "bp",
+    "n": "bn",
+    "b": "bb",
+    "r": "br",
+    "q": "bq",
+    "k": "bk",
+}
+
+
+class ChessBoardRenderer:
+    """Renders chess boards as PNG images using Pillow + Staunty piece assets."""
+
+    # cm-chessboard 8.7.2 default theme (Playground board)
+    LIGHT_SQUARE = (0xEC, 0xDA, 0xB9)  # #ecdab9
+    DARK_SQUARE = (0xC5, 0xA0, 0x76)  # #c5a076
     LAST_MOVE_LIGHT = (205, 210, 106)
     LAST_MOVE_DARK = (170, 162, 58)
     PREV_MOVE_LIGHT = (186, 202, 168)
     PREV_MOVE_DARK = (140, 162, 110)
     CHECK_OUTLINE = (220, 50, 50)
-    WHITE_PIECE = (245, 245, 245)
-    BLACK_PIECE = (30, 30, 30)
-    WHITE_OUTLINE = (80, 80, 80)
-    BLACK_OUTLINE = (10, 10, 10)
-
-    PIECE_UNICODE = {
-        "P": "♙",
-        "N": "♘",
-        "B": "♗",
-        "R": "♖",
-        "Q": "♕",
-        "K": "♔",
-        "p": "♟",
-        "n": "♞",
-        "b": "♝",
-        "r": "♜",
-        "q": "♛",
-        "k": "♚",
-    }
+    COORD_FILL = (0xB5, 0x93, 0x6D)  # #b5936d
 
     def __init__(self, board_size: int = 480, coord_margin: int = 22):
         self.board_size = board_size
         self.coord_margin = coord_margin
         self.square_size = board_size // 8
         self.image_size = (board_size + coord_margin, board_size + coord_margin)
-        self.font = self._load_piece_font()
         self.coord_font = self._load_coord_font()
-
-    def _load_piece_font(self):
-        font_paths = [
-            "C:/Windows/Fonts/seguisym.ttf",
-            "C:/Windows/Fonts/seguiemj.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSansSymbols.ttf",
-            "/System/Library/Fonts/SFNSMono.ttf",
-        ]
-        for fp in font_paths:
-            if os.path.exists(fp):
-                try:
-                    return ImageFont.truetype(fp, int(self.square_size * 0.82))
-                except Exception:
-                    continue
-        return ImageFont.load_default()
+        self._piece_images = self._load_staunty_pieces()
 
     def _load_coord_font(self):
         try:
@@ -69,21 +56,92 @@ class ChessBoardRenderer:
         except Exception:
             return ImageFont.load_default()
 
+    def _load_staunty_pieces(self) -> dict[str, Image.Image]:
+        if not _STAUNTY_DIR.is_dir():
+            raise FileNotFoundError(
+                f"Staunty piece assets missing at {_STAUNTY_DIR}"
+            )
+        images: dict[str, Image.Image] = {}
+        for symbol, stem in _PIECE_FILES.items():
+            path = _STAUNTY_DIR / f"{stem}.png"
+            if not path.is_file():
+                raise FileNotFoundError(f"Missing Staunty piece PNG: {path}")
+            images[symbol] = Image.open(path).convert("RGBA")
+        return images
+
     def render_board(
         self,
         board: chess.Board,
-        output_path: Path,
+        output_path: Union[Path, BinaryIO],
         last_move: Optional[chess.Move] = None,
         last_moves: Optional[list] = None,
-        agent_color: str = "white",
+        bottom_color: str = "white",
         check_square: Optional[chess.Square] = None,
         status_text: Optional[str] = None,
         show_status: bool = False,
-    ) -> Path:
+        agent_color: Optional[str] = None,
+    ) -> Union[Path, BinaryIO]:
+        """Render board PNG. Default orientation is white at bottom.
+
+        ``bottom_color`` controls which side sits at the bottom of the image.
+        Agent/CLI/MCP/spectator paths always use the default (white). Playground
+        human PNG export may pass the human's color. ``agent_color`` is only
+        used for optional status text ("Your move").
+        """
+        image = self._compose_board_image(
+            board,
+            last_move=last_move,
+            last_moves=last_moves,
+            bottom_color=bottom_color,
+            check_square=check_square,
+            status_text=status_text,
+            show_status=show_status,
+            agent_color=agent_color,
+        )
+        image.save(output_path, "PNG")
+        return output_path
+
+    def render_board_bytes(
+        self,
+        board: chess.Board,
+        last_move: Optional[chess.Move] = None,
+        last_moves: Optional[list] = None,
+        bottom_color: str = "white",
+        check_square: Optional[chess.Square] = None,
+        status_text: Optional[str] = None,
+        show_status: bool = False,
+        agent_color: Optional[str] = None,
+    ) -> bytes:
+        """Render board PNG into memory (e.g. Imagine API)."""
+        buf = io.BytesIO()
+        self.render_board(
+            board,
+            buf,
+            last_move=last_move,
+            last_moves=last_moves,
+            bottom_color=bottom_color,
+            check_square=check_square,
+            status_text=status_text,
+            show_status=show_status,
+            agent_color=agent_color,
+        )
+        return buf.getvalue()
+
+    def _compose_board_image(
+        self,
+        board: chess.Board,
+        last_move: Optional[chess.Move] = None,
+        last_moves: Optional[list] = None,
+        bottom_color: str = "white",
+        check_square: Optional[chess.Square] = None,
+        status_text: Optional[str] = None,
+        show_status: bool = False,
+        agent_color: Optional[str] = None,
+    ) -> Image.Image:
         image = Image.new("RGB", self.image_size, (255, 255, 255))
         draw = ImageDraw.Draw(image)
 
-        flip_board = agent_color.lower() == "black"
+        flip_board = bottom_color.lower() == "black"
         ox, oy = self.coord_margin, 0
 
         highlight: dict = {}
@@ -118,22 +176,8 @@ class ChessBoardRenderer:
 
                 piece = board.piece_at(chess.square(square_col, 7 - square_row))
                 if piece:
-                    symbol = self.PIECE_UNICODE[piece.symbol()]
-                    cx = x1 + self.square_size // 2
-                    cy = y1 + self.square_size // 2
-                    if piece.color == chess.WHITE:
-                        fill, outline = self.WHITE_PIECE, self.WHITE_OUTLINE
-                    else:
-                        fill, outline = self.BLACK_PIECE, self.BLACK_OUTLINE
-                    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                        draw.text(
-                            (cx + dx, cy + dy),
-                            symbol,
-                            fill=outline,
-                            font=self.font,
-                            anchor="mm",
-                        )
-                    draw.text((cx, cy), symbol, fill=fill, font=self.font, anchor="mm")
+                    scaled, pad = self._piece_scaled(piece.symbol())
+                    image.paste(scaled, (x1 + pad, y1 + pad), scaled)
 
         if check_square:
             crow = 7 - chess.square_rank(check_square)
@@ -152,24 +196,39 @@ class ChessBoardRenderer:
 
         if show_status:
             if status_text is None:
-                status_text = self._generate_status_text(board, agent_color)
+                status_text = self._generate_status_text(
+                    board, agent_color or bottom_color
+                )
             self._draw_status(draw, status_text, ox)
 
-        image.save(output_path, "PNG")
-        return output_path
+        return image
+
+    def _piece_scaled(self, symbol: str) -> tuple[Image.Image, int]:
+        if not hasattr(self, "_scaled_cache"):
+            self._scaled_cache: dict[str, tuple[Image.Image, int]] = {}
+        cached = self._scaled_cache.get(symbol)
+        if cached is not None:
+            return cached
+        pad = max(1, int(self.square_size * 0.06))
+        size = self.square_size - 2 * pad
+        scaled = self._piece_images[symbol].resize(
+            (size, size), Image.Resampling.LANCZOS
+        )
+        self._scaled_cache[symbol] = (scaled, pad)
+        return scaled, pad
 
     def _draw_coordinates(self, draw: ImageDraw.Draw, flip_board: bool, ox: int, oy: int):
         for col in range(8):
             fc = chr(ord("a") + (7 - col if flip_board else col))
             x = ox + col * self.square_size + self.square_size // 2
             y = oy + 8 * self.square_size + 4
-            draw.text((x, y), fc, fill=(120, 120, 120), font=self.coord_font, anchor="mt")
+            draw.text((x, y), fc, fill=self.COORD_FILL, font=self.coord_font, anchor="mt")
 
         for row in range(8):
             rc = str(row + 1 if flip_board else 8 - row)
             x = ox // 2
             y = oy + row * self.square_size + self.square_size // 2
-            draw.text((x, y), rc, fill=(120, 120, 120), font=self.coord_font, anchor="mm")
+            draw.text((x, y), rc, fill=self.COORD_FILL, font=self.coord_font, anchor="mm")
 
     def _draw_status(self, draw: ImageDraw.Draw, status_text: str, ox: int):
         bbox = draw.textbbox((0, 0), status_text, font=self.coord_font)

@@ -16,21 +16,40 @@ function resolvePremoveUci(uci, legal) {
 }
 
 /**
- * On turn edge, auto-submit queued premove if still legal; else clear quietly.
- * Returns position payload when a premove POST succeeded (caller should re-sync).
+ * On turn edge, fire queued premove heads while it is still your turn.
+ * Illegal heads are dropped quietly; the next head is tried.
+ * Returns position payload when at least one premove POST succeeded.
  */
 export async function tryFirePremove(board, api, pos, prevYourTurn) {
   if (prevYourTurn !== false || !pos.your_turn || pos.game_over) return false;
-  const uci = board.getPremove();
-  if (!uci) return false;
-  const legal = pos.legal_moves_uci || [];
-  const resolved = resolvePremoveUci(uci, legal);
-  if (!resolved) {
-    board.clearPremove();
-    return false;
+
+  let current = pos;
+  let anyFired = false;
+
+  while (current.your_turn && !current.game_over) {
+    const uci = board.peekPremove ? board.peekPremove() : board.getPremove();
+    if (!uci) break;
+
+    const legal = current.legal_moves_uci || [];
+    const resolved = resolvePremoveUci(uci, legal);
+    if (!resolved) {
+      if (board.dequeuePremove) board.dequeuePremove();
+      else board.clearPremove();
+      continue;
+    }
+
+    // Skip ghost refresh until setPosition after POST (avoids a flash without this ply).
+    if (board.dequeuePremove) board.dequeuePremove(true);
+    else board.clearPremove();
+    board.syncInputState(false, false);
+    current = await api.postMove(resolved);
+    anyFired = true;
+
+    board.syncLegalUci(current.legal_moves_uci);
+    if (current.fen) {
+      await board.setPosition(current.fen, true);
+    }
   }
-  board.clearPremove();
-  board.syncInputState(false, false);
-  const res = await api.postMove(resolved);
-  return res;
+
+  return anyFired ? current : false;
 }
