@@ -41,7 +41,8 @@
         <p>
           Vision agents inscribed on the harness. <strong>Elo</strong> is results-only (wins/draws/losses).
           <strong>Accuracy</strong> is mean move quality from Stockfish analysis of finished games (including AvH).
-          <strong>Est. Elo (play)</strong> maps that accuracy through the operator accuracy→Elo table — not ladder Elo.
+          <strong title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</strong>
+          translates that accuracy into an approximate playing strength on the engine ladder scale — not ladder Elo.
           The Games column counts Elo-rated games only. Hover an Elo with <strong>*</strong> for the provisional note.
         </p>
         <table class="leaderboard-table" aria-label="Agent ladder">
@@ -51,7 +52,7 @@
               <th scope="col">Agent</th>
               <th scope="col">Elo</th>
               <th scope="col">Accuracy</th>
-              <th scope="col">Est. Elo (play)</th>
+              <th scope="col" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</th>
               <th scope="col">Games</th>
               <th scope="col">Model id</th>
             </tr>
@@ -66,9 +67,9 @@
       <details class="engines-section" data-engines-leaderboard>
         <summary id="engines-heading">Engines</summary>
         <p>
-          Expand for the opponent ladder. <strong>Calibrated floaters</strong> are listed first (with Accuracy and Est. Elo when sampled);
-          Stockfish <strong>anchors</strong> follow (fixed catalog Elo — Accuracy appears after you analyse games that include them and rebuild the map).
-          Est. Elo (play) uses the same accuracy→Elo table as agents.
+          Expand for the opponent ladder. <strong>Calibrated floaters</strong> are listed first (with Accuracy and Estimated Elo when sampled);
+          Stockfish <strong>anchors</strong> follow (fixed catalog Elo — Accuracy and Estimated Elo appear once games including them have been analysed).
+          Estimated Elo uses the same accuracy→Elo mapping as agents.
         </p>
         <table class="leaderboard-table" aria-label="Engine ladder">
           <thead>
@@ -77,7 +78,7 @@
               <th scope="col">Engine</th>
               <th scope="col">Elo</th>
               <th scope="col">Accuracy</th>
-              <th scope="col">Est. Elo (play)</th>
+              <th scope="col" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</th>
               <th scope="col">Kind</th>
             </tr>
           </thead>
@@ -97,9 +98,9 @@
           (and each other) in operator calibration runs; those ratings feed matchmaking when you create a game.
         </p>
         <p>
-          <strong>Est. Elo (play)</strong> is separate: after a game is analysed, each side’s move accuracy is looked up on a
-          static table fitted from calibration engines (floaters and anchors). Rebuild that table on the local Calibration page
-          when you want the mapping updated. It never writes ladder Elo.
+          <strong title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</strong>
+          is separate from ladder Elo: after a game is analysed, each side’s move accuracy is mapped through a calibration table
+          built from engine opponents (floaters and anchors). It estimates playing strength from how accurately moves were played — it never changes ladder Elo.
         </p>
       </section>
     </main>
@@ -109,6 +110,5 @@
     </footer>
   </div>
   <script src="/js/common.js"></script>
-  <script src="/js/engines.js"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@ import logging
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Literal, Optional, Set, Tuple
 
 from .game_manager import GameManager
 from .game_quality import GameQuality, SideQuality, analyse_game
@@ -15,8 +15,11 @@ from .results import ResultsManager
 
 _log = logging.getLogger(__name__)
 
-_scheduled: Set[str] = set()
-_scheduled_lock = threading.Lock()
+QualityJob = Tuple[Literal["final", "provisional"], int, bool]
+
+_running: Set[str] = set()
+_pending: Dict[str, QualityJob] = {}
+_queue_lock = threading.Lock()
 
 
 def schedule_game_quality(
@@ -24,14 +27,64 @@ def schedule_game_quality(
     *,
     base_dir: Optional[str] = None,
     map_root: Optional[Path] = None,
+    force: bool = False,
 ) -> None:
-    """Enqueue background quality analysis after PGN is on disk."""
-    with _scheduled_lock:
-        if game_id in _scheduled:
+    """Enqueue background quality analysis after PGN is on disk (finished games)."""
+    _enqueue_quality(
+        game_id,
+        ("final", 0, force),
+        base_dir=base_dir,
+        map_root=map_root,
+    )
+
+
+def schedule_provisional_game_quality(
+    game_id: str,
+    *,
+    move_count: int,
+    base_dir: Optional[str] = None,
+    map_root: Optional[Path] = None,
+) -> None:
+    """Enqueue debounced provisional quality for an in-progress game."""
+    if move_count <= 0:
+        return
+    _enqueue_quality(
+        game_id,
+        ("provisional", move_count, False),
+        base_dir=base_dir,
+        map_root=map_root,
+    )
+
+
+def _enqueue_quality(
+    game_id: str,
+    job: QualityJob,
+    *,
+    base_dir: Optional[str] = None,
+    map_root: Optional[Path] = None,
+) -> None:
+    with _queue_lock:
+        existing = _pending.get(game_id)
+        if existing:
+            mode, move_count, force = job
+            if mode == "final":
+                _pending[game_id] = ("final", 0, force or existing[2])
+            else:
+                prev_mode, prev_moves, prev_force = existing
+                if prev_mode == "final":
+                    return
+                _pending[game_id] = (
+                    "provisional",
+                    max(move_count, prev_moves),
+                    prev_force,
+                )
+        else:
+            _pending[game_id] = job
+        if game_id in _running:
             return
-        _scheduled.add(game_id)
+        _running.add(game_id)
     thread = threading.Thread(
-        target=_run_and_clear,
+        target=_run_queue,
         args=(game_id, base_dir, map_root),
         name=f"quality-{game_id}",
         daemon=True,
@@ -39,14 +92,108 @@ def schedule_game_quality(
     thread.start()
 
 
-def _run_and_clear(
+def _run_queue(
     game_id: str, base_dir: Optional[str], map_root: Optional[Path]
 ) -> None:
     try:
-        run_game_quality(game_id, base_dir=base_dir, map_root=map_root)
+        while True:
+            with _queue_lock:
+                job = _pending.pop(game_id, None)
+            if not job:
+                break
+            mode, move_count, force = job
+            try:
+                if mode == "provisional":
+                    run_provisional_game_quality(
+                        game_id,
+                        move_count=move_count,
+                        base_dir=base_dir,
+                        map_root=map_root,
+                    )
+                else:
+                    run_game_quality(
+                        game_id,
+                        base_dir=base_dir,
+                        map_root=map_root,
+                        force=force,
+                    )
+            except Exception:
+                _log.exception("quality job failed for %s (%s)", game_id, mode)
+            with _queue_lock:
+                if game_id not in _pending:
+                    break
     finally:
-        with _scheduled_lock:
-            _scheduled.discard(game_id)
+        with _queue_lock:
+            _running.discard(game_id)
+
+
+def run_provisional_game_quality(
+    game_id: str,
+    *,
+    move_count: int,
+    base_dir: Optional[str] = None,
+    map_root: Optional[Path] = None,
+) -> bool:
+    """Analyse in-progress PGN for spectator metrics. State only, no results upsert."""
+    if move_count <= 0:
+        return False
+    gm = GameManager(base_dir=base_dir)
+    state = gm.load_state(game_id)
+    if not state or state.get("status") != "in_progress":
+        return False
+    plies = len(state.get("moves") or [])
+    if plies <= 0:
+        return False
+    if plies < move_count:
+        move_count = plies
+    if (
+        state.get("quality_move_count") == move_count
+        and state.get("quality_provisional")
+        and state.get("quality_at")
+    ):
+        return False
+
+    pgn_path = gm.get_pgn_path(game_id)
+    if not pgn_path.exists():
+        return False
+
+    try:
+        pgn_text = pgn_path.read_text(encoding="utf-8")
+        quality = analyse_game(pgn_text)
+    except Exception:
+        _log.exception("provisional quality analysis failed for %s", game_id)
+        return False
+
+    quality_at = datetime.now(timezone.utc).isoformat()
+    try:
+        with gm.game_lock(game_id):
+            state = gm.load_state(game_id)
+            if not state or state.get("status") != "in_progress":
+                return False
+            plies = len(state.get("moves") or [])
+            if plies <= 0:
+                return False
+            if plies < move_count:
+                move_count = plies
+            if (
+                state.get("quality_move_count") == move_count
+                and state.get("quality_provisional")
+                and state.get("quality_at")
+            ):
+                return False
+            _patch_state_quality(
+                state,
+                quality,
+                quality_at,
+                map_root=map_root,
+                provisional=True,
+                move_count=move_count,
+            )
+            gm.save_state(game_id, state)
+    except Exception:
+        _log.exception("failed to patch provisional quality for %s", game_id)
+        return False
+    return True
 
 
 def run_game_quality(
@@ -63,7 +210,7 @@ def run_game_quality(
         return False
     if state.get("result") == "*":
         return False
-    if state.get("quality_at") and not force:
+    if state.get("quality_at") and not force and not state.get("quality_provisional"):
         return False
 
     pgn_path = gm.get_pgn_path(game_id)
@@ -85,9 +232,15 @@ def run_game_quality(
             state = gm.load_state(game_id)
             if not state or state.get("status") != "finished" or state.get("result") == "*":
                 return False
-            if state.get("quality_at") and not force:
+            if state.get("quality_at") and not force and not state.get("quality_provisional"):
                 return False
-            _patch_state_quality(state, quality, quality_at, map_root=map_root)
+            _patch_state_quality(
+                state,
+                quality,
+                quality_at,
+                map_root=map_root,
+                provisional=False,
+            )
             gm.save_state(game_id, state)
     except Exception:
         _log.exception("failed to patch state quality for %s", game_id)
@@ -125,6 +278,8 @@ def _patch_state_quality(
     quality_at: str,
     *,
     map_root: Optional[Path] = None,
+    provisional: bool = False,
+    move_count: Optional[int] = None,
 ) -> None:
     state["quality_depth"] = quality.quality_depth
     state["quality_thin"] = quality.quality_thin
@@ -140,6 +295,15 @@ def _patch_state_quality(
         agent_side = quality.white if agent_color == "WHITE" else quality.black
         state["agent_accuracy"] = _round_accuracy(agent_side.accuracy)
         state["agent_play_rating"] = _est_elo_play_for_side(agent_side, map_root)
+
+    if provisional:
+        state["quality_provisional"] = True
+        state["quality_move_count"] = (
+            move_count if move_count is not None else len(state.get("moves") or [])
+        )
+    else:
+        state.pop("quality_provisional", None)
+        state.pop("quality_move_count", None)
 
 
 def _quality_row_fields(

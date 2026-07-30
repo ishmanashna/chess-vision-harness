@@ -7,6 +7,9 @@
   var THEME_KEY = "chess-harness-theme";
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
+  var ESTIMATED_ELO_TIP =
+    "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
+  var ENGINES_JS_VERSION = "2";
   var healthCache = null;
 
   function navPath() {
@@ -172,7 +175,11 @@
             "</td>"
           : "";
         var playCell = fullColumns
-          ? "<td>" + escapeHtml(formatQualityMean(agent.mean_play_rating)) + "</td>"
+          ? '<td title="' +
+            escapeHtml(ESTIMATED_ELO_TIP) +
+            '">' +
+            escapeHtml(formatQualityMean(agent.mean_play_rating)) +
+            "</td>"
           : "";
         return (
           "<tr>" +
@@ -332,6 +339,21 @@
     document.body.appendChild(script);
   }
 
+  function loadEnginesOnce() {
+    var src = "/js/engines.js?v=" + ENGINES_JS_VERSION;
+    if (document.querySelector('script[src^="/js/engines.js"]')) return;
+    var script = document.createElement("script");
+    script.src = src;
+    script.onload = function () {
+      document.querySelectorAll("[data-engines-leaderboard]").forEach(function (root) {
+        if (window.CVH && typeof window.CVH.mountEnginesTable === "function") {
+          window.CVH.mountEnginesTable(root);
+        }
+      });
+    };
+    document.body.appendChild(script);
+  }
+
   window.CVH = {
     applyHealthUi: applyHealthUi,
     mountLeaderboardTable: mountLeaderboardTable,
@@ -354,7 +376,7 @@
       mountLeaderboardTable(root, { limit: limit, showMeta: true });
     });
     if (document.querySelector("[data-engines-leaderboard]")) {
-      loadScriptOnce("/js/engines.js");
+      loadEnginesOnce();
     }
     // Pages OAuth only — skip on origin calibration to avoid /auth/me 404 noise.
     if (navPath() !== "/calibration") {

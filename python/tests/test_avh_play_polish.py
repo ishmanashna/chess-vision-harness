@@ -124,7 +124,8 @@ def test_spectator_game_page_quality_metrics():
     assert "quality_at" in html
     assert "not ladder Elo" in html
     assert "white_accuracy" in html
-    assert "Est. Elo (play)" in html
+    assert "Estimated Elo" in html
+    assert "Est. Elo (play)" not in html
     assert "const wAccLbl=" in html
     assert "let wAcc=" in html
     # Duplicate const/let wAcc in one function breaks the entire /g/ poll loop.

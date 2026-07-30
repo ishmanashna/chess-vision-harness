@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from chess_harness.accuracy_elo_map import est_elo_from_accuracy, map_path
 from chess_harness.models import ModelRegistry
 from chess_harness.results import ResultsManager
 from chess_harness.snapshot_leaderboard import (
@@ -14,6 +15,27 @@ from chess_harness.snapshot_leaderboard import (
     export_leaderboard_snapshot,
     is_provisional,
 )
+
+
+def _write_warm_map(cal_root, knots, *, engine_count=2):
+    cal_root.mkdir(parents=True, exist_ok=True)
+    map_path(cal_root).write_text(
+        json.dumps(
+            {
+                "engine_count": engine_count,
+                "knots": knots,
+                "fitted_at": "2026-01-01T00:00:00.000Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _clear_map_cache():
+    import chess_harness.accuracy_elo_map as accuracy_elo_map
+
+    accuracy_elo_map._map_cache = None
+    accuracy_elo_map._map_cache_path = None
 
 
 def test_is_provisional_matches_site_threshold():
@@ -165,18 +187,26 @@ def test_aggregate_quality_by_model_rules(tmp_path):
     ]
     _write_results(results_file, rows)
 
+    cal_root = tmp_path / "cal"
+    knots = [
+        {"accuracy": 50.0, "elo": 800.0},
+        {"accuracy": 90.0, "elo": 1200.0},
+    ]
+    _write_warm_map(cal_root, knots)
+
     rm = ResultsManager(base_dir=str(harness))
     assert rm.count_by_model()["agent-a"] == 4  # Elo count: includes * and AvA dupes, excludes AvH
-    agg = rm.aggregate_quality_by_model()
+    agg = rm.aggregate_quality_by_model(cal_root=cal_root)
+    mean_a = round((80.0 + 70.0 + 60.0) / 3, 2)
     assert agg["agent-a"] == {
         "quality_games": 3,
-        "mean_accuracy": round((80.0 + 70.0 + 60.0) / 3, 2),
-        "mean_play_rating": round((600.0 + 500.0) / 2, 2),
+        "mean_accuracy": mean_a,
+        "mean_play_rating": est_elo_from_accuracy(mean_a, root=cal_root),
     }
     assert agg["agent-b"] == {
         "quality_games": 1,
         "mean_accuracy": 88.0,
-        "mean_play_rating": 720.0,
+        "mean_play_rating": est_elo_from_accuracy(88.0, root=cal_root),
     }
 
 
@@ -201,14 +231,89 @@ def test_build_snapshot_includes_quality_stats(tmp_path):
         ],
     )
 
+    cal_root = tmp_path / "cal"
+    _write_warm_map(
+        cal_root,
+        [
+            {"accuracy": 50.0, "elo": 800.0},
+            {"accuracy": 90.0, "elo": 1200.0},
+        ],
+    )
+
     registry = ModelRegistry(models_file)
     rm = ResultsManager(base_dir=str(harness))
     snapshot = build_snapshot(
         registry,
         rm.count_by_model(),
-        quality_stats=rm.aggregate_quality_by_model(),
+        quality_stats=rm.aggregate_quality_by_model(cal_root=cal_root),
     )
     agent = snapshot["agents"][0]
     assert agent["mean_accuracy"] == 90.0
-    assert agent["mean_play_rating"] == 800.0
+    assert agent["mean_play_rating"] == est_elo_from_accuracy(90.0, root=cal_root)
     assert agent["quality_games"] == 1
+
+
+def test_estimated_elo_from_current_map_not_frozen_play_rating(tmp_path):
+    """Estimated Elo follows the live accuracy→Elo map, not stored play_rating."""
+    harness = tmp_path / "harness"
+    harness.mkdir()
+    models_file = harness / "models.json"
+    models_file.write_text(
+        json.dumps({"models": [{"id": "agent-a", "name": "Agent A", "elo": 700.0}]}),
+        encoding="utf-8",
+    )
+    _write_results(
+        harness / "results.jsonl",
+        [
+            {
+                "game_id": "g1",
+                "model_name": "agent-a",
+                "result": "1-0",
+                "accuracy": 70.0,
+                "play_rating": 999.0,
+            },
+            {
+                "game_id": "g2",
+                "model_name": "agent-a",
+                "result": "0-1",
+                "accuracy": 90.0,
+                "play_rating": 111.0,
+            },
+        ],
+    )
+
+    cal_root = tmp_path / "cal"
+    map_v1 = [
+        {"accuracy": 50.0, "elo": 800.0},
+        {"accuracy": 90.0, "elo": 1200.0},
+    ]
+    _write_warm_map(cal_root, map_v1)
+
+    rm = ResultsManager(base_dir=str(harness))
+    mean_accuracy = 80.0
+    agg_v1 = rm.aggregate_quality_by_model(cal_root=cal_root)
+    expected_v1 = est_elo_from_accuracy(mean_accuracy, root=cal_root)
+    assert agg_v1["agent-a"]["mean_accuracy"] == mean_accuracy
+    assert agg_v1["agent-a"]["mean_play_rating"] == expected_v1
+    assert expected_v1 != 555.0  # not average of frozen play_rating fields
+
+    map_v2 = [
+        {"accuracy": 50.0, "elo": 900.0},
+        {"accuracy": 90.0, "elo": 1500.0},
+    ]
+    _write_warm_map(cal_root, map_v2)
+    _clear_map_cache()
+
+    agg_v2 = rm.aggregate_quality_by_model(cal_root=cal_root)
+    expected_v2 = est_elo_from_accuracy(mean_accuracy, root=cal_root)
+    assert expected_v2 != expected_v1
+    assert agg_v2["agent-a"]["mean_play_rating"] == expected_v2
+
+    registry = ModelRegistry(models_file)
+    snapshot = build_snapshot(
+        registry,
+        rm.count_by_model(),
+        quality_stats=agg_v2,
+        include_opponents=False,
+    )
+    assert snapshot["agents"][0]["mean_play_rating"] == expected_v2

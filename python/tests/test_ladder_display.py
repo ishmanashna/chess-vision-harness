@@ -33,7 +33,7 @@ def test_calibration_html_phase2_slim():
     assert "function fmtEstimatorHoldout" not in html
     assert "No champion set" not in html
     assert 'colspan="7"' in html
-    assert "Est. Elo (play)" in html
+    assert "Estimated Elo" in html
     assert "function fmtEstElo" in html
     assert "function parFieldId" in html
     assert 'name="${esc(parId)}"' in html

@@ -21,7 +21,7 @@
 
   function renderEngineRows(opponents) {
     var list = Array.isArray(opponents) ? opponents.slice() : [];
-    // Floaters first (they carry Accuracy / Est. Elo), then anchors by Elo.
+    // Floaters first (Accuracy + Estimated Elo), then anchors by Elo.
     list.sort(function (a, b) {
       var aAnchor = a.anchor ? 1 : 0;
       var bAnchor = b.anchor ? 1 : 0;
@@ -54,7 +54,7 @@
           "<td>" +
           escapeHtml(formatQualityMean(row.mean_accuracy, "%")) +
           "</td>" +
-          "<td>" +
+          '<td title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">' +
           escapeHtml(formatQualityMean(row.mean_play_rating)) +
           "</td>" +
           "<td>" +
@@ -95,8 +95,4 @@
 
   window.CVH = window.CVH || {};
   window.CVH.mountEnginesTable = mountEnginesTable;
-
-  document.querySelectorAll("[data-engines-leaderboard]").forEach(function (root) {
-    mountEnginesTable(root);
-  });
 })();

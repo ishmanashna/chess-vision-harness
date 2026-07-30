@@ -24,7 +24,7 @@ from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
 from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
-from .quality_finish import schedule_game_quality
+from .quality_finish import schedule_game_quality, schedule_provisional_game_quality
 from .results import ResultsManager
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
@@ -1092,8 +1092,18 @@ class BoardController:
                 self._clean_pgn(str(game)), encoding="utf-8"
             )
         except Exception:
-            pass
+            return
+        if state.get("status") == "in_progress" and state.get("moves"):
+            schedule_provisional_game_quality(
+                game_id,
+                move_count=len(state["moves"]),
+                base_dir=str(self.game_manager.base_dir),
+            )
 
     def _schedule_quality_if_scored(self, game_id: str, state: Dict[str, Any]) -> None:
         if state.get("status") == "finished" and state.get("result") not in (None, "*"):
-            schedule_game_quality(game_id, base_dir=str(self.game_manager.base_dir))
+            schedule_game_quality(
+                game_id,
+                base_dir=str(self.game_manager.base_dir),
+                force=bool(state.get("quality_provisional")),
+            )

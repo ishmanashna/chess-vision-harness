@@ -27,9 +27,9 @@ def render_game_view_page(game_id: str) -> str:
     .info-col{{display:flex;flex-direction:column;gap:16px}}
     .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
     .info-card h2{{margin:0 0 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
-    .meta-grid{{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.86em;line-height:1.45}}
+    .meta-grid{{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:.86em;line-height:1.45}}
     .meta-grid dt{{color:var(--faint);margin:0}}
-    .meta-grid dd{{margin:0;color:var(--text-secondary);word-break:break-word}}
+    .meta-grid dd{{margin:0;color:var(--text-secondary);overflow-wrap:break-word;word-break:normal;min-width:0}}
     #state-result{{font-weight:700}}
     .export-links{{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--row);font-size:.84em}}
     .export-link,.export-links a{{background:none;border:none;padding:0;font:inherit;color:var(--link);cursor:pointer;text-decoration:underline;text-underline-offset:2px}}
@@ -85,8 +85,8 @@ def render_game_view_page(game_id: str) -> str:
             <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
             <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
             <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
-            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Est. Elo (play)</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
-            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Est. Elo (play)</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Estimated Elo</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Estimated Elo</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
           </dl>
         </div>
       </aside>
@@ -163,8 +163,13 @@ def render_game_view_page(game_id: str) -> str:
       return {{whiteName,blackName}};
     }}
 
+    function hasQualityMetrics(s){{
+      return s.white_accuracy!=null||s.black_accuracy!=null||s.agent_accuracy!=null
+        ||s.white_play_rating!=null||s.black_play_rating!=null||s.agent_play_rating!=null;
+    }}
+
     function renderQualityMetrics(s, tags){{
-      const show=s.game_over;
+      const show=s.game_over||hasQualityMetrics(s);
       const rows=document.querySelectorAll('.quality-row');
       rows.forEach(el=>{{el.style.display=show?'':'none';}});
       if(!show)return;
@@ -175,8 +180,8 @@ def render_game_view_page(game_id: str) -> str:
       const bPrLbl=document.getElementById('state-pr-black-label');
       if(wAccLbl)wAccLbl.textContent=whiteName+' accuracy';
       if(bAccLbl)bAccLbl.textContent=blackName+' accuracy';
-      if(wPrLbl){{wPrLbl.textContent=whiteName+' Est. Elo (play)';wPrLbl.title=PLAY_RATING_TIP;}}
-      if(bPrLbl){{bPrLbl.textContent=blackName+' Est. Elo (play)';bPrLbl.title=PLAY_RATING_TIP;}}
+      if(wPrLbl){{wPrLbl.textContent=whiteName+' Estimated Elo';wPrLbl.title=PLAY_RATING_TIP;}}
+      if(bPrLbl){{bPrLbl.textContent=blackName+' Estimated Elo';bPrLbl.title=PLAY_RATING_TIP;}}
       const accWhite=document.getElementById('state-acc-white');
       const accBlack=document.getElementById('state-acc-black');
       const prWhite=document.getElementById('state-pr-white');

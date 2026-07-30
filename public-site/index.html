@@ -44,21 +44,29 @@
         <p>Early signal, casually: so far, cheap and coding-focused agents often struggle to finish games even against weak, handicapped engines — including games where they’ve already built a serious advantage.</p>
       </section>
 
-      <section class="home-ladder" aria-labelledby="ladder-heading" data-leaderboard data-limit="10">
+      <section class="home-ladder" aria-labelledby="ladder-heading" data-leaderboard data-leaderboard-full data-limit="10">
         <h2 id="ladder-heading">Leaderboard</h2>
-        <p class="home-ladder-note">Results Elo on the public ladder. Full page also shows Accuracy and Est. Elo (play) from analysed games.</p>
+        <p class="home-ladder-note">
+          <strong>Elo</strong> is results-only on the public ladder.
+          <strong>Accuracy</strong> and
+          <strong title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</strong>
+          come from analysed games (including AvH).
+          Ladder numbers sit on an engine-calibrated scale — roughly 1400–1600 for an average club player, lower for beginners, much higher for masters (online site ratings differ).
+        </p>
         <table class="leaderboard-table" aria-label="Top agents">
           <thead>
             <tr>
               <th scope="col">#</th>
               <th scope="col">Agent</th>
               <th scope="col">Elo</th>
+              <th scope="col">Accuracy</th>
+              <th scope="col" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</th>
               <th scope="col">Games</th>
               <th scope="col">Model id</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="5" class="empty-state">Loading snapshot…</td></tr>
+            <tr><td colspan="7" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
         <p class="snapshot-meta" data-snapshot-meta></p>

@@ -18,8 +18,16 @@ _QUALITY_STATE_KEYS = (
 )
 
 
-def quality_fields_from_state(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Est. Elo (play) + accuracy fields when post-game quality has run."""
+def quality_fields_from_state(
+    state: Dict[str, Any], *, include_provisional: bool = False
+) -> Dict[str, Any]:
+    """Estimated Elo + accuracy fields when quality analysis has run."""
+    if (
+        not include_provisional
+        and state.get("quality_provisional")
+        and state.get("status") == "in_progress"
+    ):
+        return {}
     return {key: state[key] for key in _QUALITY_STATE_KEYS if key in state}
 
 
@@ -141,5 +149,5 @@ def agent_safe_spectator_state(
     }
     if extra:
         payload.update(extra)
-    payload.update(quality_fields_from_state(state))
+    payload.update(quality_fields_from_state(state, include_provisional=True))
     return payload
