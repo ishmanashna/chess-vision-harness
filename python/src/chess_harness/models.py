@@ -38,6 +38,10 @@ class ModelRegistry:
         except (OSError, json.JSONDecodeError):
             return {"models": []}
 
+    def _reload(self) -> None:
+        """Re-read models.json so long-lived registries see web/CLI inscriptions."""
+        self._data = self._load()
+
     def _save(self) -> None:
         self.models_file.parent.mkdir(parents=True, exist_ok=True)
         self.models_file.write_text(json.dumps(self._data, indent=2) + "\n", encoding="utf-8")
@@ -70,6 +74,7 @@ class ModelRegistry:
             self._save()
 
     def list_models(self) -> List[Dict[str, Any]]:
+        self._reload()
         return list(self._data.get("models", []))
 
     def list_ids(self) -> List[str]:
@@ -92,6 +97,7 @@ class ModelRegistry:
         return float(model.get("elo", AGENT_START_ELO))
 
     def set_elo(self, model_id: str, elo: float) -> None:
+        self._reload()
         for model in self._data.get("models", []):
             if model["id"] == model_id:
                 model["elo"] = round(elo, 1)
@@ -99,6 +105,7 @@ class ModelRegistry:
                 return
 
     def reset_all_elo(self, elo: float = AGENT_START_ELO) -> None:
+        self._reload()
         for model in self._data.get("models", []):
             model["elo"] = round(elo, 1)
         self._save()
@@ -114,21 +121,24 @@ class ModelRegistry:
         return bool(model.get("enabled", True)) if model else False
 
     def set_enabled(self, model_id: str, enabled: bool) -> Dict[str, Any]:
-        model = self.get(model_id)
-        if model is None:
-            raise ValueError(f"Model '{model_id}' is not inscribed")
-        if enabled:
-            model.pop("enabled", None)
-        else:
-            model["enabled"] = False
-        self._save()
-        return dict(model)
+        self._reload()
+        for entry in self._data.get("models", []):
+            if entry["id"] != model_id:
+                continue
+            if enabled:
+                entry.pop("enabled", None)
+            else:
+                entry["enabled"] = False
+            self._save()
+            return dict(entry)
+        raise ValueError(f"Model '{model_id}' is not inscribed")
 
     def inscribe(self, model_id: str, name: Optional[str] = None) -> Dict[str, Any]:
         if not self.validate_id_format(model_id):
             raise ValueError(
                 f"Invalid model id '{model_id}'. Use letters, numbers, dots, dashes, underscores."
             )
+        self._reload()
         if self.is_inscribed(model_id):
             raise ValueError(f"Model '{model_id}' is already inscribed")
 
@@ -143,6 +153,7 @@ class ModelRegistry:
         return entry
 
     def uninscribe(self, model_id: str) -> Dict[str, Any]:
+        self._reload()
         if not self.is_inscribed(model_id):
             raise ValueError(f"Model '{model_id}' is not inscribed")
 

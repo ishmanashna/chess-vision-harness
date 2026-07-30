@@ -101,9 +101,11 @@ def test_rebuild_and_lookup(tmp_path: Path):
 
     est = est_elo_from_accuracy(72.0, root=root)
     assert est is not None
+    assert isinstance(est, int)
     assert 850 <= est <= 1150
     high = est_elo_from_accuracy(96.0, root=root)
     assert high is not None
+    assert isinstance(high, int)
     assert high > 1100
 
 

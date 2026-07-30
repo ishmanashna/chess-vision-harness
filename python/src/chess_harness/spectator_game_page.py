@@ -25,8 +25,25 @@ def render_game_view_page(game_id: str) -> str:
     .layout{{display:grid;grid-template-columns:minmax(280px,360px) max-content minmax(200px,280px);gap:16px;align-items:start;justify-content:center;width:fit-content;max-width:100%;margin:0 auto}}
     .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .info-col{{display:flex;flex-direction:column;gap:16px}}
+    .info-col-head{{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:1.5rem}}
+    .info-col-head h2{{margin:0;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
+    .info-panel-toggle{{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font:inherit;font-size:.78rem;font-weight:600;color:var(--text-secondary);cursor:pointer}}
+    .info-panel-toggle:hover{{color:var(--text);border-color:var(--border-strong)}}
+    .info-panel-toggle[hidden]{{display:none}}
     .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
     .info-card h2{{margin:0 0 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
+    .info-stack{{display:flex;flex-direction:column;gap:16px}}
+    .info-stack[hidden],.spec-chat-panel[hidden]{{display:none!important}}
+    .spec-chat-panel{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;min-height:280px;max-height:min(70vh,560px);overflow:hidden}}
+    .spec-chat-panel h2{{margin:0;padding:14px 16px 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
+    .spec-chat-log{{flex:1;overflow-y:auto;padding:4px 16px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}}
+    .spec-chat-log:empty::before{{content:"No messages yet.";color:var(--faint);font-size:.84rem}}
+    .spec-chat-msg{{font-size:.875rem;line-height:1.45}}
+    .spec-chat-who{{font-weight:600;margin-right:.35em}}
+    .spec-chat-msg.is-human .spec-chat-who{{color:var(--ok)}}
+    .spec-chat-msg.is-agent .spec-chat-who{{color:var(--accent,#6b8afd)}}
+    .spec-chat-who::after{{content:":";font-weight:600}}
+    .spec-chat-text{{color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}}
     .meta-grid{{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:.86em;line-height:1.45}}
     .meta-grid dt{{color:var(--faint);margin:0}}
     .meta-grid dd{{margin:0;color:var(--text-secondary);overflow-wrap:break-word;word-break:normal;min-width:0}}
@@ -66,28 +83,38 @@ def render_game_view_page(game_id: str) -> str:
     <p class="game-sub">Spectating <code>{gid}</code></p>
     <div class="layout">
       <aside class="col info-col">
-        <div class="info-card">
-          <h2>Game info</h2>
-          <dl class="meta-grid" id="meta"></dl>
-          <div class="export-links">
-            <a href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
-            <span class="export-sep" aria-hidden="true">·</span>
-            <button type="button" class="export-link" id="copy-pgn">Copy PGN</button>
-            <span class="export-hint" id="action-hint"></span>
+        <div class="info-col-head">
+          <h2 id="info-panel-title">Game</h2>
+          <button type="button" class="info-panel-toggle" id="info-panel-toggle" hidden>Show chat</button>
+        </div>
+        <div class="info-stack" id="info-stack">
+          <div class="info-card">
+            <h2>Game info</h2>
+            <dl class="meta-grid" id="meta"></dl>
+            <div class="export-links">
+              <a href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
+              <span class="export-sep" aria-hidden="true">·</span>
+              <button type="button" class="export-link" id="copy-pgn">Copy PGN</button>
+              <span class="export-hint" id="action-hint"></span>
+            </div>
+          </div>
+          <div class="info-card">
+            <h2>Game state</h2>
+            <dl class="meta-grid" id="state-meta">
+              <dt>Result</dt><dd id="state-result">—</dd>
+              <dt>Termination</dt><dd id="state-termination">—</dd>
+              <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
+              <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
+              <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
+              <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Estimated Elo</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+              <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
+              <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Estimated Elo</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+            </dl>
           </div>
         </div>
-        <div class="info-card">
-          <h2>Game state</h2>
-          <dl class="meta-grid" id="state-meta">
-            <dt>Result</dt><dd id="state-result">—</dd>
-            <dt>Termination</dt><dd id="state-termination">—</dd>
-            <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
-            <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
-            <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
-            <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
-            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Estimated Elo</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
-            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Estimated Elo</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
-          </dl>
+        <div class="spec-chat-panel" id="spec-chat-panel" hidden>
+          <h2>Chat</h2>
+          <div class="spec-chat-log" id="spec-chat-log" role="log" aria-live="polite"></div>
         </div>
       </aside>
       <div class="col board-col" id="board-col">
@@ -118,9 +145,70 @@ def render_game_view_page(game_id: str) -> str:
     const QUALITY_POLL_MAX=40;
     let qualityWaitAttempts=0;
     const PLAY_RATING_TIP='Estimated strength from move accuracy — not ladder Elo.';
+    let chatSince=0;
+    let chatPanelMode='info'; // 'info' | 'chat'
+    let isAvhGame=false;
 
     function escHtml(s){{
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }}
+
+    function setInfoPanelMode(mode){{
+      chatPanelMode=mode==='chat'?'chat':'info';
+      const stack=document.getElementById('info-stack');
+      const chatPanel=document.getElementById('spec-chat-panel');
+      const toggle=document.getElementById('info-panel-toggle');
+      const title=document.getElementById('info-panel-title');
+      if(stack)stack.hidden=chatPanelMode==='chat';
+      if(chatPanel)chatPanel.hidden=chatPanelMode!=='chat';
+      if(title)title.textContent=chatPanelMode==='chat'?'Chat':'Game';
+      if(toggle){{
+        toggle.hidden=!isAvhGame;
+        toggle.textContent=chatPanelMode==='chat'?'Show game':'Show chat';
+      }}
+    }}
+
+    function appendChatMessages(messages){{
+      const log=document.getElementById('spec-chat-log');
+      if(!log||!messages||!messages.length)return;
+      const frag=document.createDocumentFragment();
+      messages.forEach(msg=>{{
+        const row=document.createElement('div');
+        const kind=msg.from==='agent'?'agent':'human';
+        row.className='spec-chat-msg is-'+kind;
+        const who=document.createElement('span');
+        who.className='spec-chat-who';
+        who.textContent=msg.from_label||(kind==='agent'?'Agent':'Human');
+        const text=document.createElement('span');
+        text.className='spec-chat-text';
+        text.textContent=msg.text||'';
+        row.appendChild(who);
+        row.appendChild(text);
+        frag.appendChild(row);
+        if(msg.seq!=null)chatSince=Math.max(chatSince,Number(msg.seq)||0);
+      }});
+      log.appendChild(frag);
+      log.scrollTop=log.scrollHeight;
+    }}
+
+    async function pollChat(){{
+      if(!isAvhGame)return;
+      try{{
+        const r=await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/chat?since='+chatSince);
+        if(!r.ok)return;
+        const data=await r.json();
+        if(data&&data.ok&&data.messages)appendChatMessages(data.messages);
+      }}catch(e){{}}
+    }}
+
+    function syncAvhChatUi(s){{
+      const wasAvh=isAvhGame;
+      isAvhGame=s.game_type==='human_vs_agent';
+      const toggle=document.getElementById('info-panel-toggle');
+      if(toggle)toggle.hidden=!isAvhGame;
+      if(!isAvhGame&&chatPanelMode==='chat')setInfoPanelMode('info');
+      else if(isAvhGame&&!wasAvh)setInfoPanelMode(chatPanelMode);
+      else if(toggle)toggle.textContent=chatPanelMode==='chat'?'Show game':'Show chat';
     }}
 
     function syncHeights(){{
@@ -318,9 +406,18 @@ def render_game_view_page(game_id: str) -> str:
       navigator.clipboard.writeText(lastPgn).then(()=>hint('PGN copied'));
     }};
 
+    const panelToggle=document.getElementById('info-panel-toggle');
+    if(panelToggle){{
+      panelToggle.onclick=()=>{{
+        setInfoPanelMode(chatPanelMode==='chat'?'info':'chat');
+        if(chatPanelMode==='chat')pollChat();
+      }};
+    }}
+
     async function u(){{
       try{{
         const s=await(await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/state')).json();
+        syncAvhChatUi(s);
         const e=await(await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/eval')).json();
         const showEval=s.show_eval!==false&&e.show_eval!==false;
         const ev=showEval&&e.ok&&e.eval_ui?e.eval_ui:(showEval?s.eval_ui||null:null);
@@ -337,6 +434,7 @@ def render_game_view_page(game_id: str) -> str:
         const p=await(await fetch('/api/games/'+encodeURIComponent(GAME_ID)+'/pgn')).json();
         if(p.pgn)lastPgn=p.pgn;
         renderMeta(lastPgn,s);
+        if(isAvhGame)await pollChat();
         syncHeights();
         if(s.game_over&&!s.quality_at&&qualityWaitAttempts<QUALITY_POLL_MAX)qualityWaitAttempts++;
         if(!shouldKeepPolling(s)&&pollTimer){{clearInterval(pollTimer);pollTimer=null;}}

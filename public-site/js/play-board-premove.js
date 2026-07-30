@@ -1,4 +1,8 @@
-/** Premove input + markers for cm-chessboard play widget. */
+/** Premove input + markers for cm-chessboard play widget.
+ *
+ * Lichess/chess.com pattern: queue while opponent thinks; piece snaps back;
+ * green frame markers show the queued move; Escape / right-click / Cancel clears.
+ */
 
 import {
   INPUT_EVENT_TYPE,
@@ -16,7 +20,12 @@ export const PREMOVE_MARKER = {
   slice: "markerFrame",
 };
 
-export function createPremoveController(board, chess, humanSide, onPromoDialogClosed) {
+export function createPremoveController(board, chess, humanSide, callbacks) {
+  const onPromoDialogClosed =
+    typeof callbacks === "function" ? callbacks : callbacks && callbacks.onPromoDialogClosed;
+  const onPremoveChange =
+    typeof callbacks === "object" && callbacks ? callbacks.onPremoveChange : null;
+
   let inputActive = false;
   let premoveUci = null;
   let promoDialogOpen = false;
@@ -43,6 +52,10 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
     board.addMarker(to, PREMOVE_MARKER.id);
   }
 
+  function notifyPremoveChange() {
+    if (onPremoveChange) onPremoveChange(premoveUci);
+  }
+
   function tryPremoveUci(from, to, promotion) {
     const tmp = boardWithHumanToMove();
     const moveObj = { from, to };
@@ -57,12 +70,18 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
     if (!uci) return false;
     premoveUci = uci;
     showPremoveMarkers(from, to);
+    notifyPremoveChange();
     return true;
   }
 
   function clearPremove() {
+    if (!premoveUci) {
+      clearPremoveMarkers();
+      return;
+    }
     premoveUci = null;
     clearPremoveMarkers();
+    notifyPremoveChange();
   }
 
   function refreshMarkers() {
@@ -95,14 +114,11 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
       promoDialogOpen = false;
       const from = event.squareFrom;
       const to = event.squareTo;
+
+      // Queue and snap the piece back (return false). Returning true used to
+      // leave cm-chessboard thinking a real move completed → stuck input.
       if (setPremove(from, to, event.promotion || undefined)) {
-        const restore = () => {
-          board.setPosition(chess.fen(), false).then(() => refreshMarkers());
-        };
-        const proc = event.chessboard.state.moveInputProcess;
-        if (proc) proc.then(restore);
-        else restore();
-        return true;
+        return false;
       }
 
       const tmp = boardWithHumanToMove();
@@ -116,18 +132,24 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
           promoDialogOpen = false;
           if (result.type === PROMOTION_DIALOG_RESULT_TYPE.pieceSelected) {
             const piece = result.piece.charAt(1).toLowerCase();
-            if (setPremove(from, to, piece)) {
-              board.setPosition(chess.fen(), false).then(() => refreshMarkers());
-            }
+            setPremove(from, to, piece);
           }
           if (onPromoDialogClosed) onPromoDialogClosed();
         });
-        return true;
+        // Snap back while the dialog is open; markers appear after selection.
+        return false;
       }
       return false;
     }
 
     return false;
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Escape" && premoveUci) {
+      e.preventDefault();
+      clearPremove();
+    }
   }
 
   return {
@@ -146,5 +168,6 @@ export function createPremoveController(board, chess, humanSide, onPromoDialogCl
         clearPremove();
       }
     },
+    onKeyDown,
   };
 }

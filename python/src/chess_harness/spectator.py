@@ -844,6 +844,23 @@ async def get_game_moves(game_id: str):
     return spectator_moves_payload(state)
 
 
+@app.get("/api/games/{game_id}/chat")
+async def get_game_chat(game_id: str, since: int = Query(0, ge=0)):
+    """Public read-only chat for spectators of human-vs-agent games."""
+    from .chat import read_chat_messages
+    from .game_types import is_human_vs_agent_state
+
+    state = game_manager.load_state(game_id)
+    if not state:
+        raise HTTPException(404, "Game not found")
+    if not is_human_vs_agent_state(state):
+        raise HTTPException(404, "Chat is only available for agent vs human games")
+    result = read_chat_messages(game_manager, game_id, since=since)
+    if not result.get("ok"):
+        raise HTTPException(404, result.get("error", "Game not found"))
+    return result
+
+
 @app.get("/api/games/{game_id}/pgn")
 async def get_game_pgn(game_id: str, debug: Optional[str] = None):
     if not debug_state_enabled(debug):

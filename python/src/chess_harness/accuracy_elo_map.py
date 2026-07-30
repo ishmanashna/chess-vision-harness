@@ -164,13 +164,13 @@ def load_accuracy_elo_map(
     return data
 
 
-def est_elo_from_accuracy(accuracy: float, *, root: Optional[Path] = None) -> Optional[float]:
+def est_elo_from_accuracy(accuracy: float, *, root: Optional[Path] = None) -> Optional[int]:
     """Lookup estimated Elo for a move-accuracy percentage via the static map."""
     m = load_accuracy_elo_map(root=root)
     if not map_warm(m):
         return None
     rating = interpolate_accuracy_elo(m.get("knots", []), float(accuracy))
-    return round(rating, 1) if rating is not None else None
+    return int(round(rating)) if rating is not None else None
 
 
 def status_summary(*, root: Optional[Path] = None) -> Dict[str, Any]:

@@ -30,7 +30,7 @@ const INPUT_MODE = {
   premove: "premove",
 };
 
-export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
+export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChange) {
   const chess = new Chess();
   let legalUci = [];
   const inputEnabledRef = { current: false };
@@ -61,8 +61,13 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
     ],
   });
 
-  const premove = createPremoveController(board, chess, humanSide, () => {
-    resumeInput();
+  const premove = createPremoveController(board, chess, humanSide, {
+    onPromoDialogClosed: () => {
+      resumeInput();
+    },
+    onPremoveChange: (uci) => {
+      if (typeof onPremoveChange === "function") onPremoveChange(uci);
+    },
   });
 
   function syncLegalUci(list) {
@@ -275,6 +280,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove) {
   }
 
   mountEl.addEventListener("contextmenu", premove.onContextMenu);
+  document.addEventListener("keydown", premove.onKeyDown);
 
   return {
     setPosition,

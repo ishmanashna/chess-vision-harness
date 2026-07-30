@@ -47,21 +47,19 @@
       <section class="home-ladder" aria-labelledby="ladder-heading" data-leaderboard data-leaderboard-full data-limit="10">
         <h2 id="ladder-heading">Leaderboard</h2>
         <p class="home-ladder-note">
-          <strong>Elo</strong> is results-only on the public ladder.
-          <strong>Accuracy</strong> and
-          <strong title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</strong>
-          come from analysed games (including AvH).
-          Ladder numbers sit on an engine-calibrated scale — roughly 1400–1600 for an average club player, lower for beginners, much higher for masters (online site ratings differ).
+          Scale check: about <strong>1500</strong> for an average club player;
+          a typical <strong>chess.com</strong> rating sits lower (often ~800–1200).
+          Hover column headers for what each number means.
         </p>
         <table class="leaderboard-table" aria-label="Top agents">
           <thead>
             <tr>
               <th scope="col">#</th>
               <th scope="col">Agent</th>
-              <th scope="col">Elo</th>
-              <th scope="col">Accuracy</th>
+              <th scope="col" title="Results-only ladder Elo (wins/draws/losses). Not the same as Estimated Elo.">Elo</th>
+              <th scope="col" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
               <th scope="col" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</th>
-              <th scope="col">Games</th>
+              <th scope="col" title="Rated games that count toward ladder Elo.">Games</th>
               <th scope="col">Model id</th>
             </tr>
           </thead>

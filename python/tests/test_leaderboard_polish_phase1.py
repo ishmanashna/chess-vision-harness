@@ -32,7 +32,10 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "Estimated Elo" in html
     assert "Est. Elo (play)" not in html
     assert "data-leaderboard-full" in html
-    assert "1400" in html and "club player" in html
+    assert "1500" in html and "club player" in html
+    assert "chess.com" in html
+    assert "Elo is results-only on the public ladder" not in html
+    assert "engine-calibrated scale" not in html
     assert 'colspan="7"' in html
 
 

@@ -94,6 +94,20 @@ def test_chat_human_agent_roundtrip(human_client, monkeypatch):
     state = json.loads((harness_dir / "games" / game_id / "state.json").read_text(encoding="utf-8"))
     assert state.get("chat_seq") == 2
 
+    # Spectators can read chat without a play/agent token.
+    public = client.get(f"/api/games/{game_id}/chat")
+    assert public.status_code == 200, public.text
+    public_body = public.json()
+    assert public_body["ok"] is True
+    assert public_body["chat_seq"] == 2
+    assert len(public_body["messages"]) == 2
+
+
+def test_spectator_chat_rejected_for_non_avh(human_client, monkeypatch):
+    client, _ = human_client
+    missing = client.get("/api/games/does-not-exist/chat")
+    assert missing.status_code == 404
+
 
 def test_chat_off_turn_allowed(human_client, monkeypatch):
     client, _ = human_client

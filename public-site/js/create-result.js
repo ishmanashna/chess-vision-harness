@@ -34,13 +34,18 @@
   }
 
   function renderBriefCollapsible(brief, esc) {
+    // Copy stays outside <details> so it works without expanding the prompt.
     return (
-      '<details class="brief-wrap brief-collapsible">' +
-      '<summary>Agent prompt (copy this)</summary>' +
+      '<div class="brief-wrap">' +
+      '<div class="brief-toolbar">' +
+      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button>' +
+      "</div>" +
+      '<details class="brief-collapsible">' +
+      "<summary>Show agent prompt</summary>" +
       '<textarea id="agent-brief" readonly rows="18">' +
       esc(brief) +
       "</textarea>" +
-      '<button type="button" class="btn btn-secondary" data-copy-brief>Copy prompt</button></details>'
+      "</details></div>"
     );
   }
 

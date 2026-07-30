@@ -77,8 +77,10 @@ export function setupBoardDownload(root, board, api, gameId) {
 
 export function syncDownloadButton(root, pos) {
   const btn = root.querySelector("[data-download-board]");
+  const slot = root.querySelector("[data-download-slot]");
   if (!btn) return;
   const show = !!pos.game_over;
   btn.hidden = !show;
   btn.disabled = !show;
+  if (slot) slot.hidden = !show;
 }

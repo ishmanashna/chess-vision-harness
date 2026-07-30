@@ -1,6 +1,16 @@
 {
-  "generated_at": "2026-07-30T11:56:41.000Z",
+  "generated_at": "2026-07-30T13:38:03.000Z",
   "agents": [
+    {
+      "id": "grok-4.5-high",
+      "name": "Grok 4.5 High",
+      "elo": 500,
+      "games": 0,
+      "provisional": true,
+      "mean_accuracy": 67.8,
+      "mean_play_rating": 685,
+      "quality_games": 1
+    },
     {
       "id": "mimo-v2.5",
       "name": "MiMo V2.5",
@@ -8,7 +18,7 @@
       "games": 8,
       "provisional": true,
       "mean_accuracy": 62.31,
-      "mean_play_rating": 503.4,
+      "mean_play_rating": 492,
       "quality_games": 3
     },
     {
@@ -18,7 +28,7 @@
       "games": 13,
       "provisional": true,
       "mean_accuracy": 73.21,
-      "mean_play_rating": 1000.7,
+      "mean_play_rating": 997,
       "quality_games": 7
     }
   ],
@@ -31,7 +41,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 96.0,
-      "mean_play_rating": 2933.4,
+      "mean_play_rating": 2933,
       "quality_games": 13
     },
     {
@@ -42,7 +52,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 97.1,
-      "mean_play_rating": 3096.0,
+      "mean_play_rating": 3096,
       "quality_games": 7
     },
     {
@@ -53,7 +63,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 94.7,
-      "mean_play_rating": 2675.0,
+      "mean_play_rating": 2675,
       "quality_games": 8
     },
     {
@@ -64,7 +74,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 95.7,
-      "mean_play_rating": 2875.0,
+      "mean_play_rating": 2875,
       "quality_games": 11
     },
     {
@@ -75,7 +85,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 96.5,
-      "mean_play_rating": 3010.1,
+      "mean_play_rating": 3010,
       "quality_games": 10
     },
     {
@@ -86,7 +96,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 97.0,
-      "mean_play_rating": 3086.8,
+      "mean_play_rating": 3087,
       "quality_games": 11
     },
     {
@@ -97,7 +107,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 94.5,
-      "mean_play_rating": 2635.0,
+      "mean_play_rating": 2635,
       "quality_games": 12
     },
     {
@@ -108,7 +118,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 92.7,
-      "mean_play_rating": 2059.3,
+      "mean_play_rating": 2059,
       "quality_games": 14
     },
     {
@@ -119,7 +129,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 93.4,
-      "mean_play_rating": 2281.7,
+      "mean_play_rating": 2282,
       "quality_games": 8
     },
     {
@@ -130,7 +140,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 93.0,
-      "mean_play_rating": 2154.2,
+      "mean_play_rating": 2154,
       "quality_games": 11
     },
     {
@@ -141,7 +151,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 90.6,
-      "mean_play_rating": 1727.4,
+      "mean_play_rating": 1727,
       "quality_games": 12
     },
     {
@@ -152,7 +162,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 93.4,
-      "mean_play_rating": 2281.7,
+      "mean_play_rating": 2282,
       "quality_games": 5
     },
     {
@@ -163,7 +173,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 92.9,
-      "mean_play_rating": 2122.6,
+      "mean_play_rating": 2123,
       "quality_games": 7
     },
     {
@@ -174,7 +184,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 92.4,
-      "mean_play_rating": 1972.4,
+      "mean_play_rating": 1972,
       "quality_games": 12
     },
     {
@@ -185,7 +195,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 94.2,
-      "mean_play_rating": 2541.4,
+      "mean_play_rating": 2541,
       "quality_games": 3
     },
     {
@@ -196,7 +206,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 92.2,
-      "mean_play_rating": 1961.9,
+      "mean_play_rating": 1962,
       "quality_games": 9
     },
     {
@@ -207,7 +217,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 90.9,
-      "mean_play_rating": 1812.3,
+      "mean_play_rating": 1812,
       "quality_games": 8
     },
     {
@@ -218,19 +228,19 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 90.1,
-      "mean_play_rating": 1598.1,
+      "mean_play_rating": 1598,
       "quality_games": 6
     },
     {
       "id": "stockfish-handicap:depth4",
       "name": "Stockfish 17.1 (depth 4)",
-      "elo": 1550,
-      "games": 2411,
+      "elo": 1556,
+      "games": 2414,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 84.9,
-      "mean_play_rating": 1422.7,
-      "quality_games": 119
+      "mean_accuracy": 85.1,
+      "mean_play_rating": 1424,
+      "quality_games": 122
     },
     {
       "id": "stockfish:2",
@@ -240,7 +250,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 88.1,
-      "mean_play_rating": 1523.4,
+      "mean_play_rating": 1523,
       "quality_games": 4
     },
     {
@@ -251,7 +261,7 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 88.7,
-      "mean_play_rating": 1545.8,
+      "mean_play_rating": 1546,
       "quality_games": 15
     },
     {
@@ -262,129 +272,129 @@
       "anchor": true,
       "uncalibrated": false,
       "mean_accuracy": 80.7,
-      "mean_play_rating": 1300.2,
+      "mean_play_rating": 1291,
       "quality_games": 14
     },
     {
       "id": "stockfish-handicap:noise7",
       "name": "Stockfish 17.1 (7% noise)",
-      "elo": 1298,
-      "games": 1623,
+      "elo": 1283,
+      "games": 1624,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 79.7,
-      "mean_play_rating": 1256.2,
-      "quality_games": 108
+      "mean_accuracy": 79.6,
+      "mean_play_rating": 1283,
+      "quality_games": 109
     },
     {
       "id": "stockfish-handicap:noise5",
       "name": "Stockfish 17.1 (5% noise)",
-      "elo": 1260,
-      "games": 2524,
+      "elo": 1265,
+      "games": 2526,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 80.9,
-      "mean_play_rating": 1306.0,
-      "quality_games": 106
-    },
-    {
-      "id": "stockfish-handicap:noise8",
-      "name": "Stockfish 17.1 (8% noise)",
-      "elo": 1216,
-      "games": 1703,
-      "anchor": false,
-      "uncalibrated": false,
-      "mean_accuracy": 78.9,
-      "mean_play_rating": 1217.0,
-      "quality_games": 109
-    },
-    {
-      "id": "stockfish-handicap:noise10",
-      "name": "Stockfish 17.1 (10% noise)",
-      "elo": 1199,
-      "games": 2665,
-      "anchor": false,
-      "uncalibrated": false,
-      "mean_accuracy": 78.2,
-      "mean_play_rating": 1198.9,
-      "quality_games": 129
+      "mean_accuracy": 81.0,
+      "mean_play_rating": 1296,
+      "quality_games": 108
     },
     {
       "id": "stockfish-handicap:noise13",
       "name": "Stockfish 17.1 (13% noise)",
-      "elo": 1197,
-      "games": 1797,
+      "elo": 1222,
+      "games": 1799,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 77.2,
-      "mean_play_rating": 1197.1,
-      "quality_games": 108
+      "mean_accuracy": 77.0,
+      "mean_play_rating": 1126,
+      "quality_games": 110
+    },
+    {
+      "id": "stockfish-handicap:noise8",
+      "name": "Stockfish 17.1 (8% noise)",
+      "elo": 1215,
+      "games": 1706,
+      "anchor": false,
+      "uncalibrated": false,
+      "mean_accuracy": 78.9,
+      "mean_play_rating": 1215,
+      "quality_games": 112
+    },
+    {
+      "id": "stockfish-handicap:noise10",
+      "name": "Stockfish 17.1 (10% noise)",
+      "elo": 1187,
+      "games": 2666,
+      "anchor": false,
+      "uncalibrated": false,
+      "mean_accuracy": 78.0,
+      "mean_play_rating": 1208,
+      "quality_games": 130
     },
     {
       "id": "stockfish-handicap:noise12",
       "name": "Stockfish 17.1 (12% noise)",
-      "elo": 1105,
-      "games": 2706,
+      "elo": 1111,
+      "games": 2708,
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 76.9,
-      "mean_play_rating": 1105.0,
-      "quality_games": 130
+      "mean_play_rating": 1111,
+      "quality_games": 132
     },
     {
       "id": "stockfish-handicap:noise19",
       "name": "Stockfish 17.1 (19% noise)",
-      "elo": 1096,
-      "games": 1840,
+      "elo": 1093,
+      "games": 1842,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 75.8,
-      "mean_play_rating": 1073.2,
-      "quality_games": 121
+      "mean_accuracy": 75.6,
+      "mean_play_rating": 1075,
+      "quality_games": 123
     },
     {
       "id": "stockfish-handicap:noise16",
       "name": "Stockfish 17.1 (16% noise)",
-      "elo": 1058,
-      "games": 1830,
+      "elo": 1071,
+      "games": 1831,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 76.1,
-      "mean_play_rating": 1081.8,
-      "quality_games": 129
+      "mean_accuracy": 76.0,
+      "mean_play_rating": 1087,
+      "quality_games": 130
     },
     {
       "id": "stockfish-handicap:noise22",
       "name": "Stockfish 17.1 (22% noise)",
-      "elo": 1041,
-      "games": 2116,
+      "elo": 1029,
+      "games": 2118,
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 72.4,
-      "mean_play_rating": 965.2,
-      "quality_games": 126
+      "mean_play_rating": 964,
+      "quality_games": 128
     },
     {
       "id": "stockfish-handicap:noise21",
       "name": "Stockfish 17.1 (21% noise)",
-      "elo": 992,
-      "games": 1811,
+      "elo": 987,
+      "games": 1812,
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 73.1,
-      "mean_play_rating": 997.7,
-      "quality_games": 118
+      "mean_play_rating": 994,
+      "quality_games": 119
     },
     {
       "id": "stockfish-handicap:noise24",
       "name": "Stockfish 17.1 (24% noise)",
-      "elo": 958,
-      "games": 1870,
+      "elo": 953,
+      "games": 1872,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 73.7,
-      "mean_play_rating": 1014.4,
-      "quality_games": 105
+      "mean_accuracy": 73.5,
+      "mean_play_rating": 1007,
+      "quality_games": 107
     },
     {
       "id": "stockfish-handicap:noise27",
@@ -394,19 +404,19 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 71.8,
-      "mean_play_rating": 936.9,
+      "mean_play_rating": 937,
       "quality_games": 110
     },
     {
       "id": "stockfish-handicap:noise30",
       "name": "Stockfish 17.1 (30% noise)",
-      "elo": 858,
-      "games": 2196,
+      "elo": 866,
+      "games": 2197,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 70.3,
-      "mean_play_rating": 856.1,
-      "quality_games": 113
+      "mean_accuracy": 70.2,
+      "mean_play_rating": 868,
+      "quality_games": 114
     },
     {
       "id": "stockfish-handicap:noise33",
@@ -416,30 +426,30 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 69.3,
-      "mean_play_rating": 804.1,
+      "mean_play_rating": 804,
       "quality_games": 108
     },
     {
       "id": "stockfish-handicap:noise41",
       "name": "Stockfish 17.1 (41% noise)",
-      "elo": 747,
-      "games": 1880,
+      "elo": 728,
+      "games": 1883,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 68.6,
-      "mean_play_rating": 700.9,
-      "quality_games": 109
+      "mean_accuracy": 68.7,
+      "mean_play_rating": 703,
+      "quality_games": 112
     },
     {
       "id": "stockfish-handicap:noise38",
       "name": "Stockfish 17.1 (38% noise)",
-      "elo": 680,
-      "games": 2249,
+      "elo": 684,
+      "games": 2250,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 69.2,
-      "mean_play_rating": 781.2,
-      "quality_games": 121
+      "mean_accuracy": 69.1,
+      "mean_play_rating": 761,
+      "quality_games": 122
     },
     {
       "id": "stockfish-handicap:noise46",
@@ -449,41 +459,41 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 65.8,
-      "mean_play_rating": 585.9,
+      "mean_play_rating": 646,
       "quality_games": 113
     },
     {
       "id": "stockfish-handicap:noise52",
       "name": "Stockfish 17.1 (depth 1 + 52% noise)",
-      "elo": 529,
-      "games": 2063,
+      "elo": 528,
+      "games": 2065,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 65.9,
-      "mean_play_rating": 589.3,
-      "quality_games": 114
+      "mean_accuracy": 65.7,
+      "mean_play_rating": 528,
+      "quality_games": 116
     },
     {
       "id": "stockfish-handicap:noise62",
       "name": "Stockfish 17.1 (depth 1 + 62% noise)",
-      "elo": 505,
-      "games": 2314,
+      "elo": 497,
+      "games": 2315,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 60.9,
-      "mean_play_rating": 475.0,
-      "quality_games": 116
+      "mean_accuracy": 60.6,
+      "mean_play_rating": 472,
+      "quality_games": 117
     },
     {
       "id": "stockfish-handicap:noise55",
       "name": "Stockfish 17.1 (55% noise)",
-      "elo": 460,
-      "games": 2002,
+      "elo": 463,
+      "games": 2003,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 61.9,
-      "mean_play_rating": 493.7,
-      "quality_games": 114
+      "mean_accuracy": 61.6,
+      "mean_play_rating": 485,
+      "quality_games": 115
     },
     {
       "id": "stockfish-handicap:noise68",
@@ -493,19 +503,19 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 55.9,
-      "mean_play_rating": 403.9,
+      "mean_play_rating": 405,
       "quality_games": 105
     },
     {
       "id": "stockfish-handicap:noise72",
       "name": "Stockfish 17.1 (depth 1 + 72% noise)",
-      "elo": 388,
-      "games": 1843,
+      "elo": 393,
+      "games": 1845,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 56.6,
-      "mean_play_rating": 413.2,
-      "quality_games": 114
+      "mean_accuracy": 56.8,
+      "mean_play_rating": 417,
+      "quality_games": 116
     },
     {
       "id": "stockfish-handicap:noise76",
@@ -515,7 +525,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 53.3,
-      "mean_play_rating": 372.1,
+      "mean_play_rating": 372,
       "quality_games": 117
     },
     {
@@ -526,41 +536,41 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 53.0,
-      "mean_play_rating": 357.9,
+      "mean_play_rating": 358,
       "quality_games": 100
     },
     {
       "id": "stockfish-handicap:noise90",
       "name": "Stockfish 17.1 (depth 1 + 90% noise)",
-      "elo": 228,
-      "games": 1760,
+      "elo": 240,
+      "games": 1762,
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 47.8,
-      "mean_play_rating": 210.9,
-      "quality_games": 93
+      "mean_play_rating": 217,
+      "quality_games": 95
     },
     {
       "id": "stockfish-handicap:noise94",
       "name": "Stockfish 17.1 (depth 1 + 94% noise)",
-      "elo": 213,
-      "games": 1847,
+      "elo": 212,
+      "games": 1848,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 48.8,
-      "mean_play_rating": 236.0,
-      "quality_games": 113
+      "mean_accuracy": 48.6,
+      "mean_play_rating": 237,
+      "quality_games": 114
     },
     {
       "id": "stockfish-handicap:noise99",
       "name": "Stockfish 17.1 (depth 1 + 99% noise)",
-      "elo": 179,
-      "games": 1746,
+      "elo": 175,
+      "games": 1748,
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 44.3,
-      "mean_play_rating": 130.3,
-      "quality_games": 120
+      "mean_play_rating": 135,
+      "quality_games": 122
     },
     {
       "id": "stockfish-handicap:noise98",
@@ -570,19 +580,19 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 45.9,
-      "mean_play_rating": 171.7,
+      "mean_play_rating": 172,
       "quality_games": 102
     },
     {
       "id": "random",
       "name": "Random mover",
-      "elo": 168,
-      "games": 2957,
+      "elo": 166,
+      "games": 2958,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 45.7,
-      "mean_play_rating": 167.3,
-      "quality_games": 113
+      "mean_accuracy": 45.5,
+      "mean_play_rating": 163,
+      "quality_games": 114
     },
     {
       "id": "stockfish-handicap:noise96",
@@ -592,19 +602,19 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 47.0,
-      "mean_play_rating": 194.4,
+      "mean_play_rating": 198,
       "quality_games": 93
     },
     {
       "id": "inverse-sf:exclude-top1-d6",
       "name": "Inverse SF (exclude top1 d6)",
-      "elo": 101,
-      "games": 895,
+      "elo": 100,
+      "games": 897,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 43.2,
-      "mean_play_rating": 101.3,
-      "quality_games": 98
+      "mean_accuracy": 42.8,
+      "mean_play_rating": 100,
+      "quality_games": 100
     },
     {
       "id": "inverse-sf:exclude-top1-d14",
@@ -614,30 +624,30 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 41.4,
-      "mean_play_rating": 80.8,
+      "mean_play_rating": 81,
       "quality_games": 83
     },
     {
       "id": "inverse-sf:exclude-top1-d8",
       "name": "Inverse SF (exclude top1 d8)",
-      "elo": 45,
-      "games": 800,
+      "elo": 43,
+      "games": 801,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 39.9,
-      "mean_play_rating": 44.6,
-      "quality_games": 95
+      "mean_accuracy": 40.0,
+      "mean_play_rating": 43,
+      "quality_games": 96
     },
     {
       "id": "inverse-sf:exclude-top1",
       "name": "Inverse SF (exclude top1)",
-      "elo": 36,
-      "games": 1783,
+      "elo": 41,
+      "games": 1784,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 39.2,
-      "mean_play_rating": 35.0,
-      "quality_games": 100
+      "mean_accuracy": 39.3,
+      "mean_play_rating": 41,
+      "quality_games": 101
     },
     {
       "id": "inverse-sf:bottom-half-d16",
@@ -647,7 +657,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 35.7,
-      "mean_play_rating": -33.6,
+      "mean_play_rating": -34,
       "quality_games": 96
     },
     {
@@ -658,7 +668,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 37.4,
-      "mean_play_rating": -8.3,
+      "mean_play_rating": -7,
       "quality_games": 77
     },
     {
@@ -669,19 +679,19 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 32.1,
-      "mean_play_rating": -55.8,
+      "mean_play_rating": -57,
       "quality_games": 79
     },
     {
       "id": "inverse-sf:worst-d10",
       "name": "Inverse SF (worst d10)",
-      "elo": -57,
-      "games": 2204,
+      "elo": -61,
+      "games": 2205,
       "anchor": false,
       "uncalibrated": false,
-      "mean_accuracy": 31.4,
-      "mean_play_rating": -56.9,
-      "quality_games": 96
+      "mean_accuracy": 31.6,
+      "mean_play_rating": -61,
+      "quality_games": 97
     },
     {
       "id": "inverse-sf:worst-d18",
@@ -691,7 +701,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 32.5,
-      "mean_play_rating": -54.2,
+      "mean_play_rating": -54,
       "quality_games": 83
     }
   ]

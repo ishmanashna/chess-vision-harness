@@ -812,6 +812,14 @@ p {
   margin-bottom: 8px;
 }
 
+.brief-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .brief-wrap textarea {
   width: 100%;
   box-sizing: border-box;
@@ -823,18 +831,18 @@ p {
   border-radius: 6px;
   background: var(--bg-elevated);
   color: var(--text);
-  margin-bottom: 10px;
+  margin-top: 10px;
+  margin-bottom: 0;
 }
 
 .brief-collapsible > summary {
   cursor: pointer;
   font-weight: 600;
-  margin-bottom: 8px;
   color: var(--text);
 }
 
 .brief-collapsible[open] > summary {
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .game-id-line {

@@ -69,7 +69,16 @@ async function main() {
   let lastFen = null;
   let prevYourTurn = null;
 
-  const board = createPlayBoard(
+  let board = null;
+  function syncClearPremoveBtn() {
+    const btn = root.querySelector("[data-clear-premove]");
+    if (!btn || !board) return;
+    const has = !!board.getPremove();
+    btn.hidden = !has;
+    btn.disabled = !has;
+  }
+
+  board = createPlayBoard(
     mount,
     "white",
     async (uci, _localFen) => {
@@ -87,7 +96,8 @@ async function main() {
         busy = false;
         schedulePoll();
       }
-    }
+    },
+    syncClearPremoveBtn
   );
 
   async function syncFromServer(pos, animate) {
@@ -130,6 +140,7 @@ async function main() {
     updateMatchup(root, pos);
     const inputErr = board.syncInputState(canHumanMove(pos), canPremove(pos));
     if (inputErr) showError(root, inputErr);
+    syncClearPremoveBtn();
     lastRenderedMoveCount = renderMoveList(root, pos, lastRenderedMoveCount);
     syncTabAttention(pos);
     prevYourTurn = !!pos.your_turn;
@@ -218,6 +229,14 @@ async function main() {
   const drawDeclineBtn = root.querySelector("[data-draw-decline]");
   if (drawDeclineBtn) {
     drawDeclineBtn.addEventListener("click", () => drawAction(api.postDrawDecline, "Decline draw failed"));
+  }
+
+  const clearPremoveBtn = root.querySelector("[data-clear-premove]");
+  if (clearPremoveBtn) {
+    clearPremoveBtn.addEventListener("click", () => {
+      board.clearPremove();
+      syncClearPremoveBtn();
+    });
   }
 
   setupBoardDownload(root, board, api, gameId);

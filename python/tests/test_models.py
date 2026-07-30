@@ -28,6 +28,18 @@ def test_inscribe_and_list(tmp_path):
     assert len(registry.list_ids()) == 1
 
 
+def test_long_lived_registry_sees_disk_inscribe(tmp_path):
+    """Serve keeps one ModelRegistry; web POST /agents writes via a fresh instance."""
+    models_file = tmp_path / "models.json"
+    long_lived = ModelRegistry(models_file)
+    long_lived.inscribe("composer-2.5", "Composer 2.5")
+    assert long_lived.resolve("composer-2.5") == "composer-2.5"
+
+    ModelRegistry(models_file).inscribe("grok-4.5-high", "Grok 4.5 High")
+    assert long_lived.resolve("grok-4.5-high") == "grok-4.5-high"
+    assert "grok-4.5-high" in long_lived.list_ids()
+
+
 def test_resolve_alias():
     registry = ModelRegistry()
     assert registry.resolve("Composer 2.5") == "composer-2.5"

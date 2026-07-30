@@ -145,7 +145,9 @@
     if (value == null || value === "") return "—";
     var n = Number(value);
     if (isNaN(n)) return "—";
-    return suffix ? String(n) + suffix : String(n);
+    if (suffix) return String(n) + suffix;
+    // Estimated Elo (and other bare ratings): whole numbers only.
+    return String(Math.round(n));
   }
 
   function renderLeaderboardRows(agents, limit, fullColumns) {

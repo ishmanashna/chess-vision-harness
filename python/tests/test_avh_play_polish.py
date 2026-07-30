@@ -68,7 +68,11 @@ def test_create_brief_collapsible_in_js():
     js = _read_public("js/create-result.js")
     assert "brief-collapsible" in js
     assert "<details" in js
-    assert "Agent prompt (copy this)" in js
+    assert "Show agent prompt" in js
+    assert "brief-toolbar" in js
+    assert "data-copy-brief" in js
+    # Copy toolbar must sit outside <details> so it works while collapsed.
+    assert js.index("brief-toolbar") < js.index('<details class="brief-collapsible">')
 
 
 def test_play_chat_enter_sends_without_shift():
@@ -94,6 +98,8 @@ def test_play_page_single_header_chat_markup(human_client, monkeypatch):
     assert 'spellcheck="false"' in html
     assert "data-chat-log" in html
     assert 'class="play-chat-log"' in html
+    assert "data-clear-premove" in html
+    assert "data-download-slot" in html
 
 
 def test_spectator_game_page_compact_export_links():
@@ -130,6 +136,20 @@ def test_spectator_game_page_quality_metrics():
     assert "let wAcc=" in html
     # Duplicate const/let wAcc in one function breaks the entire /g/ poll loop.
     assert "const wAcc=" not in html
+    # Per-player grouping: white accuracy+elo, then black accuracy+elo.
+    assert html.index("state-acc-white-label") < html.index("state-pr-white-label")
+    assert html.index("state-pr-white-label") < html.index("state-acc-black-label")
+    assert html.index("state-acc-black-label") < html.index("state-pr-black-label")
+
+
+def test_spectator_game_page_avh_chat_toggle():
+    html = render_game_view_page("game-chat-toggle")
+    assert 'id="info-panel-toggle"' in html
+    assert 'id="spec-chat-panel"' in html
+    assert 'id="spec-chat-log"' in html
+    assert "/chat?since=" in html
+    assert "Show chat" in html
+    assert "setInfoPanelMode" in html
 
 
 def test_spectator_inline_script_parses():
