@@ -249,6 +249,7 @@ def test_get_calibration_status_accuracy_elo_map_warm(cal_results):
     row = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise10")
     assert row["mean_accuracy"] is not None
     assert row["quality_samples"] == 30
+    assert row["est_elo_play"] is not None
     assert status["accuracy_elo_map"]["warm"] is True
     assert status["accuracy_elo_map"]["engine_count"] >= MIN_ENGINE_PAIRS
     assert "elo_estimations" not in row

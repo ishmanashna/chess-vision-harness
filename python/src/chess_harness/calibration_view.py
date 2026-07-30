@@ -257,6 +257,8 @@ def get_calibration_status() -> Dict[str, Any]:
             "fitted_at": None,
             "warm": False,
         }
+    from .accuracy_elo_map import est_elo_from_accuracy
+
     by_engine = {row["engine_id"]: row for row in play_rating.get("engines", [])}
     for row in rating_table:
         info = by_engine.get(row["id"])
@@ -264,10 +266,15 @@ def get_calibration_status() -> Dict[str, Any]:
             row["mean_accuracy"] = None
             row["accuracy_std"] = None
             row["quality_samples"] = 0
+            row["est_elo_play"] = None
             continue
         row["mean_accuracy"] = info.get("mean_accuracy")
         row["accuracy_std"] = info.get("accuracy_std")
         row["quality_samples"] = int(info.get("sample_count") or 0)
+        acc = info.get("mean_accuracy")
+        row["est_elo_play"] = (
+            est_elo_from_accuracy(float(acc), root=cal_root) if acc is not None else None
+        )
 
     payload = {
         "mode": "continuous" if running else "idle",

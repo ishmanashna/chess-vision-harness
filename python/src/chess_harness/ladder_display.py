@@ -289,10 +289,10 @@ def render_calibration_html() -> str:
       <p id="play-rating-summary">Loading…</p>
     </div>
     <h2>Calibrated ratings</h2>
-    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy from quality samples (eligible floaters, 101+ Elo games).</p>
+    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Est. Elo (play) = lookup from the accuracy→Elo table (not ladder Elo).</p>
     <div class="cal-table-wrap">
-    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th>Activity</th><th></th></tr>
-    <tr><td colspan="6" class="empty">No calibration data yet.</td></tr></table>
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="From mean accuracy via accuracy→Elo table">Est. Elo (play)</th><th>Activity</th><th></th></tr>
+    <tr><td colspan="7" class="empty">No calibration data yet.</td></tr></table>
     </div>
     <h2>Recent games</h2>
     <p class="cal-legend">Green = Elo gain · Orange = Elo loss (per engine updated after that game)</p>
@@ -307,6 +307,10 @@ def render_calibration_html() -> str:
       const base=Number(v).toFixed(1)+'%';
       if(std==null||std==='')return base;
       return base+' ± '+Number(std).toFixed(1);
+    }}
+    function fmtEstElo(v){{
+      if(v==null||v==='')return '—';
+      return String(Math.round(Number(v)));
     }}
     function calHeaders(){{
       const meta=document.querySelector('meta[name="calibration-secret"]');
@@ -434,6 +438,7 @@ def render_calibration_html() -> str:
         const rows=(d.rating_table||[]).map(row=>{{
           const elo=row.uncalibrated?`<span class="catalog">${{row.elo}}*</span>`:`<strong>${{row.elo}}</strong>`;
           const acc=fmtAcc(row.mean_accuracy,row.accuracy_std);
+          const est=fmtEstElo(row.est_elo_play);
           let activity='<span class="idle-badge">—</span>';
           if(row.continuous){{
             const live=row.playing||0;
@@ -457,10 +462,10 @@ def render_calibration_html() -> str:
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Est. Elo (play) from accuracy→Elo table">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th>Activity</th><th></th></tr>'
-          +(rows||'<tr><td colspan="6" class="empty">No ratings yet.</td></tr>');
+        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="From mean accuracy via accuracy→Elo table">Est. Elo (play)</th><th>Activity</th><th></th></tr>'
+          +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
         const feed=document.getElementById('game-feed');
         const games=(d.recent_games||[]).slice().reverse();
         feed.innerHTML=games.length?games.map(g=>{{
