@@ -74,16 +74,26 @@ def test_rebuild_and_lookup(tmp_path: Path):
             },
             root=root,
         )
+        append_play_rating_sample(
+            {
+                "engine_id": "stockfish:0",
+                "accuracy": 95.0 + i * 0.2,
+                "calibration_elo_before": 1350.0,
+                "q": 90.0,
+            },
+            root=root,
+        )
 
     with patch(
         "chess_harness.accuracy_elo_map._calibration_ratings",
         return_value=calibration,
     ):
         pairs = collect_engine_pairs(root=root)
-        assert len(pairs) == 2
+        assert len(pairs) == 3
+        assert any(p["engine_id"] == "stockfish:0" and p["elo"] == 1350 for p in pairs)
         payload = rebuild_accuracy_elo_map(root=root)
 
-    assert payload["engine_count"] == 2
+    assert payload["engine_count"] == 3
     assert map_path(root).exists()
     saved = json.loads(map_path(root).read_text())
     assert saved["knots"]
@@ -92,6 +102,9 @@ def test_rebuild_and_lookup(tmp_path: Path):
     est = est_elo_from_accuracy(72.0, root=root)
     assert est is not None
     assert 850 <= est <= 1150
+    high = est_elo_from_accuracy(96.0, root=root)
+    assert high is not None
+    assert high > 1100
 
 
 def test_lookup_cold_when_few_engines(tmp_path: Path):

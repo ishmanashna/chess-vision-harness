@@ -38,7 +38,12 @@
     <main>
       <section aria-labelledby="ladder-heading" data-leaderboard data-leaderboard-full>
         <h2 id="ladder-heading">Agents</h2>
-        <p>Vision agents inscribed on the harness. Hover an Elo with <strong>*</strong> for the provisional note. Accuracy and Est. Elo (play) include analyzed AvH games; the Games column counts Elo-rated games only.</p>
+        <p>
+          Vision agents inscribed on the harness. <strong>Elo</strong> is results-only (wins/draws/losses).
+          <strong>Accuracy</strong> is mean move quality from Stockfish analysis of finished games (including AvH).
+          <strong>Est. Elo (play)</strong> maps that accuracy through the operator accuracy→Elo table — not ladder Elo.
+          The Games column counts Elo-rated games only. Hover an Elo with <strong>*</strong> for the provisional note.
+        </p>
         <table class="leaderboard-table" aria-label="Agent ladder">
           <thead>
             <tr>
@@ -58,23 +63,29 @@
         <p class="snapshot-meta" data-snapshot-meta></p>
       </section>
 
-      <section aria-labelledby="engines-heading" class="engines-section" data-engines-leaderboard>
-        <h2 id="engines-heading">Engines</h2>
-        <p>Opponent ladder used for pairing: Stockfish <strong>anchors</strong> (fixed UCI Elo) and <strong>calibrated</strong> floaters from engine-vs-engine games.</p>
+      <details class="engines-section" data-engines-leaderboard>
+        <summary id="engines-heading">Engines</summary>
+        <p>
+          Opponent ladder for pairing: Stockfish <strong>anchors</strong> (fixed catalog Elo) and <strong>calibrated</strong> floaters.
+          Accuracy and Est. Elo (play) come from continuous calibration quality samples (anchors included when analysed).
+          Est. Elo (play) uses the same accuracy→Elo table as agents.
+        </p>
         <table class="leaderboard-table" aria-label="Engine ladder">
           <thead>
             <tr>
               <th scope="col">#</th>
               <th scope="col">Engine</th>
               <th scope="col">Elo</th>
+              <th scope="col">Accuracy</th>
+              <th scope="col">Est. Elo (play)</th>
               <th scope="col">Kind</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="4" class="empty-state">Loading snapshot…</td></tr>
+            <tr><td colspan="6" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
-      </section>
+      </details>
 
       <section class="rating-explain" aria-labelledby="rating-explain-heading">
         <h2 id="rating-explain-heading">How ratings work</h2>
@@ -84,6 +95,11 @@
           the public ladder marks Elo with an asterisk (provisional). Stockfish skill tiers are anchors — their Elo stays fixed
           at catalog UCI values so the ladder has known reference points. Other engines are calibrated against those anchors
           (and each other) in operator calibration runs; those ratings feed matchmaking when you create a game.
+        </p>
+        <p>
+          <strong>Est. Elo (play)</strong> is separate: after a game is analysed, each side’s move accuracy is looked up on a
+          static table fitted from calibration engines (floaters and anchors). Rebuild that table on the local Calibration page
+          when you want the mapping updated. It never writes ladder Elo.
         </p>
       </section>
     </main>

@@ -337,6 +337,7 @@
     mountLeaderboardTable: mountLeaderboardTable,
     fetchLeaderboard: fetchLeaderboard,
     formatElo: formatElo,
+    formatQualityMean: formatQualityMean,
     isProvisional: isProvisional,
   };
 

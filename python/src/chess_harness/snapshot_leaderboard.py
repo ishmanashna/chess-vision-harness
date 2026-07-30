@@ -31,10 +31,20 @@ def is_provisional(games: int) -> bool:
 
 def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
     """Anchors + calibrated floaters for the public ladder snapshot."""
+    from .accuracy_elo_map import est_elo_from_accuracy
     from .calibration_view import build_ladder_rating_table
     from .opponents import OpponentCatalog
+    from .play_rating import play_rating_status_summary
+    from .paths import project_root
 
     catalog = OpponentCatalog()
+    cal_root = project_root() / "elo_calibration" / "results"
+    try:
+        quality = play_rating_status_summary(root=cal_root)
+    except Exception:
+        quality = {"engines": []}
+    by_engine = {e["engine_id"]: e for e in quality.get("engines", [])}
+
     rows: List[Dict[str, Any]] = []
     for row in build_ladder_rating_table(catalog):
         oid = str(row.get("id") or "")
@@ -45,6 +55,11 @@ def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
             name = opp.display_name
         else:
             name = oid
+        info = by_engine.get(oid) or {}
+        mean_accuracy = info.get("mean_accuracy")
+        mean_play_rating = None
+        if mean_accuracy is not None:
+            mean_play_rating = est_elo_from_accuracy(float(mean_accuracy), root=cal_root)
         rows.append(
             {
                 "id": oid,
@@ -53,6 +68,9 @@ def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
                 "games": int(row.get("games") or 0),
                 "anchor": bool(row.get("anchor")),
                 "uncalibrated": bool(row.get("uncalibrated")),
+                "mean_accuracy": mean_accuracy,
+                "mean_play_rating": mean_play_rating,
+                "quality_games": int(info.get("sample_count") or 0),
             }
         )
     rows.sort(key=lambda r: (-r["elo"], str(r["name"]).lower()))

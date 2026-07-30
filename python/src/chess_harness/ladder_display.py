@@ -268,7 +268,7 @@ def render_calibration_html() -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <h2>Engine calibration</h2>
-    <p class="cal-lead">Results-only Elo for the ladder. Accuracy comes from move quality on continuous games — it is not ladder Elo.</p>
+    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Est. Elo (play) looks that accuracy up on the accuracy→Elo table (floaters + anchors) — it is not ladder Elo. Rebuild the table after you have enough samples.</p>
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
       <select id="pairing-mode" onchange="onPairingModeChange(this.value)">

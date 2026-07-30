@@ -1,8 +1,9 @@
 """
-Static accuracy→Elo map from calibrated floater engines.
+Static accuracy→Elo map from calibrated engines (floaters + Stockfish anchors).
 
-Each eligible floater contributes one (mean_accuracy, calibrated_elo) pair from
-quality samples. Monotone piecewise-linear knots are fitted for lookup at game finish.
+Each eligible engine contributes one (mean_accuracy, Elo) pair from quality
+samples. Floaters use calibrated ladder Elo; anchors use fixed catalog Elo.
+Monotone piecewise-linear knots are fitted for lookup at game finish.
 
 Never writes ladder Elo / ratings.json. The map changes only via rebuild_accuracy_elo_map.
 """
@@ -47,15 +48,26 @@ def _calibration_ratings() -> Dict[str, Dict[str, Any]]:
     return merge_calibration_ratings(max_age_sec=None)
 
 
-def _is_eligible_floater(engine_id: str, calibration: Dict[str, Dict[str, Any]]) -> bool:
+def _pair_elo(
+    engine_id: str, calibration: Dict[str, Dict[str, Any]]
+) -> Optional[int]:
+    """Elo Y for the map: calibrated floater Elo, or fixed catalog Elo for anchors."""
     row = calibration.get(engine_id)
-    if not row or int(row.get("games", 0)) <= 0:
-        return False
-    return not bool(row.get("anchor"))
+    if row and bool(row.get("anchor")):
+        return int(row["elo"])
+    if row and int(row.get("games", 0)) > 0 and not bool(row.get("anchor")):
+        return int(row["elo"])
+
+    from .opponents import get_catalog
+
+    opp = get_catalog().get(engine_id)
+    if opp is not None and opp.type == "stockfish":
+        return int(opp.elo)
+    return None
 
 
 def collect_engine_pairs(*, root: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Mean move accuracy per eligible floater paired with calibrated ladder Elo."""
+    """Mean move accuracy per eligible engine paired with reference Elo."""
     samples = load_samples(results_root(root))
     calibration = _calibration_ratings()
 
@@ -69,14 +81,15 @@ def collect_engine_pairs(*, root: Optional[Path] = None) -> List[Dict[str, Any]]
 
     pairs: List[Dict[str, Any]] = []
     for eid, accs in sorted(buckets.items()):
-        if not _is_eligible_floater(eid, calibration):
+        elo = _pair_elo(eid, calibration)
+        if elo is None:
             continue
         mean_accuracy = sum(accs) / len(accs)
         pairs.append(
             {
                 "engine_id": eid,
                 "accuracy": round(mean_accuracy, 2),
-                "elo": int(calibration[eid]["elo"]),
+                "elo": elo,
                 "sample_count": len(accs),
             }
         )

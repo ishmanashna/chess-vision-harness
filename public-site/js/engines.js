@@ -9,6 +9,16 @@
       .replace(/"/g, "&quot;");
   }
 
+  function formatQualityMean(value, suffix) {
+    if (window.CVH && typeof window.CVH.formatQualityMean === "function") {
+      return window.CVH.formatQualityMean(value, suffix);
+    }
+    if (value == null || value === "") return "—";
+    var n = Number(value);
+    if (isNaN(n)) return "—";
+    return suffix ? String(n) + suffix : String(n);
+  }
+
   function renderEngineRows(opponents) {
     var list = Array.isArray(opponents) ? opponents.slice() : [];
     list.sort(function (a, b) {
@@ -16,7 +26,7 @@
     });
     if (!list.length) {
       return (
-        '<tr><td colspan="4" class="empty-state">No engine ratings on the ladder yet.</td></tr>'
+        '<tr><td colspan="6" class="empty-state">No engine ratings on the ladder yet.</td></tr>'
       );
     }
     return list
@@ -36,6 +46,12 @@
           "</td>" +
           '<td class="elo">' +
           escapeHtml(row.elo != null ? String(row.elo) : "—") +
+          "</td>" +
+          "<td>" +
+          escapeHtml(formatQualityMean(row.mean_accuracy, "%")) +
+          "</td>" +
+          "<td>" +
+          escapeHtml(formatQualityMean(row.mean_play_rating)) +
           "</td>" +
           "<td>" +
           escapeHtml(kind) +
@@ -68,7 +84,7 @@
         var tbody = container.querySelector("tbody");
         if (tbody) {
           tbody.innerHTML =
-            '<tr><td colspan="4" class="empty-state">Could not load engine snapshot.</td></tr>';
+            '<tr><td colspan="6" class="empty-state">Could not load engine ladder.</td></tr>';
         }
       });
   }

@@ -116,14 +116,14 @@ def composite_q(side: SideQuality) -> Optional[float]:
 
 
 def is_sample_eligible(*, games_played: int, anchor: bool) -> bool:
-    """Floaters with cumulative games_played >= 101 from the game record updates.
+    """Whether a side may contribute a quality sample for the accuracy→Elo map.
 
-    Eligibility uses the ladder total at game time (after record_game), not a
-    post-feature counter — engines already past 101 Elo games qualify as soon as
-    moves are stored. Anchors never contribute samples.
+    Floaters need cumulative games_played >= 101 (ladder total after record_game).
+    Anchors are eligible from the first scored calibration game — their Elo is the
+    fixed catalog reference and should stretch the accuracy→Elo table at the top.
     """
     if anchor:
-        return False
+        return games_played >= 1
     return games_played >= MIN_GAMES_FOR_SAMPLE
 
 
@@ -344,7 +344,7 @@ def build_samples_for_calibration_game(
     eval_fn: Any = None,
     ts: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Build play-rating sample dicts for eligible floaters; does not write files."""
+    """Build play-rating sample dicts for eligible floaters and anchors; does not write files."""
     if not uci_moves:
         return []
 
@@ -361,28 +361,68 @@ def build_samples_for_calibration_game(
     cat = get_catalog()
     sample_ts = ts or datetime.now(timezone.utc).isoformat()
     samples: List[Dict[str, Any]] = []
+    sampled_ids: set[str] = set()
+
+    def _append_sample(
+        engine_id: str,
+        side: Any,
+        *,
+        elo_before: float,
+        games_played: int,
+        anchor: bool,
+    ) -> None:
+        if engine_id in sampled_ids:
+            return
+        if not is_sample_eligible(games_played=games_played, anchor=anchor):
+            return
+        q = composite_q(side)
+        if q is None:
+            return
+        samples.append(
+            {
+                "engine_id": engine_id,
+                "game_index": record.game_index,
+                "q": round(q, 4),
+                "q_midgame": round(side.q_midgame, 4) if side.q_midgame is not None else None,
+                "q_trimmed": round(side.q_trimmed, 4) if side.q_trimmed is not None else None,
+                "calibration_elo_before": round(float(elo_before), 2),
+                "accuracy": round(side.accuracy, 2) if side.accuracy is not None else None,
+                "acpl": round(side.acpl, 2) if side.acpl is not None else None,
+                "blunder_rate": round(side.blunder_rate, 4)
+                if side.blunder_rate is not None
+                else None,
+                "ts": sample_ts,
+            }
+        )
+        sampled_ids.add(engine_id)
 
     for update in record.updates:
         opp = cat.get(update.opponent_id)
-        if not is_sample_eligible(games_played=update.games_played, anchor=is_anchor(opp)):
-            continue
         side = quality.white if update.opponent_id == white_id else quality.black
-        q = composite_q(side)
-        if q is None:
+        _append_sample(
+            update.opponent_id,
+            side,
+            elo_before=update.elo_before,
+            games_played=update.games_played,
+            anchor=is_anchor(opp) if opp else False,
+        )
+
+    # Anchors never appear in rating updates — still sample them from game sides.
+    for engine_id, side, elo_before in (
+        (white_id, quality.white, record.white_elo_before),
+        (black_id, quality.black, record.black_elo_before),
+    ):
+        opp = cat.get(engine_id)
+        if not opp or not is_anchor(opp):
             continue
-        sample: Dict[str, Any] = {
-            "engine_id": update.opponent_id,
-            "game_index": record.game_index,
-            "q": round(q, 4),
-            "q_midgame": round(side.q_midgame, 4) if side.q_midgame is not None else None,
-            "q_trimmed": round(side.q_trimmed, 4) if side.q_trimmed is not None else None,
-            "calibration_elo_before": round(update.elo_before, 2),
-            "accuracy": round(side.accuracy, 2) if side.accuracy is not None else None,
-            "acpl": round(side.acpl, 2) if side.acpl is not None else None,
-            "blunder_rate": round(side.blunder_rate, 4) if side.blunder_rate is not None else None,
-            "ts": sample_ts,
-        }
-        samples.append(sample)
+        _append_sample(
+            engine_id,
+            side,
+            elo_before=elo_before,
+            games_played=1,
+            anchor=True,
+        )
+
     return samples
 
 

@@ -495,6 +495,34 @@ p {
   margin-top: 40px;
 }
 
+.engines-section > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.engines-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.engines-section > summary::before {
+  content: "▸ ";
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.engines-section[open] > summary::before {
+  content: "▾ ";
+}
+
+.engines-section > p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  max-width: 52rem;
+}
+
 .section-actions {
   margin-top: 12px;
 }

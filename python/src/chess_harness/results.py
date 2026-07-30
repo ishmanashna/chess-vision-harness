@@ -66,12 +66,22 @@ class ResultsManager:
         except (OSError, filelock.Timeout):
             return False
 
-    def get_result_for_game(self, game_id: str) -> Optional[Dict[str, Any]]:
-        """Return the results.jsonl entry for a game, if recorded."""
-        for result in reversed(self.load_results()):
-            if result.get("game_id") == game_id:
-                return result
-        return None
+    def remove_game_results(self, game_id: str) -> int:
+        """Delete all results.jsonl rows for a game_id. Returns number removed."""
+        try:
+            with self._results_lock():
+                results = self.load_results()
+                kept = [row for row in results if row.get("game_id") != game_id]
+                removed = len(results) - len(kept)
+                if removed == 0:
+                    return 0
+                self.base_dir.mkdir(parents=True, exist_ok=True)
+                with open(self.results_file, "w", encoding="utf-8") as f:
+                    for row in kept:
+                        f.write(json.dumps(row) + "\n")
+                return removed
+        except (OSError, filelock.Timeout):
+            return 0
 
     def load_results(self) -> List[Dict[str, Any]]:
         results = []

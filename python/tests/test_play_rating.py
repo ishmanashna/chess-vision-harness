@@ -71,7 +71,9 @@ def test_composite_q_missing_metrics():
 def test_is_sample_eligibility():
     assert not is_sample_eligible(games_played=100, anchor=False)
     assert is_sample_eligible(games_played=101, anchor=False)
-    assert not is_sample_eligible(games_played=500, anchor=True)
+    assert not is_sample_eligible(games_played=0, anchor=True)
+    assert is_sample_eligible(games_played=1, anchor=True)
+    assert is_sample_eligible(games_played=500, anchor=True)
 
 
 def test_fit_map_knots_monotone():
@@ -236,7 +238,7 @@ def test_process_calibration_skips_ineligible(tmp_path: Path, monkeypatch):
     assert "q" in row
 
 
-def test_process_calibration_skips_anchors(tmp_path: Path):
+def test_process_calibration_includes_anchors(tmp_path: Path):
     root = tmp_path / "results"
     moves = ["e2e4", "e7e5"]
     record = GameRecord(
@@ -258,11 +260,18 @@ def test_process_calibration_skips_anchors(tmp_path: Path):
         eval_fn=ScriptedEval({}),
         root=root,
     )
-    assert n == 1
-    row = json.loads(
-        (root / "continuous" / "play_rating_samples.jsonl").read_text().strip()
-    )
-    assert row["engine_id"] == MID_OPPONENT
+    assert n == 2
+    rows = [
+        json.loads(line)
+        for line in (root / "continuous" / "play_rating_samples.jsonl")
+        .read_text()
+        .strip()
+        .splitlines()
+    ]
+    ids = {row["engine_id"] for row in rows}
+    assert ids == {MID_OPPONENT, "stockfish:0"}
+    anchor_row = next(r for r in rows if r["engine_id"] == "stockfish:0")
+    assert anchor_row["calibration_elo_before"] == 1320.0
 
 
 def test_quality_path_does_not_mutate_ratings_json(tmp_path: Path):
