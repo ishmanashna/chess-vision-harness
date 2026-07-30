@@ -75,12 +75,12 @@ def render_play_page(game_id: str) -> str:
           <div class="play-board-wrap" data-board-wrap>
             <div id="play-board" class="play-board"></div>
           </div>
+          <button type="button" class="btn btn-secondary play-clear-premove" data-clear-premove hidden>Cancel premoves</button>
           <div class="play-actions">
             <button type="button" class="btn btn-secondary" data-resign>Resign</button>
             <button type="button" class="btn btn-secondary" data-draw-offer>Offer draw</button>
             <button type="button" class="btn btn-secondary" data-draw-accept hidden>Accept draw</button>
             <button type="button" class="btn btn-secondary" data-draw-decline hidden>Decline draw</button>
-            <button type="button" class="btn btn-secondary" data-clear-premove hidden>Cancel premoves</button>
           </div>
         </div>
         <aside class="play-moves-col" aria-label="Move list">

@@ -7,7 +7,7 @@ import secrets
 
 from fastapi import HTTPException, Request
 
-__all__ = ["require_calibration_auth"]
+__all__ = ["host_is_loopback", "require_calibration_auth"]
 
 
 def _allow_remote_calibration() -> bool:
@@ -32,7 +32,7 @@ def _provided_secret(request: Request) -> str | None:
     return None
 
 
-def _host_is_loopback(request: Request) -> bool:
+def host_is_loopback(request: Request) -> bool:
     """True for direct localhost serve. Not client IP (unreliable behind Tunnel)."""
     host = (request.headers.get("host") or "").strip().lower()
     if not host:
@@ -53,7 +53,7 @@ def require_calibration_auth(request: Request) -> None:
     - CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1, or
     - request carries a matching CHESS_HARNESS_CALIBRATION_SECRET.
     """
-    if _host_is_loopback(request):
+    if host_is_loopback(request):
         return
     if _allow_remote_calibration():
         return

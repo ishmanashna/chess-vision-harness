@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief_avaa
-from .api_limits import ApiLimitEnforcer, AuthContext, client_ip
+from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, key_fingerprint
 from .avaa import participant_color
 from .game_ids import new_game_id
 from .game_service import GameService
@@ -30,7 +30,8 @@ def avaa_brief(
     svc: GameService, game_id: str, raw_key: str, model_id: str
 ) -> Optional[str]:
     state = svc.game_manager.load_state(game_id) or {}
-    caller_color = participant_color(state, model_id)
+    fp = key_fingerprint(raw_key) if raw_key else None
+    caller_color = participant_color(state, model_id, fp)
     if not caller_color or not raw_key:
         return None
     opponent = (
@@ -51,7 +52,8 @@ def match_payload(
     svc: GameService, game_id: str, model_id: str, raw_key: str
 ) -> Dict[str, Any]:
     state = svc.game_manager.load_state(game_id) or {}
-    caller_color = participant_color(state, model_id)
+    fp = key_fingerprint(raw_key) if raw_key else None
+    caller_color = participant_color(state, model_id, fp)
     payload: Dict[str, Any] = {
         "ok": True,
         "status": "matched",

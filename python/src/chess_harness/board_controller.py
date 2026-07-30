@@ -65,10 +65,19 @@ class BoardController:
         black_model_id: str,
         *,
         force: bool = False,
+        white_key_fp: Optional[str] = None,
+        black_key_fp: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self.game_manager.validate_game_id(game_id):
             return {"ok": False, "error": f"Invalid game_id: {game_id}"}
-        return self.avaa.new_game(game_id, white_model_id, black_model_id, force=force)
+        return self.avaa.new_game(
+            game_id,
+            white_model_id,
+            black_model_id,
+            force=force,
+            white_key_fp=white_key_fp,
+            black_key_fp=black_key_fp,
+        )
 
     def new_human_vs_agent_game(
         self,
@@ -535,16 +544,30 @@ class BoardController:
         self, game_id: str, move_str: str, *, caller_color: Optional[str] = None
     ) -> Dict[str, Any]:
         state = self.game_manager.load_state(game_id)
+        if state is None or (
+            state
+            and not is_avaa_state(state)
+            and not is_human_vs_agent_state(state)
+            and "agent_color" not in state
+        ):
+            # Retry once — concurrent save can make a read fail briefly on Windows.
+            state = self.game_manager.load_state(game_id)
         if state and is_avaa_state(state):
             if not caller_color:
                 return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
             return self.avaa.make_move(game_id, move_str, caller_color)
         if state and is_human_vs_agent_state(state):
             return self.human_play.make_move(game_id, move_str)
+        # Do not fall through to the engine path for missing/partial/AvA state
+        # (AvA has no agent_color and would KeyError).
+        if not state or "agent_color" not in state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
                 if not state:
+                    return {"ok": False, "error": f"Game {game_id} not found"}
+                if is_avaa_state(state) or "agent_color" not in state:
                     return {"ok": False, "error": f"Game {game_id} not found"}
                 if state["status"] != "in_progress":
                     return self._error(game_id, f"Game is already over: {state['result']}")
@@ -913,7 +936,6 @@ class BoardController:
                 self._try_snapshot_eval(state, board)
 
                 self._auto_save_pgn(game_id, state)
-                self._schedule_quality_if_scored(game_id, state)
                 opp_elo = state.get("opponent_elo")
                 if opp_elo is None:
                     opp_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
@@ -944,6 +966,8 @@ class BoardController:
 
                 if not self.game_manager.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}
+                # Quality reads state from disk — must save finished status first.
+                self._schedule_quality_if_scored(game_id, state)
 
                 return {
                     "ok": True,

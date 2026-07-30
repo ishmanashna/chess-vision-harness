@@ -153,8 +153,33 @@ def test_games_list_js_modern_columns():
     assert "blackElo" in js
     assert "qualityPair" in js
     assert "nameWithoutElo" in js
+    assert "abbreviateListName" in js
+    assert "hasQualityValue" in js
+    assert "SHORT_MONTHS" in js
     assert "colspan=\"10\"" in js
     assert "agent_name" not in js
+    assert "isListTimeout" in js
+    assert '"Timeout"' in js
+    assert "dateStyle" not in js
+    assert 'formatter(white) + " / " + formatter(black)' in js
+    assert "if (hasWhite) return formatter(white);" in js
+    assert "if (hasBlack) return formatter(black);" in js
+
+
+def test_games_list_mode_badge_colors():
+    css = (PUBLIC_SITE / "css" / "site.css").read_text(encoding="utf-8")
+    for token in (
+        "--tag-ave-bg",
+        "--tag-ave-fg",
+        "--tag-avaa-bg",
+        "--tag-avaa-fg",
+        "--tag-avh-bg",
+        "--tag-avh-fg",
+        "var(--tag-ave-bg)",
+        "var(--tag-avaa-bg)",
+        "var(--tag-avh-bg)",
+    ):
+        assert token in css
 
 
 def test_spectator_list_ave_finished_agent_elo(list_client):

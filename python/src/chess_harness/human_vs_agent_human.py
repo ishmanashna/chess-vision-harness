@@ -179,10 +179,10 @@ def human_resign(play: HumanVsAgentPlay, game_id: str, reason: str = "resignatio
             board = chess.Board(state["board_fen"])
             finish_human_vs_agent_game(play.ctrl, play.gm, game_id, state, board, result, reason)
             play.ctrl._auto_save_pgn(game_id, state)
-            play.ctrl._schedule_quality_if_scored(game_id, state)
-
             if not play.gm.save_state(game_id, state):
                 return {"ok": False, "error": "Failed to save game state"}
+            # Quality reads state from disk — must save finished status first.
+            play.ctrl._schedule_quality_if_scored(game_id, state)
 
             return {
                 "ok": True,

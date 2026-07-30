@@ -26,6 +26,12 @@
   --form-ok-bg: #edf7f0;
   --form-ok-border: #b8dfc4;
   --shadow: rgba(0, 0, 0, 0.06);
+  --tag-ave-bg: #d9e6f5;
+  --tag-ave-fg: #1a4a7a;
+  --tag-avaa-bg: #d4efe3;
+  --tag-avaa-fg: #14553a;
+  --tag-avh-bg: #f3e2c8;
+  --tag-avh-fg: #7a4510;
 }
 
 [data-theme="dark"] {
@@ -56,12 +62,23 @@
   --form-ok-bg: #1a2a20;
   --form-ok-border: #2e4a38;
   --shadow: rgba(0, 0, 0, 0.35);
+  --tag-ave-bg: #243548;
+  --tag-ave-fg: #9ec5f0;
+  --tag-avaa-bg: #1e3a30;
+  --tag-avaa-fg: #8fd9a8;
+  --tag-avh-bg: #3a2e1e;
+  --tag-avh-fg: #e0a46a;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Ensure HTML hidden beats display: utilities (e.g. .mode-tabs { display: inline-flex }). */
+[hidden] {
+  display: none !important;
 }
 
 html {
@@ -291,10 +308,6 @@ p {
   color: var(--text-secondary);
 }
 
-.about-copy .lead {
-  color: var(--text);
-}
-
 .about-copy p:last-child {
   margin-bottom: 0;
 }
@@ -503,15 +516,16 @@ p {
 }
 
 .engines-section {
-  margin-top: 40px;
+  margin-top: 28px;
 }
 
 .engines-section > summary {
   cursor: pointer;
   list-style: none;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  margin: 0 0 12px;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
 }
 
 .engines-section > summary::-webkit-details-marker {
@@ -551,6 +565,64 @@ p {
   font-weight: 600;
 }
 
+.contact-form {
+  max-width: 40rem;
+  margin: 16px 0 8px;
+}
+
+.contact-inbox {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+  max-width: 40rem;
+}
+
+.inbox-item {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.inbox-item.is-unread {
+  border-color: var(--border-strong);
+}
+
+.inbox-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.inbox-item-head time {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.inbox-item-body {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.inbox-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .offline-panel h2 {
   margin-top: 0;
 }
@@ -568,7 +640,8 @@ p {
 }
 
 .form-row select,
-.form-row input {
+.form-row input,
+.form-row textarea {
   width: 100%;
   max-width: 420px;
   font-size: 0.9rem;
@@ -579,6 +652,12 @@ p {
   color: var(--text);
   font-family: inherit;
   color-scheme: light;
+}
+
+.form-row textarea {
+  max-width: 40rem;
+  min-height: 8rem;
+  resize: vertical;
 }
 
 .form-row select {
@@ -598,20 +677,23 @@ p {
 }
 
 .form-row select:disabled,
-.form-row input:disabled {
+.form-row input:disabled,
+.form-row textarea:disabled {
   opacity: 0.72;
   color: var(--muted);
   cursor: not-allowed;
 }
 
 .form-row select:focus,
-.form-row input:focus {
+.form-row input:focus,
+.form-row textarea:focus {
   outline: 2px solid var(--link);
   outline-offset: 1px;
 }
 
 [data-theme="dark"] .form-row select,
-[data-theme="dark"] .form-row input {
+[data-theme="dark"] .form-row input,
+[data-theme="dark"] .form-row textarea {
   color-scheme: dark;
   background-color: var(--surface-muted);
   border-color: var(--border-strong);
@@ -788,27 +870,44 @@ p {
 }
 
 .tag.ave {
-  background: var(--row);
-  color: var(--text-secondary);
+  background: var(--tag-ave-bg);
+  color: var(--tag-ave-fg);
 }
 
 .tag.avaa {
-  background: var(--chip-sleep-bg);
-  color: var(--text-secondary);
+  background: var(--tag-avaa-bg);
+  color: var(--tag-avaa-fg);
 }
 
 .tag.avh {
-  background: var(--surface-muted);
-  color: var(--muted);
+  background: var(--tag-avh-bg);
+  color: var(--tag-avh-fg);
+}
+
+.leaderboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+  gap: 28px 40px;
+  align-items: start;
+}
+
+.leaderboard-copy h2:first-of-type {
+  margin-top: 0;
 }
 
 .rating-explain {
-  margin-top: 36px;
-  max-width: 48rem;
+  margin-top: 28px;
+  max-width: none;
 }
 
 .rating-explain p {
   max-width: none;
+}
+
+@media (max-width: 860px) {
+  .leaderboard-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .create-form .btn {

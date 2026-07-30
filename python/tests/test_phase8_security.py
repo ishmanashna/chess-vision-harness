@@ -50,9 +50,11 @@ def test_game_view_rejects_invalid_id(spectator_client):
 def test_game_view_escapes_game_id_in_html():
     game_id = "game-test-escape"
     body = render_game_view_page(game_id)
-    assert f"<code>{game_id}</code>" in body
+    assert f"<title>{game_id} · Chess Vision Harness</title>" in body
+    assert f'download="{game_id}-board.png"' in body
     assert f"const GAME_ID={json.dumps(game_id)};" in body
-    assert "Spectating" in body
+    assert "Spectating" not in body
+    assert 'id="info-panel-title"' not in body
 
 
 def test_game_view_invalid_id_not_rendered():

@@ -24,6 +24,13 @@ def test_leaderboard_estimated_elo_labels(create_client):
     assert "Rebuild that table on the local Calibration page" not in html
     assert 'script src="/js/engines.js"' not in html
     assert 'title="Estimated strength from move accuracy' in html
+    assert 'class="leaderboard-layout"' in html
+    assert 'class="leaderboard-copy"' in html
+    assert 'class="leaderboard-tables"' in html
+    # Copy (Agents intro + How ratings) precedes tables column.
+    assert html.index("leaderboard-copy") < html.index("leaderboard-tables")
+    assert html.index("How ratings work") < html.index("data-engines-leaderboard")
+    assert html.index('id="ladder-heading"') < html.index("leaderboard-tables")
 
 
 def test_home_mini_ladder_full_columns(create_client):

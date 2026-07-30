@@ -100,6 +100,10 @@ def test_play_page_single_header_chat_markup(human_client, monkeypatch):
     assert 'class="play-chat-log"' in html
     assert "data-clear-premove" in html
     assert "data-download-slot" in html
+    # Cancel premoves sits under the board, not in the resign/draw row.
+    actions_start = html.index('class="play-actions"')
+    assert "data-clear-premove" not in html[actions_start : actions_start + 600]
+    assert html.index("data-clear-premove") < actions_start
 
 
 def test_spectator_game_page_compact_export_links():
@@ -155,6 +159,13 @@ def test_spectator_game_page_quality_analysing_pending():
     assert "/chat?since=" in html
     assert "Show chat" in html
     assert "setInfoPanelMode" in html
+    assert "Spectating" not in html
+    assert 'id="info-panel-title"' not in html
+    assert "is-covered" in html
+    assert "info-panel-slot" in html
+    assert "<h2>Game info</h2>" in html
+    assert "<h2>Game state</h2>" in html
+    assert ">Game</h2>" not in html
 
 
 def test_spectator_inline_script_parses():

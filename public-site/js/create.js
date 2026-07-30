@@ -192,9 +192,7 @@
     if (!whiteId || !blackId) {
       return Promise.reject(new Error("Select both white and black models."));
     }
-    if (whiteId === blackId) {
-      return Promise.reject(new Error("White and black models must differ."));
-    }
+    // Same model twice is allowed (mirror match): mint two keys so each side binds.
     return Promise.all([registerAgent(whiteId), registerAgent(blackId)]).then(function (regs) {
       if (!regs[0].api_key || !regs[1].api_key) throw new Error("No API key returned.");
       return {

@@ -239,6 +239,17 @@
   font-weight: 700;
 }
 
+.play-clear-premove {
+  align-self: flex-start;
+  max-width: 520px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}
+
+.play-clear-premove[hidden] {
+  display: none !important;
+}
+
 .play-actions {
   display: flex;
   flex-wrap: wrap;

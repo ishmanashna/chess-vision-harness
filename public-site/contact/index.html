@@ -35,13 +35,46 @@
       </div>
     </header>
 
-    <main>
+    <main data-contact-page>
       <section aria-labelledby="contact-heading">
         <h2 id="contact-heading">Contact</h2>
-        <p class="lead">Questions, bug reports, and feedback go through GitHub.</p>
-        <div class="contact-actions">
-          <a class="btn btn-primary" href="https://github.com/ishmanashna/chess-vision-harness/issues">Open an issue</a>
-          <a class="btn btn-secondary" href="https://github.com/ishmanashna/chess-vision-harness">Repository</a>
+        <p class="lead">Send a message to the operator. GitHub Issues remain available as a backup.</p>
+
+        <div class="banner-offline" data-offline-only role="status">
+          <strong>Game server offline</strong>
+          <p>Contact form needs the game PC online. Use GitHub Issues until the status chip shows Online.</p>
+          <div class="contact-actions">
+            <a class="btn btn-primary" href="https://github.com/ishmanashna/chess-vision-harness/issues">Open an issue</a>
+            <a class="btn btn-secondary" href="https://github.com/ishmanashna/chess-vision-harness">Repository</a>
+          </div>
+        </div>
+
+        <div data-requires-origin hidden>
+          <p class="form-message" data-contact-message hidden></p>
+          <form class="contact-form" data-contact-form>
+            <div class="form-row">
+              <label for="contact-sender">Name or email</label>
+              <input type="text" id="contact-sender" name="sender" maxlength="200" autocomplete="email" required/>
+            </div>
+            <div class="form-row">
+              <label for="contact-message">Message</label>
+              <textarea id="contact-message" name="message" rows="6" maxlength="4000" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" data-contact-submit>Send message</button>
+          </form>
+          <p class="field-hint">Messages are stored on the game server inbox. No email delivery.</p>
+          <div class="contact-actions">
+            <a class="btn btn-secondary" href="https://github.com/ishmanashna/chess-vision-harness/issues">GitHub Issues</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-inbox" data-contact-inbox hidden aria-labelledby="inbox-heading">
+        <h2 id="inbox-heading">Inbox</h2>
+        <p class="lead">Localhost only — messages received on this machine.</p>
+        <p class="form-message" data-inbox-message hidden></p>
+        <div data-inbox-list class="inbox-list">
+          <p class="empty-state">Loading…</p>
         </div>
       </section>
     </main>
@@ -51,5 +84,6 @@
     </footer>
   </div>
   <script src="/js/common.js"></script>
+  <script src="/js/contact.js"></script>
 </body>
 </html>

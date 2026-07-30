@@ -11,14 +11,40 @@
       .replace(/"/g, "&quot;");
   }
 
+  function isListTimeout(game) {
+    if (game.end_reason === "inactivity") return true;
+    if (game.result === "*" || game.turn === "*") return true;
+    var label = String(game.end_reason_label || game.turn || "");
+    return /idle timeout/i.test(label);
+  }
+
   function outcomeLabel(game) {
+    if (isListTimeout(game)) return "Timeout";
     if (game.outcome_label) return String(game.outcome_label);
     var o = game.agent_outcome;
     if (o && typeof o === "object" && o.label) return String(o.label);
     if (typeof o === "string") return o;
-    if (game.result === "*") return String(game.end_reason_label || "No result");
     if (game.result) return String(game.result);
     return "";
+  }
+
+  var SHORT_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
   }
 
   function formatWhen(iso) {
@@ -26,7 +52,13 @@
     try {
       var d = new Date(iso);
       if (isNaN(d.getTime())) return "—";
-      return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      var day = d.getDate();
+      var mon = SHORT_MONTHS[d.getMonth()];
+      var time = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+      if (d.getFullYear() === new Date().getFullYear()) {
+        return day + " " + mon + " " + time;
+      }
+      return day + " " + mon + " " + d.getFullYear() + " " + time;
     } catch (_err) {
       return "—";
     }
@@ -43,8 +75,12 @@
   function normalizeGame(game) {
     var avaa = game.game_type === "agent_vs_agent";
     var human = game.game_type === "human_vs_agent";
-    var white = nameWithoutElo(game.white_display_name || game.model_name || game.model_id || "—");
-    var black = nameWithoutElo(game.black_display_name || game.opponent_label || game.opponent_id || "—");
+    var white = abbreviateListName(
+      game.white_display_name || game.model_name || game.model_id || "—"
+    );
+    var black = abbreviateListName(
+      game.black_display_name || game.opponent_label || game.opponent_id || "—"
+    );
     return {
       id: game.game_id || "",
       gameType: game.game_type || "",
@@ -68,6 +104,29 @@
     return String(value || "").replace(/\s*\(\d+\)\s*$/, "").trim();
   }
 
+  /** List-only: shorten Stockfish catalog labels; leave agent names alone. */
+  function shortenEngineTag(tag) {
+    var t = String(tag || "").trim();
+    var depthNoise = t.match(/^depth\s+(\d+)\s*\+\s*(\d+)%\s*noise$/i);
+    if (depthNoise) return "d" + depthNoise[1] + "+" + depthNoise[2] + "%";
+    var depthOnly = t.match(/^depth\s+(\d+)$/i);
+    if (depthOnly) return "d" + depthOnly[1];
+    var noiseOnly = t.match(/^(\d+)%\s*noise$/i);
+    if (noiseOnly) return noiseOnly[1] + "% noise";
+    var skill = t.match(/^Skill\s+(-?\d+)$/i);
+    if (skill) return "Skill " + skill[1];
+    return t;
+  }
+
+  function abbreviateListName(value) {
+    var s = nameWithoutElo(value);
+    var tagged = s.match(/^Stockfish\s+\d+(?:\.\d+)?\s*\((.+)\)$/i);
+    if (tagged) return shortenEngineTag(tagged[1]);
+    var bare = s.match(/^Stockfish\s+(\d+(?:\.\d+)?)$/i);
+    if (bare) return "SF " + bare[1];
+    return s;
+  }
+
   function formatAccuracy(value) {
     return value == null || value === "" ? "—" : String(value) + "%";
   }
@@ -76,20 +135,27 @@
     return value == null || value === "" ? "—" : String(Math.round(Number(value)));
   }
 
+  function hasQualityValue(value) {
+    return value != null && value !== "";
+  }
+
   function qualityPair(game, field) {
     var formatter = field === "accuracy" ? formatAccuracy : formatEstimatedElo;
     var white = game["white_" + field];
     var black = game["black_" + field];
-    if (white != null || black != null) {
+    var hasWhite = hasQualityValue(white);
+    var hasBlack = hasQualityValue(black);
+    if (hasWhite && hasBlack) {
       return formatter(white) + " / " + formatter(black);
     }
+    if (hasWhite) return formatter(white);
+    if (hasBlack) return formatter(black);
     var agent = game["agent_" + field];
     return formatter(agent);
   }
 
   function resultLabel(game) {
-    if (game.turn === "*") return String(game.end_reason_label || "No result");
-    if (game.result === "*") return String(game.end_reason_label || "No result");
+    if (isListTimeout(game)) return "Timeout";
     if (game.turn) return String(game.turn);
     return outcomeLabel(game) || game.status || "—";
   }

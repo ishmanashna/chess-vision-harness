@@ -262,10 +262,10 @@ class HumanVsAgentPlay:
                 board = chess.Board(state["board_fen"])
                 finish_human_vs_agent_game(self.ctrl, self.gm, game_id, state, board, result, reason)
                 self.ctrl._auto_save_pgn(game_id, state)
-                self.ctrl._schedule_quality_if_scored(game_id, state)
-
                 if not self.gm.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}
+                # Quality reads state from disk — must save finished status first.
+                self.ctrl._schedule_quality_if_scored(game_id, state)
 
                 return {
                     "ok": True,

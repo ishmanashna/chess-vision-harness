@@ -1,6 +1,26 @@
 {
-  "generated_at": "2026-07-30T18:53:20.000Z",
+  "generated_at": "2026-07-30T21:38:26.000Z",
   "agents": [
+    {
+      "id": "gemini-3.6-flash-high",
+      "name": "Gemini 3.6 Flash High",
+      "elo": 500,
+      "games": 0,
+      "provisional": true,
+      "mean_accuracy": 85.52,
+      "mean_play_rating": 1435,
+      "quality_games": 1
+    },
+    {
+      "id": "gpt-5.6terra-high",
+      "name": "GPT 5.6 Terra High",
+      "elo": 500,
+      "games": 0,
+      "provisional": true,
+      "mean_accuracy": 71.28,
+      "mean_play_rating": 922,
+      "quality_games": 1
+    },
     {
       "id": "grok-4.5-high",
       "name": "Grok 4.5 High",
@@ -14,22 +34,22 @@
     {
       "id": "mimo-v2.5",
       "name": "MiMo V2.5",
-      "elo": 344,
-      "games": 4,
+      "elo": 500,
+      "games": 0,
       "provisional": true,
-      "mean_accuracy": 62.9,
-      "mean_play_rating": 517,
-      "quality_games": 4
+      "mean_accuracy": 64.67,
+      "mean_play_rating": 547,
+      "quality_games": 1
     },
     {
       "id": "composer-2.5",
       "name": "Composer 2.5",
-      "elo": 248,
-      "games": 9,
+      "elo": 441,
+      "games": 3,
       "provisional": true,
-      "mean_accuracy": 62.14,
-      "mean_play_rating": 506,
-      "quality_games": 7
+      "mean_accuracy": 61.46,
+      "mean_play_rating": 496,
+      "quality_games": 6
     }
   ],
   "opponents": [

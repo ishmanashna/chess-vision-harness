@@ -19,12 +19,47 @@ def is_avaa_state(state: Dict[str, Any]) -> bool:
     return state.get("game_type") == GAME_TYPE_AGENT_VS_AGENT
 
 
-def participant_color(state: Dict[str, Any], model_id: str) -> Optional[str]:
-    if model_id == state.get("white_model_id"):
+def participant_color(
+    state: Dict[str, Any],
+    model_id: str,
+    key_fingerprint: Optional[str] = None,
+) -> Optional[str]:
+    """Resolve which side an authenticated agent is on.
+
+    Prefer per-game side-bound key fingerprints when present. When
+    ``white_model_id == black_model_id``, fingerprint binding is required
+    (model id alone cannot distinguish sides).
+    """
+    if key_fingerprint:
+        if key_fingerprint == state.get("white_key_fp"):
+            return "WHITE"
+        if key_fingerprint == state.get("black_key_fp"):
+            return "BLACK"
+
+    white_id = state.get("white_model_id")
+    black_id = state.get("black_model_id")
+    if white_id and white_id == black_id:
+        return None
+
+    # Both sides key-bound and fingerprint did not match → deny.
+    if key_fingerprint and state.get("white_key_fp") and state.get("black_key_fp"):
+        return None
+
+    if model_id == white_id:
         return "WHITE"
-    if model_id == state.get("black_model_id"):
+    if model_id == black_id:
         return "BLACK"
     return None
+
+
+def bind_side_keys(
+    state: Dict[str, Any],
+    white_key_fp: str,
+    black_key_fp: str,
+) -> None:
+    """Attach per-game white/black API key fingerprints to state."""
+    state["white_key_fp"] = white_key_fp
+    state["black_key_fp"] = black_key_fp
 
 
 def join_flag_key(caller_color: str) -> str:
@@ -71,9 +106,9 @@ class AvAAPlay:
         black_model_id: str,
         *,
         force: bool = False,
+        white_key_fp: Optional[str] = None,
+        black_key_fp: Optional[str] = None,
     ) -> Dict[str, Any]:
-        if white_model_id == black_model_id:
-            return {"ok": False, "error": "white_model_id and black_model_id must differ"}
         registry = self.ctrl.registry
         try:
             white_id = registry.resolve(white_model_id)
@@ -127,6 +162,8 @@ class AvAAPlay:
                     "white_joined": False,
                     "black_joined": False,
                 }
+                if white_key_fp and black_key_fp:
+                    bind_side_keys(state, white_key_fp, black_key_fp)
                 self.ctrl._touch_activity(state)
                 if not self.gm.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}
@@ -252,10 +289,10 @@ class AvAAPlay:
                 board = chess.Board(state["board_fen"])
                 finish_avaa_game(self.ctrl, self.gm, game_id, state, board, result, reason)
                 self.ctrl._auto_save_pgn(game_id, state)
-                self.ctrl._schedule_quality_if_scored(game_id, state)
-
                 if not self.gm.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}
+                # Quality reads state from disk — must save finished status first.
+                self.ctrl._schedule_quality_if_scored(game_id, state)
 
                 return {
                     "ok": True,

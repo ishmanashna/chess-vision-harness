@@ -20,21 +20,21 @@ def render_game_view_page(game_id: str) -> str:
     {THEME_INIT_SCRIPT}
     <link rel="stylesheet" href="/css/site.css"/>
     <style>
-    .game-sub{{margin:0 0 18px;color:var(--muted);font-size:.9rem}}
-    .game-sub code{{font-size:.88em}}
     .layout{{display:grid;grid-template-columns:minmax(280px,360px) max-content minmax(200px,280px);gap:16px;align-items:start;justify-content:center;width:fit-content;max-width:100%;margin:0 auto}}
     .col h2{{margin:0 0 12px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
-    .info-col{{display:flex;flex-direction:column;gap:16px}}
-    .info-col-head{{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:1.5rem}}
-    .info-col-head h2{{margin:0;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
+    .info-col{{display:flex;flex-direction:column;gap:12px}}
+    .info-col-head{{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-height:1.5rem}}
+    .info-col-head:has(#info-panel-toggle[hidden]){{display:none}}
     .info-panel-toggle{{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font:inherit;font-size:.78rem;font-weight:600;color:var(--text-secondary);cursor:pointer}}
     .info-panel-toggle:hover{{color:var(--text);border-color:var(--border-strong)}}
     .info-panel-toggle[hidden]{{display:none}}
     .info-card{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px}}
     .info-card h2{{margin:0 0 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
+    .info-panel-slot{{position:relative}}
     .info-stack{{display:flex;flex-direction:column;gap:16px}}
-    .info-stack[hidden],.spec-chat-panel[hidden]{{display:none!important}}
-    .spec-chat-panel{{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;min-height:280px;max-height:min(70vh,560px);overflow:hidden}}
+    .info-stack.is-covered{{visibility:hidden;pointer-events:none}}
+    .spec-chat-panel[hidden]{{display:none!important}}
+    .spec-chat-panel{{position:absolute;inset:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0;display:flex;flex-direction:column;overflow:hidden;min-height:0}}
     .spec-chat-panel h2{{margin:0;padding:14px 16px 10px;font-size:.7em;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}}
     .spec-chat-log{{flex:1;overflow-y:auto;padding:4px 16px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}}
     .spec-chat-log:empty::before{{content:"No messages yet.";color:var(--faint);font-size:.84rem}}
@@ -82,41 +82,41 @@ def render_game_view_page(game_id: str) -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <main>
-    <p class="game-sub">Spectating <code>{gid}</code></p>
     <div class="layout">
       <aside class="col info-col">
         <div class="info-col-head">
-          <h2 id="info-panel-title">Game</h2>
           <button type="button" class="info-panel-toggle" id="info-panel-toggle" hidden>Show chat</button>
         </div>
-        <div class="info-stack" id="info-stack">
-          <div class="info-card">
-            <h2>Game info</h2>
-            <dl class="meta-grid" id="meta"></dl>
-            <div class="export-links">
-              <a href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
-              <span class="export-sep" aria-hidden="true">·</span>
-              <button type="button" class="export-link" id="copy-pgn">Copy PGN</button>
-              <span class="export-hint" id="action-hint"></span>
+        <div class="info-panel-slot" id="info-panel-slot">
+          <div class="info-stack" id="info-stack">
+            <div class="info-card">
+              <h2>Game info</h2>
+              <dl class="meta-grid" id="meta"></dl>
+              <div class="export-links">
+                <a href="/g/{gid}/board.png" download="{gid}-board.png">Download board PNG</a>
+                <span class="export-sep" aria-hidden="true">·</span>
+                <button type="button" class="export-link" id="copy-pgn">Copy PGN</button>
+                <span class="export-hint" id="action-hint"></span>
+              </div>
+            </div>
+            <div class="info-card">
+              <h2>Game state</h2>
+              <dl class="meta-grid" id="state-meta">
+                <dt>Result</dt><dd id="state-result">—</dd>
+                <dt>Termination</dt><dd id="state-termination">—</dd>
+                <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
+                <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
+                <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
+                <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Estimated Elo</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+                <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
+                <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Estimated Elo</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+              </dl>
             </div>
           </div>
-          <div class="info-card">
-            <h2>Game state</h2>
-            <dl class="meta-grid" id="state-meta">
-              <dt>Result</dt><dd id="state-result">—</dd>
-              <dt>Termination</dt><dd id="state-termination">—</dd>
-              <dt id="state-eval-label">Evaluation</dt><dd id="state-eval">—</dd>
-              <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
-              <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
-              <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Estimated Elo</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
-              <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
-              <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Estimated Elo</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
-            </dl>
+          <div class="spec-chat-panel" id="spec-chat-panel" hidden>
+            <h2>Chat</h2>
+            <div class="spec-chat-log" id="spec-chat-log" role="log" aria-live="polite"></div>
           </div>
-        </div>
-        <div class="spec-chat-panel" id="spec-chat-panel" hidden>
-          <h2>Chat</h2>
-          <div class="spec-chat-log" id="spec-chat-log" role="log" aria-live="polite"></div>
         </div>
       </aside>
       <div class="col board-col" id="board-col">
@@ -164,10 +164,8 @@ def render_game_view_page(game_id: str) -> str:
       const stack=document.getElementById('info-stack');
       const chatPanel=document.getElementById('spec-chat-panel');
       const toggle=document.getElementById('info-panel-toggle');
-      const title=document.getElementById('info-panel-title');
-      if(stack)stack.hidden=chatPanelMode==='chat';
+      if(stack)stack.classList.toggle('is-covered',chatPanelMode==='chat');
       if(chatPanel)chatPanel.hidden=chatPanelMode!=='chat';
-      if(title)title.textContent=chatPanelMode==='chat'?'Chat':'Game';
       if(toggle){{
         toggle.hidden=!isAvhGame;
         toggle.textContent=chatPanelMode==='chat'?'Show game':'Show chat';

@@ -229,15 +229,114 @@ def test_avaa_refresh_board_image(avaa_client):
     assert (game_dir / "board_black.png").read_bytes() == canonical
 
 
-def test_avaa_reject_same_model(avaa_client):
+def test_avaa_same_model_requires_peer_key(avaa_client):
     client, _ = avaa_client
-    white = client.post("/api/v1/agents", json={"id": "same-model", "name": "Same"})
-    assert white.status_code == 200
-    key = white.json()["api_key"]
+    reg = client.post("/api/v1/agents", json={"id": "same-model", "name": "Same"})
+    assert reg.status_code == 200
+    key = reg.json()["api_key"]
     create = client.post(
         "/api/v1/games/agent-vs-agent",
         headers=_auth(key),
         json={"white_model_id": "same-model", "black_model_id": "same-model"},
+    )
+    assert create.status_code == 400
+    assert "peer_api_key" in create.json().get("error", "").lower()
+
+
+def test_avaa_same_model_side_bound_keys(avaa_client):
+    """Same inscribed model can play both sides with two distinct keys."""
+    client, harness_dir = avaa_client
+    white_reg = client.post("/api/v1/agents", json={"id": "mirror-agent", "name": "Mirror"})
+    black_reg = client.post("/api/v1/agents", json={"id": "mirror-agent", "name": "Mirror"})
+    assert white_reg.status_code == 200
+    assert black_reg.status_code == 200
+    white_key = white_reg.json()["api_key"]
+    black_key = black_reg.json()["api_key"]
+    assert white_key != black_key
+
+    create = client.post(
+        "/api/v1/games/agent-vs-agent",
+        headers=_auth(white_key),
+        json={
+            "white_model_id": "mirror-agent",
+            "black_model_id": "mirror-agent",
+            "peer_api_key": black_key,
+        },
+    )
+    assert create.status_code == 200, create.text
+    data = create.json()
+    assert data["ok"] is True
+    assert data.get("agent_color") == "WHITE"
+    assert data.get("your_turn") is True
+    assert data["white"]["model_id"] == "mirror-agent"
+    assert data["black"]["model_id"] == "mirror-agent"
+    assert white_key in data["white"]["agent_brief"]
+    assert black_key in data["black"]["agent_brief"]
+    game_id = data["game_id"]
+
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state is not None
+    assert state["white_model_id"] == "mirror-agent"
+    assert state["black_model_id"] == "mirror-agent"
+    assert state.get("white_key_fp")
+    assert state.get("black_key_fp")
+    assert state["white_key_fp"] != state["black_key_fp"]
+
+    # Wrong key for the model cannot play either side.
+    third = client.post("/api/v1/agents", json={"id": "mirror-agent", "name": "Mirror"})
+    outsider = third.json()["api_key"]
+    denied = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(outsider))
+    assert denied.status_code == 401
+
+    white_status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(white_key))
+    assert white_status.status_code == 200
+    assert white_status.json()["your_turn"] is True
+    assert white_status.json()["agent_color"] == "WHITE"
+
+    black_status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(black_key))
+    assert black_status.status_code == 200
+    assert black_status.json()["your_turn"] is False
+    assert black_status.json()["agent_color"] == "BLACK"
+
+    off_turn = client.post(
+        f"/api/v1/games/{game_id}/move/e7e5",
+        headers=_auth(black_key),
+    )
+    assert off_turn.status_code == 400
+    assert off_turn.json()["error"] == "Not your turn"
+
+    sequence = [
+        (white_key, "e2e4"),
+        (black_key, "e7e5"),
+        (white_key, "g1f3"),
+        (black_key, "b8c6"),
+    ]
+    for key, uci in sequence:
+        resp = client.post(
+            f"/api/v1/games/{game_id}/move/{uci}",
+            headers=_auth(key),
+        )
+        assert resp.status_code == 200, resp.text
+
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state["moves"] == ["e2e4", "e7e5", "g1f3", "b8c6"]
+    assert state["white_joined"] is True
+    assert state["black_joined"] is True
+
+
+def test_avaa_same_model_rejects_identical_peer_key(avaa_client):
+    client, _ = avaa_client
+    reg = client.post("/api/v1/agents", json={"id": "one-key", "name": "One"})
+    assert reg.status_code == 200
+    key = reg.json()["api_key"]
+    create = client.post(
+        "/api/v1/games/agent-vs-agent",
+        headers=_auth(key),
+        json={
+            "white_model_id": "one-key",
+            "black_model_id": "one-key",
+            "peer_api_key": key,
+        },
     )
     assert create.status_code == 400
     assert "differ" in create.json().get("error", "").lower()

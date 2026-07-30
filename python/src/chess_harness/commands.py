@@ -392,21 +392,43 @@ def cmd_prune_no_result(
     export_snapshot: bool = True,
     dry_run: bool = False,
 ) -> int:
-    """Remove finished no-result games (result * / idle timeout) and their results rows."""
+    """Remove finished no-result games (PGN result *) and their results rows.
+
+    Also scrubs orphan results.jsonl rows with no game directory when the row is a
+    no-result (*). Rebuilds Elo after any removal so ladder state stays consistent
+    if pruned games had ever carried deltas.
+
+    Decisive results are never pruned — even when end_reason/reason is
+    \"inactivity\" (legacy idle→resign games).
+    """
     gm = _game_manager()
     rm = ResultsManager(base_dir=str(gm.base_dir))
 
+    # Only true no-result rows (*). Do not delete decisive games that still carry
+    # end_reason/reason "inactivity" from the legacy idle→resign path.
     candidates: List[str] = []
     for g in gm.list_games(status_filter="finished"):
         state = g["state"]
-        if state.get("result") == "*" or state.get("end_reason") == "inactivity":
+        if state.get("result") == "*":
             candidates.append(g["game_id"])
 
-    if not candidates:
+    candidate_set = set(candidates)
+    orphan_ids: List[str] = []
+    for row in rm.load_results():
+        gid = row.get("game_id")
+        if not gid or gid in candidate_set or gid in orphan_ids:
+            continue
+        if gm.game_exists(gid):
+            continue
+        if row.get("result") == "*":
+            orphan_ids.append(gid)
+
+    if not candidates and not orphan_ids:
         print("No no-result games to prune.")
         return 0
 
     removed = 0
+    orphans_scrubbed = 0
     failed = 0
     for gid in sorted(candidates):
         if dry_run:
@@ -420,16 +442,34 @@ def cmd_prune_no_result(
             print(f"  fail {gid}: could not delete game directory")
             failed += 1
 
+    for gid in sorted(orphan_ids):
+        if dry_run:
+            print(f"  would scrub orphan results for {gid}")
+            continue
+        rows_removed = rm.remove_game_results(gid)
+        print(f"  scrubbed orphan {gid} ({rows_removed} result row(s))")
+        orphans_scrubbed += 1
+
     if dry_run:
-        print(f"Would prune {len(candidates)} no-result game(s) (dry run)")
+        print("  would rebuild-elo")
+        if export_snapshot:
+            print("  would export leaderboard snapshot")
+        print(
+            f"Would prune {len(candidates)} no-result game(s)"
+            f" and scrub {len(orphan_ids)} orphan result id(s) (dry run)"
+        )
         return 0
 
-    print(f"Pruned {removed} no-result game(s)")
-    if removed and export_snapshot:
-        from .snapshot_leaderboard import export_leaderboard_snapshot
+    print(
+        f"Pruned {removed} no-result game(s), scrubbed {orphans_scrubbed} orphan result id(s)"
+    )
+    if removed or orphans_scrubbed:
+        cmd_rebuild_elo()
+        if export_snapshot:
+            from .snapshot_leaderboard import export_leaderboard_snapshot
 
-        out = export_leaderboard_snapshot()
-        print(f"Wrote leaderboard snapshot: {out}")
+            out = export_leaderboard_snapshot()
+            print(f"Wrote leaderboard snapshot: {out}")
     return 1 if failed else 0
 
 

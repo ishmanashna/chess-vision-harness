@@ -43,6 +43,7 @@ from .ladder_display import (
     render_calibration_html,
 )
 from .calibration_auth import require_calibration_auth
+from .contact_api import register_contact_routes
 from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
 from .spectator_game_page import render_game_view_page
@@ -222,6 +223,7 @@ def _get_game_service() -> GameService:
 
 mount_api_v1(app, _get_game_service)
 register_play_routes(app, lambda: game_manager)
+register_contact_routes(app)
 
 _public_site = _project_root / "public-site"
 if (_public_site / "css").is_dir():

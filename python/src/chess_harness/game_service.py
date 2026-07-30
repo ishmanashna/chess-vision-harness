@@ -82,6 +82,8 @@ class GameService:
         black_model_id: str,
         *,
         force: bool = False,
+        white_key_fp: Optional[str] = None,
+        black_key_fp: Optional[str] = None,
     ) -> Dict[str, Any]:
         self._prune_idle()
         return self.controller.new_agent_vs_agent_game(
@@ -89,6 +91,8 @@ class GameService:
             white_model_id,
             black_model_id,
             force=force,
+            white_key_fp=white_key_fp,
+            black_key_fp=black_key_fp,
         )
 
     def new_human_vs_agent_game(

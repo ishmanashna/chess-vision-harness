@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,8 @@ from conftest import FIXTURES
 from chess_harness.game_manager import GameManager
 from chess_harness.spectator import app
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_SITE = REPO_ROOT / "public-site"
 
 @pytest.fixture
 def create_client(tmp_path, monkeypatch):
@@ -94,10 +97,29 @@ def test_create_game_get_renders_static_shell(create_client):
     assert 'name="agent_color"' not in resp.text
     assert 'data-pairing="find"' in resp.text
     assert 'data-pairing="direct"' in resp.text
+    assert 'data-avaa-pairing-tabs hidden' in resp.text
     assert 'id="white-model-select"' in resp.text
     assert 'id="black-model-select"' in resp.text
     assert "create-result.js" in resp.text
     assert "showDualBriefResult" in (client.get("/js/create-result.js").text)
+
+
+def test_create_pairing_tabs_gated_to_avaa(create_client):
+    """Find match / Direct chrome is AvA-only; CSS must honor [hidden]."""
+    client, _ = create_client
+    html = client.get("/create").text
+    assert 'data-avaa-pairing-tabs hidden' in html
+    assert 'data-pairing="find"' in html
+    assert 'data-pairing="direct"' in html
+    assert "Rated game vs engine" in html
+
+    css = (PUBLIC_SITE / "css" / "site.css").read_text(encoding="utf-8")
+    assert "[hidden]" in css
+    assert "display: none !important" in css
+
+    js = (PUBLIC_SITE / "js" / "create.js").read_text(encoding="utf-8")
+    assert "pairingTabs.hidden = !isAvaa" in js
+    assert 'mode === "avaa"' in js
 
 def test_create_human_mode_redirects(create_client):
     client, _ = create_client
