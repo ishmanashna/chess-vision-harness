@@ -85,8 +85,8 @@ def render_game_view_page(game_id: str) -> str:
             <dt id="state-elo-label">ELO change</dt><dd id="state-elo">—</dd>
             <dt id="state-acc-white-label" class="quality-row" style="display:none">White accuracy</dt><dd id="state-acc-white" class="quality-row" style="display:none">—</dd>
             <dt id="state-acc-black-label" class="quality-row" style="display:none">Black accuracy</dt><dd id="state-acc-black" class="quality-row" style="display:none">—</dd>
-            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">White play rating</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">—</dd>
-            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">Black play rating</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Calibrated strength from move quality — not ladder Elo.">—</dd>
+            <dt id="state-pr-white-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">White Est. Elo (play)</dt><dd id="state-pr-white" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
+            <dt id="state-pr-black-label" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">Black Est. Elo (play)</dt><dd id="state-pr-black" class="quality-row" style="display:none" title="Estimated strength from move accuracy — not ladder Elo.">—</dd>
           </dl>
         </div>
       </aside>
@@ -117,7 +117,7 @@ def render_game_view_page(game_id: str) -> str:
     let lastPgn='';
     const QUALITY_POLL_MAX=40;
     let qualityWaitAttempts=0;
-    const PLAY_RATING_TIP='Calibrated strength from move quality — not ladder Elo.';
+    const PLAY_RATING_TIP='Estimated strength from move accuracy — not ladder Elo.';
 
     function escHtml(s){{
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -175,8 +175,8 @@ def render_game_view_page(game_id: str) -> str:
       const bPr=document.getElementById('state-pr-black-label');
       if(wAcc)wAcc.textContent=whiteName+' accuracy';
       if(bAcc)bAcc.textContent=blackName+' accuracy';
-      if(wPr){{wPr.textContent=whiteName+' play rating';wPr.title=PLAY_RATING_TIP;}}
-      if(bPr){{bPr.textContent=blackName+' play rating';bPr.title=PLAY_RATING_TIP;}}
+      if(wPr){{wPr.textContent=whiteName+' Est. Elo (play)';wPr.title=PLAY_RATING_TIP;}}
+      if(bPr){{bPr.textContent=blackName+' Est. Elo (play)';bPr.title=PLAY_RATING_TIP;}}
       const accWhite=document.getElementById('state-acc-white');
       const accBlack=document.getElementById('state-acc-black');
       const prWhite=document.getElementById('state-pr-white');

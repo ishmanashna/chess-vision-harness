@@ -20,6 +20,7 @@ export function shouldProxyPath(pathname) {
     pathname === "/api/v1" ||
     pathname.startsWith("/api/games") ||
     pathname.startsWith("/api/play") ||
+    pathname === "/api/leaderboard/live" ||
     pathname.startsWith("/g/") ||
     pathname.startsWith("/play/")
   );

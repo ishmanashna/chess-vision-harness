@@ -19,7 +19,7 @@ Related docs
 | Public route | **None yet** — tunnel has no published hostname, so Pages cannot reach the PC until you add a route or use a Quick Tunnel |
 | Harness bind | `127.0.0.1:8765` (localhost only; tunnel or proxy reaches it) |
 
-Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Spectator show the sleeping/offline state. The leaderboard still works from the committed snapshot.
+Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Spectator show the sleeping/offline state. The leaderboard still loads from the last offline snapshot when Sleeping; when Online it uses the live ladder API.
 
 ---
 
@@ -28,7 +28,7 @@ Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Specta
 ```text
 Visitor → chessvisionharness.pages.dev (always on)
               │
-              ├─ Static pages + leaderboard snapshot (works when PC is off)
+              ├─ Static pages; leaderboard Online → live API, Sleeping → snapshot
               │
               └─ Live paths (/api/v1/*, /create, /g/*, …)
                      proxy via GAME_ORIGIN
@@ -49,7 +49,7 @@ Visitor → chessvisionharness.pages.dev (always on)
 
 Agents must never get the raw tunnel hostname in briefs. Set `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev` on the PC.
 
-**Calibration** (`/calibration*`) is blocked at the Pages edge. Use **`http://127.0.0.1:8765/calibration`** on the PC (direct localhost, not via tunnel). Calibration POSTs require `CHESS_HARNESS_CALIBRATION_SECRET` or `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` — client IP is not trusted behind Cloudflare Tunnel.
+**Calibration** (`/calibration*`) is blocked at the Pages edge. Use **`http://127.0.0.1:8765/calibration`** on the PC (direct localhost, not via tunnel). On loopback hostnames the site nav shows Calibration after Leaderboard (no status probe). Loopback Host may POST without a secret; non-loopback / tunnel POSTs require `CHESS_HARNESS_CALIBRATION_SECRET` or `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` — client IP is not trusted behind Cloudflare Tunnel. Map control: **Rebuild accuracy→Elo table** only (no snapshot/publish buttons).
 
 ---
 
@@ -246,15 +246,19 @@ You do not need to change site code or redeploy static HTML.
 
 **Fully disable proxy (optional):**
 
-- Remove or clear `GAME_ORIGIN` in Pages settings and redeploy. Static site and leaderboard snapshot still work.
+- Remove or clear `GAME_ORIGIN` in Pages settings and redeploy. Static site still works; leaderboard uses the offline snapshot when Sleeping.
 
-Leaderboard on the public site always comes from the last pushed `public-site/data/leaderboard.json`, not from the live PC.
+When **Online**, the public leaderboard loads from the live proxied API (same numbers as your PC). When **Sleeping**, it uses `public-site/data/leaderboard.json`.
 
 ---
 
-## Leaderboard snapshot
+## Leaderboard (live vs offline)
 
-The public leaderboard does not call your PC. Refresh it after rated games finish.
+- **Online:** Home and `/leaderboard/` fetch `/api/leaderboard/live` through Pages (no git step).
+- **Sleeping:** the site falls back to `public-site/data/leaderboard.json`.
+- While `chess-harness serve` runs, the origin refreshes that snapshot file in the background so offline visitors are not ancient — automatic, not a calibration button.
+
+Optional offline backup (PC off or before first Online visit):
 
 ```powershell
 cd C:\path\to\chess-vision-harness
@@ -262,15 +266,7 @@ cd C:\path\to\chess-vision-harness
 chess-harness snapshot-leaderboard
 ```
 
-Default output: `public-site\data\leaderboard.json`. Override with `--output path\to\leaderboard.json`.
-
-**Publish:** commit and push that file (human step — agents do not run git). GitHub Actions deploys the updated snapshot to Pages.
-
-**Optional schedule** (e.g. daily after games):
-
-```powershell
-schtasks /Create /TN "ChessHarnessSnapshot" /TR "\"C:\path\to\chess-vision-harness\.venv\Scripts\chess-harness.exe\" snapshot-leaderboard" /SC DAILY /ST 04:00 /RU YOUR_USER /RL HIGHEST
-```
+Default output: `public-site\data\leaderboard.json`. Commit and push only if you want that backup on Pages when the PC is off — **not** the normal path to publish live Elos.
 
 You still push when you want the public site updated; the scheduled task only refreshes the local JSON file.
 

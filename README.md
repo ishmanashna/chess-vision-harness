@@ -97,9 +97,9 @@ chess-harness models list
 chess-harness leaderboard
 ```
 
-Public ladder snapshot (Pages): `chess-harness snapshot-leaderboard` → `public-site/data/leaderboard.json` (commit/push to publish). Provisional Elo shows as `elo*` until 100 rated games (hover the cell on the site for the explanation).
+Public ladder offline fallback: `chess-harness snapshot-leaderboard` → `public-site/data/leaderboard.json` (optional git backup when the PC is off). While the server is **Online**, the site loads the live ladder API — no commit needed. Provisional Elo shows as `elo*` until 100 rated games (hover the cell on the site for the explanation).
 
-**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Play rating** (calibrated move strength on the same numeric scale — not ladder Elo). Leaderboard columns show mean accuracy and mean play rating beside Elo; AvH games count toward quality columns but not Elo.
+**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Est. Elo (play)** (move-quality estimate on the engine ladder scale — not ladder Elo). Leaderboard columns show mean accuracy and mean Est. Elo (play) beside Elo; AvH games count toward quality columns but not Elo.
 
 Backfill quality on finished harness games: `chess-harness analyse-quality` (all) or `--game-id <id>`; `--force` to redo. Uses `game.pgn` only — not historical calibration `games.jsonl`.
 

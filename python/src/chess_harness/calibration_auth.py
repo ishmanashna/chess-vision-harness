@@ -32,8 +32,29 @@ def _provided_secret(request: Request) -> str | None:
     return None
 
 
+def _host_is_loopback(request: Request) -> bool:
+    """True for direct localhost serve. Not client IP (unreliable behind Tunnel)."""
+    host = (request.headers.get("host") or "").strip().lower()
+    if not host:
+        return False
+    hostname = host.rsplit("@", 1)[-1]
+    if hostname.startswith("["):
+        end = hostname.find("]")
+        hostname = hostname[1:end] if end != -1 else hostname
+    else:
+        hostname = hostname.split(":", 1)[0]
+    return hostname in {"127.0.0.1", "localhost", "::1"}
+
+
 def require_calibration_auth(request: Request) -> None:
-    """Require secret or explicit allow-remote before calibration POSTs."""
+    """
+    Allow calibration POSTs when:
+    - Host is loopback (direct http://127.0.0.1/... serve), or
+    - CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1, or
+    - request carries a matching CHESS_HARNESS_CALIBRATION_SECRET.
+    """
+    if _host_is_loopback(request):
+        return
     if _allow_remote_calibration():
         return
     secret = _configured_secret()
@@ -42,7 +63,8 @@ def require_calibration_auth(request: Request) -> None:
             status_code=403,
             detail=(
                 "Calibration POSTs require CHESS_HARNESS_CALIBRATION_SECRET "
-                "or CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1"
+                "or CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1 "
+                "(or open http://127.0.0.1:8765/calibration directly)"
             ),
         )
     provided = _provided_secret(request)

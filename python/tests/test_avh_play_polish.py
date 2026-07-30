@@ -124,7 +124,7 @@ def test_spectator_game_page_quality_metrics():
     assert "quality_at" in html
     assert "not ladder Elo" in html
     assert "white_accuracy" in html
-    assert "play rating" in html
+    assert "Est. Elo (play)" in html
 
 
 def test_show_eval_for_state_true_for_human_vs_agent():

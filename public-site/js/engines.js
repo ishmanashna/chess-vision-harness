@@ -16,7 +16,7 @@
     });
     if (!list.length) {
       return (
-        '<tr><td colspan="4" class="empty-state">No engine ratings in this snapshot yet. Re-run snapshot-leaderboard on the game PC.</td></tr>'
+        '<tr><td colspan="4" class="empty-state">No engine ratings on the ladder yet.</td></tr>'
       );
     }
     return list

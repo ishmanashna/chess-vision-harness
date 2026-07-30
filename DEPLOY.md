@@ -15,8 +15,9 @@ Visitors / agents
 https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
    public-site/  +  Pages Functions
         │
-        ├─ static Home / Leaderboard / Contact / offline UX
-        │     (leaderboard from public-site/data/leaderboard.json)
+        ├─ static Home / Leaderboard / Contact
+        │     Online → live ladder via /api/leaderboard/live (proxied)
+        │     Sleeping → public-site/data/leaderboard.json (offline fallback)
         │
         └─ live paths (/api/v1/*, /api/games/*, /g/*, Create when online)
               proxy via GAME_ORIGIN
@@ -35,7 +36,7 @@ https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `AUTH_SESSION_SECRET` | Pages deploy (GitHub Actions secrets, injected like `GAME_ORIGIN`) | Cosmetic Google sign-in on the public site — does **not** gate create/inscribe. Setup: [`deploy/pages.md`](deploy/pages.md). |
 | `CHESS_HARNESS_AUDIT_SALT` | Game PC / harness service | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl` (create/inscribe log). |
 
-Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). Calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` for explicit remote override. Do not rely on client IP behind Cloudflare Tunnel.
+Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). On loopback hostnames (`127.0.0.1`, `localhost`), the shared site nav inserts **Calibration** after Leaderboard with no status probe; on the deployed Pages host the tab never appears. Direct loopback Host (`127.0.0.1` / `localhost`) may POST without a secret. Via tunnel or any non-loopback Host, calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1`. Do not rely on client IP behind Cloudflare Tunnel.
 
 ### Local serve vs Pages (intentional diffs)
 
@@ -43,11 +44,11 @@ When you run `chess-harness serve`, the origin serves the same `public-site/` HT
 
 | Behavior | Pages (public) | Local origin (`chess-harness serve`) |
 |----------|----------------|--------------------------------------|
-| Home / nav chrome | `public-site/` static | Same static shell |
-| Leaderboard table | Snapshot from `public-site/data/leaderboard.json` | Same snapshot file; live `/api/v1/leaderboard` optional when online |
+| Home / nav chrome | `public-site/` static | Same static shell; **Calibration** nav on loopback hostnames only |
+| Leaderboard | **Online:** live `/api/leaderboard/live` (proxied). **Sleeping:** `public-site/data/leaderboard.json` | Same live vs snapshot logic; origin also serves live data at `/api/leaderboard/live` and `/data/leaderboard.json` when up |
 | Google sign-in | OAuth via Pages Functions | Not available (cosmetic only; does not gate create) |
 | Agent brief base URL | `CHESS_HARNESS_PUBLIC_URL` (Pages hostname) | Defaults to `http://127.0.0.1:8765` unless you set `CHESS_HARNESS_PUBLIC_URL` |
-| Calibration UI | 404 (blocked at edge) | Available at `/calibration` on localhost only |
+| Calibration UI | 404 (blocked at edge) | `/calibration` on localhost; toolbar has **Rebuild accuracy→Elo table** only (no snapshot/publish buttons) |
 | Create Game | Static shell + `/api/v1/*` proxy when online | Same static shell; APIs served directly (no proxy hop) |
 
 Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are removed — use `/spectator/` and `/api/v1` instead.
@@ -61,13 +62,13 @@ Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are r
    `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`.
 3. **Reach the PC** — Quick Tunnel (URL changes on restart) or named tunnel + domain (stable). Full steps: [`deploy/home-pc.md`](deploy/home-pc.md).
 4. **Wire live play** — set GitHub secret `GAME_ORIGIN` to the tunnel/host URL, then redeploy Pages (`gh workflow run "Deploy public site"`).
-5. **Refresh leaderboard snapshot** (when PC has new ratings):
 
-```powershell
-cd python
-python -m chess_harness snapshot-leaderboard
-# commit + push public-site/data/leaderboard.json when you want the public ladder updated
-```
+**Leaderboard (live vs offline)**
+
+- **Online** (status chip / edge-health): Home and `/leaderboard/` load the ladder from the **live** API (`/api/leaderboard/live` on Pages via proxy; same numbers as the game PC). Calibration Elo and agent ladder updates appear without git.
+- **Sleeping** (game server down): the site falls back to the committed file `public-site/data/leaderboard.json` — last offline snapshot.
+- While `chess-harness serve` runs, the origin refreshes that snapshot file in the background (after rating changes / on a light schedule) so Sleeping visitors are not stuck on ancient data. That refresh is automatic maintenance, not an operator chore and not a calibration button.
+- Optional: `chess-harness snapshot-leaderboard` or a git commit of `leaderboard.json` is backup for offline visitors only — **not** how you publish live Elos when Online.
 
 **Detailed runbooks**
 

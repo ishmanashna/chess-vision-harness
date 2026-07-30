@@ -55,7 +55,7 @@ def _format_quality_cli_suffix(entry: dict) -> str:
     if acc is not None:
         parts.append(f"acc {acc}%")
     if pr is not None:
-        parts.append(f"play {round(pr)}")
+        parts.append(f"est elo {round(pr)}")
     qg = int(entry.get("quality_games", 0))
     if qg:
         parts.append(f"{qg} quality")
@@ -224,36 +224,51 @@ def _calibration_secret_meta() -> str:
 
 
 def render_calibration_html() -> str:
-    return f"""<!DOCTYPE html><html><head><title>Calibration · Chess Vision Harness</title>
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Calibration · Chess Vision Harness</title>
     {FAVICON_LINKS}
     {_calibration_secret_meta()}
     {THEME_INIT_SCRIPT}
+    <link rel="stylesheet" href="/css/site.css"/>
     <style>
-    {SPECTATOR_PAGE_CSS}
-    .progress{{height:10px;background:var(--progress);border-radius:6px;overflow:hidden;margin:8px 0 16px;max-width:480px}}
-    .progress-fill{{height:100%;background:var(--link);transition:width .4s ease}}
-    .game-feed{{max-width:900px}}
-    .game-line{{font-size:.85em;padding:8px 10px;border-bottom:1px solid var(--row);background:var(--surface)}}
+    .cal-page h2{{margin:24px 0 8px;font-size:1.05rem}}
+    .cal-lead{{margin:0 0 16px;color:var(--muted);font-size:.9rem;max-width:48rem}}
+    .cal-panel{{max-width:920px;margin:0 0 18px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px}}
+    .cal-panel h2{{margin:0 0 6px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}}
+    .cal-panel p{{margin:0;color:var(--text-secondary);font-size:.88rem;max-width:none}}
+    .cal-panel .hint{{margin-top:6px;font-size:.8rem;color:var(--faint)}}
+    .game-feed{{max-width:920px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}}
+    .game-line{{font-size:.85em;padding:8px 12px;border-bottom:1px solid var(--row)}}
     .game-line:last-child{{border-bottom:none}}
     .delta-up{{color:var(--ok)}}.delta-down{{color:var(--warn)}}
-    .playing-badge{{color:var(--tag-live-fg);font-weight:600;font-size:.85em}}
+    .playing-badge{{color:var(--ok);font-weight:600;font-size:.85em}}
     .idle-badge{{color:var(--faint);font-size:.85em}}
-    .cal-btn{{font-size:.8em;padding:4px 10px;border-radius:4px;border:1px solid var(--input-border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:600}}
+    .cal-btn{{font-size:.8em;padding:4px 10px;border-radius:4px;border:1px solid var(--input-border,var(--border));background:var(--surface);color:var(--text);cursor:pointer;font-weight:600}}
     .cal-btn.start{{border-color:var(--link);color:var(--link)}}
     .cal-btn.stop{{border-color:var(--warn);color:var(--warn)}}
     .cal-btn:disabled{{opacity:.45;cursor:not-allowed}}
     .cal-controls{{display:flex;align-items:center;gap:6px;justify-content:flex-end}}
-    .cal-par{{width:3em;padding:4px 6px;font-size:.85em;border:1px solid var(--input-border);border-radius:4px;text-align:center;background:var(--input-bg);color:var(--text)}}
-    .cal-par:disabled{{background:var(--surface-muted);color:var(--faint)}}
+    .cal-par{{width:3em;padding:4px 6px;font-size:.85em;border:1px solid var(--input-border,var(--border));border-radius:4px;text-align:center;background:var(--input-bg,var(--surface));color:var(--text)}}
+    .cal-par:disabled{{opacity:.6}}
     .status-meta{{margin:0 0 12px;color:var(--faint);font-size:.85em;min-height:1em}}
     .cal-toolbar{{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 16px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-width:920px}}
     .cal-toolbar label{{font-size:.85em;font-weight:600;color:var(--muted)}}
-    .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text)}}
+    .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid var(--input-border,var(--border));border-radius:4px;background:var(--input-bg,var(--surface));color:var(--text)}}
     .cal-btn.primary{{border-color:var(--link);background:var(--link);color:#fff}}
-    .cal-legend{{font-size:.8em;color:var(--faint);margin:0 0 8px}}
-    </style></head><body>
-    <h1>Engine Calibration</h1>
-    {spectator_tabs("calibration")}
+    .cal-legend{{font-size:.8em;color:var(--faint);margin:0 0 8px;max-width:none}}
+    .cal-table-wrap{{max-width:1100px;overflow-x:auto}}
+    table.cal-table{{border-collapse:collapse;width:100%;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}}
+    table.cal-table th,table.cal-table td{{border-bottom:1px solid var(--row);padding:10px 12px;text-align:left;font-size:.88em}}
+    table.cal-table th{{background:var(--bg-elevated);font-weight:600;color:var(--muted);white-space:nowrap}}
+    table.cal-table tr:last-child td{{border-bottom:none}}
+    table.cal-table .empty{{color:var(--faint)}}
+    table.cal-table code{{font-size:.88em}}
+    .catalog{{color:var(--faint)}}
+    </style></head><body class="cal-page">
+    <div class="wrap">
+    {PUBLIC_SITE_HEADER}
+    <h2>Engine calibration</h2>
+    <p class="cal-lead">Results-only Elo for the ladder. Accuracy comes from move quality on continuous games — it is not ladder Elo.</p>
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
       <select id="pairing-mode" onchange="onPairingModeChange(this.value)">
@@ -264,18 +279,35 @@ def render_calibration_html() -> str:
       </select>
       <label for="fixed-opponent">Play against</label>
       <select id="fixed-opponent" disabled onchange="setFixedOpponent(this.value)"></select>
-      <button class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
-      <button class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
+      <button type="button" class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
+      <button type="button" class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
+      <button type="button" class="cal-btn" id="rebuild-acc-elo-btn" onclick="rebuildAccuracyEloMap(this)">Rebuild accuracy→Elo table</button>
     </div>
     <div id="status-meta" class="status-meta"></div>
+    <div class="cal-panel" id="play-rating-panel">
+      <h2>Quality samples &amp; accuracy→Elo map</h2>
+      <p id="play-rating-summary">Loading…</p>
+    </div>
     <h2>Calibrated ratings</h2>
-    <table id="rating-table"><tr><th>ID</th><th>Calibrated ELO</th><th>Games</th><th>Activity</th><th></th></tr>
-    <tr><td colspan="5" class="empty">No calibration data yet.</td></tr></table>
+    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy from quality samples (eligible floaters, 101+ Elo games).</p>
+    <div class="cal-table-wrap">
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th>Activity</th><th></th></tr>
+    <tr><td colspan="6" class="empty">No calibration data yet.</td></tr></table>
+    </div>
     <h2>Recent games</h2>
-    <p class="cal-legend">Green = ELO gain · Orange = ELO loss (per engine updated after that game)</p>
+    <p class="cal-legend">Green = Elo gain · Orange = Elo loss (per engine updated after that game)</p>
     <div id="game-feed" class="game-feed"></div>
+    </div>
     <script>
     function esc(s){{return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}}
+    function parSlug(id){{return String(id).replace(/[^a-zA-Z0-9_-]/g,'-');}}
+    function parFieldId(id){{return 'cal-par-'+parSlug(id);}}
+    function fmtAcc(v,std){{
+      if(v==null||v==='')return '—';
+      const base=Number(v).toFixed(1)+'%';
+      if(std==null||std==='')return base;
+      return base+' ± '+Number(std).toFixed(1);
+    }}
     function calHeaders(){{
       const meta=document.querySelector('meta[name="calibration-secret"]');
       const headers={{}};
@@ -321,11 +353,25 @@ def render_calibration_html() -> str:
       }}
     }}
     async function stopAllEngines(btn){{
-      if(btn)btn.disabled=true;
+      if(btn){{btn.disabled=true;btn.textContent='Stopping…';}}
       try{{
-        await calPost('/api/calibration/stop-all');
+        const ctrl=new AbortController();
+        const t=setTimeout(()=>ctrl.abort(),120000);
+        try{{
+          await fetch('/api/calibration/stop-all',{{method:'POST',headers:calHeaders(),signal:ctrl.signal}});
+        }}finally{{clearTimeout(t);}}
+      }}catch(e){{}}
+      finally{{
+        if(btn){{btn.disabled=false;btn.textContent='Stop all';}}
+        refresh();
+      }}
+    }}
+    async function rebuildAccuracyEloMap(btn){{
+      if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
+      try{{
+        await calPost('/api/calibration/rebuild-accuracy-elo-map');
       }}finally{{
-        if(btn)btn.disabled=false;
+        if(btn){{btn.disabled=false;btn.textContent='Rebuild accuracy→Elo table';}}
         refresh();
       }}
     }}
@@ -349,6 +395,29 @@ def render_calibration_html() -> str:
         if(d.pairing_mode==='fixed'&&d.fixed_opponent_id)meta+=(meta?' · ':'')+'vs '+d.fixed_opponent_id;
         if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
         document.getElementById('status-meta').textContent=meta;
+        const pr=d.play_rating||{{}};
+        const aem=d.accuracy_elo_map||{{}};
+        const prEl=document.getElementById('play-rating-summary');
+        if(prEl){{
+          const n=pr.sample_count||0;
+          const need=pr.min_samples||30;
+          let lines=[];
+          if(n>0){{
+            lines.push('Quality samples: '+n+(n<need?' / '+need+' collecting':' collected'));
+          }}else{{
+            lines.push('No quality samples yet. Eligible floaters (101+ Elo games) append samples after each continuous game.');
+          }}
+          const eng=aem.engine_count||0;
+          const minEng=aem.min_engines||2;
+          if(aem.warm){{
+            lines.push('Accuracy→Elo map: warm — '+eng+' engines'+(aem.fitted_at?' · '+aem.fitted_at:''));
+          }}else if(eng>0){{
+            lines.push('Accuracy→Elo map: need '+minEng+'+ calibrated floaters (have '+eng+'). Press Rebuild after more engines qualify.');
+          }}else{{
+            lines.push('Accuracy→Elo map: not built yet. Press Rebuild accuracy→Elo table when enough floaters have samples.');
+          }}
+          prEl.textContent=lines.join(' · ');
+        }}
         const modeSel=document.getElementById('pairing-mode');
         if(modeSel&&d.pairing_mode){{
           modeSel.value=d.pairing_mode;
@@ -364,11 +433,15 @@ def render_calibration_html() -> str:
         const rt=document.getElementById('rating-table');
         const rows=(d.rating_table||[]).map(row=>{{
           const elo=row.uncalibrated?`<span class="catalog">${{row.elo}}*</span>`:`<strong>${{row.elo}}</strong>`;
+          const acc=fmtAcc(row.mean_accuracy,row.accuracy_std);
           let activity='<span class="idle-badge">—</span>';
-          if(row.playing>0){{
-            activity=`<span class="playing-badge">${{row.playing}} game${{row.playing===1?'':'s'}} live</span>`;
-          }}else if(row.continuous){{
-            activity='<span class="playing-badge">running</span>';
+          if(row.continuous){{
+            const live=row.playing||0;
+            if(live>0){{
+              activity=`<span class="playing-badge">${{live}} live</span>`;
+            }}else{{
+              activity='<span class="playing-badge">waiting</span>';
+            }}
           }}else if(row.activity==='disabled'||row.enabled===false){{
             activity='<span class="idle-badge">disabled</span>';
           }}
@@ -376,17 +449,18 @@ def render_calibration_html() -> str:
           if(row.can_calibrate){{
             const parVal=row.continuous?String(row.parallel||1):savedParallel(row.id,1);
             const parDisabled=row.continuous?' disabled':'';
-            const parInput=`<input class="cal-par" type="number" min="1" max="100" value="${{parVal}}" data-eid="${{esc(row.id)}}"${{parDisabled}} title="Parallel games">`;
+            const parId=parFieldId(row.id);
+            const parInput=`<input class="cal-par" id="${{esc(parId)}}" name="${{esc(parId)}}" type="number" min="1" max="100" value="${{parVal}}" data-eid="${{esc(row.id)}}"${{parDisabled}} title="Parallel games">`;
             if(row.continuous){{
-              ctrl=`<div class="cal-controls">${{parInput}}<button class="cal-btn stop" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),false,this)">Stop</button></div>`;
+              ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn stop" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),false,this)">Stop</button></div>`;
             }}else{{
-              ctrl=`<div class="cal-controls">${{parInput}}<button class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
+              ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated ELO</th><th>Games</th><th>Activity</th><th></th></tr>'
-          +(rows||'<tr><td colspan="5" class="empty">No ratings yet.</td></tr>');
+        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th>Activity</th><th></th></tr>'
+          +(rows||'<tr><td colspan="6" class="empty">No ratings yet.</td></tr>');
         const feed=document.getElementById('game-feed');
         const games=(d.recent_games||[]).slice().reverse();
         feed.innerHTML=games.length?games.map(g=>{{
@@ -396,14 +470,14 @@ def render_calibration_html() -> str:
             const sign=u.elo_delta>=0?'+':'';
             upd+=` <span class="${{cls}}">${{esc(u.opponent_id)}} ${{u.elo_before}}→${{u.elo_after}} (${{sign}}${{u.elo_delta.toFixed(1)}})</span>`;
           }});
-          const skip=g.skipped?' <span class="idle-badge">(no ELO change)</span>':'';
+          const skip=g.skipped?' <span class="idle-badge">(no Elo change)</span>':'';
           return `<div class="game-line">#${{g.game_index||'?'}} <strong>${{esc(g.white)}}</strong> vs <strong>${{esc(g.black)}}</strong> → ${{esc(g.result)}}${{skip}}${{upd}}</div>`;
         }}).join(''):'<p class="empty">No games logged yet.</p>';
       }}catch(e){{}}
     }}
-    refresh();setInterval(refresh,2000);
+    refresh();setInterval(refresh,5000);
     </script>
-    {THEME_TOGGLE_SCRIPT}
+    <script src="/js/common.js" defer></script>
     </body></html>"""
 
 

@@ -242,12 +242,33 @@ class ContinuousCalibrationManager:
         self._recent_games: List[Dict[str, Any]] = []
         self._skipped_games = 0
         self._lock = asyncio.Lock()
+        self._quality_sem = asyncio.Semaphore(max(1, min(4, (os.cpu_count() or 4) // 2)))
         self._ladder = self._load_ladder()
         self._executor: Optional[ProcessPoolExecutor] = None
         self._dirty = False
         self._flush_task: Optional[asyncio.Task] = None
         self._pairing_mode = DEFAULT_PAIRING_MODE
         self._fixed_opponent_id: Optional[str] = "stockfish:0"
+
+    async def _run_quality_job(
+        self,
+        record: Any,
+        white_id: str,
+        black_id: str,
+        uci_moves: List[str],
+    ) -> None:
+        """Analyse moves for play-rating samples; never holds the ladder lock."""
+        try:
+            async with self._quality_sem:
+                await asyncio.to_thread(
+                    process_calibration_game_quality,
+                    record,
+                    white_id,
+                    black_id,
+                    uci_moves,
+                )
+        except Exception:
+            return
 
     def pairing_mode(self) -> str:
         return self._pairing_mode
@@ -280,9 +301,10 @@ class ContinuousCalibrationManager:
             loop = asyncio.get_running_loop()
             executor = self._executor
             self._executor = None
+            # Don't block Stop all on draining in-flight pool workers.
             await loop.run_in_executor(
                 None,
-                lambda: executor.shutdown(wait=True, cancel_futures=True),
+                lambda: executor.shutdown(wait=False, cancel_futures=True),
             )
 
     def _load_ladder(self) -> CalibrationLadder:
@@ -307,6 +329,9 @@ class ContinuousCalibrationManager:
         self._ladder.save(_ratings_path())
         rebuild_merged_ratings_file()
         invalidate_merge_cache()
+        from .snapshot_leaderboard import request_leaderboard_snapshot_refresh
+
+        request_leaderboard_snapshot_refresh()
 
     async def _schedule_save(self) -> None:
         self._dirty = True
@@ -484,11 +509,15 @@ class ContinuousCalibrationManager:
                     await asyncio.sleep(0.5)
                     continue
 
+                # Keep the ladder lock short: only mutate in-memory ratings.
+                # File I/O and quality analysis outside — otherwise engines stall at "0 live".
+                quality_job: Optional[tuple] = None
+                log_record = None
+                log_moves: Optional[List[str]] = None
                 async with self._lock:
                     self._ladder.ensure_player(match.white_id)
                     self._ladder.ensure_player(match.black_id)
                     record = self._ladder.record_game(match.white_id, match.black_id, result)
-                    self._ladder.append_game_log(_games_log_path(), record)
                     updates = [
                         {
                             "opponent_id": u.opponent_id,
@@ -505,15 +534,23 @@ class ContinuousCalibrationManager:
                         result=result,
                         updates=updates,
                     )
+                    log_record = record
+                    log_moves = list(uci_moves) if uci_moves else None
                     if uci_moves:
-                        await asyncio.to_thread(
-                            process_calibration_game_quality,
-                            record,
-                            match.white_id,
-                            match.black_id,
-                            uci_moves,
-                        )
+                        quality_job = (record, match.white_id, match.black_id, list(uci_moves))
+                    self._dirty = True
+
+                if log_record is not None:
+                    await asyncio.to_thread(
+                        self._ladder.append_game_log,
+                        _games_log_path(),
+                        log_record,
+                        uci_moves=log_moves,
+                    )
                     await self._schedule_save()
+
+                if quality_job is not None:
+                    asyncio.create_task(self._run_quality_job(*quality_job))
         except asyncio.CancelledError:
             pass
         finally:

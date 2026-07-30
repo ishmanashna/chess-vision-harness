@@ -5,6 +5,8 @@ from __future__ import annotations
 import chess
 from typing import TYPE_CHECKING, Any, Dict
 
+from .agent_surface import quality_fields_from_state
+
 if TYPE_CHECKING:
     from .board_controller import BoardController
     from .game_manager import GameManager
@@ -58,4 +60,5 @@ def avaa_move_response(
         response.update(ctrl.agent_outcome(caller_color, state["result"]))
     else:
         response["your_turn"] = ctrl._perspective(board, caller_color)["your_turn"]
+    response.update(quality_fields_from_state(state))
     return response

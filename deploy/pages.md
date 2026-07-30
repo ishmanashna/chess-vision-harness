@@ -57,21 +57,21 @@ Then open `http://localhost:3000` (or the port `serve` prints). All routes (`/le
 
 Opening `index.html` directly in a browser (`file://`) will not load `/data/leaderboard.json` or `/api/edge-health` — use a local static server instead.
 
-## Leaderboard snapshot (Phase 2)
+## Leaderboard (live vs offline)
 
-The site reads a committed JSON snapshot at `public-site/data/leaderboard.json`. Refresh it on the game PC after rated games finish:
+When the game server is **Online**, the site loads the ladder from `/api/leaderboard/live` (proxied via `GAME_ORIGIN`). When **Sleeping**, it uses the committed file `public-site/data/leaderboard.json`.
+
+While `chess-harness serve` runs, the origin refreshes that snapshot in the background. Optional manual backup when the PC is off:
 
 ```bash
 chess-harness snapshot-leaderboard
 ```
 
-Default output is `public-site/data/leaderboard.json` (repo root). Override with `--output path/to/leaderboard.json`.
-
-Typical flow: run the exporter locally, commit and push — CI deploys whatever is in the repo. Optional: schedule the command (Windows Task Scheduler or cron) on the PC that runs games, then push when you want the public ladder updated.
+Default output is `public-site/data/leaderboard.json` (repo root). Commit/push only for offline fallback — not how you publish live Elos when Online.
 
 ## What deploys
 
-- Static HTML, CSS, JS, and `data/leaderboard.json` (refresh via `chess-harness snapshot-leaderboard` on the game PC)
+- Static HTML, CSS, JS, and `data/leaderboard.json` (offline fallback; live ladder when Online)
 - Pages Functions: `/api/edge-health` (probes the game origin), middleware proxy for live play when `GAME_ORIGIN` is set
 - No game server or tunnel in this workflow — the PC origin is configured separately: **[`home-pc.md`](home-pc.md)** (Phase 4 runbook)
 

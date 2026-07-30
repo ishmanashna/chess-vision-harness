@@ -2,6 +2,8 @@
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
+  var LIVE_LEADERBOARD_URL = "/api/leaderboard/live";
+  var SNAPSHOT_LEADERBOARD_URL = "/data/leaderboard.json";
   var THEME_KEY = "chess-harness-theme";
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
@@ -23,6 +25,7 @@
       "/spectator": "nav-spectator",
       "/active": "nav-spectator",
       "/completed": "nav-spectator",
+      "/calibration": "nav-calibration",
     };
     var activeId = map[current];
     if (!activeId && current.indexOf("/g/") === 0) activeId = "nav-spectator";
@@ -30,6 +33,35 @@
     if (!activeId) return;
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
+  }
+
+  /** Localhost only: show Calibration after Leaderboard (never on Pages). */
+  function isLoopbackHost() {
+    var host = window.location.hostname;
+    return (
+      host === "127.0.0.1" ||
+      host === "localhost" ||
+      host === "::1" ||
+      host === "[::1]"
+    );
+  }
+
+  function ensureCalibrationNav() {
+    if (document.getElementById("nav-calibration")) {
+      if (navPath() === "/calibration") {
+        document.getElementById("nav-calibration").classList.add("active");
+      }
+      return;
+    }
+    if (!isLoopbackHost()) return;
+    var leaderboard = document.getElementById("nav-leaderboard");
+    if (!leaderboard || !leaderboard.parentNode) return;
+    var a = document.createElement("a");
+    a.href = "/calibration";
+    a.id = "nav-calibration";
+    a.textContent = "Calibration";
+    leaderboard.parentNode.insertBefore(a, leaderboard.nextSibling);
+    if (navPath() === "/calibration") a.classList.add("active");
   }
 
   function currentTheme() {
@@ -85,16 +117,25 @@
     });
   }
 
+  function normalizeLeaderboardPayload(data, live) {
+    data.agents = Array.isArray(data.agents) ? data.agents : [];
+    data.opponents = Array.isArray(data.opponents) ? data.opponents : [];
+    data.live = live === true;
+    return data;
+  }
+
   function fetchLeaderboard() {
-    return fetch("/data/leaderboard.json", { cache: "no-cache" })
-      .then(function (res) {
-        if (!res.ok) throw new Error("leaderboard fetch failed");
-        return res.json();
-      })
-      .then(function (data) {
-        data.agents = Array.isArray(data.agents) ? data.agents : [];
-        return data;
-      });
+    return checkEdgeHealth().then(function (health) {
+      var url = health.online ? LIVE_LEADERBOARD_URL : SNAPSHOT_LEADERBOARD_URL;
+      return fetch(url, { cache: "no-cache" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("leaderboard fetch failed");
+          return res.json();
+        })
+        .then(function (data) {
+          return normalizeLeaderboardPayload(data, health.online);
+        });
+    });
   }
 
   function formatQualityMean(value, suffix) {
@@ -200,9 +241,15 @@
           var meta = container.querySelector("[data-snapshot-meta]");
           if (meta) {
             var when = formatGeneratedAt(data.generated_at);
-            meta.textContent = when
-              ? "Snapshot from " + when + "."
-              : "Leaderboard snapshot.";
+            if (data.live) {
+              meta.textContent = when
+                ? "Live ladder · updated " + when + "."
+                : "Live ladder.";
+            } else {
+              meta.textContent = when
+                ? "Snapshot from " + when + "."
+                : "Leaderboard snapshot.";
+            }
           }
         }
       })
@@ -295,6 +342,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();
+    ensureCalibrationNav();
     initThemeToggle();
     if (document.querySelector("[data-status-chip]")) {
       applyHealthUi();
@@ -307,6 +355,9 @@
     if (document.querySelector("[data-engines-leaderboard]")) {
       loadScriptOnce("/js/engines.js");
     }
-    loadScriptOnce("/js/auth.js");
+    // Pages OAuth only — skip on origin calibration to avoid /auth/me 404 noise.
+    if (navPath() !== "/calibration") {
+      loadScriptOnce("/js/auth.js");
+    }
   });
 })();

@@ -1,0 +1,11 @@
+# Per-suite calibration dumps stay local; commit allow-listed snapshots only.
+*
+!.gitignore
+!.gitkeep
+!merged_ratings.json
+!accuracy_elo_map.json
+!continuous/
+!continuous/ratings.json
+!continuous/games.jsonl
+!continuous/play_rating_samples.jsonl
+!continuous/play_rating_map.json

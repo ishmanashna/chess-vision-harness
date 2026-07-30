@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -13,6 +15,10 @@ from .results import ResultsManager
 
 # Matches rating_math.k_factor stable threshold and public-site provisional display.
 PROVISIONAL_GAMES_THRESHOLD = 100
+
+SNAPSHOT_REFRESH_MIN_INTERVAL_SEC = 30.0
+_snapshot_refresh_lock = threading.Lock()
+_last_snapshot_refresh_mono = 0.0
 
 
 def default_output_path() -> Path:
@@ -98,21 +104,45 @@ def build_snapshot(
     return snapshot
 
 
+def load_live_leaderboard(
+    *,
+    base_dir: Optional[str] = None,
+    registry: Optional[ModelRegistry] = None,
+) -> Dict[str, Any]:
+    """Build public-site leaderboard JSON from current harness state (no disk write)."""
+    reg = registry or ModelRegistry()
+    harness_base = str(base_dir) if base_dir else str(resolve_base_dir())
+    results = ResultsManager(base_dir=harness_base)
+    return build_snapshot(
+        reg,
+        results.count_by_model(),
+        quality_stats=results.aggregate_quality_by_model(),
+    )
+
+
 def export_leaderboard_snapshot(
     output_path: Optional[Path | str] = None,
     *,
     base_dir: Optional[str] = None,
     registry: Optional[ModelRegistry] = None,
 ) -> Path:
-    """Write leaderboard JSON for the public site."""
-    base = Path(base_dir) if base_dir else resolve_base_dir()
-    reg = registry or ModelRegistry()
-    results = ResultsManager(base_dir=str(base))
-    game_counts = results.count_by_model()
-    quality_stats = results.aggregate_quality_by_model()
-    snapshot = build_snapshot(reg, game_counts, quality_stats=quality_stats)
-
+    """Write leaderboard JSON for the public site offline fallback."""
+    snapshot = load_live_leaderboard(base_dir=base_dir, registry=registry)
     out = Path(output_path) if output_path else default_output_path()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
     return out
+
+
+def request_leaderboard_snapshot_refresh() -> None:
+    """Debounced background write of public-site/data/leaderboard.json."""
+    global _last_snapshot_refresh_mono
+    now = time.monotonic()
+    with _snapshot_refresh_lock:
+        if now - _last_snapshot_refresh_mono < SNAPSHOT_REFRESH_MIN_INTERVAL_SEC:
+            return
+        try:
+            export_leaderboard_snapshot()
+            _last_snapshot_refresh_mono = now
+        except Exception:
+            pass

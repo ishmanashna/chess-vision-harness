@@ -93,6 +93,15 @@ def test_calibration_post_denied_without_secret(spectator_client):
     assert denied.status_code == 403
 
 
+def test_calibration_post_allowed_on_loopback_host(spectator_client):
+    client = spectator_client
+    ok = client.post(
+        "/api/calibration/stop-all",
+        headers={"Host": "127.0.0.1:8765"},
+    )
+    assert ok.status_code == 200
+
+
 def test_calibration_post_allowed_with_secret(spectator_client, monkeypatch):
     monkeypatch.setenv("CHESS_HARNESS_CALIBRATION_SECRET", "test-secret")
     client = spectator_client

@@ -47,6 +47,9 @@ from .game_manager import GameManager
 from .game_service import GameService
 from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
+from .snapshot_leaderboard import export_leaderboard_snapshot, load_live_leaderboard
+
+LEADERBOARD_SNAPSHOT_INTERVAL_SEC = 300
 
 _project_root = project_root()
 _base = str(resolve_base_dir())
@@ -128,6 +131,11 @@ def _clear_stale_batch_calibration() -> None:
 async def _lifespan(_app: FastAPI):
     _clear_stale_batch_calibration()
     rebuild_merged_ratings_file()
+    try:
+        await asyncio.to_thread(export_leaderboard_snapshot)
+    except Exception:
+        pass
+
     async def _idle_watcher():
         while True:
             await asyncio.sleep(60)
@@ -136,9 +144,19 @@ async def _lifespan(_app: FastAPI):
             except Exception:
                 pass
 
-    task = asyncio.create_task(_idle_watcher())
+    async def _leaderboard_snapshot_watcher():
+        while True:
+            await asyncio.sleep(LEADERBOARD_SNAPSHOT_INTERVAL_SEC)
+            try:
+                await asyncio.to_thread(export_leaderboard_snapshot)
+            except Exception:
+                pass
+
+    idle_task = asyncio.create_task(_idle_watcher())
+    snapshot_task = asyncio.create_task(_leaderboard_snapshot_watcher())
     yield
-    task.cancel()
+    idle_task.cancel()
+    snapshot_task.cancel()
     await get_continuous_calibration().stop_all()
     _get_game_service().controller.opponent_mgr.release()
     remove_spectator_meta()
@@ -205,6 +223,27 @@ if (_public_site / "css").is_dir():
     app.mount("/css", StaticFiles(directory=str(_public_site / "css")), name="public_css")
 if (_public_site / "js").is_dir():
     app.mount("/js", StaticFiles(directory=str(_public_site / "js")), name="public_js")
+
+
+def _live_leaderboard_json() -> JSONResponse:
+    return JSONResponse(
+        load_live_leaderboard(base_dir=_base),
+        headers={"cache-control": "no-store"},
+    )
+
+
+@app.get("/api/leaderboard/live")
+async def live_leaderboard_api():
+    """Live public ladder (agents + calibrated engines); same shape as snapshot JSON."""
+    return _live_leaderboard_json()
+
+
+@app.get("/data/leaderboard.json")
+async def live_leaderboard_data_file():
+    """Serve live ladder at the static snapshot path while the origin is up."""
+    return _live_leaderboard_json()
+
+
 if (_public_site / "data").is_dir():
     app.mount("/data", StaticFiles(directory=str(_public_site / "data")), name="public_data")
 
@@ -583,7 +622,8 @@ async def calibration_page():
 
 @app.get("/api/calibration/status")
 async def calibration_status():
-    return get_calibration_status()
+    # Heavy sync work (samples/maps/ratings) — keep the event loop free for HTML/UI.
+    return await asyncio.to_thread(get_calibration_status)
 
 
 @app.post("/api/calibration/continuous/{engine_id}/start")
@@ -631,6 +671,22 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     return {"ok": True, "fixed_opponent_id": opponent_id}
+
+
+@app.post("/api/calibration/rebuild-accuracy-elo-map")
+async def calibration_rebuild_accuracy_elo_map():
+    from .accuracy_elo_map import rebuild_accuracy_elo_map
+
+    payload = await asyncio.to_thread(rebuild_accuracy_elo_map)
+    from .accuracy_elo_map import map_warm
+
+    return {
+        "ok": True,
+        "engine_count": payload.get("engine_count", 0),
+        "min_engines": payload.get("min_engines"),
+        "fitted_at": payload.get("fitted_at"),
+        "warm": map_warm(payload),
+    }
 
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)

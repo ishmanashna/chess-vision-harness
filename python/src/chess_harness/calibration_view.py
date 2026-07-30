@@ -23,7 +23,7 @@ def _results_root() -> Path:
 _MERGE_CACHE: Optional[Tuple[float, Dict[str, Dict[str, Any]]]] = None
 MERGE_CACHE_TTL_SEC = 2.0
 _STATUS_CACHE: Optional[Tuple[float, Dict[str, Any]]] = None
-STATUS_CACHE_TTL_SEC = 1.0
+STATUS_CACHE_TTL_SEC = 4.0
 
 
 def invalidate_merge_cache() -> None:
@@ -189,15 +189,18 @@ def get_calibration_status() -> Dict[str, Any]:
     now = time.monotonic()
     mgr = _continuous_mgr()
     running = mgr.running_engines()
-    if _STATUS_CACHE is not None and running:
+    if _STATUS_CACHE is not None:
         cached_at, cached = _STATUS_CACHE
         if now - cached_at < STATUS_CACHE_TTL_SEC:
             cont = mgr.status_payload()
             return {
                 **cached,
+                "mode": "continuous" if running else "idle",
+                "active": bool(running),
                 "continuous_engines": sorted(running),
                 "parallel_by_engine": cont.get("parallel_by_engine", {}),
                 "skipped_games": cont.get("skipped_games", 0),
+                "workers": len(running),
                 "in_progress": sum(cont.get("in_flight_by_engine", {}).values()),
                 "in_flight_by_engine": cont.get("in_flight_by_engine", {}),
                 "recent_games": cont.get("recent_games", [])[-30:],
@@ -234,6 +237,38 @@ def get_calibration_status() -> Dict[str, Any]:
     rating_table = build_ladder_rating_table(catalog, calibration)
     rating_table = mgr.enrich_rating_rows([r for r in rating_table if not r.get("anchor")])
 
+    from .accuracy_elo_map import status_summary as accuracy_elo_map_status
+    from .play_rating import play_rating_status_summary
+
+    cal_root = project_root() / "elo_calibration" / "results"
+    try:
+        play_rating = play_rating_status_summary(root=cal_root)
+    except Exception:
+        play_rating = {
+            "sample_count": 0,
+            "min_samples": 30,
+        }
+    try:
+        accuracy_elo_map = accuracy_elo_map_status(root=cal_root)
+    except Exception:
+        accuracy_elo_map = {
+            "engine_count": 0,
+            "min_engines": 2,
+            "fitted_at": None,
+            "warm": False,
+        }
+    by_engine = {row["engine_id"]: row for row in play_rating.get("engines", [])}
+    for row in rating_table:
+        info = by_engine.get(row["id"])
+        if not info:
+            row["mean_accuracy"] = None
+            row["accuracy_std"] = None
+            row["quality_samples"] = 0
+            continue
+        row["mean_accuracy"] = info.get("mean_accuracy")
+        row["accuracy_std"] = info.get("accuracy_std")
+        row["quality_samples"] = int(info.get("sample_count") or 0)
+
     payload = {
         "mode": "continuous" if running else "idle",
         "active": bool(running),
@@ -254,11 +289,13 @@ def get_calibration_status() -> Dict[str, Any]:
         "fixed_opponent_id": cont.get("fixed_opponent_id"),
         "pairing_opponents": cont.get("pairing_opponents", []),
         "calibratable_engines": cont.get("calibratable_engines", []),
+        "play_rating": {
+            "sample_count": play_rating["sample_count"],
+            "min_samples": play_rating["min_samples"],
+        },
+        "accuracy_elo_map": accuracy_elo_map,
     }
-    if running:
-        _STATUS_CACHE = (now, payload)
-    else:
-        _STATUS_CACHE = None
+    _STATUS_CACHE = (now, payload)
     return payload
 
 

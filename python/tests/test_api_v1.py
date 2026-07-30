@@ -179,3 +179,42 @@ def test_api_v1_auth_and_model_mismatch(api_client):
         headers=_auth_headers(key_a),
     )
     assert unknown.status_code == 404
+
+
+def test_api_v1_status_includes_est_elo_play(api_client):
+    client, harness_dir = api_client
+    reg = client.post("/api/v1/agents", json={"id": "est-agent", "name": "Est Agent"})
+    api_key = reg.json()["api_key"]
+
+    create = client.post(
+        "/api/v1/games",
+        headers=_auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    game_id = create.json()["game_id"]
+
+    gm = GameManager(str(harness_dir))
+    state = gm.load_state(game_id)
+    state.update(
+        {
+            "status": "finished",
+            "result": "1-0",
+            "quality_at": "2026-01-01T00:00:00+00:00",
+            "white_accuracy": 90.0,
+            "black_accuracy": 55.0,
+            "white_play_rating": 1200.0,
+            "black_play_rating": 800.0,
+            "agent_play_rating": 1200.0,
+        }
+    )
+    gm.save_state(game_id, state)
+
+    status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth_headers(api_key))
+    assert status.status_code == 200
+    data = status.json()
+    assert data["ok"] is True
+    assert data["white_play_rating"] == 1200.0
+    assert data["black_play_rating"] == 800.0
+    assert data["agent_play_rating"] == 1200.0
+    assert data["white_accuracy"] == 90.0
+    _assert_no_leaks(data)

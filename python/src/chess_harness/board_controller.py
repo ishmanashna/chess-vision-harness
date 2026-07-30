@@ -12,7 +12,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from .agent_surface import agent_safe_board, agent_safe_status
+from .agent_surface import agent_safe_board, agent_safe_status, quality_fields_from_state
 from .avaa import AvAAPlay, is_avaa_state
 from .elo import ELOLadder, ENGINE_DISPLAY_NAME, format_stockfish_label
 from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent_strength
@@ -367,6 +367,7 @@ class BoardController:
             response.update(self.agent_outcome(state["agent_color"], state["result"]))
         else:
             response["your_turn"] = self._perspective(board, state["agent_color"])["your_turn"]
+        response.update(quality_fields_from_state(state))
         return response
 
     def new_game(
@@ -667,6 +668,9 @@ class BoardController:
         )
         if delta:
             state.update(delta)
+            from .snapshot_leaderboard import request_leaderboard_snapshot_refresh
+
+            request_leaderboard_snapshot_refresh()
 
     def apply_elo_delta(self, state: Dict[str, Any]) -> Optional[Dict[str, int]]:
         """Return ELO change for a game, backfilling from results if needed."""

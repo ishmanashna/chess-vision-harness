@@ -362,5 +362,18 @@ def cmd_analyse_quality(
     return 1 if failed else 0
 
 
+def cmd_rebuild_estimation_samples() -> int:
+    """Rebuild play-rating samples from continuous games.jsonl uci_moves rows."""
+    from .play_rating import rebuild_estimation_samples
+
+    result = rebuild_estimation_samples()
+    print(
+        f"Rebuilt {result['samples']} samples from "
+        f"{result['games_with_moves']} games with moves "
+        f"({result['games_total']} total in log)"
+    )
+    return 0
+
+
 def default_game_id() -> str:
     return new_game_id()

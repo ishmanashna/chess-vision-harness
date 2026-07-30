@@ -2,32 +2,35 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
 
+from chess_harness.agent_surface import agent_safe_status
+from chess_harness.accuracy_elo_map import est_elo_from_accuracy, map_path
 from chess_harness.game_manager import GameManager
 from chess_harness.game_quality import GameQuality, SideQuality
 from chess_harness.game_types import GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
-from chess_harness.play_rating import (
-    MIN_MAP_SAMPLES,
-    append_play_rating_sample,
-    fit_play_rating_map,
-    play_rating_for_side,
-)
 from chess_harness.quality_finish import run_game_quality, schedule_game_quality
 from chess_harness.results import ResultsManager
 
 
-def _warm_map_root(tmp_path):
-    """Fixture play-rating map with sample_count >= MIN_MAP_SAMPLES."""
+def _warm_accuracy_map_root(tmp_path):
+    """Fixture accuracy→Elo map with engine_count >= min_engines."""
     map_root = tmp_path / "cal_results"
-    for i in range(MIN_MAP_SAMPLES):
-        append_play_rating_sample(
-            {"q": float(i), "calibration_elo_before": 500.0 + i * 10.0},
-            root=map_root,
-        )
-    fit_play_rating_map(root=map_root)
+    map_root.mkdir(parents=True)
+    payload = {
+        "engine_count": 2,
+        "min_engines": 2,
+        "fitted_at": "2026-01-01T00:00:00+00:00",
+        "pairs": [],
+        "knots": [
+            {"accuracy": 50.0, "elo": 800.0},
+            {"accuracy": 100.0, "elo": 1500.0},
+        ],
+    }
+    map_path(map_root).write_text(json.dumps(payload), encoding="utf-8")
     return map_root
 
 
@@ -255,13 +258,13 @@ def test_schedule_game_quality_runs_in_background(mock_analyse, tmp_path):
 
 
 @patch("chess_harness.quality_finish.analyse_game")
-def test_run_game_quality_writes_play_rating_with_warm_map(mock_analyse, tmp_path):
-    """Phase 5: harness finish applies map(Q) when sample_count >= 30."""
+def test_run_game_quality_writes_est_elo_play_with_warm_map(mock_analyse, tmp_path):
+    """Phase 4: harness finish applies accuracy→Elo map when warm."""
     quality = _stub_quality(85.5, 79.25)
     mock_analyse.return_value = quality
-    map_root = _warm_map_root(tmp_path)
-    expected_white = play_rating_for_side(quality.white, root=map_root)
-    expected_black = play_rating_for_side(quality.black, root=map_root)
+    map_root = _warm_accuracy_map_root(tmp_path)
+    expected_white = est_elo_from_accuracy(quality.white.accuracy, root=map_root)
+    expected_black = est_elo_from_accuracy(quality.black.accuracy, root=map_root)
     assert expected_white is not None
     assert expected_black is not None
 
@@ -301,13 +304,13 @@ def test_run_game_quality_writes_play_rating_with_warm_map(mock_analyse, tmp_pat
 
 
 @patch("chess_harness.quality_finish.analyse_game")
-def test_run_game_quality_avh_both_sides_play_rating(mock_analyse, tmp_path):
-    """Phase 5: AvH state gets white/black + agent convenience play ratings."""
+def test_run_game_quality_avh_both_sides_est_elo_play(mock_analyse, tmp_path):
+    """Phase 4: AvH state gets white/black + agent Est. Elo (play)."""
     quality = _stub_quality(white_acc=93.0, black_acc=50.0)
     mock_analyse.return_value = quality
-    map_root = _warm_map_root(tmp_path)
-    expected_agent = play_rating_for_side(quality.white, root=map_root)
-    expected_human = play_rating_for_side(quality.black, root=map_root)
+    map_root = _warm_accuracy_map_root(tmp_path)
+    expected_agent = est_elo_from_accuracy(quality.white.accuracy, root=map_root)
+    expected_human = est_elo_from_accuracy(quality.black.accuracy, root=map_root)
     assert expected_agent is not None
     assert expected_human is not None
 
@@ -345,12 +348,12 @@ def test_run_game_quality_avh_both_sides_play_rating(mock_analyse, tmp_path):
 
 
 @patch("chess_harness.quality_finish.analyse_game")
-def test_run_game_quality_ave_agent_play_rating(mock_analyse, tmp_path):
-    """Phase 5: AvE agent row gets play_rating from warm map."""
+def test_run_game_quality_ave_agent_est_elo_play(mock_analyse, tmp_path):
+    """Phase 4: AvE agent row gets Est. Elo (play) from accuracy map."""
     quality = _stub_quality(white_acc=70.0, black_acc=82.0)
     mock_analyse.return_value = quality
-    map_root = _warm_map_root(tmp_path)
-    expected_agent = play_rating_for_side(quality.black, root=map_root)
+    map_root = _warm_accuracy_map_root(tmp_path)
+    expected_agent = est_elo_from_accuracy(quality.black.accuracy, root=map_root)
     assert expected_agent is not None
 
     base = tmp_path / "harness"
@@ -378,7 +381,34 @@ def test_run_game_quality_ave_agent_play_rating(mock_analyse, tmp_path):
     saved = gm.load_state(game_id)
     assert saved["agent_play_rating"] == expected_agent
     assert saved["black_play_rating"] == expected_agent
-    assert saved["white_play_rating"] == play_rating_for_side(quality.white, root=map_root)
+    assert saved["white_play_rating"] == est_elo_from_accuracy(quality.white.accuracy, root=map_root)
 
     rows = rm.load_results()
     assert rows[0]["play_rating"] == expected_agent
+
+
+def test_agent_safe_status_includes_est_elo_play_fields():
+    state = {
+        "game_id": "g-est",
+        "status": "finished",
+        "result": "1-0",
+        "agent_color": "WHITE",
+        "moves": ["e2e4", "e7e5"],
+        "quality_at": "2026-01-01T00:00:00+00:00",
+        "white_accuracy": 88.0,
+        "black_accuracy": 72.0,
+        "white_play_rating": 1100.5,
+        "black_play_rating": 950.2,
+        "agent_play_rating": 1100.5,
+    }
+    payload = agent_safe_status(
+        state,
+        "/tmp/board.png",
+        {"your_turn": False, "game_over": True},
+    )
+    assert payload["white_play_rating"] == 1100.5
+    assert payload["black_play_rating"] == 950.2
+    assert payload["agent_play_rating"] == 1100.5
+    assert payload["white_accuracy"] == 88.0
+    assert "fen" not in payload
+    assert "moves" not in payload

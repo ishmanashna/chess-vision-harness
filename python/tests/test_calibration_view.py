@@ -144,6 +144,115 @@ def test_get_calibration_status_idle(cal_results):
     assert harness["uncalibrated"] is True
     assert harness["playing"] == 0
     assert harness["activity"] == "idle"
+    assert "play_rating" in status
+    assert status["play_rating"]["sample_count"] == 0
+    assert "accuracy_elo_map" in status
+    assert status["accuracy_elo_map"]["warm"] is False
+    assert harness.get("mean_accuracy") is None
+    assert harness.get("accuracy_std") is None
+    assert "champion" not in status["play_rating"]
+    assert "estimators" not in status["play_rating"]
+    assert "reliability" not in status["play_rating"]
+    assert "warm" not in status["play_rating"]
+
+
+def test_get_calibration_status_includes_play_rating_means(cal_results):
+    continuous = cal_results / "continuous"
+    continuous.mkdir(parents=True)
+    samples = continuous / "play_rating_samples.jsonl"
+    lines = [
+        {
+            "engine_id": "stockfish-handicap:noise10",
+            "q": 70.0,
+            "q_midgame": 69.0,
+            "q_trimmed": 71.0,
+            "accuracy": 88.0,
+            "acpl": 40.0,
+            "calibration_elo_before": 900.0,
+        },
+        {
+            "engine_id": "stockfish-handicap:noise10",
+            "q": 74.0,
+            "q_midgame": 73.0,
+            "q_trimmed": 75.0,
+            "accuracy": 92.0,
+            "acpl": 35.0,
+            "calibration_elo_before": 910.0,
+        },
+    ]
+    samples.write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
+    from chess_harness.calibration_view import invalidate_merge_cache
+
+    invalidate_merge_cache()
+    status = get_calibration_status()
+    row = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise10")
+    assert row["mean_accuracy"] == 90.0
+    assert row["quality_samples"] == 2
+    assert row.get("accuracy_std") == 2.0
+    assert status["play_rating"]["sample_count"] == 2
+    assert status["accuracy_elo_map"]["warm"] is False
+
+
+def test_get_calibration_status_accuracy_elo_map_warm(cal_results):
+    from chess_harness.accuracy_elo_map import MIN_ENGINE_PAIRS, rebuild_accuracy_elo_map
+
+    continuous = cal_results / "continuous"
+    continuous.mkdir(parents=True)
+    rows = []
+    for i in range(30):
+        rows.append(
+            {
+                "engine_id": "stockfish-handicap:noise10",
+                "game_index": i,
+                "ts": f"2026-01-01T00:00:{i:02d}+00:00",
+                "q": 50.0 + i,
+                "q_midgame": 49.0 + i,
+                "q_trimmed": 51.0 + i,
+                "accuracy": 80.0 + (i % 5),
+                "acpl": 30.0 + (i % 3),
+                "blunder_rate": 0.05,
+                "calibration_elo_before": 900.0 + i,
+            }
+        )
+        rows.append(
+            {
+                "engine_id": "stockfish-handicap:noise70",
+                "game_index": i,
+                "ts": f"2026-01-01T00:01:{i:02d}+00:00",
+                "q": 40.0 + i,
+                "accuracy": 60.0 + (i % 4),
+                "calibration_elo_before": 520.0 + i,
+            }
+        )
+    (continuous / "play_rating_samples.jsonl").write_text(
+        "\n".join(json.dumps(x) for x in rows) + "\n",
+        encoding="utf-8",
+    )
+    ratings = {
+        "ratings": {
+            "stockfish-handicap:noise10": 950.0,
+            "stockfish-handicap:noise70": 520.0,
+        },
+        "games_played": {
+            "stockfish-handicap:noise10": 120,
+            "stockfish-handicap:noise70": 120,
+        },
+    }
+    (cal_results / "suite-a" / "ratings.json").write_text(
+        json.dumps(ratings), encoding="utf-8"
+    )
+    rebuild_accuracy_elo_map(root=cal_results)
+    from chess_harness.calibration_view import invalidate_merge_cache
+
+    invalidate_merge_cache()
+    status = get_calibration_status()
+    row = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise10")
+    assert row["mean_accuracy"] is not None
+    assert row["quality_samples"] == 30
+    assert status["accuracy_elo_map"]["warm"] is True
+    assert status["accuracy_elo_map"]["engine_count"] >= MIN_ENGINE_PAIRS
+    assert "elo_estimations" not in row
+    assert "estimators" not in status["play_rating"]
 
 
 def test_enrich_rating_table_activity_playing():

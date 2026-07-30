@@ -214,6 +214,9 @@ def main(argv: list[str] | None = None) -> None:
                 sys.exit(1)
         sys.exit(commands.cmd_analyse_quality(game_id, force=force))
 
+    elif args[0] in ("rebuild-estimation-samples", "rebuild-play-rating-samples"):
+        sys.exit(commands.cmd_rebuild_estimation_samples())
+
     elif args[0] == "opponents":
         if len(args) < 2 or args[1] == "list":
             commands.cmd_opponents_list()

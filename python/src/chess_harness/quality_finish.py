@@ -109,12 +109,14 @@ def _round_accuracy(value: Optional[float]) -> Optional[float]:
     return round(value, 2)
 
 
-def _play_rating_for_side(
+def _est_elo_play_for_side(
     side: SideQuality, map_root: Optional[Path] = None
 ) -> Optional[float]:
-    from .play_rating import play_rating_for_side
+    from .accuracy_elo_map import est_elo_from_accuracy
 
-    return play_rating_for_side(side, root=map_root)
+    if side.accuracy is None:
+        return None
+    return est_elo_from_accuracy(float(side.accuracy), root=map_root)
 
 
 def _patch_state_quality(
@@ -129,15 +131,15 @@ def _patch_state_quality(
     state["quality_at"] = quality_at
 
     state["white_accuracy"] = _round_accuracy(quality.white.accuracy)
-    state["white_play_rating"] = _play_rating_for_side(quality.white, map_root)
+    state["white_play_rating"] = _est_elo_play_for_side(quality.white, map_root)
     state["black_accuracy"] = _round_accuracy(quality.black.accuracy)
-    state["black_play_rating"] = _play_rating_for_side(quality.black, map_root)
+    state["black_play_rating"] = _est_elo_play_for_side(quality.black, map_root)
 
     if state.get("game_type") != GAME_TYPE_AGENT_VS_AGENT:
         agent_color = state.get("agent_color")
         agent_side = quality.white if agent_color == "WHITE" else quality.black
         state["agent_accuracy"] = _round_accuracy(agent_side.accuracy)
-        state["agent_play_rating"] = _play_rating_for_side(agent_side, map_root)
+        state["agent_play_rating"] = _est_elo_play_for_side(agent_side, map_root)
 
 
 def _quality_row_fields(
@@ -149,7 +151,7 @@ def _quality_row_fields(
 ) -> Dict[str, Any]:
     return {
         "accuracy": _round_accuracy(side.accuracy),
-        "play_rating": _play_rating_for_side(side, map_root),
+        "play_rating": _est_elo_play_for_side(side, map_root),
         "quality_depth": quality.quality_depth,
         "quality_thin": quality.quality_thin,
         "quality_at": quality_at,

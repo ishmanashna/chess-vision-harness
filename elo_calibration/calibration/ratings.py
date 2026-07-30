@@ -53,6 +53,30 @@ class GameRecord:
     updates: List[RatingUpdate] = field(default_factory=list)
     ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+    @classmethod
+    def from_log_dict(cls, data: Dict[str, Any]) -> "GameRecord":
+        """Rebuild a GameRecord from a games.jsonl row (optional uci_moves ignored)."""
+        updates = [
+            RatingUpdate(
+                opponent_id=u["opponent_id"],
+                elo_before=float(u["elo_before"]),
+                elo_after=float(u["elo_after"]),
+                elo_delta=float(u["elo_delta"]),
+                games_played=int(u["games_played"]),
+            )
+            for u in data.get("updates", [])
+        ]
+        return cls(
+            game_index=int(data["game_index"]),
+            white_id=data["white"],
+            black_id=data["black"],
+            result=data["result"],
+            white_elo_before=float(data["white_elo_before"]),
+            black_elo_before=float(data["black_elo_before"]),
+            updates=updates,
+            ts=data.get("ts", ""),
+        )
+
 
 @dataclass
 class CalibrationLadder:
@@ -240,7 +264,13 @@ class CalibrationLadder:
             return cls()
         return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
-    def append_game_log(self, path: Path, record: GameRecord) -> None:
+    def append_game_log(
+        self,
+        path: Path,
+        record: GameRecord,
+        *,
+        uci_moves: Optional[List[str]] = None,
+    ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "game_index": record.game_index,
@@ -261,5 +291,7 @@ class CalibrationLadder:
                 for u in record.updates
             ],
         }
+        if uci_moves:
+            payload["uci_moves"] = list(uci_moves)
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(payload) + "\n")

@@ -5,6 +5,23 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
+_QUALITY_STATE_KEYS = (
+    "quality_at",
+    "quality_thin",
+    "quality_depth",
+    "white_accuracy",
+    "black_accuracy",
+    "white_play_rating",
+    "black_play_rating",
+    "agent_accuracy",
+    "agent_play_rating",
+)
+
+
+def quality_fields_from_state(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Est. Elo (play) + accuracy fields when post-game quality has run."""
+    return {key: state[key] for key in _QUALITY_STATE_KEYS if key in state}
+
 
 def debug_state_enabled(debug_param: Optional[str] = None) -> bool:
     """Full internal state only when operator enables debug."""
@@ -46,6 +63,7 @@ def agent_safe_status(
         response["in_check"] = False
     if not in_progress and state.get("last_move_uci"):
         response["last_move"] = state["last_move_uci"]
+    response.update(quality_fields_from_state(state))
     return response
 
 
@@ -123,17 +141,5 @@ def agent_safe_spectator_state(
     }
     if extra:
         payload.update(extra)
-    for key in (
-        "quality_at",
-        "quality_thin",
-        "quality_depth",
-        "white_accuracy",
-        "black_accuracy",
-        "white_play_rating",
-        "black_play_rating",
-        "agent_accuracy",
-        "agent_play_rating",
-    ):
-        if key in state:
-            payload[key] = state[key]
+    payload.update(quality_fields_from_state(state))
     return payload

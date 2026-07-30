@@ -45,6 +45,10 @@ MATE_MISS_THRESHOLD = MATE_CP * 2 // 3
 BLUNDER_WIN_PROB_LOSS = 0.30
 THIN_MOVES_PER_SIDE = 5
 ACPL_NORMALIZER = 100.0
+COMPOSITE_Q_ALPHA = 8.0
+COMPOSITE_Q_BETA = 25.0
+TRIM_PLY_FRACTION = 0.10
+MIN_PLY_AFTER_TRIM = 3
 DEFAULT_QUALITY_DEPTH = 8
 QUALITY_DEPTH_ENV = "QUALITY_STOCKFISH_DEPTH"
 
@@ -62,6 +66,8 @@ class SideQuality:
     blunder_rate: Optional[float]
     move_count: int
     blunder_count: int = 0
+    q_midgame: Optional[float] = None
+    q_trimmed: Optional[float] = None
 
 
 @dataclass
@@ -148,24 +154,124 @@ def _ply_weights(all_wps: List[float], n_moves: int) -> List[float]:
     return weights
 
 
-def _build_side(
-    accuracies: List[float],
-    weights: List[float],
-    cp_losses: List[int],
-    blunder_count: int,
+def composite_q_value(
+    accuracy: Optional[float],
+    normalized_acpl: Optional[float],
+    blunder_rate: Optional[float],
+) -> Optional[float]:
+    """Q = accuracy − α·normalized_acpl − β·blunder_rate."""
+    if accuracy is None or normalized_acpl is None or blunder_rate is None:
+        return None
+    return (
+        accuracy
+        - COMPOSITE_Q_ALPHA * normalized_acpl
+        - COMPOSITE_Q_BETA * blunder_rate
+    )
+
+
+def _material_factor(board: chess.Board) -> float:
+    """Down-weight quiet low-material endings (1.0 early, ~0.25 in bare endings)."""
+    piece_count = len(board.piece_map())
+    if piece_count >= 24:
+        return 1.0
+    if piece_count <= 8:
+        return 0.25
+    return 0.25 + (piece_count - 8) * (0.75 / 16.0)
+
+
+def _weighted_mean(values: Sequence[float], weights: Sequence[float]) -> float:
+    total_w = sum(weights)
+    if total_w <= 0:
+        return sum(values) / len(values)
+    return sum(v * w for v, w in zip(values, weights)) / total_w
+
+
+def _trim_drop_indices(n: int, swings: Sequence[float]) -> set[int]:
+    if n <= MIN_PLY_AFTER_TRIM:
+        return set()
+    n_drop = max(1, int(n * TRIM_PLY_FRACTION))
+    n_drop = min(n_drop, n - MIN_PLY_AFTER_TRIM)
+    ranked = sorted(range(n), key=lambda i: swings[i], reverse=True)
+    return set(ranked[:n_drop])
+
+
+@dataclass
+class _SidePlyData:
+    """Per-side ply records in move order (one entry per move by this side)."""
+
+    cp_losses: List[int]
+    swings: List[float]
+    blunder_flags: List[bool]
+    material_weights: List[float]
+    accuracies: List[Optional[float]]
+    ply_idxs: List[int]
+    vol_weights: List[float]
+
+
+def _side_from_ply_data(
+    data: _SidePlyData,
+    *,
+    cp_weights: Optional[Sequence[float]] = None,
+    drop_indices: Optional[set[int]] = None,
 ) -> SideQuality:
-    n = len(cp_losses)
+    n = len(data.cp_losses)
     if n == 0:
         return SideQuality(None, None, None, None, 0, 0)
-    acpl = sum(cp_losses) / n
+
+    drop = drop_indices or set()
+    kept = [i for i in range(n) if i not in drop]
+    if not kept:
+        return SideQuality(None, None, None, None, 0, 0)
+
+    ply_w = list(cp_weights) if cp_weights is not None else [1.0] * n
+    kept_losses = [float(data.cp_losses[i]) for i in kept]
+    kept_ply_w = [ply_w[i] for i in kept]
+    acpl = _weighted_mean(kept_losses, kept_ply_w)
+    blunder_count = sum(1 for i in kept if data.blunder_flags[i])
+    blunder_rate = blunder_count / len(kept)
+
+    kept_acc: List[float] = []
+    kept_acc_w: List[float] = []
+    for cp_i in kept:
+        acc = data.accuracies[cp_i]
+        if acc is None:
+            continue
+        kept_acc.append(acc)
+        vol_w = data.vol_weights[cp_i] if cp_i < len(data.vol_weights) else 1.0
+        kept_acc_w.append(vol_w * ply_w[cp_i])
+
+    accuracy = _mean_stats(kept_acc, kept_acc_w) if kept_acc else None
+    normalized_acpl = acpl / ACPL_NORMALIZER
     return SideQuality(
-        accuracy=_mean_stats(accuracies, weights),
+        accuracy=accuracy,
         acpl=acpl,
-        normalized_acpl=acpl / ACPL_NORMALIZER,
-        blunder_rate=blunder_count / n,
-        move_count=n,
+        normalized_acpl=normalized_acpl,
+        blunder_rate=blunder_rate,
+        move_count=len(kept),
         blunder_count=blunder_count,
     )
+
+
+def _finalize_side(data: _SidePlyData) -> SideQuality:
+    standard = _side_from_ply_data(data)
+    mid_cp_w = [
+        vol * mat for vol, mat in zip(data.vol_weights, data.material_weights)
+    ]
+    midgame = _side_from_ply_data(data, cp_weights=mid_cp_w)
+    trimmed = _side_from_ply_data(
+        data, drop_indices=_trim_drop_indices(len(data.cp_losses), data.swings)
+    )
+    standard.q_midgame = composite_q_value(
+        midgame.accuracy, midgame.normalized_acpl, midgame.blunder_rate
+    )
+    standard.q_trimmed = composite_q_value(
+        trimmed.accuracy, trimmed.normalized_acpl, trimmed.blunder_rate
+    )
+    return standard
+
+
+def _empty_side_data() -> _SidePlyData:
+    return _SidePlyData([], [], [], [], [], [], [])
 
 
 def analyse_game(
@@ -184,19 +290,14 @@ def analyse_game(
         engine = owned_engine
         eval_fn = lambda b: engine.evaluate(b, depth=quality_depth)
 
-    white_acc: List[float] = []
-    black_acc: List[float] = []
-    white_ply_idxs: List[int] = []
-    black_ply_idxs: List[int] = []
-    white_losses: List[int] = []
-    black_losses: List[int] = []
-    white_blunders = 0
-    black_blunders = 0
+    white_data = _empty_side_data()
+    black_data = _empty_side_data()
     all_wps: List[float] = [_win_percent(INITIAL_POSITION_CP)]
 
     try:
         for ply_idx, uci in enumerate(uci_moves):
             mover = board.turn
+            material = _material_factor(board)
             cp_white_before = _position_cp(board, eval_fn)
             if cp_white_before is None:
                 break
@@ -217,36 +318,34 @@ def analyse_game(
 
             wp_before = _win_percent(score_before)
             wp_after = _win_percent(score_after)
-            is_blunder = (wp_before - wp_after) / 100.0 > BLUNDER_WIN_PROB_LOSS
+            swing = max(0.0, wp_before - wp_after)
+            is_blunder = swing / 100.0 > BLUNDER_WIN_PROB_LOSS
             cp_loss = max(0, score_before - score_after)
             skip_accuracy = cp_loss >= MATE_MISS_THRESHOLD
+            accuracy = None if skip_accuracy else _move_accuracy(wp_before, wp_after)
 
-            if mover == chess.WHITE:
-                white_losses.append(cp_loss)
-                if is_blunder:
-                    white_blunders += 1
-                if not skip_accuracy:
-                    white_acc.append(_move_accuracy(wp_before, wp_after))
-                    white_ply_idxs.append(ply_idx)
-            else:
-                black_losses.append(cp_loss)
-                if is_blunder:
-                    black_blunders += 1
-                if not skip_accuracy:
-                    black_acc.append(_move_accuracy(wp_before, wp_after))
-                    black_ply_idxs.append(ply_idx)
+            target = white_data if mover == chess.WHITE else black_data
+            target.cp_losses.append(cp_loss)
+            target.swings.append(swing)
+            target.blunder_flags.append(is_blunder)
+            target.material_weights.append(material)
+            target.accuracies.append(accuracy)
+            target.ply_idxs.append(ply_idx)
 
         ply_weights = _ply_weights(all_wps, len(uci_moves))
-        white_weights = [ply_weights[i] for i in white_ply_idxs if i < len(ply_weights)]
-        black_weights = [ply_weights[i] for i in black_ply_idxs if i < len(ply_weights)]
+        for data in (white_data, black_data):
+            data.vol_weights = [
+                ply_weights[i] if i < len(ply_weights) else 1.0 for i in data.ply_idxs
+            ]
+
         white_moves = (len(uci_moves) + 1) // 2
         black_moves = len(uci_moves) // 2
 
         return GameQuality(
             quality_depth=quality_depth,
             quality_thin=white_moves < THIN_MOVES_PER_SIDE or black_moves < THIN_MOVES_PER_SIDE,
-            white=_build_side(white_acc, white_weights, white_losses, white_blunders),
-            black=_build_side(black_acc, black_weights, black_losses, black_blunders),
+            white=_finalize_side(white_data),
+            black=_finalize_side(black_data),
         )
     finally:
         if owned_engine is not None:
