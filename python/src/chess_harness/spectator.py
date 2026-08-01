@@ -409,6 +409,7 @@ def _resolve_eval_cp(state: Dict[str, Any], game_id: str) -> Optional[int]:
     return score
 
 
+from .move_rows import fen_at_ply as _fen_at_ply
 from .move_rows import move_rows as _move_rows
 from .move_rows import moves_payload, spectator_moves_payload
 
@@ -953,27 +954,34 @@ async def get_game_pgn(game_id: str, debug: Optional[str] = None):
 
 
 @app.get("/api/games/{game_id}/eval")
-async def get_eval(game_id: str):
+async def get_eval(game_id: str, ply: Optional[int] = Query(None)):
+    """Tip eval (omit ply) or historical ply eval. Never returns FEN."""
     state = game_manager.load_state(game_id)
     if not state:
         raise HTTPException(404, "Game not found")
     if not show_eval_for_state(state):
         return {"ok": True, "show_eval": False}
-    if state["status"] != "in_progress":
-        score = _resolve_eval_cp(state, game_id)
-        return {
-            "ok": True,
-            "score": score if score is not None else 0,
-            "eval_ui": _spectator_eval_ui(state, score),
-            "final": True,
-        }
+
+    tip_ply = len(state.get("moves", []))
+    at_tip = ply is None or int(ply) >= tip_ply
+    final = state["status"] != "in_progress"
+
     try:
-        score = _resolve_eval_cp(state, game_id)
-        return {
+        if at_tip:
+            score = _resolve_eval_cp(state, game_id)
+        else:
+            # Historical: rebuild fen server-side; ignore last_eval_cp / tip caches.
+            n = max(0, int(ply))
+            fen = _fen_at_ply(state, n)
+            score = _eval_position(fen)
+        body: Dict[str, Any] = {
             "ok": True,
             "score": score if score is not None else 0,
             "eval_ui": _spectator_eval_ui(state, score),
         }
+        if final:
+            body["final"] = True
+        return body
     except Exception:
         return {"ok": False, "score": 0}
 

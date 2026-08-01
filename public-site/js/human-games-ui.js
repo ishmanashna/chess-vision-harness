@@ -9,12 +9,21 @@
       .replace(/"/g, "&quot;");
   }
 
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  /** Compact local timestamp: HH:mm D/MM/YY (e.g. 22:24 1/08/26). */
   function formatWhen(iso) {
     if (!iso) return "";
     try {
       var d = new Date(iso);
       if (isNaN(d.getTime())) return "";
-      return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      var time = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+      var day = d.getDate();
+      var month = pad2(d.getMonth() + 1);
+      var year = String(d.getFullYear()).slice(-2);
+      return time + " " + day + "/" + month + "/" + year;
     } catch (_err) {
       return "";
     }

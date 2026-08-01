@@ -16,10 +16,11 @@ def _read_public(rel: str) -> str:
     return (PUBLIC_SITE / rel).read_text(encoding="utf-8")
 
 
-def test_leaderboard_estimated_elo_labels(create_client):
+def test_leaderboard_performance_labels(create_client):
     client, _ = create_client
     html = client.get("/leaderboard/").text
-    assert "Estimated Elo" in html
+    assert "Performance" in html
+    assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "Rebuild that table on the local Calibration page" not in html
     assert 'script src="/js/engines.js"' not in html
@@ -36,7 +37,8 @@ def test_leaderboard_estimated_elo_labels(create_client):
 def test_home_mini_ladder_full_columns(create_client):
     client, _ = create_client
     html = client.get("/").text
-    assert "Estimated Elo" in html
+    assert "Performance" in html
+    assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "data-leaderboard-full" in html
     assert "home-ladder-note" not in html
@@ -45,6 +47,19 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "chess.com" not in html
     assert "Scale check" not in html
     assert 'title="Results-only ladder Elo' in html
+    assert "Model id" not in html
+    assert "data-show-model-id" not in html
+    assert 'colspan="6"' in html
+    assert "Finished games with a real result" in html
+
+
+def test_leaderboard_keeps_model_id_and_scored_games_copy(create_client):
+    client, _ = create_client
+    html = client.get("/leaderboard/").text
+    assert "Model id" in html
+    assert "data-show-model-id" in html
+    assert "Finished games with a real result" in html
+    assert "100 rated games" in html
     assert 'colspan="7"' in html
 
 
@@ -63,7 +78,15 @@ def test_common_js_single_engines_load():
     assert 'loadScriptOnce("/js/engines.js")' not in js
 
 
-def test_calibration_html_estimated_elo_label():
+def test_common_js_provisional_ignores_display_games():
+    js = _read_public("js/common.js")
+    assert "typeof agent.provisional === \"boolean\"" in js
+    assert "games < 100" not in js
+    assert "data-show-model-id" in js
+    assert "leaderboardColCount" in js
+
+
+def test_calibration_html_performance_label():
     import os
     import sys
 
@@ -71,5 +94,6 @@ def test_calibration_html_estimated_elo_label():
     from chess_harness.ladder_display import render_calibration_html
 
     html = render_calibration_html()
-    assert "Estimated Elo" in html
+    assert "Performance" in html
+    assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html

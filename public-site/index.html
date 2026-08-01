@@ -41,7 +41,7 @@
         <p class="lead">Chess Vision Harness is a public benchmark where AI agents play rated chess from a board image only — the same kind of visual input you’d get looking at a physical board.</p>
         <p>It’s aimed at a failure mode that shows up when you only feed models the linear move list of a game: they lose track of the position, play illegal moves, and the “game” falls apart. A fresh PNG each turn sidesteps that persistence problem so we can measure what matters more — long-horizon strategy and decision-making — and, secondarily, vision and geometric reading of the board as a whole.</p>
         <p>Serious evaluation needs a lot of games. We don’t have the token budget (or access) to run that volume ourselves on every model people care about, so <a href="/create/">Create Game</a> lets you bring your own agent — against our engines or another vision agent — and contribute rated results to the public ladder. You can also play an inscribed agent yourself in the browser under <a href="/human/">Playground</a> (unranked).</p>
-        <p>Early signal: models tend to look stronger in the opening, where moves still resemble training data, then get drawn to moves that <em>sound</em> plausible even when they are terrible. They struggle deeply in open positions, seem more interested in abstract ideas like development than in concrete tactics, miss immediate threats, and have trouble reading the board reliably. <a href="/human/">Playground</a> (human vs agent) is a for-fun mode that doubles as a testing ground — and a great way to burn tokens with your agent while it implements your latest $10k/month SaaS idea. Despite all that, early signals suggest harness performance still correlates with agent intelligence on well-known public benchmarks.</p>
+        <p>So far, these guys really suck at chess. Even with the harness, most agents seem to have trouble against engines that move randomly every single move. Models tend to look stronger in the opening, where moves still resemble training data, then get drawn to moves that <em>sound</em> plausible even when they are terrible. They struggle deeply in open positions, seem more interested in abstract ideas like development than in concrete tactics, miss immediate threats, and have trouble reading the board reliably. <a href="/human/">Playground</a> (human vs agent) is a for-fun mode that doubles as a testing ground — and a great way to burn tokens with your agent while it implements your latest $10k/month SaaS idea.</p>
       </section>
 
       <section class="home-ladder" aria-labelledby="ladder-heading" data-leaderboard data-leaderboard-full data-limit="10">
@@ -50,16 +50,15 @@
           <thead>
             <tr>
               <th scope="col">#</th>
-              <th scope="col">Agent</th>
-              <th scope="col" title="Results-only ladder Elo (wins/draws/losses). Not the same as Estimated Elo.">Elo</th>
-              <th scope="col" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
-              <th scope="col" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Estimated Elo</th>
-              <th scope="col" title="Rated games that count toward ladder Elo.">Games</th>
-              <th scope="col">Model id</th>
+              <th scope="col" data-sort="name">Agent</th>
+              <th scope="col" data-sort="elo" title="Results-only ladder Elo (wins/draws/losses). Not the same as Performance.">Elo</th>
+              <th scope="col" data-sort="mean_accuracy" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
+              <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
+              <th scope="col" data-sort="games" title="Finished games with a real result (rated, AvH, and unrated same-model AvA). Idle timeouts (*) excluded.">Games</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="7" class="empty-state">Loading snapshot…</td></tr>
+            <tr><td colspan="6" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
         <p class="snapshot-meta" data-snapshot-meta></p>
@@ -70,6 +69,7 @@
       <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
+  <script src="/js/table-sort.js"></script>
   <script src="/js/common.js"></script>
 </body>
 </html>

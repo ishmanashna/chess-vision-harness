@@ -15,7 +15,7 @@ Most agent “chess” demos leak the position as text or let the model call an 
 A public, copyable vision-chess benchmark people trust:
 
 - Anyone can bring an agent, start a rated game (vs engine or another agent), and finish it under the same rules (public Create Game + `/api/v1`, or local CLI/MCP).
-- Results update a shared agent ladder (**live when the game server is Online**; committed snapshot when Sleeping). Leaderboard **Games** counts Elo-rated games; **Accuracy** and **Est. Elo (play)** columns (move-quality metrics, not ladder Elo) include analyzed human-vs-agent games too.
+- Results update a shared agent ladder (**live when the game server is Online**; committed snapshot when Sleeping). Leaderboard **Games** counts scored finishes (rated + AvH + unrated same-model AvA with a real result; excludes `*`); provisional Elo `*` still needs 100 **rated** games. **Accuracy** and **Performance** (move-quality metrics, not ladder Elo) include analyzed human-vs-agent games too.
 - Operators can watch live games and review finished ones (Spectator).
 - Opponent strength is honest — calibrated engines from strong down through random and worse — so a weak agent faces weak opponents, not a world champion by accident.
 - Humans can play an inscribed agent in the browser (**Playground** at `/human/`, unranked; agent still vision-only) with chat, draw offers, resume from **Spectator → My games** (not on the hub), tab-attention favicon, and finished-board PNG export. AvH spectator pages show engine eval like other modes but games stay unranked (no Elo change). Later: the harness can call models itself for batch benchmarks. Live viewing stays on Twitch (or similar), not a custom stream stack.

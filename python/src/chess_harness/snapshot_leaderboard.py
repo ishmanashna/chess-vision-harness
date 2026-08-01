@@ -92,22 +92,32 @@ def build_snapshot(
     registry: ModelRegistry,
     game_counts: Dict[str, int],
     *,
+    rated_counts: Optional[Dict[str, int]] = None,
     quality_stats: Optional[Dict[str, Dict[str, Any]]] = None,
     generated_at: Optional[str] = None,
     include_opponents: bool = True,
 ) -> Dict[str, Any]:
+    """Build leaderboard snapshot.
+
+    ``game_counts`` is the display Games column (scored: real results including AvH).
+    ``rated_counts`` drives provisional ``*`` (Elo ladder games only). When omitted,
+    provisional uses ``game_counts`` (legacy call sites / tests).
+    Always emits boolean ``provisional`` so clients never derive it from display Games.
+    """
     quality_stats = quality_stats or {}
+    provisional_counts = rated_counts if rated_counts is not None else game_counts
     agents: List[Dict[str, Any]] = []
     for model in registry.list_models():
         model_id = model["id"]
         games = int(game_counts.get(model_id, 0))
+        rated = int(provisional_counts.get(model_id, 0))
         agents.append(
             {
                 "id": model_id,
                 "name": model.get("name", model_id),
                 "elo": round(float(model.get("elo", AGENT_START_ELO))),
                 "games": games,
-                "provisional": is_provisional(games),
+                "provisional": is_provisional(rated),
                 **_quality_snapshot_fields(quality_stats, model_id),
             }
         )
@@ -133,7 +143,8 @@ def load_live_leaderboard(
     results = ResultsManager(base_dir=harness_base)
     return build_snapshot(
         reg,
-        results.count_by_model(),
+        results.count_scored_by_model(),
+        rated_counts=results.count_by_model(),
         quality_stats=results.aggregate_quality_by_model(),
     )
 

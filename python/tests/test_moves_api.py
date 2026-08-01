@@ -142,8 +142,8 @@ def test_spectator_moves_all_game_types(moves_client, monkeypatch):
     assert ave_resp.status_code == 200
     ave_body = ave_resp.json()
     assert ave_body["plies"] >= 1
-    assert ave_body["move_rows"] == []
-    assert ave_body["plies_detail"] == []
+    assert ave_body["move_rows"][0]["white"] == "d4"
+    assert ave_body["plies_detail"][0]["san"] == "d4"
 
     client.post(f"/api/v1/games/{ave_id}/resign", headers=_auth(ave_key))
 
@@ -167,8 +167,8 @@ def test_spectator_moves_all_game_types(moves_client, monkeypatch):
     assert avaa_resp.status_code == 200
     avaa_body = avaa_resp.json()
     assert avaa_body["plies"] == 1
-    assert avaa_body["move_rows"] == []
-    assert avaa_body["plies_detail"] == []
+    assert avaa_body["move_rows"] == [{"num": 1, "white": "e4", "black": ""}]
+    assert avaa_body["plies_detail"] == [{"uci": "e2e4", "san": "e4"}]
 
     game_id = _create_human_game(client, ave_key, monkeypatch)
     client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth(ave_key))
@@ -180,3 +180,6 @@ def test_spectator_moves_all_game_types(moves_client, monkeypatch):
     assert body["move_rows"] == [{"num": 1, "white": "e4", "black": ""}]
     assert body["plies_detail"] == [{"uci": "e2e4", "san": "e4"}]
     assert "fen" not in body
+    assert "start_fen" in body
+    assert isinstance(body["start_fen"], str)
+    assert "8/8/8/8" in body["start_fen"] or "rnbqkbnr" in body["start_fen"]

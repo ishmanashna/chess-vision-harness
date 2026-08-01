@@ -6,7 +6,23 @@ from typing import Any
 
 import chess
 
-__all__ = ["move_rows", "moves_payload", "plies_detail", "spectator_moves_payload"]
+__all__ = [
+    "fen_at_ply",
+    "move_rows",
+    "moves_payload",
+    "plies_detail",
+    "spectator_moves_payload",
+]
+
+
+def fen_at_ply(state: dict[str, Any], ply: int) -> str:
+    """Rebuild FEN after N plies (server-side only; never return in agent APIs)."""
+    moves = state.get("moves", [])
+    n = max(0, min(int(ply), len(moves)))
+    board = chess.Board(state.get("start_fen", chess.STARTING_FEN))
+    for i in range(n):
+        board.push(chess.Move.from_uci(moves[i]))
+    return board.fen()
 
 
 def move_rows(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -57,11 +73,11 @@ def moves_payload(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def spectator_moves_payload(state: dict[str, Any]) -> dict[str, Any]:
-    """Spectator moves with redaction for live rated (AvE/AvA) games."""
-    from .game_types import GAME_TYPE_HUMAN_VS_AGENT
+    """Spectator move list for /g/ UI (all modes, including live AvE/AvA).
 
-    moves = state.get("moves", [])
-    plies = len(moves)
-    if state.get("status") == "in_progress" and state.get("game_type") != GAME_TYPE_HUMAN_VS_AGENT:
-        return {"plies": plies, "plies_detail": [], "move_rows": []}
-    return moves_payload(state)
+    Includes start_fen so the spectator cm-chessboard can replay plies with chess.js.
+    Agent APIs never expose this payload (no /api/v1/.../moves).
+    """
+    payload = moves_payload(state)
+    payload["start_fen"] = state.get("start_fen") or chess.STARTING_FEN
+    return payload

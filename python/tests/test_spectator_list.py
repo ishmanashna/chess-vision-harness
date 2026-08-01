@@ -130,14 +130,16 @@ def test_spectator_page_modern_column_headers(list_client):
         "White Elo",
         "Black Elo",
         "Acc.",
-        "Est. Elo",
+        "Performance",
         "Turn / result",
     ):
         assert label in html
+    assert "Est. Elo" not in html
     assert 'data-sort="whiteElo"' in html
     assert 'data-sort="blackElo"' in html
     assert 'data-sort="accuracy"' in html
-    assert 'data-sort="estimatedElo"' in html
+    assert 'data-sort="performance"' in html
+    assert 'data-sort="estimatedElo"' not in html
     assert 'class="col-side"' in html
     assert 'class="col-quality"' in html
     assert 'class="col-est-elo"' in html
@@ -152,10 +154,12 @@ def test_games_list_js_modern_columns():
     assert "whiteElo" in js
     assert "blackElo" in js
     assert "qualityPair" in js
-    assert "nameWithoutElo" in js
-    assert "abbreviateListName" in js
+    assert "window.CVH.nameWithoutElo" in js
+    assert "window.CVH.abbreviateListName" in js
     assert "hasQualityValue" in js
-    assert "SHORT_MONTHS" in js
+    assert "HH:mm D/MM/YY" in js
+    assert "SHORT_MONTHS" not in js
+    assert 'class="elo quality"' not in js
     assert "colspan=\"10\"" in js
     assert "agent_name" not in js
     assert "isListTimeout" in js
@@ -164,6 +168,10 @@ def test_games_list_js_modern_columns():
     assert 'formatter(white) + " / " + formatter(black)' in js
     assert "if (hasWhite) return formatter(white);" in js
     assert "if (hasBlack) return formatter(black);" in js
+    assert "CVH.tableSort" in js
+    assert 'estimatedElo: "performance"' in js
+    assert "performance: qualityPair(game, \"play_rating\")" in js
+    assert "estimatedElo: qualityPair" not in js
 
 
 def test_games_list_mode_badge_colors():

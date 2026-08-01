@@ -268,7 +268,7 @@ def render_calibration_html() -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <h2>Engine calibration</h2>
-    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Estimated Elo looks that accuracy up on the accuracy→Elo table (floaters + anchors) — it is not ladder Elo. Rebuild the table after you have enough samples.</p>
+    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Performance looks that accuracy up on the accuracy→Elo table (floaters + anchors) — it is not ladder Elo. Rebuild the table after you have enough samples.</p>
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
       <select id="pairing-mode" onchange="onPairingModeChange(this.value)">
@@ -289,9 +289,9 @@ def render_calibration_html() -> str:
       <p id="play-rating-summary">Loading…</p>
     </div>
     <h2>Calibrated ratings</h2>
-    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Estimated Elo = lookup from the accuracy→Elo table (not ladder Elo).</p>
+    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Performance = lookup from the accuracy→Elo table (not ladder Elo).</p>
     <div class="cal-table-wrap">
-    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Estimated Elo</th><th>Activity</th><th></th></tr>
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>
     <tr><td colspan="7" class="empty">No calibration data yet.</td></tr></table>
     </div>
     <h2>Recent games</h2>
@@ -462,9 +462,9 @@ def render_calibration_html() -> str:
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Estimated Elo from accuracy→Elo table">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Performance from accuracy→Elo table">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Estimated Elo</th><th>Activity</th><th></th></tr>'
+        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>'
           +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
         const feed=document.getElementById('game-feed');
         const games=(d.recent_games||[]).slice().reverse();

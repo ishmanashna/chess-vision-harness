@@ -41,21 +41,34 @@ def _write_pgn(gm: GameManager, game_id: str) -> None:
 
 
 def test_meta_grid_dd_wraps_words_not_chars():
+    from pathlib import Path
+
     html = render_game_view_page("wrap-test")
-    assert "minmax(0,1fr)" in html
+    assert "minmax(5.5rem,42%)" in html
+    assert "minmax(5rem,1fr)" in html
     assert "overflow-wrap:break-word" in html
     assert "word-break:normal" in html
     assert "min-width:0" in html
-    assert "word-break:break-word" not in html
+    assert "No ELO change recorded yet." not in html
+    js = (Path(__file__).resolve().parents[2] / "public-site" / "js" / "spectator-game.js").read_text(
+        encoding="utf-8"
+    )
+    assert "s.elo_change ||" in js
 
 
 def test_spectator_quality_visible_before_game_over():
+    from pathlib import Path
+
     html = render_game_view_page("mid-quality")
-    assert "hasQualityMetrics" in html
-    assert "isQualityPending" in html
-    assert "hasQualityMetrics(s)||pending" in html
-    assert "Estimated Elo" in html
+    assert "Performance" in html
+    assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
+    js = (Path(__file__).resolve().parents[2] / "public-site" / "js" / "spectator-game.js").read_text(
+        encoding="utf-8"
+    )
+    assert "hasQualityMetrics" in js
+    assert "isQualityPending" in js
+    assert "hasQualityMetrics(s) || pending" in js
 
 
 @patch("chess_harness.quality_finish.analyse_game")
@@ -186,7 +199,7 @@ def test_spectator_api_includes_provisional_quality():
         state,
         revision="r1",
         summary="live",
-        elo_change="No ELO change recorded yet.",
+        elo_change="—",
         end_reason_label=None,
         engine_label="Engine",
         agent_outcome=None,

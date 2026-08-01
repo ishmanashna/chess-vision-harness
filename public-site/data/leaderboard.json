@@ -1,6 +1,16 @@
 {
-  "generated_at": "2026-08-01T19:12:27.000Z",
+  "generated_at": "2026-08-01T21:38:23.000Z",
   "agents": [
+    {
+      "id": "cursor-auto",
+      "name": "Cursor Auto",
+      "elo": 500,
+      "games": 2,
+      "provisional": true,
+      "mean_accuracy": 52.46,
+      "mean_play_rating": 108,
+      "quality_games": 1
+    },
     {
       "id": "gemini-3.6-flash-high",
       "name": "Gemini 3.6 Flash High",
@@ -50,6 +60,16 @@
       "mean_accuracy": 64.67,
       "mean_play_rating": 469,
       "quality_games": 1
+    },
+    {
+      "id": "claude-sonnet-4.5",
+      "name": "Claude Sonnet 4.5",
+      "elo": 444,
+      "games": 3,
+      "provisional": true,
+      "mean_accuracy": 54.09,
+      "mean_play_rating": 170,
+      "quality_games": 3
     },
     {
       "id": "composer-2.5",

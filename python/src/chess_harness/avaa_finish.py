@@ -32,6 +32,7 @@ def finish_avaa_game(
 
     white_id = state["white_model_id"]
     black_id = state["black_model_id"]
+    same_model = white_id == black_id
     registry = ctrl.registry
     white_pre = round(registry.get_elo(white_id))
     black_pre = round(registry.get_elo(black_id))
@@ -39,38 +40,41 @@ def finish_avaa_game(
     pgn_path = str(gm.get_pgn_path(game_id))
     ts = datetime.now().isoformat()
 
-    ctrl.results.append_result(
-        {
-            "ts": ts,
-            "game_id": game_id,
-            "game_type": GAME_TYPE_AGENT_VS_AGENT,
-            "model_name": white_id,
-            "agent_color": "WHITE",
-            "opponent_model": black_id,
-            "opponent_elo": black_pre,
-            "result": result,
-            "reason": reason,
-            "plies": plies,
-            "pgn_path": pgn_path,
-        }
-    )
-    ctrl.results.append_result(
-        {
-            "ts": ts,
-            "game_id": game_id,
-            "game_type": GAME_TYPE_AGENT_VS_AGENT,
-            "model_name": black_id,
-            "agent_color": "BLACK",
-            "opponent_model": white_id,
-            "opponent_elo": white_pre,
-            "result": result,
-            "reason": reason,
-            "plies": plies,
-            "pgn_path": pgn_path,
-        }
-    )
+    white_row: Dict[str, Any] = {
+        "ts": ts,
+        "game_id": game_id,
+        "game_type": GAME_TYPE_AGENT_VS_AGENT,
+        "model_name": white_id,
+        "agent_color": "WHITE",
+        "opponent_model": black_id,
+        "opponent_elo": black_pre,
+        "result": result,
+        "reason": reason,
+        "plies": plies,
+        "pgn_path": pgn_path,
+    }
+    black_row: Dict[str, Any] = {
+        "ts": ts,
+        "game_id": game_id,
+        "game_type": GAME_TYPE_AGENT_VS_AGENT,
+        "model_name": black_id,
+        "agent_color": "BLACK",
+        "opponent_model": white_id,
+        "opponent_elo": white_pre,
+        "result": result,
+        "reason": reason,
+        "plies": plies,
+        "pgn_path": pgn_path,
+    }
+    if same_model:
+        white_row["rated"] = False
+        black_row["rated"] = False
 
-    if record_elo and result != "*":
+    ctrl.results.append_result(white_row)
+    ctrl.results.append_result(black_row)
+
+    # Same-model AvA is unrated: still write both rows (quality upsert), no Elo.
+    if record_elo and result != "*" and not same_model:
         white_delta = ctrl.elo.record_game(white_id, black_pre, result, "WHITE")
         black_delta = ctrl.elo.record_game(black_id, white_pre, result, "BLACK")
         if white_delta:

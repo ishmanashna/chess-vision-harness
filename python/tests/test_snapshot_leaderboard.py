@@ -210,6 +210,106 @@ def test_aggregate_quality_by_model_rules(tmp_path):
     }
 
 
+def test_snapshot_games_scored_provisional_rated_only(tmp_path, monkeypatch):
+    """Display Games includes AvH / same-model AvA; provisional uses rated count only."""
+    from chess_harness.game_types import (
+        GAME_TYPE_AGENT_VS_AGENT,
+        GAME_TYPE_HUMAN_VS_AGENT,
+    )
+    from chess_harness.snapshot_leaderboard import load_live_leaderboard
+
+    harness = tmp_path / "harness"
+    harness.mkdir()
+    models_file = harness / "models.json"
+    models_file.write_text(
+        json.dumps({"models": [{"id": "agent-a", "name": "Agent A", "elo": 700.0}]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness))
+
+    rows = [
+        {
+            "game_id": "rated-1",
+            "model_name": "agent-a",
+            "result": "1-0",
+            "skill": 1,
+            "agent_color": "WHITE",
+        },
+        {
+            "game_id": "avh-1",
+            "model_name": "agent-a",
+            "game_type": GAME_TYPE_HUMAN_VS_AGENT,
+            "result": "0-1",
+            "agent_color": "BLACK",
+        },
+        {
+            "game_id": "same-avaa",
+            "model_name": "agent-a",
+            "opponent_model": "agent-a",
+            "game_type": GAME_TYPE_AGENT_VS_AGENT,
+            "result": "1-0",
+            "agent_color": "WHITE",
+            "rated": False,
+        },
+        {
+            "game_id": "same-avaa",
+            "model_name": "agent-a",
+            "opponent_model": "agent-a",
+            "game_type": GAME_TYPE_AGENT_VS_AGENT,
+            "result": "0-1",
+            "agent_color": "BLACK",
+            "rated": False,
+        },
+    ]
+    _write_results(harness / "results.jsonl", rows)
+
+    rm = ResultsManager(base_dir=str(harness))
+    assert rm.count_by_model()["agent-a"] == 1
+    assert rm.count_scored_by_model()["agent-a"] == 4
+
+    snap = load_live_leaderboard(
+        base_dir=str(harness), registry=ModelRegistry(models_file)
+    )
+    agent = snap["agents"][0]
+    assert agent["games"] == 4
+    assert agent["provisional"] is True
+    assert isinstance(agent["provisional"], bool)
+
+    # More AvH / same-model AvA must not clear provisional.
+    rows.append(
+        {
+            "game_id": "avh-2",
+            "model_name": "agent-a",
+            "game_type": GAME_TYPE_HUMAN_VS_AGENT,
+            "result": "1-0",
+            "agent_color": "WHITE",
+        }
+    )
+    _write_results(harness / "results.jsonl", rows)
+    snap2 = load_live_leaderboard(
+        base_dir=str(harness), registry=ModelRegistry(models_file)
+    )
+    assert snap2["agents"][0]["games"] == 5
+    assert snap2["agents"][0]["provisional"] is True
+
+
+def test_build_snapshot_rated_counts_drive_provisional(tmp_path):
+    models_file = tmp_path / "models.json"
+    models_file.write_text(
+        json.dumps({"models": [{"id": "solo", "name": "Solo", "elo": 600.0}]}),
+        encoding="utf-8",
+    )
+    registry = ModelRegistry(models_file)
+    snap = build_snapshot(
+        registry,
+        {"solo": 150},
+        rated_counts={"solo": 50},
+        include_opponents=False,
+    )
+    assert snap["agents"][0]["games"] == 150
+    assert snap["agents"][0]["provisional"] is True
+
+
 def test_build_snapshot_includes_quality_stats(tmp_path):
     harness = tmp_path / "harness"
     harness.mkdir()

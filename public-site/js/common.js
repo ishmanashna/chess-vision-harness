@@ -7,9 +7,11 @@
   var THEME_KEY = "chess-harness-theme";
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
-  var ESTIMATED_ELO_TIP =
+  var PERFORMANCE_TIP =
     "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
-  var ENGINES_JS_VERSION = "2";
+  var ENGINES_JS_VERSION = "3";
+  var HOME_SORT_KEY = "cvh-home-ladder-sort";
+  var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
 
   function navPath() {
@@ -98,17 +100,16 @@
   }
 
   function formatElo(agent) {
-    var games = Number(agent.games) || 0;
     var elo = agent.elo;
-    var provisional =
-      agent.provisional === true || (agent.provisional !== false && games < 100);
+    var provisional = isProvisional(agent);
     if (elo == null || elo === "") return "—";
     return provisional ? String(elo) + "*" : String(elo);
   }
 
   function isProvisional(agent) {
-    var games = Number(agent.games) || 0;
-    return agent.provisional === true || (agent.provisional !== false && games < 100);
+    // Prefer server boolean; never derive from display Games (scored includes AvH).
+    if (typeof agent.provisional === "boolean") return agent.provisional;
+    return true;
   }
 
   function sortAgents(agents) {
@@ -118,6 +119,41 @@
       if (eloB !== eloA) return eloB - eloA;
       return String(a.name || a.id).localeCompare(String(b.name || b.id));
     });
+  }
+
+  var AGENT_NUMERIC_KEYS = ["elo", "mean_accuracy", "mean_play_rating", "games"];
+
+  function normalizeAgentRow(agent) {
+    return {
+      id: agent.id || "",
+      name: agent.name || agent.id || "—",
+      elo: agent.elo,
+      mean_accuracy: agent.mean_accuracy,
+      mean_play_rating: agent.mean_play_rating,
+      games: Number(agent.games) || 0,
+      provisional: agent.provisional,
+      _raw: agent,
+    };
+  }
+
+  function sortAgentRows(rows, key, dir) {
+    var ts = window.CVH && window.CVH.tableSort;
+    if (!ts || !key) {
+      return sortAgents(
+        rows.map(function (r) {
+          return r._raw || r;
+        })
+      ).map(normalizeAgentRow);
+    }
+    return ts.sortRows(rows, key, dir, {
+      numericKeys: AGENT_NUMERIC_KEYS,
+      tieKey: "id",
+    });
+  }
+
+  function defaultAgentSortDir(key) {
+    if (AGENT_NUMERIC_KEYS.indexOf(key) !== -1) return "desc";
+    return "asc";
   }
 
   function normalizeLeaderboardPayload(data, live) {
@@ -146,14 +182,21 @@
     var n = Number(value);
     if (isNaN(n)) return "—";
     if (suffix) return String(n) + suffix;
-    // Estimated Elo (and other bare ratings): whole numbers only.
+    // Performance (and other bare ratings): whole numbers only.
     return String(Math.round(n));
   }
 
-  function renderLeaderboardRows(agents, limit, fullColumns) {
-    var sorted = sortAgents(agents);
+  function leaderboardColCount(fullColumns, showModelId) {
+    var n = fullColumns ? 6 : 4;
+    if (showModelId) n += 1;
+    return n;
+  }
+
+  function renderLeaderboardRows(agents, limit, fullColumns, showModelId, sortKey, sortDir) {
+    var rows = (Array.isArray(agents) ? agents : []).map(normalizeAgentRow);
+    var sorted = sortAgentRows(rows, sortKey, sortDir);
     var slice = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
-    var colCount = fullColumns ? 7 : 5;
+    var colCount = leaderboardColCount(fullColumns, showModelId);
     if (!slice.length) {
       return (
         '<tr><td colspan="' +
@@ -162,10 +205,11 @@
       );
     }
     return slice
-      .map(function (agent, index) {
+      .map(function (row, index) {
+        var agent = row._raw || row;
         var rank = index + 1;
-        var name = agent.name || agent.id || "—";
-        var games = Number(agent.games) || 0;
+        var name = row.name || "—";
+        var games = row.games;
         var provisional = isProvisional(agent);
         var eloClass = provisional ? "elo provisional" : "elo";
         var titleAttr = provisional
@@ -178,10 +222,13 @@
           : "";
         var playCell = fullColumns
           ? '<td title="' +
-            escapeHtml(ESTIMATED_ELO_TIP) +
+            escapeHtml(PERFORMANCE_TIP) +
             '">' +
             escapeHtml(formatQualityMean(agent.mean_play_rating)) +
             "</td>"
+          : "";
+        var modelCell = showModelId
+          ? "<td><code>" + escapeHtml(agent.id || "") + "</code></td>"
           : "";
         return (
           "<tr>" +
@@ -203,9 +250,7 @@
           "<td>" +
           games +
           "</td>" +
-          "<td><code>" +
-          escapeHtml(agent.id || "") +
-          "</code></td>" +
+          modelCell +
           "</tr>"
         );
       })
@@ -241,11 +286,62 @@
     var fullColumns =
       options.fullColumns === true ||
       container.hasAttribute("data-leaderboard-full");
+    var showModelId =
+      options.showModelId === true ||
+      container.hasAttribute("data-show-model-id");
+    var table = container.querySelector("table");
+    var tbody = container.querySelector("tbody");
+    var ts = window.CVH && window.CVH.tableSort;
+    var storageKey = showModelId ? AGENTS_SORT_KEY : HOME_SORT_KEY;
+    var state = ts
+      ? ts.loadState(storageKey, { key: "elo", dir: "desc" }, { estimatedElo: "mean_play_rating" })
+      : { key: "elo", dir: "desc" };
+    // Map legacy Performance key name if someone stored "performance".
+    if (state.key === "performance" || state.key === "estimatedElo") {
+      state.key = "mean_play_rating";
+    }
+    if (state.key === "accuracy") state.key = "mean_accuracy";
+    var sortKey = state.key || "elo";
+    var sortDir = state.dir;
+    var cache = [];
+
+    function paint() {
+      if (!tbody) return;
+      tbody.innerHTML = renderLeaderboardRows(
+        cache,
+        limit,
+        fullColumns,
+        showModelId,
+        sortKey,
+        sortDir
+      );
+      if (ts) ts.paintHeaders(table, sortKey, sortDir);
+    }
+
+    if (table && ts && !table._cvhSortBound) {
+      table._cvhSortBound = true;
+      ts.bindHeaders(table, {
+        getKey: function () {
+          return sortKey;
+        },
+        getDir: function () {
+          return sortDir;
+        },
+        setSort: function (key, dir) {
+          sortKey = key;
+          sortDir = dir;
+          ts.saveState(storageKey, sortKey, sortDir);
+        },
+        defaultDirForKey: defaultAgentSortDir,
+        onChange: paint,
+      });
+    }
+
     fetchLeaderboard()
       .then(function (data) {
-        var tbody = container.querySelector("tbody");
         if (!tbody) return;
-        tbody.innerHTML = renderLeaderboardRows(data.agents, limit, fullColumns);
+        cache = Array.isArray(data.agents) ? data.agents : [];
+        paint();
         if (showMeta) {
           var meta = container.querySelector("[data-snapshot-meta]");
           if (meta) {
@@ -263,9 +359,8 @@
         }
       })
       .catch(function () {
-        var tbody = container.querySelector("tbody");
         if (tbody) {
-          var colCount = fullColumns ? 7 : 5;
+          var colCount = leaderboardColCount(fullColumns, showModelId);
           tbody.innerHTML =
             '<tr><td colspan="' +
             colCount +
@@ -356,14 +451,43 @@
     document.body.appendChild(script);
   }
 
-  window.CVH = {
-    applyHealthUi: applyHealthUi,
-    mountLeaderboardTable: mountLeaderboardTable,
-    fetchLeaderboard: fetchLeaderboard,
-    formatElo: formatElo,
-    formatQualityMean: formatQualityMean,
-    isProvisional: isProvisional,
-  };
+  function nameWithoutElo(value) {
+    return String(value || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+  }
+
+  /** Shorten Stockfish catalog tag inside parentheses; leave other tags alone. */
+  function shortenEngineTag(tag) {
+    var t = String(tag || "").trim();
+    var depthNoise = t.match(/^depth\s+(\d+)\s*\+\s*(\d+)%\s*noise$/i);
+    if (depthNoise) return "d" + depthNoise[1] + "+" + depthNoise[2] + "%";
+    var depthOnly = t.match(/^depth\s+(\d+)$/i);
+    if (depthOnly) return "d" + depthOnly[1];
+    var noiseOnly = t.match(/^(\d+)%\s*noise$/i);
+    if (noiseOnly) return noiseOnly[1] + "% noise";
+    var skill = t.match(/^Skill\s+(-?\d+)$/i);
+    if (skill) return "Skill " + skill[1];
+    return t;
+  }
+
+  /** Shorten Stockfish catalog labels for lists and /g/; leave agent names alone. */
+  function abbreviateListName(value) {
+    var s = nameWithoutElo(value);
+    var tagged = s.match(/^Stockfish\s+\d+(?:\.\d+)?\s*\((.+)\)$/i);
+    if (tagged) return shortenEngineTag(tagged[1]);
+    var bare = s.match(/^Stockfish\s+(\d+(?:\.\d+)?)$/i);
+    if (bare) return "SF " + bare[1];
+    return s;
+  }
+
+  window.CVH = window.CVH || {};
+  window.CVH.applyHealthUi = applyHealthUi;
+  window.CVH.mountLeaderboardTable = mountLeaderboardTable;
+  window.CVH.fetchLeaderboard = fetchLeaderboard;
+  window.CVH.formatElo = formatElo;
+  window.CVH.formatQualityMean = formatQualityMean;
+  window.CVH.isProvisional = isProvisional;
+  window.CVH.nameWithoutElo = nameWithoutElo;
+  window.CVH.abbreviateListName = abbreviateListName;
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();

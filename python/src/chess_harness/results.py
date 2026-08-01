@@ -11,7 +11,11 @@ from typing import Any, Dict, Iterator, List, Optional
 import filelock
 
 from .elo import ELOLadder
-from .game_types import GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
+from .game_types import (
+    GAME_TYPE_AGENT_VS_AGENT,
+    GAME_TYPE_HUMAN_VS_AGENT,
+    is_unrated_result_row,
+)
 from .models import ModelRegistry
 from .opponents import get_catalog
 from .paths import project_root, resolve_base_dir
@@ -147,12 +151,30 @@ class ResultsManager:
         return ModelRegistry(self.base_dir / "models.json")
 
     def count_by_model(self) -> Dict[str, int]:
-        """Count finished games per canonical model id (Elo ladder; excludes AvH and *)."""
+        """Count finished games per canonical model id (Elo ladder; excludes AvH, *, unrated)."""
         counts: Dict[str, int] = defaultdict(int)
         registry = self._registry()
         for result in self.load_results():
             if result.get("game_type") == GAME_TYPE_HUMAN_VS_AGENT:
                 continue
+            if result.get("result") == "*":
+                continue
+            if is_unrated_result_row(result):
+                continue
+            model_id = registry.normalize_result_model(result.get("model_name"))
+            if model_id:
+                counts[model_id] += 1
+        return dict(counts)
+
+    def count_scored_by_model(self) -> Dict[str, int]:
+        """Display Games count: real results including AvH and unrated same-model AvA.
+
+        Excludes ``*`` only. Counts each results row (AvA per-side, no quality dedupe).
+        Not the same as ``quality_games`` or rated ``count_by_model()``.
+        """
+        counts: Dict[str, int] = defaultdict(int)
+        registry = self._registry()
+        for result in self.load_results():
             if result.get("result") == "*":
                 continue
             model_id = registry.normalize_result_model(result.get("model_name"))
