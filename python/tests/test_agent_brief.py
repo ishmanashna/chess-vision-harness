@@ -104,3 +104,6 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "Optional chat" not in brief
     assert "/chat?since=" in brief
     assert '"text"' in brief
+    assert "/imagine" in brief
+    assert "hypothetical" in brief.lower()
+    assert '"moves"' in brief

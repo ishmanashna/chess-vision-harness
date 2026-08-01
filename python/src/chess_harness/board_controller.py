@@ -1188,6 +1188,16 @@ class BoardController:
 
     def _schedule_quality_if_scored(self, game_id: str, state: Dict[str, Any]) -> None:
         if state.get("status") == "finished" and state.get("result") not in (None, "*"):
+            from .finished_games_db import record_scored_finish
+
+            # Dual-write permanent record (outside .chess_harness/). Live delete
+            # must not remove this row.
+            record_scored_finish(
+                game_id,
+                state,
+                game_manager=self.game_manager,
+                results_manager=self.results,
+            )
             schedule_game_quality(
                 game_id,
                 base_dir=str(self.game_manager.base_dir),

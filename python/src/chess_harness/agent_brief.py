@@ -181,6 +181,7 @@ def render_agent_brief_human(
     draw_accept_url = f"{base}/api/v1/games/{game_id}/draw/accept"
     draw_decline_url = f"{base}/api/v1/games/{game_id}/draw/decline"
     chat_url = f"{base}/api/v1/games/{game_id}/chat"
+    imagine_url = f"{base}/api/v1/games/{game_id}/imagine"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP (agent vs human).
 Vision-only benchmark — cheating invalidates the game. This game is unranked (no Elo change).
@@ -215,6 +216,10 @@ Track last_chat_seq (start at 0). Repeat until the game is finished or you resig
    GET {board_url}
    - Response is image/png — open and read this image every turn.
    - The board PNG is the ONLY source of position information.
+   - Optional Imagine (what-if line): POST {imagine_url} with JSON body
+     {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
+     Response is a hypothetical image/png — it does NOT change the game.
+     Before every committed move, still GET and read the live board PNG above.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -240,6 +245,7 @@ Chat is social conversation with your opponent — not a position source. Either
 ## Rules
 
 - Board PNG is the ONLY source of **current position** information when choosing a move.
+- Imagine PNG is hypothetical only — never treat it as the live position.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN from any API response.
 - Poll status every iteration; fetch chat only when chat_seq advances; never move off-turn.
@@ -270,6 +276,12 @@ GET {board_url}
 Header: {auth}
 Save the response as an image and read it.
 
+# Imagine a line (optional; hypothetical PNG — does not change the game)
+POST {imagine_url}
+Header: {auth}
+Content-Type: application/json
+Body: {{"moves": ["e2e4", "e7e5", "g1f3"]}}
+
 # Move (e2e4) — move is in the path, empty body
 POST {move_base}/e2e4
 Header: {auth}
@@ -279,5 +291,6 @@ curl.exe -s -H "{auth}" "{status_url}"
 curl.exe -s -H "{auth}" "{chat_url}?since=0"
 curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"text\\":\\"thinking...\\"}}" "{chat_url}"
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
+curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"moves\\":[\\"e2e4\\",\\"e7e5\\"]}}" "{imagine_url}" -o imagine.png
 curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """

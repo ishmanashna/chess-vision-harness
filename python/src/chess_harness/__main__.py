@@ -281,6 +281,29 @@ def main(argv: list[str] | None = None) -> None:
             print("Unknown tournament subcommand")
             sys.exit(1)
 
+    elif args[0] == "finished-db":
+        if len(args) < 2:
+            print(
+                "Usage: chess-harness finished-db "
+                "import-live|list|restore <game_id>"
+            )
+            sys.exit(1)
+        sub = args[1]
+        if sub == "import-live":
+            sys.exit(commands.cmd_finished_db_import_live())
+        if sub == "list":
+            sys.exit(commands.cmd_finished_db_list())
+        if sub == "restore":
+            if len(args) < 3:
+                print("Usage: chess-harness finished-db restore <game_id>")
+                sys.exit(1)
+            sys.exit(commands.cmd_finished_db_restore(args[2]))
+        print(
+            "Usage: chess-harness finished-db "
+            "import-live|list|restore <game_id>"
+        )
+        sys.exit(1)
+
     else:
         print("Chess Vision Harness — run: chess-harness new --model <id>")
         sys.exit(1)

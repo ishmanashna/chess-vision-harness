@@ -538,5 +538,76 @@ def cmd_rebuild_estimation_samples() -> int:
     return 0
 
 
+def cmd_finished_db_import_live() -> int:
+    """Import finished scored live games into ``data/finished_games.sqlite``."""
+    from .finished_games_db import import_live_finished_games
+
+    gm = _game_manager()
+    rm = ResultsManager(base_dir=str(gm.base_dir))
+    summary = import_live_finished_games(game_manager=gm, results_manager=rm)
+    for gid in summary["game_ids"]:
+        print(f"  upserted {gid}")
+    print(
+        f"Imported {summary['imported']} finished scored game(s) "
+        f"(skipped {summary['skipped']} no-result) into {summary['db_path']}"
+    )
+    return 0
+
+
+def cmd_finished_db_list() -> int:
+    """List finished game ids in the permanent SQLite store."""
+    from .finished_games_db import list_finished_games
+    from .paths import resolve_finished_games_db
+
+    rows = list_finished_games()
+    if not rows:
+        print(f"No finished games in {resolve_finished_games_db()}")
+        return 0
+    for row in rows:
+        print(
+            f"{row['game_id']}\t{row.get('result') or ''}\t"
+            f"{row.get('finished_at') or ''}"
+        )
+    print(f"{len(rows)} game(s) in {resolve_finished_games_db()}")
+    return 0
+
+
+def cmd_finished_db_restore(
+    game_id: str, *, export_snapshot: bool = True
+) -> int:
+    """Restore live game dir + missing results row from the finished-games DB."""
+    from .finished_games_db import restore_finished_game
+
+    gm = _game_manager()
+    if not gm.validate_game_id(game_id):
+        print(f"Invalid game_id: {game_id}")
+        return 1
+
+    rm = ResultsManager(base_dir=str(gm.base_dir))
+    try:
+        summary = restore_finished_game(
+            game_id, game_manager=gm, results_manager=rm
+        )
+    except KeyError as exc:
+        print(str(exc))
+        return 1
+    except OSError as exc:
+        print(f"Restore failed: {exc}")
+        return 1
+
+    print(
+        f"  restored games/{game_id}/ (state"
+        f"{' + pgn' if summary['had_pgn'] else ''})"
+    )
+    print(f"  merged {summary['results_merged']} result row(s)")
+    cmd_rebuild_elo()
+    if export_snapshot:
+        from .snapshot_leaderboard import export_leaderboard_snapshot
+
+        out = export_leaderboard_snapshot()
+        print(f"Wrote leaderboard snapshot: {out}")
+    return 0
+
+
 def default_game_id() -> str:
     return new_game_id()

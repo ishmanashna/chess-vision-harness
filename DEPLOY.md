@@ -214,7 +214,7 @@ Game data: `$CHESS_HARNESS_DIR/games/` (default `.chess_harness/games/`).
 ./deploy/games_disk_usage.sh
 ```
 
-PowerShell: measure `.chess_harness\games`. Monitor `GET /api/v1/metrics` (`disk_free_bytes`). Prune old completed games after backup.
+PowerShell: measure `.chess_harness\games`. Monitor `GET /api/v1/metrics` (`disk_free_bytes`). Prune old completed games after backup — `prune-no-result` / `remove-game` clear live dirs only; scored history stays in `data/finished_games.sqlite`. Restore a deleted live game with `chess-harness finished-db restore <game_id>` (see ARCHITECTURE runtime paths).
 
 ---
 

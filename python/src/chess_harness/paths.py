@@ -88,6 +88,18 @@ def resolve_models_file() -> Path:
     )
 
 
+def resolve_finished_games_db() -> Path:
+    """Permanent finished-games SQLite path (outside ``.chess_harness/``).
+
+    Default: ``<repo>/data/finished_games.sqlite``. Override with
+    ``CHESS_HARNESS_FINISHED_DB`` for local experiments only.
+    """
+    return _resolve_env_path(
+        "CHESS_HARNESS_FINISHED_DB",
+        project_root() / "data" / "finished_games.sqlite",
+    )
+
+
 def ensure_models_file() -> Path:
     """Create runtime models.json from config example if missing."""
     path = resolve_models_file()

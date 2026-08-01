@@ -15,7 +15,7 @@ Technical reference for the Chess Vision Harness codebase. Read with [`PRODUCT.m
 | **Frontend** | **TypeScript** (`frontend/`) + static HTML/JS (`public-site/`) | Local UI tooling + public Pages shell |
 | **Tooling** | **Node.js** (npm) | `tsc`, ESLint in `frontend/` |
 | **Engines** | **Stockfish** (UCI binary) | Opponents, eval bar, inverse-SF, calibration |
-| **Persistence** | **Filesystem** | No database — JSON, JSONL, PNG, PGN per game |
+| **Persistence** | **Filesystem** + **SQLite** | Live games: JSON/JSONL/PNG/PGN under `.chess_harness/`; finished scored games also dual-written to `data/finished_games.sqlite` |
 
 Python owns game logic. Public Pages and TypeScript are presentation / edge only.
 
@@ -35,6 +35,7 @@ chess-vision-harness/
   bin/
   config/
   deploy/
+  data/
   docs/
   elo_calibration/
   frontend/
@@ -49,6 +50,7 @@ chess-vision-harness/
 | `deploy/` | Runbooks + templates (`home-pc.md`, `pages.md`, Caddy, systemd, …) |
 | `public-site/` | Cloudflare Pages app (HTML/CSS/JS + Functions); auto-deploy on push |
 | `config/` | Committed catalogs and examples (`opponents.json`, `models.json.example`, `mcp.json.example`) |
+| `data/` | Permanent finished-games SQLite (`finished_games.sqlite`; git-tracked) |
 | `python/` | `pyproject.toml`, `src/chess_harness/`, `tests/` |
 | `frontend/` | `package.json`, `tsconfig.json`, `eslint.config.js`, TypeScript sources |
 | `scripts/` | Operator scripts, quality gate, fetch, audits |
@@ -98,7 +100,7 @@ Agents (CLI / MCP / HTTP)                 Public site (Pages)
 | Agent surface | Redact payloads; block in-progress PGN for agents |
 | Game logic | New game, move, resign, idle timeout, audit, agent ELO |
 | Engines | Pooled Stockfish + catalog adapters |
-| Persistence | Filesystem only |
+| Persistence | Filesystem (live) + SQLite finished-games DB |
 | Calibration | `elo_calibration/` — engine-vs-engine, no agents (localhost only on public edge) |
 
 **Entry-point parity:** CLI, MCP, and HTTP mutations for agent play (`new` / `move` / `resign` / `status` / `board` / `pgn`) go through `GameService`, which delegates to `BoardController`. Adapters stay thin; idle prune and engine `release()` after `new_game` / `make_move` live in `GameService`.
@@ -120,10 +122,13 @@ Resolved in `python/src/chess_harness/paths.py` (repo root = parent of `python/`
 | Resource | Location |
 |----------|----------|
 | Data dir | `CHESS_HARNESS_DIR` or `<repo>/.chess_harness/` |
+| Finished-games DB | `CHESS_HARNESS_FINISHED_DB` or `<repo>/data/finished_games.sqlite` |
 | Opponent catalog | `config/opponents.json` |
 | Model registry | `<repo>/.chess_harness/models.json` (from `config/models.json.example`) |
 | Stockfish | `STOCKFISH_PATH` or `bin/stockfish*` |
 | Public ladder snapshot | `public-site/data/leaderboard.json` |
+
+**Finished-games durability:** Scored finishes dual-write to `data/finished_games.sqlite` (git-tracked; commit periodically). `prune-no-result` / `remove-game` / live delete never touch this DB. Import: `chess-harness finished-db import-live`. After accidental live delete: `finished-db list` / `finished-db restore <game_id>` (rebuilds `games/<id>/` + missing `results.jsonl` row; board PNG re-renders on next view).
 
 ## Principles
 

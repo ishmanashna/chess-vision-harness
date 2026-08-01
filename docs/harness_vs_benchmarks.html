@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chess Vision Harness vs public benchmarks</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #12141a;
+      --panel: #1c2029;
+      --text: #e8e6e1;
+      --muted: #9a958c;
+      --accent: #c4a35a;
+      --line: #2e3440;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #243049 0%, transparent 55%), var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 2rem 1.25rem 3rem;
+    }
+    main { max-width: 1080px; margin: 0 auto; }
+    h1 { font-size: 1.65rem; font-weight: 650; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.1rem; margin: 2rem 0 0.75rem; color: var(--accent); font-weight: 600; }
+    p, li { color: var(--muted); font-size: 0.95rem; }
+    a { color: #9ec1ff; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+      margin-top: 1rem;
+    }
+    .chart-wrap { position: relative; height: 420px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.num { font-variant-numeric: tabular-nums; }
+    .note { font-size: 0.82rem; margin-top: 0.85rem; }
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #2a3140;
+      color: var(--muted);
+      margin-left: 0.35rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Harness Estimated Elo vs public benchmarks</h1>
+    <p>
+      Our inscribed agents’ <strong style="color:var(--text)">Estimated Elo</strong> (accuracy→Elo map from finished games)
+      plotted against the closest matching rows on
+      <a href="https://artificialanalysis.ai/leaderboards/models/" target="_blank" rel="noopener">Artificial Analysis Intelligence Index</a>
+      (scraped 2026-08-01) and, where available,
+      <a href="https://llm-stats.com/" target="_blank" rel="noopener">LLM Stats</a> composite scores.
+      Early / thin sample — not a claim of causal ranking.
+    </p>
+
+    <div class="panel">
+      <h2 style="margin-top:0">Scatter — AA Intelligence Index vs Estimated Elo</h2>
+      <div class="chart-wrap">
+        <canvas id="scatter"></canvas>
+      </div>
+      <p class="note">X = Artificial Analysis Intelligence Index (higher = stronger on their suite). Y = Chess Vision Harness mean Estimated Elo from move accuracy. Composer 2.5 has no AA listing and is omitted from the scatter.</p>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top:0">Side-by-side bars (normalized)</h2>
+      <p class="note" style="margin-top:0">Each series scaled 0–100 within the plotted set so shapes are comparable (raw values differ in units).</p>
+      <div class="chart-wrap">
+        <canvas id="bars"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top:0">Raw values</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Harness model</th>
+            <th>Est. Elo</th>
+            <th>AA match</th>
+            <th>AA Index</th>
+            <th>LLM Stats</th>
+            <th>Quality games</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="note">
+        Sources: harness <code>public-site/data/leaderboard.json</code> (generated_at 2026-08-01);
+        AA leaderboard table (Intelligence Index column);
+        LLM Stats homepage snippets for Terra / Grok where named.
+        Matching is by closest public product name (e.g. <em>gpt-5.6terra-high</em> → GPT-5.6 Terra (high)).
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // Harness Estimated Elo from leaderboard.json (2026-08-01 snapshot).
+    // AA Intelligence Index from artificialanalysis.ai/leaderboards/models/ (same day scrape).
+    // LLM Stats: optional composite where a clear match exists.
+    const models = [
+      {
+        id: "gemini-3.6-flash-high",
+        name: "Gemini 3.6 Flash High",
+        estElo: 1381,
+        qualityGames: 1,
+        aaName: "Gemini 3.6 Flash",
+        aaIndex: 50,
+        llmStats: null,
+      },
+      {
+        id: "gpt5.6-luna-max",
+        name: "GPT 5.6 Luna Max",
+        estElo: 706,
+        qualityGames: 1,
+        aaName: "GPT-5.6 Luna (max)",
+        aaIndex: 51,
+        llmStats: null,
+      },
+      {
+        id: "gpt-5.6terra-high",
+        name: "GPT 5.6 Terra High",
+        estElo: 700,
+        qualityGames: 1,
+        aaName: "GPT-5.6 Terra (high)",
+        aaIndex: 49,
+        llmStats: 53.3,
+      },
+      {
+        id: "grok-4.5-high",
+        name: "Grok 4.5 High",
+        estElo: 524,
+        qualityGames: 1,
+        aaName: "Grok 4.5 (high)",
+        aaIndex: 54,
+        llmStats: 49.5,
+      },
+      {
+        id: "mimo-v2.5",
+        name: "MiMo V2.5",
+        estElo: 469,
+        qualityGames: 1,
+        aaName: "MiMo-V2.5",
+        aaIndex: 37,
+        llmStats: null,
+      },
+      {
+        id: "composer-2.5",
+        name: "Composer 2.5",
+        estElo: 379,
+        qualityGames: 6,
+        aaName: null,
+        aaIndex: null,
+        llmStats: null,
+      },
+    ];
+
+    const tbody = document.getElementById("rows");
+    for (const m of models) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${m.name}<span class="tag">${m.id}</span></td>
+        <td class="num">${m.estElo}</td>
+        <td>${m.aaName ?? "—"}</td>
+        <td class="num">${m.aaIndex ?? "—"}</td>
+        <td class="num">${m.llmStats ?? "—"}</td>
+        <td class="num">${m.qualityGames}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const withAA = models.filter((m) => m.aaIndex != null);
+    const colors = ["#c4a35a", "#7eb6ff", "#9ddea8", "#e29b84", "#c9a0dc"];
+
+    new Chart(document.getElementById("scatter"), {
+      type: "scatter",
+      data: {
+        datasets: [{
+          label: "Inscribed agents",
+          data: withAA.map((m) => ({ x: m.aaIndex, y: m.estElo, label: m.name })),
+          backgroundColor: withAA.map((_, i) => colors[i % colors.length]),
+          pointRadius: 9,
+          pointHoverRadius: 11,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                const m = withAA[ctx.dataIndex];
+                return `${m.name}: AA ${m.aaIndex}, Est. Elo ${m.estElo}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "Artificial Analysis Intelligence Index", color: "#9a958c" },
+            min: 30,
+            max: 60,
+            ticks: { color: "#9a958c" },
+            grid: { color: "#2e3440" },
+          },
+          y: {
+            title: { display: true, text: "Chess Vision Harness Estimated Elo", color: "#9a958c" },
+            ticks: { color: "#9a958c" },
+            grid: { color: "#2e3440" },
+          },
+        },
+      },
+    });
+
+    function norm(values) {
+      const lo = Math.min(...values);
+      const hi = Math.max(...values);
+      if (hi === lo) return values.map(() => 50);
+      return values.map((v) => ((v - lo) / (hi - lo)) * 100);
+    }
+
+    const labels = withAA.map((m) => m.name.replace(" High", "").replace(" Max", " Max"));
+    const estN = norm(withAA.map((m) => m.estElo));
+    const aaN = norm(withAA.map((m) => m.aaIndex));
+
+    new Chart(document.getElementById("bars"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Est. Elo (normalized)",
+            data: estN,
+            backgroundColor: "rgba(196, 163, 90, 0.85)",
+          },
+          {
+            label: "AA Index (normalized)",
+            data: aaN,
+            backgroundColor: "rgba(126, 182, 255, 0.75)",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#e8e6e1" } },
+        },
+        scales: {
+          x: { ticks: { color: "#9a958c", maxRotation: 40 }, grid: { display: false } },
+          y: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: "Normalized 0–100 within set", color: "#9a958c" },
+            ticks: { color: "#9a958c" },
+            grid: { color: "#2e3440" },
+          },
+        },
+      },
+    });
+  </script>
+</body>
+</html>
