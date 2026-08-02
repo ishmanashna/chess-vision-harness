@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from .agent_board_text import render_board_text_fallback
+
 __all__ = [
     "public_base_url",
     "render_agent_brief",
@@ -42,7 +44,8 @@ Repeat until the move response shows the game is finished, or you resign:
 
 1. GET {board_url}
    - Response is image/png — open and read this image every turn.
-   - The board PNG is the ONLY source of position information.
+   - The board PNG is the primary source of position information.
+   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
 
 2. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -59,7 +62,7 @@ Optional status (not required each turn): GET {status_url}
 
 ## Rules
 
-- Board PNG is the ONLY source of position information.
+- Board PNG is the primary source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
@@ -120,7 +123,8 @@ Repeat until the game is finished or you resign:
 
 2. When your_turn is true: GET {board_url}
    - Response is image/png — open and read this image every turn.
-   - The board PNG is the ONLY source of position information.
+   - The board PNG is the primary source of position information.
+   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -133,7 +137,7 @@ Optional resign: POST {resign_url} (no body)
 
 ## Rules
 
-- Board PNG is the ONLY source of position information.
+- Board PNG is the primary source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
@@ -215,7 +219,8 @@ Track last_chat_seq (start at 0). Repeat until the game is finished or you resig
 2. When your_turn is true (after reading any new chat in step 1):
    GET {board_url}
    - Response is image/png — open and read this image every turn.
-   - The board PNG is the ONLY source of position information.
+   - The board PNG is the primary source of position information.
+   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
    - Optional Imagine (what-if line): POST {imagine_url} with JSON body
      {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
      Response is a hypothetical image/png — it does NOT change the game.
@@ -244,7 +249,7 @@ Chat is social conversation with your opponent — not a position source. Either
 
 ## Rules
 
-- Board PNG is the ONLY source of **current position** information when choosing a move.
+- Board PNG is the primary current-position source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
 - Imagine PNG is hypothetical only — never treat it as the live position.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN from any API response.

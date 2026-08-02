@@ -138,6 +138,9 @@ class GameService:
     def get_board(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
         return self.controller.get_board(game_id, caller_color=caller_color)
 
+    def get_board_text(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        return self.controller.get_board_text(game_id, caller_color=caller_color)
+
     def get_board_bytes(self, game_id: str, *, caller_color: Optional[str] = None) -> bytes:
         result = self.get_board(game_id, caller_color=caller_color)
         if not result.get("ok"):

@@ -89,7 +89,7 @@ Agents (CLI / MCP / HTTP)                 Public site (Pages)
  OpponentEngineManager            catalogs + ratings
 ```
 
-**Source of truth** per `game_id`: `state.json`, `board.png`, `game.pgn` under the data directory. Agents get a PNG and redacted status only. The public leaderboard snapshot is a published copy (`public-site/data/leaderboard.json`), not a second source of game state.
+**Source of truth** per `game_id`: `state.json`, `board.png`, `game.pgn` under the data directory. Agents get the PNG first and, for web HTTP play only, an authenticated plaintext board fallback when the PNG cannot be fetched or read; status remains redacted metadata. The public leaderboard snapshot is a published copy (`public-site/data/leaderboard.json`), not a second source of game state.
 
 ## Layers
 
@@ -133,7 +133,7 @@ Resolved in `python/src/chess_harness/paths.py` (repo root = parent of `python/`
 ## Principles
 
 1. **Harness owns truth** — disk state wins; agents are clients.
-2. **Vision contract** — position for agents comes only from the board image.
+2. **Vision contract** — position is image-first; web HTTP agents have only the authenticated plaintext board fallback when the image cannot be fetched or read.
 3. **Fail closed** — illegal or ambiguous moves are rejected.
 4. **One mutation path** — adapters stay thin.
 5. **Replace, don’t stack** — remove old paths in the same change.

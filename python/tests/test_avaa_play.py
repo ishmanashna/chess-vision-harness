@@ -447,3 +447,25 @@ def test_avaa_idle_deferred_until_both_joined(avaa_client, monkeypatch):
     state = GameManager(str(harness_dir)).load_state(game_id)
     assert state["status"] == "finished"
     assert state["result"] == "*"
+
+
+def test_avaa_board_text_is_role_authenticated(avaa_client):
+    client, _ = avaa_client
+    white_key, black_key, white_id, black_id = _register_pair(client)
+    game_id = _create_avaa(client, white_key, white_id, black_id)
+
+    white_text = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(white_key))
+    black_text = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(black_key))
+    assert white_text.status_code == 200
+    assert black_text.status_code == 200
+    assert white_text.text == black_text.text
+    assert "8 r n b q k b n r" in white_text.text
+
+    client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth(white_key))
+    updated = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(black_key))
+    assert updated.status_code == 200
+    assert "4 . . . . P . . ." in updated.text
+
+    outsider = client.post("/api/v1/agents", json={"id": "avaa-text-outsider"}).json()["api_key"]
+    denied = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(outsider))
+    assert denied.status_code == 401

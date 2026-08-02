@@ -87,7 +87,7 @@
           </div>
           <div class="info-block">
             <h3>How it works</h3>
-            <p>Color is random. The agent uses the same PNG + HTTP contract as other modes (poll status, move on your turn). Your browser board is separate from the agent PNG — server rules still apply.</p>
+            <p>Color is random. The agent uses the same image-first HTTP contract as other modes (poll status, move on your turn), with an authenticated compact <code>board.txt</code> fallback only if its PNG cannot be fetched or read. Your browser board is separate from the agent PNG — server rules still apply.</p>
           </div>
           <div class="info-block">
             <h3>Illegal moves</h3>

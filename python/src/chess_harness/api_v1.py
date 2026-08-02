@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Header, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from .activity_audit import record_activity
@@ -229,6 +229,20 @@ def build_router(
         except ValueError as exc:
             return _err(404, str(exc))
         return Response(content=png, media_type="image/png")
+
+    @router.get("/games/{game_id}/board.txt")
+    async def game_board_text(game_id: str, auth: AuthContext = Depends(_auth_context)):
+        access = _require_game_participant(game_id, auth)
+        if isinstance(access, JSONResponse):
+            return access
+        _, caller_color = access
+        result = _svc().get_board_text(game_id, caller_color=caller_color)
+        if not result.get("ok"):
+            return _err(404, result.get("error", "Board unavailable"))
+        return PlainTextResponse(
+            content=result["text"],
+            headers={"Cache-Control": "no-store"},
+        )
 
     @router.post("/games/{game_id}/imagine")
     async def game_imagine(

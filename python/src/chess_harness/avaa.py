@@ -274,6 +274,16 @@ class AvAAPlay:
         persp = self.ctrl._perspective(board, caller_color)
         return agent_safe_board(state, str(board_path), persp, caller_color=caller_color)
 
+    def get_board_text(self, game_id: str, caller_color: str) -> Dict[str, Any]:
+        state = self.gm.load_state(game_id)
+        if not state or not is_avaa_state(state):
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        ensure_side_joined(self.ctrl, game_id, state, caller_color)
+        board = chess.Board(state["board_fen"])
+        from .board_text import format_board_text
+
+        return {"ok": True, "text": format_board_text(board)}
+
     def resign(self, game_id: str, caller_color: str, reason: str = "resignation") -> Dict[str, Any]:
         from .game_manager import GameBusyError
 

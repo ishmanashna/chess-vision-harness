@@ -181,6 +181,38 @@ def test_api_v1_auth_and_model_mismatch(api_client):
     assert unknown.status_code == 404
 
 
+def test_api_v1_board_text_fallback_is_live_and_authenticated(api_client):
+    client, _ = api_client
+    reg = client.post("/api/v1/agents", json={"id": "text-agent"})
+    api_key = reg.json()["api_key"]
+    other = client.post("/api/v1/agents", json={"id": "other-text-agent"})
+    other_key = other.json()["api_key"]
+
+    create = client.post(
+        "/api/v1/games",
+        headers=_auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    game_id = create.json()["game_id"]
+
+    board = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(api_key))
+    assert board.status_code == 200
+    assert board.headers["content-type"].startswith("text/plain")
+    assert board.headers["cache-control"] == "no-store"
+    assert "8 r n b q k b n r" in board.text
+    assert "1 R N B Q K B N R" in board.text
+    assert "fen" not in board.text.lower()
+    assert "legal" not in board.text.lower()
+
+    denied = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(other_key))
+    assert denied.status_code == 401
+
+    moved = client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth_headers(api_key))
+    assert moved.status_code == 200
+    updated = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(api_key))
+    assert "4 . . . . P . . ." in updated.text
+
+
 def test_api_v1_status_includes_est_elo_play(api_client):
     client, harness_dir = api_client
     reg = client.post("/api/v1/agents", json={"id": "est-agent", "name": "Est Agent"})

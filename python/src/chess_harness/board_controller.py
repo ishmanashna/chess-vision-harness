@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from .agent_surface import agent_safe_board, agent_safe_status, quality_fields_from_state
 from .avaa import AvAAPlay, is_avaa_state
+from .board_text import format_board_text
 from .elo import ELOLadder, ENGINE_DISPLAY_NAME, format_stockfish_label
 from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent_strength
 from .game_manager import GameBusyError, GameManager
@@ -779,6 +780,21 @@ class BoardController:
 
         persp = self._perspective(board, state["agent_color"])
         return agent_safe_board(state, str(board_path), persp)
+
+    def get_board_text(
+        self, game_id: str, *, caller_color: Optional[str] = None
+    ) -> Dict[str, Any]:
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        if is_avaa_state(state):
+            if not caller_color:
+                return {"ok": False, "error": "caller_color required for agent-vs-agent games"}
+            return self.avaa.get_board_text(game_id, caller_color)
+        if is_human_vs_agent_state(state):
+            return self.human_play.get_board_text(game_id)
+        board = chess.Board(state["board_fen"])
+        return {"ok": True, "text": format_board_text(board)}
 
     def imagine_board(self, game_id: str, moves: List[str]) -> Dict[str, Any]:
         """Apply a hypothetical line from the current FEN and render a PNG.

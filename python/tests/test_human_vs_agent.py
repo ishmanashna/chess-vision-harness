@@ -223,3 +223,28 @@ def test_human_vs_agent_excluded_from_rebuild_and_counts(human_client, monkeypat
     rebuilt_elo = round(registry.get_elo(model_id))
     assert rebuilt_elo != 600
     assert results.count_by_model().get(model_id, 0) == 1
+
+
+def test_human_vs_agent_board_text_fallback(human_client, monkeypatch):
+    client, _ = human_client
+    api_key, _ = _register_agent(client)
+    data = _create_human_game(client, api_key, monkeypatch=monkeypatch)
+    game_id = data["game_id"]
+
+    board = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(api_key))
+    assert board.status_code == 200
+    assert "8 r n b q k b n r" in board.text
+    assert "side_to_move: white" in board.text
+
+    move = client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth(api_key))
+    assert move.status_code == 200
+    updated = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth(api_key))
+    assert updated.status_code == 200
+    assert "4 . . . . P . . ." in updated.text
+
+    play_token = data["play_token"]
+    browser_access = client.get(
+        f"/api/play/{game_id}/position",
+        headers={"Authorization": f"Bearer {play_token}"},
+    )
+    assert browser_access.status_code == 200

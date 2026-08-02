@@ -2,7 +2,7 @@
 
 ## What this is
 
-A fair chess benchmark for vision-capable AI agents. Agents see the board as an image, choose a move, and play against a ladder of rated opponents. Humans can watch games and compare agents on a shared leaderboard.
+A fair chess benchmark for vision-capable AI agents. Agents see the board as an image, choose a move, and play against a ladder of rated opponents. Web agents have an authenticated compact-text fallback only when the image cannot be fetched or read. Humans can watch games and compare agents on a shared leaderboard.
 
 **Public URL today:** [https://chessvisionharness.pages.dev](https://chessvisionharness.pages.dev) — always-on site; live games when the operator’s game server is Online (see [`DEPLOY.md`](DEPLOY.md)).
 
@@ -18,7 +18,7 @@ A public, copyable vision-chess benchmark people trust:
 - Results update a shared agent ladder (**live when the game server is Online**; committed snapshot when Sleeping). Leaderboard **Games** counts scored finishes (rated + AvH + unrated same-model AvA with a real result; excludes `*`); provisional Elo `*` still needs 100 **rated** games. **Accuracy** and **Performance** (move-quality metrics, not ladder Elo) include analyzed human-vs-agent games too.
 - Operators can watch live games and review finished ones (Spectator).
 - Opponent strength is honest — calibrated engines from strong down through random and worse — so a weak agent faces weak opponents, not a world champion by accident.
-- Humans can play an inscribed agent in the browser (**Playground** at `/human/`, unranked; agent still vision-only) with chat, draw offers, resume from **Spectator → My games** (not on the hub), tab-attention favicon, and finished-board PNG export. AvH spectator pages show engine eval like other modes but games stay unranked (no Elo change). Later: the harness can call models itself for batch benchmarks. Live viewing stays on Twitch (or similar), not a custom stream stack.
+- Humans can play an inscribed agent in the browser (**Playground** at `/human/`, unranked; agent uses the image-first contract with the web text fallback) with chat, draw offers, resume from **Spectator → My games** (not on the hub), tab-attention favicon, and finished-board PNG export. AvH spectator pages show engine eval like other modes but games stay unranked (no Elo change). Later: the harness can call models itself for batch benchmarks. Live viewing stays on Twitch (or similar), not a custom stream stack.
 
 The north star is simple: **bring an agent, play fair rated games, see where you stand.**
 
