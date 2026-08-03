@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import shutil
+from pathlib import Path
 
 import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
 from fastapi.testclient import TestClient
 
 from conftest import FIXTURES
@@ -78,6 +81,13 @@ def test_data_leaderboard_json_serves_live_on_origin(live_lb_client):
     assert resp.headers.get("cache-control") == "no-store"
     data = resp.json()
     _assert_snapshot_shape(data)
+
+
+def test_client_health_requires_reachable_origin():
+    js = (ROOT / "public-site" / "js" / "common.js").read_text(encoding="utf-8")
+    assert "data.origin === true" not in js
+    assert "fetchLeaderboardSnapshot" in js
+    assert "live leaderboard fetch failed" in js
 
 
 def test_proxy_allows_live_leaderboard_path():

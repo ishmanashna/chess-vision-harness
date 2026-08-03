@@ -103,7 +103,11 @@ def test_fit_all_estimators_writes_maps_no_auto_champion(tmp_path: Path):
 
     for eid in ESTIMATOR_IDS:
         est = payload["estimators"][eid]
-        assert est["knots"]
+        if eid == "accuracy_scale":
+            assert est["params"]["slope"] is not None
+            assert est["params"]["intercept"] is not None
+        else:
+            assert est["knots"]
         assert est["holdout_n"] > 0
         assert est["holdout_mae"] is not None
 

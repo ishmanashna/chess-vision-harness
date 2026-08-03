@@ -35,6 +35,7 @@ https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
 | `CHESS_HARNESS_PUBLIC_URL` | Game PC / harness service | URL in agent briefs — always the **Pages** URL, never the raw tunnel hostname |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `AUTH_SESSION_SECRET` | Pages deploy (GitHub Actions secrets, injected like `GAME_ORIGIN`) | Cosmetic Google sign-in on the public site — does **not** gate create/inscribe. Setup: [`deploy/pages.md`](deploy/pages.md). |
 | `CHESS_HARNESS_AUDIT_SALT` | Game PC / harness service | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl` (create/inscribe log). |
+| `CHESS_HARNESS_TRUSTED_PROXIES` | Game PC / harness service | Optional comma-separated CIDRs allowed to supply `X-Forwarded-For`; unset means the direct peer address is used. |
 
 Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). On loopback hostnames (`127.0.0.1`, `localhost`), the shared site nav inserts **Calibration** after Leaderboard with no status probe; on the deployed Pages host the tab never appears. Direct loopback Host (`127.0.0.1` / `localhost`) may POST without a secret. Via tunnel or any non-loopback Host, calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1`. Do not rely on client IP behind Cloudflare Tunnel.
 
@@ -66,7 +67,7 @@ Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are r
 **Leaderboard (live vs offline)**
 
 - **Online** (status chip / edge-health): Home and `/leaderboard/` load the ladder from the **live** API (`/api/leaderboard/live` on Pages via proxy; same numbers as the game PC). Calibration Elo and agent ladder updates appear without git.
-- **Sleeping** (game server down): the site falls back to the committed file `public-site/data/leaderboard.json` — last offline snapshot.
+- **Sleeping** (game server down): the site falls back to the committed file `public-site/data/leaderboard.json` — last offline snapshot. The edge health field `origin: true` only means `GAME_ORIGIN` is configured; clients must use `status: "online"` or `online: true` to treat the origin as reachable. If a live leaderboard request fails, the browser also falls back to the snapshot.
 - While `chess-harness serve` runs, the origin refreshes that snapshot file in the background (after rating changes / on a light schedule) so Sleeping visitors are not stuck on ancient data. That refresh is automatic maintenance, not an operator chore and not a calibration button.
 - Optional: `chess-harness snapshot-leaderboard` or a git commit of `leaderboard.json` is backup for offline visitors only — **not** how you publish live Elos when Online.
 
@@ -113,6 +114,8 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY` | No | Per API key (default `600`) |
 | `CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR` | No | Unauthenticated `POST /api/v1/agents` (default `10`) |
 | `CHESS_HARNESS_AUDIT_SALT` | No | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl`. Read with `chess-harness audit tail`. |
+| `CHESS_HARNESS_TRUSTED_PROXIES` | No | Comma-separated proxy CIDRs allowed to provide `X-Forwarded-For`; leave unset unless the immediate proxy network is known. |
+| `CHESS_HARNESS_INBOX_SECRET` | No | Optional secret for inbox list/read/delete from a trusted non-loopback operator path; loopback access remains available. |
 | `CHESS_HARNESS_CALIBRATION_SECRET` | For calibration UI POSTs | Shared secret for `/api/calibration/*` mutations when the harness is reachable via tunnel. Injected into the local `/calibration` page for same-origin POSTs. |
 | `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION` | No | Set to `1` to allow calibration POSTs without the secret (explicit override; not recommended on exposed hosts). |
 
@@ -159,6 +162,8 @@ sudo systemctl enable --now caddy
 ### Alternative: nginx
 
 See [`deploy/nginx.conf.example`](deploy/nginx.conf.example).
+
+**Contact administration:** Pages proxies public contact submission only. Inbox list/read/delete remains local-origin-only at `http://127.0.0.1:8765/contact/`; it is not exposed through the public Pages site.
 
 If the public site stays on Pages, still set `CHESS_HARNESS_PUBLIC_URL` to the Pages hostname and `GAME_ORIGIN` to this host’s HTTPS URL.
 
@@ -231,7 +236,7 @@ Classic single-host check: `curl https://your-host/health` and Create Game brief
 
 ## 10. Backup (nightly)
 
-[`scripts/backup_harness.py`](scripts/backup_harness.py) — models, API key hashes, results, recent games, calibration files.
+[`scripts/backup_harness.py`](scripts/backup_harness.py) — models, API key hashes, results, recent live games, the durable `data/finished_games.sqlite` database, and calibration files.
 
 ```bash
 python scripts/backup_harness.py
@@ -245,9 +250,10 @@ Schedule via cron, systemd timer, or Windows Task Scheduler (examples historical
 ## 11. Restore
 
 1. Stop the harness (`systemctl stop` / `nssm stop`).
-2. Optional safety copy of `$CHESS_HARNESS_DIR` and `elo_calibration/results/`.
-3. Extract archive; copy `harness/*` into `$CHESS_HARNESS_DIR` and calibration files back under `elo_calibration/results/`.
-4. Start harness; `curl http://127.0.0.1:8765/health`; confirm public site Online if `GAME_ORIGIN` is set.
+2. Optional safety copy of `$CHESS_HARNESS_DIR`, `data/finished_games.sqlite`, and `elo_calibration/results/`.
+3. Extract archive; restore `data/finished_games.sqlite` first, then copy `harness/*` into `$CHESS_HARNESS_DIR` and calibration files back under `elo_calibration/results/`.
+4. Verify `chess-harness finished-db list`; use `chess-harness finished-db restore <game_id>` for deleted live games, then run `chess-harness rebuild-elo` if needed.
+5. Start harness; `curl http://127.0.0.1:8765/health`; confirm public site Online if `GAME_ORIGIN` is set.
 
 ---
 

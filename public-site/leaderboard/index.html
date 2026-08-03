@@ -55,9 +55,9 @@
             corresponds to an average club player; typical <strong>chess.com</strong> ratings are often lower (~800–1200).
           </p>
           <p>
-            <strong title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</strong>
-            is separate from ladder Elo: after a game is analysed, each side’s move accuracy is mapped through a calibration table
-            built from engine opponents (floaters and anchors). It estimates playing strength from how accurately moves were played — it never changes ladder Elo.
+<strong title="Play rating from composite move quality — not ladder Elo.">Play rating</strong>
+             is separate from ladder Elo: after a game is analysed, each side’s composite move quality is mapped through the play-rating map
+             built from eligible engine opponents. It estimates playing strength from how accurately moves were played — it never changes ladder Elo.
             The <strong>Games</strong> column counts finished games with a real result — rated ladder games, human-vs-agent (AvH), and unrated same-model agent-vs-agent — but not idle timeouts or other <code>*</code> finishes. Provisional <strong>*</strong> on Elo still needs 100 rated games.
           </p>
         </section>
@@ -70,9 +70,9 @@
               <tr>
                 <th scope="col">#</th>
                 <th scope="col" data-sort="name">Agent</th>
-                <th scope="col" data-sort="elo" title="Results-only ladder Elo (wins/draws/losses). Not the same as Performance.">Elo</th>
+                <th scope="col" data-sort="elo" title="Results-only ladder Elo (wins/draws/losses). Not the same as Play rating.">Elo</th>
                 <th scope="col" data-sort="mean_accuracy" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
-                <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
+                <th scope="col" data-sort="mean_play_rating" title="Play rating from composite move quality — not ladder Elo.">Play rating</th>
                 <th scope="col" data-sort="games" title="Finished games with a real result (rated, AvH, and unrated same-model AvA). Idle timeouts (*) excluded.">Games</th>
                 <th scope="col" data-sort="id">Model id</th>
               </tr>

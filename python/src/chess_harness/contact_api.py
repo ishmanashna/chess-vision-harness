@@ -1,7 +1,9 @@
-"""Public contact form + localhost-only inbox HTTP API."""
+"""Public contact form plus local or secret-authenticated inbox API."""
 
 from __future__ import annotations
 
+import os
+import secrets
 from collections import defaultdict, deque
 from time import time
 from typing import Deque, Dict, Optional
@@ -62,7 +64,11 @@ def _err(status: int, message: str) -> JSONResponse:
 def _require_loopback(request: Request) -> Optional[JSONResponse]:
     if host_is_loopback(request):
         return None
-    return _err(403, "Inbox is only available on localhost")
+    configured = os.environ.get("CHESS_HARNESS_INBOX_SECRET", "").strip()
+    provided = request.headers.get("X-Chess-Harness-Inbox-Secret", "").strip()
+    if configured and provided and secrets.compare_digest(configured, provided):
+        return None
+    return _err(403, "Inbox is only available on localhost or with the inbox secret")
 
 
 def register_contact_routes(app) -> None:

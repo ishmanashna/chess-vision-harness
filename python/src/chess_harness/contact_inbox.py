@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import secrets
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -46,6 +48,20 @@ def _message_path(directory: Path, message_id: str) -> Path:
     return directory / f"{message_id}.json"
 
 
+def _atomic_write(path: Path, data: Dict[str, Any]) -> None:
+    fd, temp_name = tempfile.mkstemp(prefix=f"{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
 def validate_contact(sender: str, message: str) -> Optional[str]:
     sender = (sender or "").strip()
     message = (message or "").strip()
@@ -80,7 +96,7 @@ def append_message(
         "read": False,
     }
     path = _message_path(directory, message_id)
-    path.write_text(json.dumps(row, indent=2) + "\n", encoding="utf-8")
+    _atomic_write(path, row)
     return {"ok": True, "message": row}
 
 
@@ -113,7 +129,7 @@ def mark_read(message_id: str, *, base_dir: Optional[Path] = None) -> Dict[str, 
     except (OSError, json.JSONDecodeError):
         return {"ok": False, "error": "Message not found"}
     data["read"] = True
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    _atomic_write(path, data)
     return {"ok": True, "message": data}
 
 

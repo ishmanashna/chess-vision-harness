@@ -745,19 +745,17 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
     return {"ok": True, "fixed_opponent_id": opponent_id}
 
 
-@app.post("/api/calibration/rebuild-accuracy-elo-map")
-async def calibration_rebuild_accuracy_elo_map():
-    from .accuracy_elo_map import rebuild_accuracy_elo_map
+@app.post("/api/calibration/rebuild-play-rating-map")
+async def calibration_rebuild_play_rating_map():
+    from .play_rating import fit_play_rating_map
 
-    payload = await asyncio.to_thread(rebuild_accuracy_elo_map)
-    from .accuracy_elo_map import map_warm
-
+    payload = await asyncio.to_thread(fit_play_rating_map)
     return {
         "ok": True,
-        "engine_count": payload.get("engine_count", 0),
-        "min_engines": payload.get("min_engines"),
+        "sample_count": payload.get("sample_count", 0),
+        "min_samples": payload.get("min_samples"),
         "fitted_at": payload.get("fitted_at"),
-        "warm": map_warm(payload),
+        "warm": payload.get("sample_count", 0) >= payload.get("min_samples", 30),
     }
 
 

@@ -31,7 +31,6 @@ def is_provisional(games: int) -> bool:
 
 def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
     """Anchors + calibrated floaters for the public ladder snapshot."""
-    from .accuracy_elo_map import est_elo_from_accuracy
     from .calibration_view import build_ladder_rating_table
     from .opponents import OpponentCatalog
     from .play_rating import play_rating_status_summary
@@ -57,9 +56,7 @@ def build_opponent_snapshot_rows() -> List[Dict[str, Any]]:
             name = oid
         info = by_engine.get(oid) or {}
         mean_accuracy = info.get("mean_accuracy")
-        mean_play_rating = None
-        if mean_accuracy is not None:
-            mean_play_rating = est_elo_from_accuracy(float(mean_accuracy), root=cal_root)
+        mean_play_rating = info.get("mean_play_rating")
         rows.append(
             {
                 "id": oid,

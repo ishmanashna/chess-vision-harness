@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_MD = {
     "AGENTS.md",
     "ARCHITECTURE.md",
+    "DEPLOY.md",
     "NOTICE.md",
     "ORCHESTRATOR.md",
     "PRODUCT.md",
@@ -30,7 +31,7 @@ def main() -> int:
         print(f"Root layout OK ({len(ALLOWED_MD)} markdown files, directories only otherwise).")
         return 0
 
-    print("Root layout FAILED — non-markdown or unexpected files at repo root:\n")
+    print("Root layout FAILED - non-markdown or unexpected files at repo root:\n")
     for name in violations:
         print(f"  {name}")
     print("\nSee ARCHITECTURE.md and docs/plan.md.")

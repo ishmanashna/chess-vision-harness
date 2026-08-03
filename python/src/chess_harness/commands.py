@@ -538,6 +538,14 @@ def cmd_rebuild_estimation_samples() -> int:
     return 0
 
 
+def cmd_finished_db_reconcile() -> int:
+    from .finished_games_db import reconcile_finished_games
+
+    result = reconcile_finished_games(game_manager=_game_manager())
+    print(json.dumps(result, indent=2))
+    return 1 if any(result.values()) else 0
+
+
 def cmd_finished_db_import_live() -> int:
     """Import finished scored live games into ``data/finished_games.sqlite``."""
     from .finished_games_db import import_live_finished_games

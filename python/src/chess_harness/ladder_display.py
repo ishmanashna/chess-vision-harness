@@ -55,7 +55,7 @@ def _format_quality_cli_suffix(entry: dict) -> str:
     if acc is not None:
         parts.append(f"acc {acc}%")
     if pr is not None:
-        parts.append(f"est elo {round(pr)}")
+        parts.append(f"play rating {round(pr)}")
     qg = int(entry.get("quality_games", 0))
     if qg:
         parts.append(f"{qg} quality")
@@ -268,7 +268,7 @@ def render_calibration_html() -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <h2>Engine calibration</h2>
-    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Performance looks that accuracy up on the accuracy→Elo table (floaters + anchors) — it is not ladder Elo. Rebuild the table after you have enough samples.</p>
+    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Play rating maps composite move quality to the engine ladder scale — it is not ladder Elo. Rebuild the play-rating map after enough samples.</p>
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
       <select id="pairing-mode" onchange="onPairingModeChange(this.value)">
@@ -281,17 +281,17 @@ def render_calibration_html() -> str:
       <select id="fixed-opponent" disabled onchange="setFixedOpponent(this.value)"></select>
       <button type="button" class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
       <button type="button" class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
-      <button type="button" class="cal-btn" id="rebuild-acc-elo-btn" onclick="rebuildAccuracyEloMap(this)">Rebuild accuracy→Elo table</button>
+      <button type="button" class="cal-btn" id="rebuild-play-rating-btn" onclick="rebuildPlayRatingMap(this)">Rebuild play-rating map</button>
     </div>
     <div id="status-meta" class="status-meta"></div>
     <div class="cal-panel" id="play-rating-panel">
-      <h2>Quality samples &amp; accuracy→Elo map</h2>
+      <h2>Quality samples &amp; play-rating map</h2>
       <p id="play-rating-summary">Loading…</p>
     </div>
     <h2>Calibrated ratings</h2>
-    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Performance = lookup from the accuracy→Elo table (not ladder Elo).</p>
+    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Play rating = composite move-quality map (not ladder Elo).</p>
     <div class="cal-table-wrap">
-    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Play rating from composite move quality — not ladder Elo.">Play rating</th><th>Activity</th><th></th></tr>
     <tr><td colspan="7" class="empty">No calibration data yet.</td></tr></table>
     </div>
     <h2>Recent games</h2>
@@ -308,7 +308,7 @@ def render_calibration_html() -> str:
       if(std==null||std==='')return base;
       return base+' ± '+Number(std).toFixed(1);
     }}
-    function fmtEstElo(v){{
+    function fmtPlayRating(v){{
       if(v==null||v==='')return '—';
       return String(Math.round(Number(v)));
     }}
@@ -370,15 +370,15 @@ def render_calibration_html() -> str:
         refresh();
       }}
     }}
-    async function rebuildAccuracyEloMap(btn){{
-      if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
-      try{{
-        await calPost('/api/calibration/rebuild-accuracy-elo-map');
-      }}finally{{
-        if(btn){{btn.disabled=false;btn.textContent='Rebuild accuracy→Elo table';}}
-        refresh();
-      }}
-    }}
+async function rebuildPlayRatingMap(btn){{
+       if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
+       try{{
+         await calPost('/api/calibration/rebuild-play-rating-map');
+       }}finally{{
+         if(btn){{btn.disabled=false;btn.textContent='Rebuild play-rating map';}}
+         refresh();
+       }}
+     }}
     async function setContinuous(id,start,btn){{
       if(btn)btn.disabled=true;
       let path='/api/calibration/continuous/'+encodeURIComponent(id)+(start?'/start':'/stop');
@@ -400,7 +400,7 @@ def render_calibration_html() -> str:
         if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
         document.getElementById('status-meta').textContent=meta;
         const pr=d.play_rating||{{}};
-        const aem=d.accuracy_elo_map||{{}};
+        const prm=d.play_rating_map||{{}};
         const prEl=document.getElementById('play-rating-summary');
         if(prEl){{
           const n=pr.sample_count||0;
@@ -411,14 +411,12 @@ def render_calibration_html() -> str:
           }}else{{
             lines.push('No quality samples yet. Eligible floaters (101+ Elo games) append samples after each continuous game.');
           }}
-          const eng=aem.engine_count||0;
-          const minEng=aem.min_engines||2;
-          if(aem.warm){{
-            lines.push('Accuracy→Elo map: warm — '+eng+' engines'+(aem.fitted_at?' · '+aem.fitted_at:''));
-          }}else if(eng>0){{
-            lines.push('Accuracy→Elo map: need '+minEng+'+ calibrated floaters (have '+eng+'). Press Rebuild after more engines qualify.');
+          const sampleCount=prm.sample_count||0;
+          const minSamples=prm.min_samples||30;
+          if(prm.warm){{
+            lines.push('Play-rating map: warm — '+sampleCount+' samples'+(prm.fitted_at?' · '+prm.fitted_at:''));
           }}else{{
-            lines.push('Accuracy→Elo map: not built yet. Press Rebuild accuracy→Elo table when enough floaters have samples.');
+            lines.push('Play-rating map: need '+minSamples+' samples (have '+sampleCount+').');
           }}
           prEl.textContent=lines.join(' · ');
         }}
@@ -438,7 +436,7 @@ def render_calibration_html() -> str:
         const rows=(d.rating_table||[]).map(row=>{{
           const elo=row.uncalibrated?`<span class="catalog">${{row.elo}}*</span>`:`<strong>${{row.elo}}</strong>`;
           const acc=fmtAcc(row.mean_accuracy,row.accuracy_std);
-          const est=fmtEstElo(row.est_elo_play);
+          const est=fmtPlayRating(row.play_rating);
           let activity='<span class="idle-badge">—</span>';
           if(row.continuous){{
             const live=row.playing||0;
@@ -462,9 +460,9 @@ def render_calibration_html() -> str:
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Performance from accuracy→Elo table">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Play rating from composite move quality; not ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Estimated strength from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>'
+        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Play rating from composite move quality — not ladder Elo.">Play rating</th><th>Activity</th><th></th></tr>'
           +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
         const feed=document.getElementById('game-feed');
         const games=(d.recent_games||[]).slice().reverse();

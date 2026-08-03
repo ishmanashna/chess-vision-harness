@@ -73,10 +73,10 @@ def main() -> int:
             violations.append((n, path.relative_to(root)))
 
     if not violations:
-        print(f"Line limit OK (≤{limit} lines, {len(list(iter_code_files(root)))} files scanned)")
+        print(f"Line limit OK (<={limit} lines, {len(list(iter_code_files(root)))} files scanned)")
         return 0
 
-    print(f"Line limit FAILED — {len(violations)} file(s) over {limit} lines:\n")
+    print(f"Line limit FAILED - {len(violations)} file(s) over {limit} lines:\n")
     for n, rel in sorted(violations, key=lambda item: (-item[0], str(item[1]))):
         print(f"  {n:4d}  {rel.as_posix()}")
     print(

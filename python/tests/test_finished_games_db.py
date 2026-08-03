@@ -10,6 +10,7 @@ import pytest
 from chess_harness.board_controller import BoardController
 from chess_harness.finished_games_db import (
     get_finished_game,
+    reconcile_finished_games,
     record_scored_finish,
     upsert_finished_game,
 )
@@ -90,6 +91,20 @@ def test_upsert_scored_game_and_survive_delete(finished_db):
     still = get_finished_game(game_id, db_path=db_path)
     assert still is not None
     assert still["result"] == "1-0"
+
+
+def test_reconcile_reports_missing_and_database_only(finished_db):
+    db_path, harness = finished_db
+    gm = GameManager(str(harness))
+    live_state = _ave_state("live-missing")
+    gm.save_state("live-missing", live_state)
+    upsert_finished_game("db-only", _ave_state("db-only"), db_path=db_path)
+
+    result = reconcile_finished_games(db_path=db_path, game_manager=gm)
+    assert result == {
+        "live_missing_from_db": ["live-missing"],
+        "db_without_live_game": ["db-only"],
+    }
 
 
 def test_skip_no_result_star(finished_db):

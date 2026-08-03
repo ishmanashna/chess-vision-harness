@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 import tarfile
 import zipfile
@@ -37,6 +38,12 @@ def test_backup_creates_archive(tmp_path, monkeypatch):
     (harness / "models.json").write_text('{"version":1,"models":[]}\n', encoding="utf-8")
     (harness / "api_keys.json").write_text('{"keys":[]}\n', encoding="utf-8")
     (harness / "results.jsonl").write_text('{"game_id":"g1"}\n', encoding="utf-8")
+    finished_db = tmp_path / "finished_games.sqlite"
+    monkeypatch.setenv("CHESS_HARNESS_FINISHED_DB", str(finished_db))
+    with sqlite3.connect(finished_db) as conn:
+        conn.execute("CREATE TABLE finished_games (game_id TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO finished_games VALUES ('old-finished-game')")
+        conn.commit()
     games = harness / "games" / "game-test-1"
     games.mkdir(parents=True)
     (games / "state.json").write_text('{"game_id":"game-test-1"}\n', encoding="utf-8")
@@ -54,4 +61,18 @@ def test_backup_creates_archive(tmp_path, monkeypatch):
     assert "manifest.json" in names
     assert "harness/models.json" in names
     assert "harness/games/game-test-1/state.json" in names
-    assert _read_manifest(archive)["game_dirs"] == 1
+    assert "data/finished_games.sqlite" in names
+    manifest = _read_manifest(archive)
+    assert manifest["game_dirs"] == 1
+    assert manifest["finished_games_db"]["rows"] == 1
+    assert manifest["finished_games_db"]["integrity_check"] == "ok"
+    restored_db = tmp_path / "restored.sqlite"
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as zf:
+            restored_db.write_bytes(zf.read("data/finished_games.sqlite"))
+    else:
+        with tarfile.open(archive, "r:gz") as tar:
+            restored_db.write_bytes(tar.extractfile("data/finished_games.sqlite").read())
+    with sqlite3.connect(restored_db) as conn:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("SELECT game_id FROM finished_games").fetchone()[0] == "old-finished-game"

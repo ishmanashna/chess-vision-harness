@@ -20,7 +20,7 @@ future work will be:
 
 i'll let you go back to reading agent written docs slop. human out.  
 
-Maintainer roadmap: [`docs/roadmap/`](docs/roadmap/README.md). Public site + home-PC hosting: **done** — see [`DEPLOY.md`](DEPLOY.md).
+Maintainer roadmap: [`docs/roadmap/`](docs/roadmap/README.md). Public static site and home-PC runbook are implemented; live play remains environment-dependent on `GAME_ORIGIN` and the harness service — see [`DEPLOY.md`](DEPLOY.md).
 
 ## Install
 
@@ -99,7 +99,7 @@ chess-harness leaderboard
 
 Public ladder offline fallback: `chess-harness snapshot-leaderboard` → `public-site/data/leaderboard.json` (optional git backup when the PC is off). While the server is **Online**, the site loads the live ladder API — no commit needed. Provisional Elo shows as `elo*` until 100 rated games (hover the cell on the site for the explanation).
 
-**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Est. Elo (play)** (move-quality estimate on the engine ladder scale — not ladder Elo). Leaderboard columns show mean accuracy and mean Est. Elo (play) beside Elo; AvH games count toward quality columns but not Elo.
+**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Play rating** (a Q-based move-quality estimate on the engine ladder scale — not ladder Elo). Leaderboard columns show mean accuracy and mean Play rating beside Elo; AvH games count toward quality columns but not Elo.
 
 Backfill quality on finished harness games: `chess-harness analyse-quality` (all) or `--game-id <id>`; `--force` to redo. Uses `game.pgn` only — not historical calibration `games.jsonl`.
 

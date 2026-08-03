@@ -213,7 +213,7 @@ def test_api_v1_board_text_fallback_is_live_and_authenticated(api_client):
     assert "4 . . . . P . . ." in updated.text
 
 
-def test_api_v1_status_includes_est_elo_play(api_client):
+def test_api_v1_status_includes_play_rating(api_client):
     client, harness_dir = api_client
     reg = client.post("/api/v1/agents", json={"id": "est-agent", "name": "Est Agent"})
     api_key = reg.json()["api_key"]

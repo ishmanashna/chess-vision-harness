@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sqlite3
 import sys
 import tarfile
 import time
@@ -17,7 +18,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 import chess_harness.bootstrap  # noqa: F401
 
-from chess_harness.paths import project_root, resolve_base_dir, resolve_models_file
+from chess_harness.paths import (
+    project_root,
+    resolve_base_dir,
+    resolve_finished_games_db,
+    resolve_models_file,
+)
 
 HARNESS_FILES = ("models.json", "api_keys.json", "results.jsonl")
 CALIBRATION_ROOT = project_root() / "elo_calibration" / "results"
@@ -59,6 +65,28 @@ def _calibration_paths() -> list[Path]:
     return sorted(set(paths))
 
 
+def _copy_finished_db(staging: Path) -> dict[str, object]:
+    source = resolve_finished_games_db()
+    metadata: dict[str, object] = {
+        "source": str(source),
+        "archived_path": "data/finished_games.sqlite",
+        "exists": source.is_file(),
+        "size": source.stat().st_size if source.is_file() else 0,
+        "rows": 0,
+        "integrity_check": None,
+    }
+    if not source.is_file():
+        return metadata
+
+    destination = staging / "data" / "finished_games.sqlite"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(str(source)) as source_conn, sqlite3.connect(str(destination)) as dest_conn:
+        source_conn.backup(dest_conn)
+        metadata["integrity_check"] = dest_conn.execute("PRAGMA integrity_check").fetchone()[0]
+        metadata["rows"] = dest_conn.execute("SELECT COUNT(*) FROM finished_games").fetchone()[0]
+    return metadata
+
+
 def _stage_backup(
     staging: Path,
     base_dir: Path,
@@ -96,10 +124,15 @@ def _stage_backup(
         shutil.copy2(src, dest)
         copied.append(f"calibration/{rel.as_posix()}")
 
+    finished_db = _copy_finished_db(staging)
+    if finished_db["exists"]:
+        copied.append(str(finished_db["archived_path"]))
+
     manifest = {
         "created": datetime.now(timezone.utc).isoformat(),
         "harness_dir": str(base_dir),
         "models_file": str(resolve_models_file()),
+        "finished_games_db": finished_db,
         "game_dirs": len(game_dirs),
         "paths": copied,
     }

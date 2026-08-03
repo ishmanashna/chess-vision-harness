@@ -146,8 +146,8 @@ def test_get_calibration_status_idle(cal_results):
     assert harness["activity"] == "idle"
     assert "play_rating" in status
     assert status["play_rating"]["sample_count"] == 0
-    assert "accuracy_elo_map" in status
-    assert status["accuracy_elo_map"]["warm"] is False
+    assert "play_rating_map" in status
+    assert status["play_rating_map"]["warm"] is False
     assert harness.get("mean_accuracy") is None
     assert harness.get("accuracy_std") is None
     assert "champion" not in status["play_rating"]
@@ -190,11 +190,11 @@ def test_get_calibration_status_includes_play_rating_means(cal_results):
     assert row["quality_samples"] == 2
     assert row.get("accuracy_std") == 2.0
     assert status["play_rating"]["sample_count"] == 2
-    assert status["accuracy_elo_map"]["warm"] is False
+    assert status["play_rating_map"]["warm"] is False
 
 
-def test_get_calibration_status_accuracy_elo_map_warm(cal_results):
-    from chess_harness.accuracy_elo_map import MIN_ENGINE_PAIRS, rebuild_accuracy_elo_map
+def test_get_calibration_status_play_rating_map_warm(cal_results):
+    from chess_harness.play_rating import fit_play_rating_map, MIN_MAP_SAMPLES
 
     continuous = cal_results / "continuous"
     continuous.mkdir(parents=True)
@@ -241,7 +241,7 @@ def test_get_calibration_status_accuracy_elo_map_warm(cal_results):
     (cal_results / "suite-a" / "ratings.json").write_text(
         json.dumps(ratings), encoding="utf-8"
     )
-    rebuild_accuracy_elo_map(root=cal_results)
+    fit_play_rating_map(root=cal_results)
     from chess_harness.calibration_view import invalidate_merge_cache
 
     invalidate_merge_cache()
@@ -249,9 +249,9 @@ def test_get_calibration_status_accuracy_elo_map_warm(cal_results):
     row = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise10")
     assert row["mean_accuracy"] is not None
     assert row["quality_samples"] == 30
-    assert row["est_elo_play"] is not None
-    assert status["accuracy_elo_map"]["warm"] is True
-    assert status["accuracy_elo_map"]["engine_count"] >= MIN_ENGINE_PAIRS
+    assert row["play_rating"] is not None
+    assert status["play_rating_map"]["warm"] is True
+    assert status["play_rating_map"]["sample_count"] >= MIN_MAP_SAMPLES
     assert "elo_estimations" not in row
     assert "estimators" not in status["play_rating"]
 

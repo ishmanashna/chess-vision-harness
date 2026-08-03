@@ -187,10 +187,8 @@ class ResultsManager:
     ) -> Dict[str, Dict[str, Any]]:
         """Per-model quality means from results.jsonl (includes AvH; excludes *; AvA deduped).
 
-        mean_play_rating (Estimated Elo) is est_elo_from_accuracy(mean_accuracy) via the
-        current accuracy→Elo map — not an average of stored play_rating fields.
+        mean_play_rating is the mean of stored play_rating fields, separate from ladder Elo.
         """
-        from .accuracy_elo_map import est_elo_from_accuracy
 
         if cal_root is None:
             cal_root = project_root() / "elo_calibration" / "results"
@@ -199,6 +197,8 @@ class ResultsManager:
         seen_avaa: set[tuple[str, str]] = set()
         acc_sum: Dict[str, float] = defaultdict(float)
         acc_n: Dict[str, int] = defaultdict(int)
+        play_sum: Dict[str, float] = defaultdict(float)
+        play_n: Dict[str, int] = defaultdict(int)
         quality_games: Dict[str, int] = defaultdict(int)
 
         for row in self.load_results():
@@ -221,6 +221,10 @@ class ResultsManager:
             quality_games[model_id] += 1
             acc_sum[model_id] += float(accuracy)
             acc_n[model_id] += 1
+            play_rating = row.get("play_rating")
+            if play_rating is not None:
+                play_sum[model_id] += float(play_rating)
+                play_n[model_id] += 1
 
         out: Dict[str, Dict[str, Any]] = {}
         for model_id in quality_games:
@@ -228,8 +232,10 @@ class ResultsManager:
             if acc_n[model_id]:
                 mean_accuracy = round(acc_sum[model_id] / acc_n[model_id], 2)
                 entry["mean_accuracy"] = mean_accuracy
-                entry["mean_play_rating"] = est_elo_from_accuracy(
-                    mean_accuracy, root=cal_root
+                entry["mean_play_rating"] = (
+                    round(play_sum[model_id] / play_n[model_id], 1)
+                    if play_n[model_id]
+                    else None
                 )
             out[model_id] = entry
         return out

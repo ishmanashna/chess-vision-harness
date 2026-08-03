@@ -5,12 +5,12 @@ from __future__ import annotations
 import shutil
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from conftest import FIXTURES, LOW_OPPONENT
 
-from chess_harness.api_limits import ApiLimitEnforcer, AuthContext
+from chess_harness.api_limits import ApiLimitEnforcer, AuthContext, client_ip
 from chess_harness.api_v1 import build_router
 from chess_harness.game_manager import GameManager
 from chess_harness.game_service import GameService
@@ -31,6 +31,18 @@ def test_load_limits_defaults(monkeypatch):
     assert lim.max_concurrent_games == 10
     assert lim.max_moves_per_hour_per_key == 600
     assert lim.idle_timeout_sec == 1800
+
+
+def test_client_ip_ignores_untrusted_forwarded_header(monkeypatch):
+    monkeypatch.delenv("CHESS_HARNESS_TRUSTED_PROXIES", raising=False)
+    request = Request({"type": "http", "client": ("10.0.0.5", 1234), "headers": [(b"x-forwarded-for", b"1.2.3.4")]})
+    assert client_ip(request) == "10.0.0.5"
+
+
+def test_client_ip_accepts_forwarded_header_from_trusted_proxy(monkeypatch):
+    monkeypatch.setenv("CHESS_HARNESS_TRUSTED_PROXIES", "10.0.0.0/8")
+    request = Request({"type": "http", "client": ("10.0.0.5", 1234), "headers": [(b"x-forwarded-for", b"1.2.3.4")]})
+    assert client_ip(request) == "1.2.3.4"
 
 
 def test_sliding_window_retry_after():

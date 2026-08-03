@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
+import os
 import shutil
 import time
 from collections import defaultdict, deque
@@ -43,13 +45,42 @@ def get_limit_enforcer() -> "ApiLimitEnforcer":
 _WINDOW_SEC = 3600.0
 
 
+def _trusted_proxy_networks() -> list[ipaddress._BaseNetwork]:
+    raw = os.environ.get("CHESS_HARNESS_TRUSTED_PROXIES", "")
+    networks: list[ipaddress._BaseNetwork] = []
+    for value in raw.split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(value, strict=False))
+        except ValueError:
+            continue
+    return networks
+
+
+def _peer_is_trusted(request: Request) -> bool:
+    peer = request.client.host if request.client else ""
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    return any(address in network for network in _trusted_proxy_networks())
+
+
 def client_ip(request: Request) -> str:
+    peer = request.client.host if request.client and request.client.host else "unknown"
+    if not _peer_is_trusted(request):
+        return peer
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
-    if request.client and request.client.host:
-        return request.client.host
-    return "unknown"
+        candidate = forwarded.split(",")[0].strip()
+        try:
+            ipaddress.ip_address(candidate)
+            return candidate
+        except ValueError:
+            pass
+    return peer
 
 
 def limit_error(status: int, message: str, retry_after: int) -> JSONResponse:

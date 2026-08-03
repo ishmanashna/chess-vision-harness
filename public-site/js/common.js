@@ -163,16 +163,32 @@
     return data;
   }
 
+  function fetchLeaderboardSnapshot() {
+    return fetch(SNAPSHOT_LEADERBOARD_URL, { cache: "no-cache" }).then(function (res) {
+      if (!res.ok) throw new Error("leaderboard snapshot fetch failed");
+      return res.json();
+    });
+  }
+
   function fetchLeaderboard() {
     return checkEdgeHealth().then(function (health) {
-      var url = health.online ? LIVE_LEADERBOARD_URL : SNAPSHOT_LEADERBOARD_URL;
-      return fetch(url, { cache: "no-cache" })
+      if (!health.online) {
+        return fetchLeaderboardSnapshot().then(function (data) {
+          return normalizeLeaderboardPayload(data, false);
+        });
+      }
+      return fetch(LIVE_LEADERBOARD_URL, { cache: "no-cache" })
         .then(function (res) {
-          if (!res.ok) throw new Error("leaderboard fetch failed");
+          if (!res.ok) throw new Error("live leaderboard fetch failed");
           return res.json();
         })
         .then(function (data) {
-          return normalizeLeaderboardPayload(data, health.online);
+          return normalizeLeaderboardPayload(data, true);
+        })
+        .catch(function () {
+          return fetchLeaderboardSnapshot().then(function (data) {
+            return normalizeLeaderboardPayload(data, false);
+          });
         });
     });
   }
@@ -395,10 +411,7 @@
       })
       .then(function (data) {
         var online =
-          data &&
-          (data.status === "online" ||
-            data.online === true ||
-            data.origin === true);
+          data && (data.status === "online" || data.online === true);
         healthCache = { online: online, raw: data };
         return healthCache;
       })

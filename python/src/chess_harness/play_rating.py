@@ -302,8 +302,12 @@ def play_rating_status_summary(
                 "acc_sum": 0.0,
                 "acc_n": 0,
                 "accuracies": [],
+                "play_ratings": [],
             },
         )
+        sample_rating = play_rating_from_q(float(sample["q"]), root=root) if sample.get("q") is not None else None
+        if sample_rating is not None:
+            bucket["play_ratings"].append(sample_rating)
         bucket["n"] += 1
         acc = sample.get("accuracy")
         if acc is not None:
@@ -324,6 +328,11 @@ def play_rating_status_summary(
                 "engine_id": eid,
                 "sample_count": bucket["n"],
                 "mean_accuracy": mean_accuracy,
+                "mean_play_rating": (
+                    round(sum(bucket["play_ratings"]) / len(bucket["play_ratings"]), 1)
+                    if bucket["play_ratings"]
+                    else None
+                ),
                 "accuracy_std": accuracy_std,
             }
         )

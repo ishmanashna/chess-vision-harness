@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from chess_harness.accuracy_elo_map import est_elo_from_accuracy, map_path
+from chess_harness.play_rating import map_path
 from chess_harness.models import ModelRegistry
 from chess_harness.results import ResultsManager
 from chess_harness.snapshot_leaderboard import (
@@ -17,25 +17,20 @@ from chess_harness.snapshot_leaderboard import (
 )
 
 
-def _write_warm_map(cal_root, knots, *, engine_count=2):
+def _write_warm_map(cal_root, knots):
     cal_root.mkdir(parents=True, exist_ok=True)
+    map_path(cal_root).parent.mkdir(parents=True, exist_ok=True)
     map_path(cal_root).write_text(
         json.dumps(
             {
-                "engine_count": engine_count,
+                "min_samples": 30,
+                "sample_count": 30,
                 "knots": knots,
                 "fitted_at": "2026-01-01T00:00:00.000Z",
             }
         ),
         encoding="utf-8",
     )
-
-
-def _clear_map_cache():
-    import chess_harness.accuracy_elo_map as accuracy_elo_map
-
-    accuracy_elo_map._map_cache = None
-    accuracy_elo_map._map_cache_path = None
 
 
 def test_is_provisional_matches_site_threshold():
@@ -201,12 +196,12 @@ def test_aggregate_quality_by_model_rules(tmp_path):
     assert agg["agent-a"] == {
         "quality_games": 3,
         "mean_accuracy": mean_a,
-        "mean_play_rating": est_elo_from_accuracy(mean_a, root=cal_root),
+        "mean_play_rating": 550.0,
     }
     assert agg["agent-b"] == {
         "quality_games": 1,
         "mean_accuracy": 88.0,
-        "mean_play_rating": est_elo_from_accuracy(88.0, root=cal_root),
+        "mean_play_rating": 720.0,
     }
 
 
@@ -349,12 +344,12 @@ def test_build_snapshot_includes_quality_stats(tmp_path):
     )
     agent = snapshot["agents"][0]
     assert agent["mean_accuracy"] == 90.0
-    assert agent["mean_play_rating"] == est_elo_from_accuracy(90.0, root=cal_root)
+    assert agent["mean_play_rating"] == 800.0
     assert agent["quality_games"] == 1
 
 
-def test_estimated_elo_from_current_map_not_frozen_play_rating(tmp_path):
-    """Estimated Elo follows the live accuracy→Elo map, not stored play_rating."""
+def test_aggregate_quality_uses_stored_play_rating(tmp_path):
+    """Quality aggregation uses canonical stored Q-map ratings, not accuracy-only remapping."""
     harness = tmp_path / "harness"
     harness.mkdir()
     models_file = harness / "models.json"
@@ -365,55 +360,12 @@ def test_estimated_elo_from_current_map_not_frozen_play_rating(tmp_path):
     _write_results(
         harness / "results.jsonl",
         [
-            {
-                "game_id": "g1",
-                "model_name": "agent-a",
-                "result": "1-0",
-                "accuracy": 70.0,
-                "play_rating": 999.0,
-            },
-            {
-                "game_id": "g2",
-                "model_name": "agent-a",
-                "result": "0-1",
-                "accuracy": 90.0,
-                "play_rating": 111.0,
-            },
+            {"game_id": "g1", "model_name": "agent-a", "result": "1-0", "accuracy": 70.0, "play_rating": 999.0},
+            {"game_id": "g2", "model_name": "agent-a", "result": "0-1", "accuracy": 90.0, "play_rating": 111.0},
         ],
     )
 
-    cal_root = tmp_path / "cal"
-    map_v1 = [
-        {"accuracy": 50.0, "elo": 800.0},
-        {"accuracy": 90.0, "elo": 1200.0},
-    ]
-    _write_warm_map(cal_root, map_v1)
-
     rm = ResultsManager(base_dir=str(harness))
-    mean_accuracy = 80.0
-    agg_v1 = rm.aggregate_quality_by_model(cal_root=cal_root)
-    expected_v1 = est_elo_from_accuracy(mean_accuracy, root=cal_root)
-    assert agg_v1["agent-a"]["mean_accuracy"] == mean_accuracy
-    assert agg_v1["agent-a"]["mean_play_rating"] == expected_v1
-    assert expected_v1 != 555.0  # not average of frozen play_rating fields
-
-    map_v2 = [
-        {"accuracy": 50.0, "elo": 900.0},
-        {"accuracy": 90.0, "elo": 1500.0},
-    ]
-    _write_warm_map(cal_root, map_v2)
-    _clear_map_cache()
-
-    agg_v2 = rm.aggregate_quality_by_model(cal_root=cal_root)
-    expected_v2 = est_elo_from_accuracy(mean_accuracy, root=cal_root)
-    assert expected_v2 != expected_v1
-    assert agg_v2["agent-a"]["mean_play_rating"] == expected_v2
-
-    registry = ModelRegistry(models_file)
-    snapshot = build_snapshot(
-        registry,
-        rm.count_by_model(),
-        quality_stats=agg_v2,
-        include_opponents=False,
-    )
-    assert snapshot["agents"][0]["mean_play_rating"] == expected_v2
+    agg = rm.aggregate_quality_by_model(cal_root=tmp_path / "unused")
+    assert agg["agent-a"]["mean_accuracy"] == 80.0
+    assert agg["agent-a"]["mean_play_rating"] == 555.0

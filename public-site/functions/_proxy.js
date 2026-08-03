@@ -55,6 +55,9 @@ export async function proxyToOrigin(request, origin) {
 
   const headers = new Headers(request.headers);
   headers.delete("host");
+  headers.delete("x-forwarded-for");
+  headers.delete("x-real-ip");
+  headers.delete("cf-connecting-ip");
 
   /** @type {RequestInit} */
   const init = {

@@ -285,10 +285,12 @@ def main(argv: list[str] | None = None) -> None:
         if len(args) < 2:
             print(
                 "Usage: chess-harness finished-db "
-                "import-live|list|restore <game_id>"
+                "reconcile|import-live|list|restore <game_id>"
             )
             sys.exit(1)
         sub = args[1]
+        if sub == "reconcile":
+            sys.exit(commands.cmd_finished_db_reconcile())
         if sub == "import-live":
             sys.exit(commands.cmd_finished_db_import_live())
         if sub == "list":
@@ -300,7 +302,7 @@ def main(argv: list[str] | None = None) -> None:
             sys.exit(commands.cmd_finished_db_restore(args[2]))
         print(
             "Usage: chess-harness finished-db "
-            "import-live|list|restore <game_id>"
+            "reconcile|import-live|list|restore <game_id>"
         )
         sys.exit(1)
 

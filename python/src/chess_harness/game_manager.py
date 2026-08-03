@@ -3,8 +3,10 @@ Game manager for handling multiple chess games with isolation and locking.
 """
 
 import json
+import os
 import re
 import shutil
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
@@ -85,12 +87,24 @@ class GameManager:
         state_path = self.get_state_path(game_id)
         game_dir = self.get_game_dir(game_id)
         game_dir.mkdir(parents=True, exist_ok=True)
+        temp_name = ""
         try:
-            with open(state_path, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2)
+            fd, temp_name = tempfile.mkstemp(prefix="state.", dir=game_dir)
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                json.dump(state, stream, indent=2)
+                stream.write("\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temp_name, state_path)
             return True
         except OSError:
             return False
+        finally:
+            if temp_name and os.path.exists(temp_name):
+                try:
+                    os.unlink(temp_name)
+                except OSError:
+                    pass
 
     def list_games(self, status_filter: Optional[str] = None) -> list:
         games = []
@@ -131,10 +145,21 @@ class GameManager:
         if not self.validate_game_id(game_id):
             return False
         game_dir = self.get_game_dir(game_id)
-        if not game_dir.exists():
-            return False
-        shutil.rmtree(game_dir)
         lock_path = self.get_lock_path(game_id)
+        with self.game_lock(game_id):
+            if not game_dir.exists():
+                return False
+            for child in game_dir.iterdir():
+                if child == lock_path:
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
         if lock_path.exists():
             lock_path.unlink()
+        try:
+            game_dir.rmdir()
+        except OSError:
+            return False
         return True

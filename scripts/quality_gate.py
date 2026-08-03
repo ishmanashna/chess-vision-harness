@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,13 @@ def run(title: str, argv: list[str], *, cwd: Path = ROOT) -> int:
     return int(completed.returncode)
 
 
+def git_status() -> str:
+    result = subprocess.run(
+        ["git", "status", "--short"], cwd=ROOT, capture_output=True, text=True, check=True
+    )
+    return result.stdout
+
+
 def npm_cmd() -> str:
     return "npm.cmd" if sys.platform == "win32" else "npm"
 
@@ -35,10 +43,18 @@ def ensure_node_deps() -> int:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check-worktree",
+        action="store_true",
+        help="fail if tracked/untracked status changes during validation",
+    )
+    args = parser.parse_args()
+    before_status = git_status() if args.check_worktree else None
     code = 0
     for title, argv, cwd in [
         ("Clean root", [sys.executable, str(ROOT / "scripts" / "check_clean_root.py")], ROOT),
-        ("Line limit (≤300)", [sys.executable, str(ROOT / "scripts" / "check_line_limits.py")], ROOT),
+        ("Line limit (<=300)", [sys.executable, str(ROOT / "scripts" / "check_line_limits.py")], ROOT),
     ]:
         rc = run(title, argv, cwd=cwd)
         if rc != 0:
@@ -56,6 +72,13 @@ def main() -> int:
         rc = run(title, argv, cwd=cwd)
         if rc != 0:
             code = rc
+
+    if args.check_worktree:
+        after_status = git_status()
+        if after_status != before_status:
+            print("\n=== Worktree check FAILED ===")
+            print("Validation changed repository status unexpectedly.")
+            code = 1
 
     print("\n=== quality_gate summary ===")
     if code == 0:

@@ -6,7 +6,7 @@ Related docs
 
 - Root operator entry: [`../DEPLOY.md`](../DEPLOY.md)
 - One-time Pages + GitHub secrets: [`pages.md`](pages.md)
-- General harness install, backup, monitoring: also in [`../DEPLOY.md`](../DEPLOY.md)
+- General install, backup, restore, and monitoring: also in [`../DEPLOY.md`](../DEPLOY.md)
 
 ---
 

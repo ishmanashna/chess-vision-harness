@@ -3,9 +3,9 @@
     "chess-vision-harness": {
       "command": "python",
       "args": ["-m", "chess_harness.mcp_server"],
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/src"
+        "PYTHONPATH": "${workspaceFolder}/python/src"
       }
     }
   }

@@ -87,6 +87,18 @@ def test_inbox_localhost_only(contact_client):
     assert data["messages"][0]["sender"] == "Bob"
 
 
+def test_inbox_secret_allows_trusted_non_loopback(contact_client, monkeypatch):
+    client, _ = contact_client
+    monkeypatch.setenv("CHESS_HARNESS_INBOX_SECRET", "secret")
+    denied = client.get("/api/contact/inbox", headers={"Host": "example.com"})
+    assert denied.status_code == 403
+    allowed = client.get(
+        "/api/contact/inbox",
+        headers={"Host": "example.com", "X-Chess-Harness-Inbox-Secret": "secret"},
+    )
+    assert allowed.status_code == 200
+
+
 def test_inbox_mark_read_and_delete(contact_client):
     client, harness_dir = contact_client
     created = client.post(

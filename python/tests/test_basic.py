@@ -31,20 +31,14 @@ def game_manager(temp_dir):
 
 
 @pytest.fixture
-def engine():
-    """Create a StockfishAdapter instance."""
-    # This assumes Stockfish is available in PATH or at the default location
-    # For testing, you might need to mock this or have Stockfish installed
-    try:
-        return StockfishAdapter()
-    except RuntimeError:
-        pytest.skip("Stockfish not available")
-
-
-@pytest.fixture
-def controller(game_manager, engine):
-    """Create a BoardController instance."""
-    return BoardController(game_manager, engine)
+def controller(game_manager):
+    """Create a BoardController and release all owned engines after each test."""
+    controller = BoardController(game_manager)
+    yield controller
+    controller.opponent_mgr.release()
+    if controller._eval_engine is not None:
+        controller._eval_engine.quit()
+        controller._eval_engine = None
 
 
 class TestGameManager:
@@ -263,6 +257,11 @@ class TestParallelGames:
         assert state2["agent_color"] == "BLACK"
         assert len(state1["moves"]) == 2  # Agent move + engine response
         assert len(state2["moves"]) == 3  # Engine first + agent move + engine response
+
+    def test_save_state_replaces_valid_json(self, game_manager):
+        game_manager.save_state("atomic", {"version": 1})
+        game_manager.save_state("atomic", {"version": 2, "nested": {"ok": True}})
+        assert game_manager.load_state("atomic") == {"version": 2, "nested": {"ok": True}}
 
 
 if __name__ == "__main__":

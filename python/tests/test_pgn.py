@@ -9,17 +9,18 @@ os.environ.setdefault("STOCKFISH_PATH", STOCKFISH_PATH)
 import chess
 import chess.pgn
 from chess_harness.game_manager import GameManager
-from chess_harness.engine import StockfishAdapter
 from chess_harness.board_controller import BoardController
 
 
 @pytest.fixture
 def ctrl(tmp_path):
     gm = GameManager(base_dir=str(tmp_path / "chess_harness"))
-    e = StockfishAdapter()
-    c = BoardController(gm, e)
+    c = BoardController(gm)
     yield c
-    e.quit()
+    c.opponent_mgr.release()
+    if c._eval_engine is not None:
+        c._eval_engine.quit()
+        c._eval_engine = None
 
 
 class TestPGNExport:

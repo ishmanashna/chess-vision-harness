@@ -237,8 +237,7 @@ def get_calibration_status() -> Dict[str, Any]:
     rating_table = build_ladder_rating_table(catalog, calibration)
     rating_table = mgr.enrich_rating_rows([r for r in rating_table if not r.get("anchor")])
 
-    from .accuracy_elo_map import status_summary as accuracy_elo_map_status
-    from .play_rating import play_rating_status_summary
+    from .play_rating import load_play_rating_map, play_rating_status_summary
 
     cal_root = project_root() / "elo_calibration" / "results"
     try:
@@ -248,17 +247,12 @@ def get_calibration_status() -> Dict[str, Any]:
             "sample_count": 0,
             "min_samples": 30,
         }
-    try:
-        accuracy_elo_map = accuracy_elo_map_status(root=cal_root)
-    except Exception:
-        accuracy_elo_map = {
-            "engine_count": 0,
-            "min_engines": 2,
-            "fitted_at": None,
-            "warm": False,
-        }
-    from .accuracy_elo_map import est_elo_from_accuracy
-
+    play_rating_map = load_play_rating_map(root=cal_root) or {
+        "sample_count": 0,
+        "min_samples": 30,
+        "fitted_at": None,
+        "warm": False,
+    }
     by_engine = {row["engine_id"]: row for row in play_rating.get("engines", [])}
     for row in rating_table:
         info = by_engine.get(row["id"])
@@ -266,15 +260,12 @@ def get_calibration_status() -> Dict[str, Any]:
             row["mean_accuracy"] = None
             row["accuracy_std"] = None
             row["quality_samples"] = 0
-            row["est_elo_play"] = None
+            row["play_rating"] = None
             continue
         row["mean_accuracy"] = info.get("mean_accuracy")
         row["accuracy_std"] = info.get("accuracy_std")
         row["quality_samples"] = int(info.get("sample_count") or 0)
-        acc = info.get("mean_accuracy")
-        row["est_elo_play"] = (
-            est_elo_from_accuracy(float(acc), root=cal_root) if acc is not None else None
-        )
+        row["play_rating"] = info.get("mean_play_rating")
 
     payload = {
         "mode": "continuous" if running else "idle",
@@ -300,7 +291,12 @@ def get_calibration_status() -> Dict[str, Any]:
             "sample_count": play_rating["sample_count"],
             "min_samples": play_rating["min_samples"],
         },
-        "accuracy_elo_map": accuracy_elo_map,
+        "play_rating_map": {
+            "sample_count": int(play_rating_map.get("sample_count", 0)),
+            "min_samples": int(play_rating_map.get("min_samples", 30)),
+            "fitted_at": play_rating_map.get("fitted_at"),
+            "warm": int(play_rating_map.get("sample_count", 0)) >= int(play_rating_map.get("min_samples", 30)) and bool(play_rating_map.get("fitted_at")),
+        },
     }
     _STATUS_CACHE = (now, payload)
     return payload

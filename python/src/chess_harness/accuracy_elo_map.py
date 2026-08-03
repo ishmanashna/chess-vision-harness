@@ -1,5 +1,5 @@
 """
-Static accuracy→Elo map from calibrated engines (floaters + Stockfish anchors).
+Legacy compatibility map for older operator data. Runtime quality scoring uses play_rating.py.
 
 Each eligible engine contributes one (mean_accuracy, Elo) pair from quality
 samples. Floaters use calibrated ladder Elo; anchors use fixed catalog Elo.

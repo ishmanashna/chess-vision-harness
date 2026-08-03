@@ -255,6 +255,26 @@ def upsert_finished_game(
         conn.commit()
 
 
+def reconcile_finished_games(
+    *, db_path: Optional[Path] = None, game_manager: Any = None
+) -> Dict[str, List[str]]:
+    """Report scored live games missing from SQLite and database-only rows."""
+    from .game_manager import GameManager
+
+    gm = game_manager if game_manager is not None else GameManager()
+    with connect(db_path) as conn:
+        db_ids = {row[0] for row in conn.execute("SELECT game_id FROM finished_games")}
+    live_scored = {
+        game["game_id"]
+        for game in gm.list_games(status_filter="finished")
+        if game["state"].get("result") not in (None, "*")
+    }
+    return {
+        "live_missing_from_db": sorted(live_scored - db_ids),
+        "db_without_live_game": sorted(db_ids - live_scored),
+    }
+
+
 def import_live_finished_games(
     *,
     db_path: Optional[Path] = None,

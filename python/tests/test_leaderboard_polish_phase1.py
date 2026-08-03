@@ -16,10 +16,10 @@ def _read_public(rel: str) -> str:
     return (PUBLIC_SITE / rel).read_text(encoding="utf-8")
 
 
-def test_leaderboard_performance_labels(create_client):
+def test_leaderboard_play_rating_labels(create_client):
     client, _ = create_client
     html = client.get("/leaderboard/").text
-    assert "Performance" in html
+    assert "Play rating" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "Rebuild that table on the local Calibration page" not in html
@@ -86,7 +86,7 @@ def test_common_js_provisional_ignores_display_games():
     assert "leaderboardColCount" in js
 
 
-def test_calibration_html_performance_label():
+def test_calibration_html_play_rating_label():
     import os
     import sys
 
@@ -94,6 +94,6 @@ def test_calibration_html_performance_label():
     from chess_harness.ladder_display import render_calibration_html
 
     html = render_calibration_html()
-    assert "Performance" in html
+    assert "Play rating" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
