@@ -1,523 +1,547 @@
 {
   "engine_count": 61,
   "min_engines": 2,
-  "fitted_at": "2026-07-30T14:11:23.711389+00:00",
+  "fitted_at": "2026-07-30T23:18:52.267839+00:00",
   "pairs": [
     {
       "engine_id": "inverse-sf:abyss",
-      "accuracy": 35.18,
+      "accuracy": 45.64,
       "elo": -15,
-      "sample_count": 93
+      "sample_count": 153
     },
     {
       "engine_id": "inverse-sf:bottom-half-d16",
-      "accuracy": 34.01,
+      "accuracy": 45.72,
       "elo": -41,
-      "sample_count": 117
+      "sample_count": 179
     },
     {
       "engine_id": "inverse-sf:exclude-top1",
-      "accuracy": 37.7,
+      "accuracy": 50.21,
       "elo": 33,
-      "sample_count": 120
+      "sample_count": 181
     },
     {
       "engine_id": "inverse-sf:exclude-top1-d14",
-      "accuracy": 39.19,
+      "accuracy": 51.05,
       "elo": 71,
-      "sample_count": 104
+      "sample_count": 165
     },
     {
       "engine_id": "inverse-sf:exclude-top1-d6",
-      "accuracy": 40.57,
+      "accuracy": 51.84,
       "elo": 66,
-      "sample_count": 122
+      "sample_count": 184
     },
     {
       "engine_id": "inverse-sf:exclude-top1-d8",
-      "accuracy": 39.36,
-      "elo": 35,
-      "sample_count": 116
+      "accuracy": 50.95,
+      "elo": 34,
+      "sample_count": 177
     },
     {
       "engine_id": "inverse-sf:worst-d10",
-      "accuracy": 30.93,
+      "accuracy": 40.3,
       "elo": -52,
-      "sample_count": 113
+      "sample_count": 179
     },
     {
       "engine_id": "inverse-sf:worst-d16",
-      "accuracy": 31.3,
+      "accuracy": 40.77,
       "elo": -65,
-      "sample_count": 100
+      "sample_count": 165
     },
     {
       "engine_id": "inverse-sf:worst-d18",
-      "accuracy": 30.76,
-      "elo": -58,
-      "sample_count": 100
+      "accuracy": 40.91,
+      "elo": -59,
+      "sample_count": 164
     },
     {
       "engine_id": "random",
-      "accuracy": 44.21,
-      "elo": 156,
-      "sample_count": 147
+      "accuracy": 54.26,
+      "elo": 155,
+      "sample_count": 213
     },
     {
       "engine_id": "stockfish-handicap:depth4",
-      "accuracy": 85.05,
-      "elo": 1558,
-      "sample_count": 139
+      "accuracy": 84.73,
+      "elo": 1430,
+      "sample_count": 203
     },
     {
       "engine_id": "stockfish-handicap:noise10",
-      "accuracy": 77.94,
-      "elo": 1188,
-      "sample_count": 161
+      "accuracy": 78.57,
+      "elo": 1113,
+      "sample_count": 222
     },
     {
       "engine_id": "stockfish-handicap:noise12",
-      "accuracy": 77.36,
-      "elo": 1206,
-      "sample_count": 162
+      "accuracy": 78.93,
+      "elo": 1145,
+      "sample_count": 224
     },
     {
       "engine_id": "stockfish-handicap:noise13",
-      "accuracy": 76.85,
-      "elo": 1206,
-      "sample_count": 130
+      "accuracy": 78.81,
+      "elo": 1198,
+      "sample_count": 193
     },
     {
       "engine_id": "stockfish-handicap:noise16",
-      "accuracy": 75.85,
-      "elo": 1079,
-      "sample_count": 151
+      "accuracy": 77.12,
+      "elo": 1056,
+      "sample_count": 215
     },
     {
       "engine_id": "stockfish-handicap:noise19",
-      "accuracy": 75.42,
-      "elo": 1012,
-      "sample_count": 147
+      "accuracy": 77.28,
+      "elo": 982,
+      "sample_count": 209
     },
     {
       "engine_id": "stockfish-handicap:noise21",
-      "accuracy": 73.16,
-      "elo": 1023,
-      "sample_count": 148
+      "accuracy": 75.64,
+      "elo": 995,
+      "sample_count": 211
     },
     {
       "engine_id": "stockfish-handicap:noise22",
-      "accuracy": 72.89,
-      "elo": 1031,
-      "sample_count": 151
+      "accuracy": 75.38,
+      "elo": 1052,
+      "sample_count": 215
     },
     {
       "engine_id": "stockfish-handicap:noise24",
-      "accuracy": 73.56,
-      "elo": 948,
-      "sample_count": 137
+      "accuracy": 75.71,
+      "elo": 929,
+      "sample_count": 201
     },
     {
       "engine_id": "stockfish-handicap:noise27",
-      "accuracy": 71.65,
-      "elo": 928,
-      "sample_count": 140
+      "accuracy": 73.93,
+      "elo": 907,
+      "sample_count": 203
     },
     {
       "engine_id": "stockfish-handicap:noise30",
-      "accuracy": 69.89,
-      "elo": 899,
-      "sample_count": 141
+      "accuracy": 73.0,
+      "elo": 886,
+      "sample_count": 206
     },
     {
       "engine_id": "stockfish-handicap:noise33",
-      "accuracy": 69.15,
-      "elo": 806,
-      "sample_count": 135
+      "accuracy": 72.75,
+      "elo": 799,
+      "sample_count": 198
     },
     {
       "engine_id": "stockfish-handicap:noise38",
-      "accuracy": 68.5,
-      "elo": 716,
-      "sample_count": 149
+      "accuracy": 71.77,
+      "elo": 711,
+      "sample_count": 213
     },
     {
       "engine_id": "stockfish-handicap:noise41",
-      "accuracy": 67.92,
-      "elo": 706,
-      "sample_count": 139
+      "accuracy": 71.31,
+      "elo": 701,
+      "sample_count": 203
     },
     {
       "engine_id": "stockfish-handicap:noise46",
-      "accuracy": 65.73,
-      "elo": 628,
-      "sample_count": 143
+      "accuracy": 69.46,
+      "elo": 623,
+      "sample_count": 208
     },
     {
       "engine_id": "stockfish-handicap:noise5",
-      "accuracy": 81.22,
-      "elo": 1216,
-      "sample_count": 138
+      "accuracy": 81.68,
+      "elo": 1224,
+      "sample_count": 198
     },
     {
       "engine_id": "stockfish-handicap:noise52",
-      "accuracy": 64.6,
-      "elo": 542,
-      "sample_count": 141
+      "accuracy": 68.51,
+      "elo": 540,
+      "sample_count": 207
     },
     {
       "engine_id": "stockfish-handicap:noise55",
-      "accuracy": 60.56,
-      "elo": 483,
-      "sample_count": 142
+      "accuracy": 65.89,
+      "elo": 481,
+      "sample_count": 207
     },
     {
       "engine_id": "stockfish-handicap:noise62",
-      "accuracy": 59.55,
-      "elo": 483,
-      "sample_count": 146
+      "accuracy": 65.16,
+      "elo": 481,
+      "sample_count": 212
     },
     {
       "engine_id": "stockfish-handicap:noise68",
-      "accuracy": 55.47,
-      "elo": 432,
-      "sample_count": 132
+      "accuracy": 62.28,
+      "elo": 431,
+      "sample_count": 198
     },
     {
       "engine_id": "stockfish-handicap:noise7",
-      "accuracy": 79.6,
-      "elo": 1275,
-      "sample_count": 135
+      "accuracy": 80.42,
+      "elo": 1214,
+      "sample_count": 197
     },
     {
       "engine_id": "stockfish-handicap:noise72",
-      "accuracy": 56.49,
-      "elo": 403,
-      "sample_count": 139
+      "accuracy": 62.77,
+      "elo": 402,
+      "sample_count": 205
     },
     {
       "engine_id": "stockfish-handicap:noise76",
-      "accuracy": 53.17,
+      "accuracy": 60.47,
       "elo": 344,
-      "sample_count": 136
+      "sample_count": 202
     },
     {
       "engine_id": "stockfish-handicap:noise8",
-      "accuracy": 79.09,
-      "elo": 1202,
-      "sample_count": 142
+      "accuracy": 80.13,
+      "elo": 1162,
+      "sample_count": 203
     },
     {
       "engine_id": "stockfish-handicap:noise84",
-      "accuracy": 51.74,
+      "accuracy": 59.56,
       "elo": 329,
-      "sample_count": 127
+      "sample_count": 193
     },
     {
       "engine_id": "stockfish-handicap:noise90",
-      "accuracy": 47.05,
-      "elo": 238,
-      "sample_count": 121
+      "accuracy": 57.15,
+      "elo": 237,
+      "sample_count": 187
     },
     {
       "engine_id": "stockfish-handicap:noise94",
-      "accuracy": 47.65,
+      "accuracy": 56.41,
       "elo": 248,
-      "sample_count": 138
+      "sample_count": 204
     },
     {
       "engine_id": "stockfish-handicap:noise96",
-      "accuracy": 45.01,
-      "elo": 223,
-      "sample_count": 117
+      "accuracy": 55.73,
+      "elo": 222,
+      "sample_count": 182
     },
     {
       "engine_id": "stockfish-handicap:noise98",
-      "accuracy": 43.15,
-      "elo": 180,
-      "sample_count": 128
+      "accuracy": 54.1,
+      "elo": 179,
+      "sample_count": 195
     },
     {
       "engine_id": "stockfish-handicap:noise99",
-      "accuracy": 44.31,
+      "accuracy": 53.91,
       "elo": 177,
-      "sample_count": 144
+      "sample_count": 210
     },
     {
       "engine_id": "stockfish:0",
-      "accuracy": 80.74,
+      "accuracy": 85.21,
       "elo": 1320,
-      "sample_count": 14
+      "sample_count": 137
     },
     {
       "engine_id": "stockfish:1",
-      "accuracy": 88.67,
+      "accuracy": 88.34,
       "elo": 1414,
-      "sample_count": 15
+      "sample_count": 155
     },
     {
       "engine_id": "stockfish:10",
-      "accuracy": 90.59,
+      "accuracy": 92.62,
       "elo": 2255,
-      "sample_count": 12
+      "sample_count": 139
     },
     {
       "engine_id": "stockfish:11",
-      "accuracy": 92.97,
+      "accuracy": 92.76,
       "elo": 2348,
-      "sample_count": 11
+      "sample_count": 112
     },
     {
       "engine_id": "stockfish:12",
-      "accuracy": 93.39,
+      "accuracy": 93.24,
       "elo": 2442,
-      "sample_count": 8
+      "sample_count": 138
     },
     {
       "engine_id": "stockfish:13",
-      "accuracy": 92.74,
+      "accuracy": 94.42,
       "elo": 2536,
-      "sample_count": 14
+      "sample_count": 108
     },
     {
       "engine_id": "stockfish:14",
-      "accuracy": 94.47,
+      "accuracy": 95.13,
       "elo": 2629,
-      "sample_count": 12
+      "sample_count": 140
     },
     {
       "engine_id": "stockfish:15",
-      "accuracy": 97.03,
+      "accuracy": 95.47,
       "elo": 2722,
-      "sample_count": 11
+      "sample_count": 155
     },
     {
       "engine_id": "stockfish:16",
-      "accuracy": 96.48,
+      "accuracy": 95.56,
       "elo": 2816,
-      "sample_count": 10
+      "sample_count": 132
     },
     {
       "engine_id": "stockfish:17",
-      "accuracy": 95.68,
+      "accuracy": 95.57,
       "elo": 2910,
-      "sample_count": 11
+      "sample_count": 106
     },
     {
       "engine_id": "stockfish:18",
-      "accuracy": 94.66,
+      "accuracy": 95.82,
       "elo": 3003,
-      "sample_count": 8
+      "sample_count": 144
     },
     {
       "engine_id": "stockfish:19",
-      "accuracy": 97.06,
+      "accuracy": 95.88,
       "elo": 3096,
-      "sample_count": 7
+      "sample_count": 130
     },
     {
       "engine_id": "stockfish:2",
-      "accuracy": 88.11,
+      "accuracy": 89.62,
       "elo": 1507,
-      "sample_count": 4
+      "sample_count": 132
     },
     {
       "engine_id": "stockfish:20",
-      "accuracy": 95.98,
+      "accuracy": 96.41,
       "elo": 3190,
-      "sample_count": 13
+      "sample_count": 148
     },
     {
       "engine_id": "stockfish:3",
-      "accuracy": 90.15,
+      "accuracy": 89.79,
       "elo": 1600,
-      "sample_count": 6
+      "sample_count": 119
     },
     {
       "engine_id": "stockfish:4",
-      "accuracy": 90.95,
+      "accuracy": 90.09,
       "elo": 1694,
-      "sample_count": 8
+      "sample_count": 119
     },
     {
       "engine_id": "stockfish:5",
-      "accuracy": 92.22,
+      "accuracy": 91.97,
       "elo": 1788,
-      "sample_count": 9
+      "sample_count": 133
     },
     {
       "engine_id": "stockfish:6",
-      "accuracy": 94.17,
+      "accuracy": 91.67,
       "elo": 1881,
-      "sample_count": 3
+      "sample_count": 114
     },
     {
       "engine_id": "stockfish:7",
-      "accuracy": 92.43,
+      "accuracy": 91.44,
       "elo": 1974,
-      "sample_count": 12
+      "sample_count": 142
     },
     {
       "engine_id": "stockfish:8",
-      "accuracy": 92.91,
+      "accuracy": 92.92,
       "elo": 2068,
-      "sample_count": 7
+      "sample_count": 126
     },
     {
       "engine_id": "stockfish:9",
-      "accuracy": 93.44,
+      "accuracy": 92.36,
       "elo": 2162,
-      "sample_count": 5
+      "sample_count": 120
     }
   ],
   "knots": [
     {
-      "accuracy": 30.9967,
-      "elo": -58.33
+      "accuracy": 40.66,
+      "elo": -58.67
     },
     {
-      "accuracy": 34.01,
-      "elo": -41.0
+      "accuracy": 45.68,
+      "elo": -28.0
     },
     {
-      "accuracy": 35.18,
-      "elo": -15.0
-    },
-    {
-      "accuracy": 37.7,
+      "accuracy": 50.21,
       "elo": 33.0
     },
     {
-      "accuracy": 39.275,
-      "elo": 53.0
+      "accuracy": 50.95,
+      "elo": 34.0
     },
     {
-      "accuracy": 40.57,
-      "elo": 66.0
+      "accuracy": 51.445,
+      "elo": 68.5
     },
     {
-      "accuracy": 43.68,
-      "elo": 168.0
+      "accuracy": 54.09,
+      "elo": 170.33
     },
     {
-      "accuracy": 44.31,
-      "elo": 177.0
+      "accuracy": 55.73,
+      "elo": 222.0
     },
     {
-      "accuracy": 45.01,
-      "elo": 223.0
+      "accuracy": 56.78,
+      "elo": 242.5
     },
     {
-      "accuracy": 47.05,
-      "elo": 238.0
-    },
-    {
-      "accuracy": 47.65,
-      "elo": 248.0
-    },
-    {
-      "accuracy": 51.74,
+      "accuracy": 59.56,
       "elo": 329.0
     },
     {
-      "accuracy": 53.17,
+      "accuracy": 60.47,
       "elo": 344.0
     },
     {
-      "accuracy": 55.98,
-      "elo": 417.5
+      "accuracy": 62.525,
+      "elo": 416.5
     },
     {
-      "accuracy": 59.55,
-      "elo": 483.0
+      "accuracy": 65.16,
+      "elo": 481.0
     },
     {
-      "accuracy": 60.56,
-      "elo": 483.0
+      "accuracy": 65.89,
+      "elo": 481.0
     },
     {
-      "accuracy": 64.6,
-      "elo": 542.0
+      "accuracy": 68.51,
+      "elo": 540.0
     },
     {
-      "accuracy": 65.73,
-      "elo": 628.0
+      "accuracy": 69.46,
+      "elo": 623.0
     },
     {
-      "accuracy": 67.92,
-      "elo": 706.0
+      "accuracy": 71.31,
+      "elo": 701.0
     },
     {
-      "accuracy": 68.5,
-      "elo": 716.0
+      "accuracy": 71.77,
+      "elo": 711.0
     },
     {
-      "accuracy": 69.15,
-      "elo": 806.0
+      "accuracy": 72.75,
+      "elo": 799.0
     },
     {
-      "accuracy": 69.89,
-      "elo": 899.0
+      "accuracy": 73.0,
+      "elo": 886.0
     },
     {
-      "accuracy": 71.65,
-      "elo": 928.0
+      "accuracy": 73.93,
+      "elo": 907.0
     },
     {
-      "accuracy": 73.2033,
-      "elo": 1000.67
+      "accuracy": 75.5767,
+      "elo": 992.0
     },
     {
-      "accuracy": 75.42,
-      "elo": 1012.0
+      "accuracy": 77.2,
+      "elo": 1019.0
     },
     {
-      "accuracy": 75.85,
-      "elo": 1079.0
+      "accuracy": 78.57,
+      "elo": 1113.0
     },
     {
-      "accuracy": 77.3833,
-      "elo": 1200.0
+      "accuracy": 79.29,
+      "elo": 1168.33
     },
     {
-      "accuracy": 79.09,
-      "elo": 1202.0
+      "accuracy": 80.42,
+      "elo": 1214.0
     },
     {
-      "accuracy": 80.52,
-      "elo": 1270.33
+      "accuracy": 81.68,
+      "elo": 1224.0
     },
     {
-      "accuracy": 87.2767,
-      "elo": 1493.0
+      "accuracy": 84.97,
+      "elo": 1375.0
     },
     {
-      "accuracy": 90.15,
+      "accuracy": 88.34,
+      "elo": 1414.0
+    },
+    {
+      "accuracy": 89.62,
+      "elo": 1507.0
+    },
+    {
+      "accuracy": 89.79,
       "elo": 1600.0
     },
     {
-      "accuracy": 91.2533,
-      "elo": 1912.33
+      "accuracy": 90.09,
+      "elo": 1694.0
     },
     {
-      "accuracy": 92.43,
-      "elo": 1974.0
+      "accuracy": 91.6933,
+      "elo": 1881.0
     },
     {
-      "accuracy": 93.27,
-      "elo": 2239.5
+      "accuracy": 92.36,
+      "elo": 2162.0
     },
     {
-      "accuracy": 94.47,
+      "accuracy": 92.7667,
+      "elo": 2223.67
+    },
+    {
+      "accuracy": 93.24,
+      "elo": 2442.0
+    },
+    {
+      "accuracy": 94.42,
+      "elo": 2536.0
+    },
+    {
+      "accuracy": 95.13,
       "elo": 2629.0
     },
     {
-      "accuracy": 95.966,
-      "elo": 2928.2
+      "accuracy": 95.47,
+      "elo": 2722.0
     },
     {
-      "accuracy": 97.06,
+      "accuracy": 95.56,
+      "elo": 2816.0
+    },
+    {
+      "accuracy": 95.57,
+      "elo": 2910.0
+    },
+    {
+      "accuracy": 95.82,
+      "elo": 3003.0
+    },
+    {
+      "accuracy": 95.88,
       "elo": 3096.0
+    },
+    {
+      "accuracy": 96.41,
+      "elo": 3190.0
     }
   ]
 }
