@@ -224,7 +224,7 @@ def _attempt_record(
     }
 
 
-def test_store_agent_win_updates_both_sides(p8_client):
+def test_store_agent_win_moves_agent_only(p8_client):
     _, harness_dir = p8_client
     store = PuzzleRatingStore()
 
@@ -235,7 +235,8 @@ def test_store_agent_win_updates_both_sides(p8_client):
     assert fields is not None
     assert fields["rating_after"] > fields["rating_before"]
     assert fields["rating_change"] > 0
-    assert fields["puzzle_rating_after"] < fields["puzzle_rating_before"]
+    assert fields["puzzle_rating_after"] == fields["puzzle_rating_before"]
+    assert fields["puzzle_rating_change"] == 0.0
     assert fields["elapsed_seconds"] == 60.0
 
     agent = store.agent_rating("solve-agent")
@@ -243,17 +244,19 @@ def test_store_agent_win_updates_both_sides(p8_client):
     assert agent["games"] == 1
     assert agent["solves"] == 1
 
+    # Puzzle difficulty is frozen at the imported estimate — it never moves.
     puzzle = store.puzzle_rating("pz-a")
-    assert puzzle["games"] == 1
-    assert puzzle["solves"] == 1
-    assert puzzle["rating"] < initial_agent["rating"]
+    assert puzzle["rating"] == 1500.0
+    assert puzzle["deviation"] == 75.0
+    assert puzzle["games"] == 0
+    assert puzzle["solves"] == 0
 
 
-def test_store_puzzle_win_and_seeded_difficulty(p8_client):
+def test_store_puzzle_win_and_frozen_difficulty(p8_client):
     _, harness_dir = p8_client
     store = PuzzleRatingStore()
 
-    # pz-c imported difficulty 2000 — runtime starts as a starting estimate.
+    # pz-c imported difficulty 2000 — frozen at that estimate forever.
     before = store.puzzle_rating("pz-c")
     assert before["rating"] == 2000.0
 
@@ -261,12 +264,15 @@ def test_store_puzzle_win_and_seeded_difficulty(p8_client):
         _attempt_record(harness_dir, "losing-agent", "pz-c", "failed")
     )
     assert fields["rating_after"] < fields["rating_before"]
-    assert fields["puzzle_rating_after"] > fields["puzzle_rating_before"]
+    assert fields["puzzle_rating_after"] == fields["puzzle_rating_before"]
+    assert fields["puzzle_rating_after"] == 2000.0
 
     agent = store.agent_rating("losing-agent")
     assert agent["rating"] < DEFAULT_RATING
     assert agent["games"] == 1
     assert agent["solves"] == 0
+
+    assert store.puzzle_rating("pz-c")["rating"] == 2000.0
 
 
 def test_store_abandon_and_technical_failure_no_rating(p8_client):
@@ -305,7 +311,8 @@ def test_store_idempotent_and_persists(p8_client):
         (harness_dir / "puzzle_ratings.json").read_text(encoding="utf-8")
     )
     assert "repeater" in data["agents"]
-    assert "pz-a" in data["puzzles"]
+    # Puzzle side is frozen: never persisted by attempts.
+    assert "pz-a" not in data["puzzles"]
 
 
 def test_store_ratings_never_touch_models_elo():
@@ -357,7 +364,8 @@ def test_api_correct_solve_stamps_and_reviews(p8_client):
     assert review["rating_change"] > 0
     assert review["content_version"] is not None
     assert review["puzzle_rating_before"] == 1500.0
-    assert review["puzzle_rating_after"] < review["puzzle_rating_before"]
+    assert review["puzzle_rating_after"] == review["puzzle_rating_before"]
+    assert review["puzzle_rating_change"] == 0.0
 
 
 def test_api_wrong_move_rates_as_puzzle_win(p8_client):
@@ -400,18 +408,18 @@ def test_api_abandon_never_rates(p8_client):
     assert store.agent_rating("doubter")["games"] == 0
 
 
-def test_api_puzzle_difficulty_changes_and_models_untouched(p8_client):
+def test_api_puzzle_difficulty_frozen_and_models_untouched(p8_client):
     client, harness_dir = p8_client
     key = _register(client, "difficulty-shifter")
 
-    # A finished attempt on pz-a changes its runtime difficulty.
+    # A finished attempt on pz-a leaves its difficulty at the import estimate.
     store = PuzzleRatingStore()
     before = store.puzzle_rating("pz-a")["rating"]
+    assert before == 1500.0
     start = _start(client, key, rating_min=1400, rating_max=1600)
     _solve(client, key, start["attempt_id"])
     after = store.puzzle_rating("pz-a")["rating"]
-    assert after != before
-    assert after < before  # an agent solve lowers the difficulty
+    assert after == before  # frozen — agents rate against it, it never moves
 
     models = json.loads(
         (harness_dir / "models.json").read_text(encoding="utf-8")

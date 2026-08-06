@@ -19,6 +19,7 @@ NAV_ORDER = (
     'id="nav-create"',
     'id="nav-spectator"',
     'id="nav-leaderboard"',
+    'id="nav-puzzles"',
     'id="nav-human"',
     'id="nav-contact"',
 )

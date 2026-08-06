@@ -1,17 +1,22 @@
-"""Persistent Glicko-2 puzzle ratings (agents and runtime puzzle difficulty).
+"""Persistent Glicko-2 puzzle ratings (agents only; puzzle difficulty frozen).
 
 Rated attempts are "games" between the solver and the puzzle: a correct
 finish is an agent win and a puzzle loss; a wrong/illegal answer is a puzzle
 win and an agent loss; abandon and technical failures never change ratings.
+
+Puzzle difficulty itself is frozen at the imported Lichess estimate and never
+changes: agents are rated against the puzzle's fixed imported Rating /
+RatingDeviation, and the puzzle side is never persisted. The leaderboard's
+Puzzles tab shows the import estimate as difficulty — solve rate and attempt
+totals still come from the attempt store.
 
 ``$CHESS_HARNESS_DIR/puzzle_ratings.json`` holds:
 
 - ``agents``: per-model puzzle ratings (keyed by model id). This store owns
   the agent's puzzle rating independently of ``models.json`` — ``inscribe``
   and ``reset_all_elo`` never touch it.
-- ``puzzles``: runtime puzzle difficulty (keyed by puzzle id), seeded from
-  the imported Rating / RatingDeviation and updated as attempts accumulate.
-  Imported values are only starting estimates.
+- ``puzzles``: kept for backward compatibility; after the freeze it is empty
+  and untouched by attempts.
 
 The attempt lifecycle (``puzzle_attempt``) records outcome and move detail;
 this module only calculates and persists ratings, and returns the rating
@@ -163,8 +168,13 @@ class PuzzleRatingStore:
 
         Only ``correct`` and ``failed`` finishes rate (abandon / technical
         failures never change ratings). Idempotent: an attempt already stamped
-        with ``rating_after`` is never re-rated. Mutates nothing but the
-        ratings file; returns the fields to stamp onto the attempt record.
+        with ``rating_after`` is never re-rated.
+
+        The agent rating moves via Glicko-2 against the puzzle's FIXED
+        imported Rating / RatingDeviation; the puzzle side is never persisted,
+        so a puzzle's displayed difficulty stays the import estimate forever.
+        Mutates nothing but the ratings file; returns the fields to stamp
+        onto the attempt record.
         """
         if record.get("status") != "finished":
             return None
@@ -199,12 +209,9 @@ class PuzzleRatingStore:
                 puzzle_before.deviation,
                 score,
             )
-            puzzle_after = update_rating(
-                puzzle_before,
-                agent_before.rating,
-                agent_before.deviation,
-                1.0 - score,
-            )
+            # Freeze: the puzzle side keeps its imported estimate. Attempt
+            # stats for the leaderboard come from the attempt store, so no
+            # puzzle record is persisted or updated here.
 
             agent["rating"] = agent_after.rating
             agent["deviation"] = agent_after.deviation
@@ -213,15 +220,7 @@ class PuzzleRatingStore:
             agent["solves"] += 1 if score == 1.0 else 0
             agent["updated_at"] = _now()
 
-            puzzle["rating"] = puzzle_after.rating
-            puzzle["deviation"] = puzzle_after.deviation
-            puzzle["volatility"] = puzzle_after.volatility
-            puzzle["games"] += 1
-            puzzle["solves"] += 1 if score == 1.0 else 0
-            puzzle["updated_at"] = _now()
-
             data["agents"][model_id] = agent
-            data["puzzles"][puzzle_id] = puzzle
             self._save(data)
 
         elapsed: Optional[float] = None
@@ -233,7 +232,7 @@ class PuzzleRatingStore:
             elapsed = None
 
         return rating_fields_for_attempt(
-            agent_before, agent_after, puzzle_before, puzzle_after, elapsed
+            agent_before, agent_after, puzzle_before, puzzle_before, elapsed
         )
 
     def snapshot(self) -> Dict[str, Any]:

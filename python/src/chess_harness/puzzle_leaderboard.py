@@ -80,7 +80,6 @@ def build_puzzle_leaderboard(
     puzzle_store = puzzles or PuzzleStore()
     snap = rating_store.snapshot()
     agent_ratings = snap.get("agents", {})
-    puzzle_ratings = snap.get("puzzles", {})
 
     finished = _finished(attempt_store.list_records())
 
@@ -135,15 +134,14 @@ def build_puzzle_leaderboard(
     puzzle_rows: List[Dict[str, Any]] = []
     for puzzle_id, stats in by_puzzle.items():
         content = puzzle_store.get(puzzle_id) or {}
-        rating = puzzle_ratings.get(puzzle_id) or {}
-        difficulty = rating.get("rating")
-        if difficulty is None:
-            difficulty = float(content.get("rating") or 0) or None
+        # Difficulty is frozen at the imported Lichess estimate (Phase B):
+        # agents are rated against it, but the puzzle side never moves.
+        difficulty = float(content.get("rating") or 0) or None
         puzzle_rows.append(
             {
                 "id": puzzle_id,
                 "rating": difficulty,
-                "deviation": rating.get("deviation"),
+                "deviation": float(content.get("rating_deviation") or 0) or None,
                 "attempts": stats["attempts"],
                 "solves": stats["solves"],
                 "solve_rate": _row_rate(stats["solves"], stats["attempts"]),

@@ -308,13 +308,42 @@ def main(argv: list[str] | None = None) -> None:
 
     elif args[0] == "puzzles":
         if len(args) < 2:
-            print("Usage: chess-harness puzzles import <csv> [--max N] | stats | ratings")
+            print("Usage: chess-harness puzzles import <csv> [--max N] | fetch --count N --max-rating R --out <csv> | stats | ratings")
             sys.exit(1)
         sub = args[1]
         if sub == "stats":
             sys.exit(commands.cmd_puzzles_stats())
         if sub == "ratings":
             sys.exit(commands.cmd_puzzles_ratings())
+        if sub == "fetch":
+            count = 500
+            max_rating = 1300
+            out = None
+            max_bytes = None
+            i = 2
+            while i < len(args):
+                if args[i] == "--count" and i + 1 < len(args):
+                    count = int(args[i + 1])
+                    i += 2
+                elif args[i] == "--max-rating" and i + 1 < len(args):
+                    max_rating = int(args[i + 1])
+                    i += 2
+                elif args[i] == "--out" and i + 1 < len(args):
+                    out = args[i + 1]
+                    i += 2
+                elif args[i] == "--max-bytes" and i + 1 < len(args):
+                    max_bytes = int(args[i + 1])
+                    i += 2
+                else:
+                    i += 1
+            sys.exit(
+                commands.cmd_puzzles_fetch(
+                    count=count,
+                    max_rating=max_rating,
+                    out=out,
+                    max_bytes=max_bytes,
+                )
+            )
         if sub == "import":
             if len(args) < 3:
                 print("Usage: chess-harness puzzles import <csv> [--max N] [--source-url URL] [--dataset-version V]")

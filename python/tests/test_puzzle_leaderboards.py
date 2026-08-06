@@ -64,10 +64,11 @@ def test_puzzle_leaderboard_agent_stats_and_sort(tmp_path):
     assert [a["id"] for a in board["agents"]] == ["agent-a", "agent-b"]
 
 
-def test_puzzle_content_rows_use_runtime_difficulty(tmp_path):
+def test_puzzle_content_rows_use_frozen_import_difficulty(tmp_path):
     _write(tmp_path / "dataset.json", {"version": 1, "puzzles": {"pz-1": {
         "puzzle_id": "pz-1", "rating": 1500, "rating_deviation": 120, "popularity": 88,
         "nb_plays": 12345, "themes": ["mateIn2", "sacrifice"], "game_url": "https://lichess.org/abc"}}})
+    # Legacy runtime records (if any) are ignored: import estimate wins.
     _write(tmp_path / "ratings.json", {"version": 1, "agents": {},
            "puzzles": {"pz-1": {"rating": 1400.0, "deviation": 90.0, "games": 3, "solves": 1}}})
     _write(tmp_path / "attempts.json", _attempts(
@@ -82,7 +83,7 @@ def test_puzzle_content_rows_use_runtime_difficulty(tmp_path):
         puzzles=PuzzleStore(tmp_path / "dataset.json", tmp_path / "manifest.json"),
         registry=_registry(tmp_path))
     (row,) = board["puzzles"]
-    assert row["id"] == "pz-1" and row["rating"] == 1400.0 and row["deviation"] == 90.0
+    assert row["id"] == "pz-1" and row["rating"] == 1500.0 and row["deviation"] == 120.0
     assert row["attempts"] == 2 and row["solves"] == 1 and row["solve_rate"] == 0.5
     assert row["themes"] == ["mateIn2", "sacrifice"]
     assert row["popularity"] == 88 and row["nb_plays"] == 12345
@@ -160,12 +161,40 @@ def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
             assert isinstance(data.get("agents"), list)
             assert isinstance(data.get("generated_at"), str)
         assert isinstance(client.get("/api/leaderboard/puzzles/live").json().get("puzzles"), list)
+        for path in ("/puzzles", "/puzzles/"):
+            resp = client.get(path)
+            assert resp.status_code == 200
+            assert "puzzle-launcher" in resp.text
     finally:
         spec._game_service = None
         spec._controller = None
         if spec._engine is not None:
             spec._engine.quit()
             spec._engine = None
+
+
+def test_puzzles_launcher_page_has_tabs_and_scripts():
+    text = (ROOT / "public-site" / "puzzles" / "index.html").read_text(encoding="utf-8")
+    for needle in ('data-launcher-tab="puzzles"', 'data-launcher-tab="identify"',
+                   "data-launcher-form", "data-launcher-result",
+                   "/js/puzzle-launcher.js", 'id="launcher-model-select"',
+                   'id="nav-puzzles"'):
+        assert needle in text
+    js = (ROOT / "public-site" / "js" / "puzzle-launcher.js").read_text(encoding="utf-8")
+    assert "/api/v1/puzzles/start" in js
+    assert "/api/v1/identify/start" in js
+    assert '"/p/" + attemptId' in js
+    assert '"/i/" + attemptId' in js
+
+
+def test_all_headers_have_puzzles_nav():
+    for rel in ("index.html", "create/index.html", "spectator/index.html",
+                "leaderboard/index.html", "human/index.html", "contact/index.html",
+                "puzzles/index.html"):
+        text = (ROOT / "public-site" / rel).read_text(encoding="utf-8")
+        assert 'id="nav-puzzles"' in text, rel
+    header = (ROOT / "python" / "src" / "chess_harness" / "ladder_display.py").read_text(encoding="utf-8")
+    assert 'id="nav-puzzles"' in header
 
 
 def test_proxy_allows_puzzle_leaderboard_paths():
@@ -183,3 +212,8 @@ def test_leaderboard_page_has_tabs_and_scripts():
                    "/js/puzzle-leaderboards.js", "data-puzzle-leaderboard",
                    "data-puzzle-content-leaderboard", "data-identify-leaderboard"):
         assert needle in text
+    # Phase C: identify columns relabeled to percentage-of-correct copy.
+    assert "% pieces correct" in text
+    assert "% boards correct" in text
+    # Phase B: puzzle difficulty copy states it is frozen at the import estimate.
+    assert "imported Lichess estimate and never changes" in text

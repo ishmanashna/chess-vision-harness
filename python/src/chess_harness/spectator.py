@@ -748,6 +748,15 @@ async def leaderboard():
     raise HTTPException(status_code=404)
 
 
+@app.get("/puzzles", response_class=HTMLResponse)
+@app.get("/puzzles/", response_class=HTMLResponse)
+async def puzzles_page():
+    resp = _public_site_html("puzzles", "index.html")
+    if resp:
+        return resp
+    raise HTTPException(status_code=404)
+
+
 @app.get("/calibration", response_class=HTMLResponse)
 async def calibration_page():
     return HTMLResponse(render_calibration_html())

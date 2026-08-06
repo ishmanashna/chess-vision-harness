@@ -653,6 +653,43 @@ def cmd_puzzles_import(
     return 0
 
 
+def cmd_puzzles_fetch(
+    *,
+    count: int = 500,
+    max_rating: int = 1300,
+    out: Optional[str] = None,
+    max_bytes: Optional[int] = None,
+) -> int:
+    """Fetch a low-rated slice of the Lichess puzzle CSV dump to a CSV file."""
+    from pathlib import Path
+
+    from .puzzle_fetch import DEFAULT_PUZZLE_URL, fetch_puzzles
+
+    if not out:
+        print("Usage: chess-harness puzzles fetch --count N --max-rating R --out <csv>")
+        return 1
+    try:
+        result = fetch_puzzles(
+            count=count,
+            max_rating=max_rating,
+            max_bytes=max_bytes,
+            out=Path(out),
+        )
+    except Exception as exc:
+        print(f"Fetch failed: {exc}")
+        return 1
+    print(
+        f"Collected {len(result['rows'])} puzzle(s) (rating <= {max_rating}) "
+        f"after scanning {result['scanned']} rows "
+        f"({result['bytes_read'] / 1024 / 1024:.1f} MiB downloaded)"
+    )
+    if result.get("out"):
+        print(f"Wrote: {result['out']}")
+    if result.get("capped"):
+        print("Byte cap reached before the requested count was collected — raise --max-bytes.")
+    return 0
+
+
 def cmd_puzzles_ratings() -> int:
     """Print Glicko-2 puzzle ratings (agents + puzzles) from the runtime store."""
     from .puzzle_ratings import PuzzleRatingStore
@@ -667,9 +704,9 @@ def cmd_puzzles_ratings() -> int:
             f"  {model_id}: {rec['rating']:.0f} (RD {rec['deviation']:.0f}) "
             f"{rec['solves']}/{rec['games']} solves ({rate:.0%})"
         )
-    print("Puzzle difficulty (runtime):")
+    print("Puzzle difficulty (frozen at the imported Lichess estimate):")
     if not snapshot["puzzles"]:
-        print("  (none yet — rated attempts will appear here)")
+        print("  (no attempt records — difficulty never changes here)")
     for puzzle_id, rec in sorted(snapshot["puzzles"].items()):
         print(
             f"  {puzzle_id}: {rec['rating']:.0f} (RD {rec['deviation']:.0f}) "

@@ -22,6 +22,7 @@
           <a href="/create/" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/puzzles/" id="nav-puzzles">Puzzles</a>
           <a href="/human/" id="nav-human">Playground</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
@@ -120,8 +121,9 @@
         <p>
           A separate Glicko-2 rating from game Elo, built from finished puzzle attempts: a correct finish is a win,
           a wrong or illegal move is a loss, and abandoned attempts never rate. Attempts are unlimited.
-          <strong>Rating</strong> and <strong>Dev</strong> show the Glicko rating and its uncertainty;
+          <strong>Rating</strong> and <strong>Dev</strong> show each agent's Glicko rating and its uncertainty;
           <strong>Solve rate</strong> is solves over finished attempts.
+          Puzzle difficulty is the imported Lichess estimate and never changes here.
         </p>
         <div data-puzzle-leaderboard>
           <table class="leaderboard-table" aria-label="Puzzle leaderboard">
@@ -145,8 +147,8 @@
 
         <h3>Puzzle content</h3>
         <p>
-          The most-attempted puzzles. <strong>Difficulty</strong> is the runtime Glicko rating of the puzzle (imported values are
-          only starting estimates), <strong>Solve rate</strong> is over finished attempts, and <strong>Popularity</strong> /
+          The most-attempted puzzles. <strong>Difficulty</strong> is the imported Lichess rating estimate and never changes,
+          <strong>Solve rate</strong> is over finished attempts, and <strong>Popularity</strong> /
           <strong>Plays</strong> / <strong>Source</strong> come from the Lichess CC0 dataset. <strong>Replay</strong> opens the
           latest finished attempt on that puzzle.
         </p>
@@ -156,7 +158,7 @@
               <tr>
                 <th scope="col">#</th>
                 <th scope="col" data-sort="id">Puzzle id</th>
-                <th scope="col" data-sort="rating" title="Runtime Glicko difficulty of the puzzle.">Difficulty</th>
+                <th scope="col" data-sort="rating" title="Imported Lichess difficulty estimate — never changes.">Difficulty</th>
                 <th scope="col" data-sort="attempts">Attempts</th>
                 <th scope="col" data-sort="solve_rate">Solve rate</th>
                 <th scope="col">Themes</th>
@@ -178,9 +180,9 @@
         <h2>Board identification</h2>
         <p>
           Vision-only board identification: agents name every occupied square and piece from a board PNG (no moves).
-          <strong>Mean accuracy</strong> is average exact-piece placement across finished attempts, and
-          <strong>Full-position rate</strong> is the share of attempts where every piece was placed exactly.
-          Identification has no rating yet — it is tracked by accuracy only.
+          Unrating — it is measured only by <strong>% pieces correct</strong> (average exact-piece placement across
+          finished attempts) and <strong>% boards correct</strong> (the share of attempts where every piece was
+          placed exactly).
         </p>
         <div data-identify-leaderboard>
           <table class="leaderboard-table" aria-label="Board identification leaderboard">
@@ -189,8 +191,8 @@
                 <th scope="col">#</th>
                 <th scope="col" data-sort="name">Agent</th>
                 <th scope="col" data-sort="attempts" title="Finished identification attempts.">Attempts</th>
-                <th scope="col" data-sort="mean_accuracy" title="Mean exact placement accuracy across finished attempts.">Mean accuracy</th>
-                <th scope="col" data-sort="full_position_rate" title="Share of finished attempts with every piece placed exactly.">Full-position rate</th>
+                <th scope="col" data-sort="mean_accuracy" title="Average exact-piece placement across finished attempts.">% pieces correct</th>
+                <th scope="col" data-sort="full_position_rate" title="Share of finished attempts with every piece placed exactly.">% boards correct</th>
               </tr>
             </thead>
             <tbody>

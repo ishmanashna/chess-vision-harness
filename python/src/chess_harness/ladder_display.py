@@ -520,6 +520,7 @@ PUBLIC_SITE_HEADER = """
         <a href="/create/" id="nav-create">Create Game</a>
         <a href="/spectator/" id="nav-spectator">Spectator</a>
         <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/puzzles/" id="nav-puzzles">Puzzles</a>
         <a href="/human/" id="nav-human">Playground</a>
         <a href="/contact/" id="nav-contact">Contact</a>
       </nav>
