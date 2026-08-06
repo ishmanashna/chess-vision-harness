@@ -62,9 +62,15 @@ def test_mcp_new_game_and_image_base64(mcp, tmp_path, monkeypatch):
 def test_mcp_schemas_no_include_fen(mcp):
     tools = {t.name: t for t in mcp.get_tools()}
     for name in ("chess_status", "chess_get_board"):
-        props = tools[name].inputSchema.get("properties", {})
+        props = getattr(tools[name], "inputSchema", None)
+        if props is None:
+            props = getattr(tools[name], "input_schema", None)
+        props = props.get("properties", {})
         assert "include_fen" not in props
-    new_props = tools["chess_new_game"].inputSchema.get("properties", {})
+    new_props = getattr(tools["chess_new_game"], "inputSchema", None)
+    if new_props is None:
+        new_props = getattr(tools["chess_new_game"], "input_schema", None)
+    new_props = new_props.get("properties", {})
     assert "fen" not in new_props
 
 
