@@ -81,7 +81,7 @@ def test_list_and_restore_after_live_delete(tmp_path, monkeypatch):
 
     monkeypatch.setattr("chess_harness.commands.cmd_rebuild_elo", fake_rebuild)
     monkeypatch.setattr(
-        "chess_harness.snapshot_leaderboard.export_leaderboard_snapshot",
+        "chess_harness.commands._publish_public_snapshots",
         fake_export,
     )
 

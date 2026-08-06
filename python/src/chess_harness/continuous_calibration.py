@@ -329,9 +329,9 @@ class ContinuousCalibrationManager:
         self._ladder.save(_ratings_path())
         rebuild_merged_ratings_file()
         invalidate_merge_cache()
-        from .snapshot_leaderboard import request_leaderboard_snapshot_refresh
+        from .snapshot_leaderboard import request_public_snapshots_refresh
 
-        request_leaderboard_snapshot_refresh()
+        request_public_snapshots_refresh()
 
     async def _schedule_save(self) -> None:
         self._dirty = True

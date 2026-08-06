@@ -164,13 +164,23 @@ def cmd_leaderboard() -> None:
     print(format_opponent_ladder_cli())
 
 
+def _publish_public_snapshots() -> None:
+    """Write all public-site leaderboard snapshots (ladder, puzzles, identify)."""
+    from .snapshot_leaderboard import export_public_snapshots
+
+    written = export_public_snapshots()
+    for label, path in written.items():
+        print(f"Wrote {label} snapshot: {path}")
+
+
 def cmd_snapshot_leaderboard(output: Optional[str] = None) -> None:
     from pathlib import Path
 
-    from .snapshot_leaderboard import export_leaderboard_snapshot
+    from .snapshot_leaderboard import export_public_snapshots
 
-    path = export_leaderboard_snapshot(Path(output) if output else None)
-    print(f"Wrote leaderboard snapshot: {path}")
+    written = export_public_snapshots(output_path=Path(output) if output else None)
+    for label, path in written.items():
+        print(f"Wrote {label} snapshot: {path}")
 
 
 def cmd_models_list() -> None:
@@ -380,10 +390,7 @@ def cmd_analyse_quality(
 
     print(f"Quality backfill: {analysed} analysed, {skipped} skipped, {failed} failed")
     if analysed:
-        from .snapshot_leaderboard import export_leaderboard_snapshot
-
-        out = export_leaderboard_snapshot()
-        print(f"Wrote leaderboard snapshot: {out}")
+        _publish_public_snapshots()
     return 1 if failed else 0
 
 
@@ -453,7 +460,7 @@ def cmd_prune_no_result(
     if dry_run:
         print("  would rebuild-elo")
         if export_snapshot:
-            print("  would export leaderboard snapshot")
+            print("  would export public leaderboard snapshots")
         print(
             f"Would prune {len(candidates)} no-result game(s)"
             f" and scrub {len(orphan_ids)} orphan result id(s) (dry run)"
@@ -466,10 +473,7 @@ def cmd_prune_no_result(
     if removed or orphans_scrubbed:
         cmd_rebuild_elo()
         if export_snapshot:
-            from .snapshot_leaderboard import export_leaderboard_snapshot
-
-            out = export_leaderboard_snapshot()
-            print(f"Wrote leaderboard snapshot: {out}")
+            _publish_public_snapshots()
     return 1 if failed else 0
 
 
@@ -500,7 +504,7 @@ def cmd_remove_game(
             print(f"  would delete game directory {game_id}")
         print("  would rebuild-elo")
         if export_snapshot:
-            print("  would export leaderboard snapshot")
+            print("  would export public leaderboard snapshots")
         print(f"Would remove game {game_id} (dry run)")
         return 0
 
@@ -518,10 +522,7 @@ def cmd_remove_game(
 
     cmd_rebuild_elo()
     if export_snapshot:
-        from .snapshot_leaderboard import export_leaderboard_snapshot
-
-        out = export_leaderboard_snapshot()
-        print(f"Wrote leaderboard snapshot: {out}")
+        _publish_public_snapshots()
     return 0
 
 
@@ -610,12 +611,87 @@ def cmd_finished_db_restore(
     print(f"  merged {summary['results_merged']} result row(s)")
     cmd_rebuild_elo()
     if export_snapshot:
-        from .snapshot_leaderboard import export_leaderboard_snapshot
-
-        out = export_leaderboard_snapshot()
-        print(f"Wrote leaderboard snapshot: {out}")
+        _publish_public_snapshots()
     return 0
 
 
 def default_game_id() -> str:
     return new_game_id()
+
+
+def cmd_puzzles_import(
+    csv_path: str,
+    *,
+    max_rows: Optional[int] = None,
+    source_url: Optional[str] = None,
+    source_name: Optional[str] = None,
+    dataset_version: Optional[str] = None,
+) -> int:
+    """Import (or re-import) a Lichess standard puzzle CSV; idempotent."""
+    from .puzzle_import import import_puzzle_csv
+
+    try:
+        manifest = import_puzzle_csv(
+            csv_path,
+            max_rows=max_rows,
+            source_url=source_url,
+            source_name=source_name,
+            dataset_version=dataset_version,
+        )
+    except (ValueError, OSError) as exc:
+        print(f"Import failed: {exc}")
+        return 1
+    counts = manifest["counts"]
+    print(
+        f"Imported {counts['total']} puzzles "
+        f"(+{counts['added']} new, {counts['updated']} updated, "
+        f"{counts['unchanged']} unchanged, {counts['rejected']} rejected)"
+    )
+    print(f"Dataset version: {manifest['dataset_version']} ({manifest['source_name']})")
+    for rejection in manifest.get("rejections", [])[:10]:
+        print(f"  rejected: {rejection}")
+    return 0
+
+
+def cmd_puzzles_ratings() -> int:
+    """Print Glicko-2 puzzle ratings (agents + puzzles) from the runtime store."""
+    from .puzzle_ratings import PuzzleRatingStore
+
+    snapshot = PuzzleRatingStore().snapshot()
+    print("Agent puzzle ratings:")
+    if not snapshot["agents"]:
+        print("  (none yet — rated attempts will appear here)")
+    for model_id, rec in sorted(snapshot["agents"].items()):
+        rate = rec["solves"] / rec["games"] if rec["games"] else 0.0
+        print(
+            f"  {model_id}: {rec['rating']:.0f} (RD {rec['deviation']:.0f}) "
+            f"{rec['solves']}/{rec['games']} solves ({rate:.0%})"
+        )
+    print("Puzzle difficulty (runtime):")
+    if not snapshot["puzzles"]:
+        print("  (none yet — rated attempts will appear here)")
+    for puzzle_id, rec in sorted(snapshot["puzzles"].items()):
+        print(
+            f"  {puzzle_id}: {rec['rating']:.0f} (RD {rec['deviation']:.0f}) "
+            f"{rec['solves']}/{rec['games']} solved"
+        )
+    return 0
+
+
+def cmd_puzzles_stats() -> int:
+    """Print puzzle dataset stats from the runtime store."""
+    from .puzzle_store import PuzzleStore
+
+    store = PuzzleStore()
+    stats = store.stats()
+    print(f"Puzzles: {stats['total']}")
+    print(f"Average rating: {stats['average_rating']}")
+    if stats["themes"]:
+        print("Theme counts:")
+        for theme, count in sorted(stats["themes"].items()):
+            print(f"  {theme}: {count}")
+    manifest = store.manifest()
+    print(f"Dataset version: {manifest.get('dataset_version', 'unknown')}")
+    print(f"License: {manifest.get('license', 'unknown')}")
+    print(f"Source: {manifest.get('source_url', 'unknown')}")
+    return 0

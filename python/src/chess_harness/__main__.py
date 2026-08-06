@@ -306,6 +306,52 @@ def main(argv: list[str] | None = None) -> None:
         )
         sys.exit(1)
 
+    elif args[0] == "puzzles":
+        if len(args) < 2:
+            print("Usage: chess-harness puzzles import <csv> [--max N] | stats | ratings")
+            sys.exit(1)
+        sub = args[1]
+        if sub == "stats":
+            sys.exit(commands.cmd_puzzles_stats())
+        if sub == "ratings":
+            sys.exit(commands.cmd_puzzles_ratings())
+        if sub == "import":
+            if len(args) < 3:
+                print("Usage: chess-harness puzzles import <csv> [--max N] [--source-url URL] [--dataset-version V]")
+                sys.exit(1)
+            csv_path = args[2]
+            max_rows = None
+            source_url = None
+            source_name = None
+            dataset_version = None
+            i = 3
+            while i < len(args):
+                if args[i] == "--max" and i + 1 < len(args):
+                    max_rows = int(args[i + 1])
+                    i += 2
+                elif args[i] == "--source-url" and i + 1 < len(args):
+                    source_url = args[i + 1]
+                    i += 2
+                elif args[i] == "--source-name" and i + 1 < len(args):
+                    source_name = args[i + 1]
+                    i += 2
+                elif args[i] == "--dataset-version" and i + 1 < len(args):
+                    dataset_version = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
+            sys.exit(
+                commands.cmd_puzzles_import(
+                    csv_path,
+                    max_rows=max_rows,
+                    source_url=source_url,
+                    source_name=source_name,
+                    dataset_version=dataset_version,
+                )
+            )
+        print("Usage: chess-harness puzzles import <csv> [--max N] | stats | ratings")
+        sys.exit(1)
+
     else:
         print("Chess Vision Harness — run: chess-harness new --model <id>")
         sys.exit(1)

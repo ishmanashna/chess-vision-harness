@@ -81,7 +81,7 @@ def test_remove_game_removes_dir_results_and_rebuilds(harness, monkeypatch):
 
     monkeypatch.setattr("chess_harness.commands.cmd_rebuild_elo", fake_rebuild)
     monkeypatch.setattr(
-        "chess_harness.snapshot_leaderboard.export_leaderboard_snapshot",
+        "chess_harness.commands._publish_public_snapshots",
         fake_export,
     )
 

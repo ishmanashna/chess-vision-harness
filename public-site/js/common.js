@@ -13,6 +13,8 @@
   var HOME_SORT_KEY = "cvh-home-ladder-sort";
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
+  var liveLeaderboardListeners = [];
+  var latestLiveLeaderboard = null;
 
   function navPath() {
     var path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -34,6 +36,8 @@
     };
     var activeId = map[current];
     if (!activeId && current.indexOf("/g/") === 0) activeId = "nav-spectator";
+    if (!activeId && current.indexOf("/p/") === 0) activeId = "nav-spectator";
+    if (!activeId && current.indexOf("/i/") === 0) activeId = "nav-spectator";
     if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-human";
     if (!activeId) return;
     var link = document.getElementById(activeId);
@@ -183,7 +187,9 @@
           return res.json();
         })
         .then(function (data) {
-          return normalizeLeaderboardPayload(data, true);
+          var live = normalizeLeaderboardPayload(data, true);
+          notifyLiveLeaderboard(live);
+          return live;
         })
         .catch(function () {
           return fetchLeaderboardSnapshot().then(function (data) {
@@ -191,6 +197,27 @@
           });
         });
     });
+  }
+
+  function notifyLiveLeaderboard(payload) {
+    latestLiveLeaderboard = payload;
+    liveLeaderboardListeners.slice().forEach(function (cb) {
+      try {
+        cb(payload);
+      } catch (_err) {}
+    });
+  }
+
+  function onLiveLeaderboard(cb) {
+    if (typeof cb === "function") liveLeaderboardListeners.push(cb);
+    return function () {
+      var i = liveLeaderboardListeners.indexOf(cb);
+      if (i !== -1) liveLeaderboardListeners.splice(i, 1);
+    };
+  }
+
+  function getLatestLiveLeaderboard() {
+    return latestLiveLeaderboard;
   }
 
   function formatQualityMean(value, suffix) {
@@ -353,26 +380,67 @@
       });
     }
 
-    fetchLeaderboard()
+    function updateLeaderboardMeta(data) {
+      if (!showMeta) return;
+      var meta = container.querySelector("[data-snapshot-meta]");
+      if (!meta) return;
+      var when = formatGeneratedAt(data.generated_at);
+      if (data.live) {
+        meta.textContent = when
+          ? "Live ladder · updated " + when + "."
+          : "Live ladder.";
+      } else {
+        meta.textContent = when
+          ? "Snapshot from " + when + "."
+          : "Leaderboard snapshot.";
+      }
+    }
+
+    function paintData(data) {
+      cache = Array.isArray(data.agents) ? data.agents : [];
+      paint();
+      updateLeaderboardMeta(data);
+    }
+
+    function upgradeToLive() {
+      var controller = new AbortController();
+      var timeout = setTimeout(function () {
+        controller.abort();
+      }, 6000);
+      checkEdgeHealth()
+        .then(function (health) {
+          if (!health.online) return null;
+          return fetch(LIVE_LEADERBOARD_URL, {
+            cache: "no-cache",
+            signal: controller.signal,
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error("live leaderboard fetch failed");
+              return res.json();
+            })
+            .then(function (raw) {
+              return normalizeLeaderboardPayload(raw, true);
+            })
+            .then(function (data) {
+              paintData(data);
+              notifyLiveLeaderboard(data);
+            });
+        })
+        .catch(function () {
+          return null;
+        })
+        .then(function () {
+          clearTimeout(timeout);
+        });
+    }
+
+    fetchLeaderboardSnapshot()
+      .then(function (raw) {
+        return normalizeLeaderboardPayload(raw, false);
+      })
       .then(function (data) {
-        if (!tbody) return;
-        cache = Array.isArray(data.agents) ? data.agents : [];
-        paint();
-        if (showMeta) {
-          var meta = container.querySelector("[data-snapshot-meta]");
-          if (meta) {
-            var when = formatGeneratedAt(data.generated_at);
-            if (data.live) {
-              meta.textContent = when
-                ? "Live ladder · updated " + when + "."
-                : "Live ladder.";
-            } else {
-              meta.textContent = when
-                ? "Snapshot from " + when + "."
-                : "Leaderboard snapshot.";
-            }
-          }
-        }
+        paintData(data);
+        upgradeToLive();
       })
       .catch(function () {
         if (tbody) {
@@ -496,6 +564,9 @@
   window.CVH.applyHealthUi = applyHealthUi;
   window.CVH.mountLeaderboardTable = mountLeaderboardTable;
   window.CVH.fetchLeaderboard = fetchLeaderboard;
+  window.CVH.fetchLeaderboardSnapshot = fetchLeaderboardSnapshot;
+  window.CVH.onLiveLeaderboard = onLiveLeaderboard;
+  window.CVH.getLatestLiveLeaderboard = getLatestLiveLeaderboard;
   window.CVH.formatElo = formatElo;
   window.CVH.formatQualityMean = formatQualityMean;
   window.CVH.isProvisional = isProvisional;

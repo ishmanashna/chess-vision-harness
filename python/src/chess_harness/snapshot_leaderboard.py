@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional
 
 from .models import AGENT_START_ELO, ModelRegistry
 from .paths import project_root, resolve_base_dir
+from .puzzle_leaderboard import (
+    build_identify_leaderboard,
+    build_puzzle_leaderboard,
+)
 from .results import ResultsManager
 
 # Matches rating_math.k_factor stable threshold and public-site provisional display.
@@ -23,6 +27,14 @@ _last_snapshot_refresh_mono = 0.0
 
 def default_output_path() -> Path:
     return project_root() / "public-site" / "data" / "leaderboard.json"
+
+
+def default_puzzle_leaderboard_path() -> Path:
+    return project_root() / "public-site" / "data" / "puzzles_leaderboard.json"
+
+
+def default_identify_leaderboard_path() -> Path:
+    return project_root() / "public-site" / "data" / "identify_leaderboard.json"
 
 
 def is_provisional(games: int) -> bool:
@@ -160,15 +172,61 @@ def export_leaderboard_snapshot(
     return out
 
 
-def request_leaderboard_snapshot_refresh() -> None:
-    """Debounced background write of public-site/data/leaderboard.json."""
+def load_live_puzzle_leaderboard(
+    *, registry: Optional[ModelRegistry] = None
+) -> Dict[str, Any]:
+    """Public-site puzzle leaderboard JSON from current harness state."""
+    return build_puzzle_leaderboard(registry=registry)
+
+
+def load_live_identify_leaderboard(
+    *, registry: Optional[ModelRegistry] = None
+) -> Dict[str, Any]:
+    """Public-site board-identification leaderboard JSON (no disk write)."""
+    return build_identify_leaderboard(registry=registry)
+
+
+def export_public_snapshots(
+    *,
+    output_path: Optional[Path | str] = None,
+    puzzle_path: Optional[Path | str] = None,
+    identify_path: Optional[Path | str] = None,
+    base_dir: Optional[str] = None,
+    registry: Optional[ModelRegistry] = None,
+) -> Dict[str, Path]:
+    """Write all public-site leaderboard snapshots (ladder, puzzles, identify).
+
+    This is the single publish path for the public site offline fallback:
+    ``leaderboard.json`` plus the Phase 9 puzzle and board-identification
+    leaderboard files. Returns the written paths keyed by snapshot.
+    """
+    ladder_path = export_leaderboard_snapshot(
+        Path(output_path) if output_path else None,
+        base_dir=base_dir,
+        registry=registry,
+    )
+    puzzle_out = Path(puzzle_path) if puzzle_path else default_puzzle_leaderboard_path()
+    identify_out = (
+        Path(identify_path) if identify_path else default_identify_leaderboard_path()
+    )
+    for out, payload in (
+        (puzzle_out, load_live_puzzle_leaderboard(registry=registry)),
+        (identify_out, load_live_identify_leaderboard(registry=registry)),
+    ):
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return {"leaderboard": ladder_path, "puzzles": puzzle_out, "identify": identify_out}
+
+
+def request_public_snapshots_refresh() -> None:
+    """Debounced background write of all public-site leaderboard snapshots."""
     global _last_snapshot_refresh_mono
     now = time.monotonic()
     with _snapshot_refresh_lock:
         if now - _last_snapshot_refresh_mono < SNAPSHOT_REFRESH_MIN_INTERVAL_SEC:
             return
         try:
-            export_leaderboard_snapshot()
+            export_public_snapshots()
             _last_snapshot_refresh_mono = now
         except Exception:
             pass

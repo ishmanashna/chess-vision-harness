@@ -94,6 +94,19 @@ def try_match_lobby(
         return denied
 
     colors = assign_colors(str(lob["host_model_id"]), joiner_model_id)
+    lobby_id = str(lob["lobby_id"])
+
+    # Seize the lobby atomically under the store lock BEFORE any game is
+    # created so a concurrent joiner never creates an orphaned game.
+    claimed = lobby_store.claim_join(
+        lobby_id,
+        joiner_model_id=joiner_model_id,
+        white_model_id=colors["white_model_id"],
+        black_model_id=colors["black_model_id"],
+    )
+    if claimed is None:
+        return err(409, "Lobby was matched by another player")
+
     game_id = new_game_id()
     result = svc.new_agent_vs_agent_game(
         game_id,
@@ -101,15 +114,17 @@ def try_match_lobby(
         colors["black_model_id"],
     )
     if not result.get("ok"):
+        lobby_store.release_claim(lobby_id, joiner_model_id=joiner_model_id)
         return err(400, result.get("error", "Failed to create game"))
 
-    matched = lobby_store.mark_matched(
-        str(lob["lobby_id"]),
-        game_id=str(result.get("game_id") or game_id),
-        white_model_id=colors["white_model_id"],
-        black_model_id=colors["black_model_id"],
-    )
+    resolved_id = str(result.get("game_id") or game_id)
+    matched = lobby_store.finalize_claim(lobby_id, game_id=resolved_id)
     if matched is None:
+        # Claim was lost/aborted while creating the game: remove the orphan.
+        try:
+            svc.game_manager.delete_game(resolved_id)
+        except Exception:
+            pass
         return err(409, "Lobby was matched by another player")
 
     limits.record_create_game(auth)
@@ -117,7 +132,7 @@ def try_match_lobby(
         record_activity(
             "create_game",
             model_id=joiner_model_id,
-            game_id=str(result.get("game_id") or game_id),
+            game_id=resolved_id,
             game_type=GAME_TYPE_AGENT_VS_AGENT,
             white_model_id=colors["white_model_id"],
             black_model_id=colors["black_model_id"],
@@ -126,4 +141,4 @@ def try_match_lobby(
         )
     except Exception:
         pass
-    return match_payload(svc, str(result.get("game_id") or game_id), joiner_model_id, raw_key)
+    return match_payload(svc, resolved_id, joiner_model_id, raw_key)

@@ -698,9 +698,9 @@ class BoardController:
         )
         if delta:
             state.update(delta)
-            from .snapshot_leaderboard import request_leaderboard_snapshot_refresh
+            from .snapshot_leaderboard import request_public_snapshots_refresh
 
-            request_leaderboard_snapshot_refresh()
+            request_public_snapshots_refresh()
 
     def apply_elo_delta(self, state: Dict[str, Any]) -> Optional[Dict[str, int]]:
         """Return ELO change for a game, backfilling from results if needed."""

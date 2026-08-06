@@ -1,0 +1,8 @@
+{
+  "description": "Chess Vision Harness committed content manifest",
+  "license": "CC0-1.0",
+  "source_url": "https://database.lichess.org/",
+  "source_name": "Lichess open database (puzzles)",
+  "dataset_version": "unknown",
+  "note": "Puzzle rows are NOT committed. Import with: chess-harness puzzles import <file.csv>"
+}

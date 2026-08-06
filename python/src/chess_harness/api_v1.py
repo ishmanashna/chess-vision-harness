@@ -12,16 +12,22 @@ from .activity_audit import record_activity
 from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
-from .avaa_api import register_avaa_routes, require_game_participant
+from .avaa_api import register_avaa_routes
 from .api_v1_avh import register_avh_agent_routes
 from .chat_api import register_agent_chat_routes
-from .human_vs_agent_api import register_human_vs_agent_routes
+from .child_credentials import ChildCredentialStore
 from .commands import resolve_agent_color
 from .elo import ELOLadder
+from .followup_api import register_followup_routes
 from .game_ids import new_game_id
 from .game_service import GameService
+from .human_vs_agent_api import register_human_vs_agent_routes
 from .models import ModelRegistry
+from .orchestration_api import register_orchestration_routes
 from .paths import resolve_base_dir
+from .puzzles_api import register_puzzle_routes
+from .identify_api import register_identify_routes
+from .scope_auth import reject_scoped_auth, require_scoped_game_participant
 
 __all__ = ["build_router", "_AuthError", "_err"]
 
@@ -85,13 +91,35 @@ def build_router(
         raw = authorization[7:].strip()
         model_id = _keys().verify(raw)
         if not model_id:
-            raise _AuthError(401, "Invalid API key")
+            scoped = ChildCredentialStore().verify(raw)
+            if not scoped:
+                raise _AuthError(401, "Invalid API key")
+            return AuthContext(
+                model_id=scoped["model_id"],
+                key_fingerprint=key_fingerprint(raw),
+                scoped=scoped,
+            )
         return AuthContext(model_id=model_id, key_fingerprint=key_fingerprint(raw))
 
     def _require_game_participant(
+        action: str, game_id: str, auth: AuthContext
+    ) -> JSONResponse | tuple[AuthContext, str]:
+        return require_scoped_game_participant(_svc(), game_id, action, auth, _err)
+
+    def _require_draw_participant(
         game_id: str, auth: AuthContext
     ) -> JSONResponse | tuple[AuthContext, str]:
-        return require_game_participant(_svc(), game_id, auth, _err)
+        return _require_game_participant("draw", game_id, auth)
+
+    def _require_chat_participant(
+        game_id: str, auth: AuthContext
+    ) -> JSONResponse | tuple[AuthContext, str]:
+        return _require_game_participant("chat", game_id, auth)
+
+    def _require_followup_participant(
+        game_id: str, auth: AuthContext
+    ) -> JSONResponse | tuple[AuthContext, str]:
+        return _require_game_participant("followup", game_id, auth)
 
     register_avaa_routes(
         router,
@@ -170,6 +198,9 @@ def build_router(
         auth: AuthContext = Depends(_auth_context),
         authorization: Optional[str] = Header(None),
     ):
+        denied = reject_scoped_auth(auth, _err)
+        if denied:
+            return denied
         denied = limits.check_create_game(_svc(), auth)
         if denied:
             return denied
@@ -209,7 +240,7 @@ def build_router(
 
     @router.get("/games/{game_id}/status")
     async def game_status(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("status", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
@@ -220,7 +251,7 @@ def build_router(
 
     @router.get("/games/{game_id}/board")
     async def game_board(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("board", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
@@ -232,7 +263,7 @@ def build_router(
 
     @router.get("/games/{game_id}/board.txt")
     async def game_board_text(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("board.txt", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
@@ -250,7 +281,7 @@ def build_router(
         body: ImagineBody,
         auth: AuthContext = Depends(_auth_context),
     ):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("imagine", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         denied = limits.check_imagine(auth)
@@ -290,7 +321,7 @@ def build_router(
         return await _do_move(game_id, body.move, auth)
 
     async def _do_move(game_id: str, move: str, auth: AuthContext):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("move", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
@@ -308,7 +339,7 @@ def build_router(
 
     @router.post("/games/{game_id}/resign")
     async def game_resign(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("resign", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
@@ -321,14 +352,14 @@ def build_router(
         router,
         _svc,
         auth_context=_auth_context,
-        require_game_participant=_require_game_participant,
+        require_game_participant=_require_draw_participant,
         sanitize=_sanitize_agent_payload,
         err=_err,
     )
 
     @router.get("/games/{game_id}/pgn")
     async def game_pgn(game_id: str, auth: AuthContext = Depends(_auth_context)):
-        access = _require_game_participant(game_id, auth)
+        access = _require_game_participant("pgn", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
         result = _svc().export_pgn(game_id)
@@ -342,8 +373,42 @@ def build_router(
         router,
         _svc,
         auth_context=_auth_context,
-        require_game_participant=_require_game_participant,
+        require_game_participant=_require_chat_participant,
         err=_err,
+    )
+
+    register_followup_routes(
+        router,
+        svc_fn=_svc,
+        limits=limits,
+        err=_err,
+        sanitize=_sanitize_agent_payload,
+        new_game_id=new_game_id,
+        auth_context=_auth_context,
+        require_game_participant=_require_followup_participant,
+    )
+
+    register_orchestration_routes(
+        router,
+        svc_fn=_svc,
+        limits=limits,
+        err=_err,
+        new_game_id=new_game_id,
+        auth_context=_auth_context,
+    )
+
+    register_puzzle_routes(
+        router,
+        limits=limits,
+        err=_err,
+        auth_context=_auth_context,
+    )
+
+    register_identify_routes(
+        router,
+        limits=limits,
+        err=_err,
+        auth_context=_auth_context,
     )
 
     return router

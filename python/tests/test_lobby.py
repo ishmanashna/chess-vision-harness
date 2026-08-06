@@ -103,3 +103,101 @@ def test_mark_matched(tmp_path):
     assert matched["status"] == "matched"
     assert matched["game_id"] == "game-1"
     assert store.list_waiting() == []
+
+
+def test_claim_join_is_atomic(tmp_path):
+    store = LobbyStore(tmp_path / "lobbies.json")
+    lob = store.create_waiting(
+        host_model_id="host",
+        host_display_name="Host",
+        host_elo=500,
+    )
+    winner = store.claim_join(
+        lob["lobby_id"],
+        joiner_model_id="joiner",
+        white_model_id="host",
+        black_model_id="joiner",
+    )
+    assert winner is not None
+    assert winner["status"] == "claiming"
+    assert winner["claimant"] == "joiner"
+
+    # A concurrent second joiner loses the race and creates no game.
+    loser = store.claim_join(
+        lob["lobby_id"],
+        joiner_model_id="joiner-2",
+        white_model_id="host",
+        black_model_id="joiner-2",
+    )
+    assert loser is None
+
+
+def test_claim_join_rejects_own_lobby(tmp_path):
+    store = LobbyStore(tmp_path / "lobbies.json")
+    lob = store.create_waiting(
+        host_model_id="host",
+        host_display_name="Host",
+        host_elo=500,
+    )
+    assert (
+        store.claim_join(
+            lob["lobby_id"],
+            joiner_model_id="host",
+            white_model_id="host",
+            black_model_id="joiner",
+        )
+        is None
+    )
+    assert store.list_waiting()  # still waiting, claim did not mutate
+
+
+def test_claim_finalize_and_release(tmp_path):
+    store = LobbyStore(tmp_path / "lobbies.json")
+    lob = store.create_waiting(
+        host_model_id="host",
+        host_display_name="Host",
+        host_elo=500,
+    )
+    store.claim_join(
+        lob["lobby_id"],
+        joiner_model_id="joiner",
+        white_model_id="host",
+        black_model_id="joiner",
+    )
+
+    final = store.finalize_claim(lob["lobby_id"], game_id="game-1")
+    assert final is not None
+    assert final["status"] == "matched"
+    assert final["game_id"] == "game-1"
+    assert "claimant" not in final
+    assert store.list_waiting() == []
+
+
+def test_claim_release_return_to_waiting(tmp_path):
+    store = LobbyStore(tmp_path / "lobbies.json")
+    lob = store.create_waiting(
+        host_model_id="host",
+        host_display_name="Host",
+        host_elo=500,
+    )
+    store.claim_join(
+        lob["lobby_id"],
+        joiner_model_id="joiner",
+        white_model_id="host",
+        black_model_id="joiner",
+    )
+    released = store.release_claim(lob["lobby_id"], joiner_model_id="joiner")
+    assert released is True
+    waiting = store.list_waiting()
+    assert len(waiting) == 1
+    assert waiting[0]["status"] == "waiting"
+    assert waiting[0]["white_model_id"] is None
+
+    # Non-claimant cannot release.
+    store.claim_join(
+        lob["lobby_id"],
+        joiner_model_id="joiner",
+        white_model_id="host",
+        black_model_id="joiner",
+    )
+    assert store.release_claim(lob["lobby_id"], joiner_model_id="stranger") is False

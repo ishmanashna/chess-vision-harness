@@ -177,6 +177,73 @@ class LobbyStore:
             candidates.sort(key=lambda lob: float(lob.get("created_ts") or 0))
             return candidates[0]
 
+    def claim_join(
+        self,
+        lobby_id: str,
+        *,
+        joiner_model_id: str,
+        white_model_id: str,
+        black_model_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Atomically seize a waiting lobby before the joiner creates a game.
+
+        Only the winner of a concurrent race moves the lobby to ``claiming``;
+        losers receive None and must not attempt to create a game. The winner
+        creates the game, then calls :meth:`finalize_claim` to bind the new
+        game id, or :meth:`release_claim` if creation failed.
+        """
+        with self._store_lock():
+            self._data = self._load()
+            self._prune_stale_unlocked()
+            for lob in self._lobbies():
+                if lob.get("lobby_id") != lobby_id:
+                    continue
+                if lob.get("status") != "waiting":
+                    return None
+                if lob.get("host_model_id") == joiner_model_id:
+                    return None
+                lob["status"] = "claiming"
+                lob["claimant"] = joiner_model_id
+                lob["white_model_id"] = white_model_id
+                lob["black_model_id"] = black_model_id
+                self._save()
+                return lob
+        return None
+
+    def finalize_claim(
+        self, lobby_id: str, *, game_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Bind a claimed lobby to its newly created game."""
+        with self._store_lock():
+            self._data = self._load()
+            for lob in self._lobbies():
+                if lob.get("lobby_id") != lobby_id or lob.get("status") != "claiming":
+                    continue
+                lob["status"] = "matched"
+                lob["game_id"] = game_id
+                lob["matched_at"] = _now_iso()
+                lob.pop("claimant", None)
+                self._save()
+                return lob
+        return None
+
+    def release_claim(self, lobby_id: str, *, joiner_model_id: str) -> bool:
+        """Return a claimed lobby to waiting when game creation failed."""
+        with self._store_lock():
+            self._data = self._load()
+            for lob in self._lobbies():
+                if lob.get("lobby_id") != lobby_id or lob.get("status") != "claiming":
+                    continue
+                if lob.get("claimant") != joiner_model_id:
+                    continue
+                lob["status"] = "waiting"
+                lob["white_model_id"] = None
+                lob["black_model_id"] = None
+                lob.pop("claimant", None)
+                self._save()
+                return True
+        return False
+
     def mark_matched(
         self,
         lobby_id: str,

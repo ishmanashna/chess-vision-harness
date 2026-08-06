@@ -73,7 +73,7 @@ def test_prune_no_result_removes_games_and_results(harness, monkeypatch):
 
     monkeypatch.setattr("chess_harness.commands.cmd_rebuild_elo", fake_rebuild)
     monkeypatch.setattr(
-        "chess_harness.snapshot_leaderboard.export_leaderboard_snapshot",
+        "chess_harness.commands._publish_public_snapshots",
         fake_export,
     )
 
@@ -117,8 +117,8 @@ def test_prune_no_result_scrubs_orphan_results(harness, monkeypatch):
 
     monkeypatch.setattr("chess_harness.commands.cmd_rebuild_elo", fake_rebuild)
     monkeypatch.setattr(
-        "chess_harness.snapshot_leaderboard.export_leaderboard_snapshot",
-        lambda: harness / "leaderboard.json",
+        "chess_harness.commands._publish_public_snapshots",
+        lambda: None,
     )
 
     assert cmd_prune_no_result(export_snapshot=False) == 0
@@ -187,8 +187,8 @@ def test_prune_no_result_keeps_legacy_idle_resign(harness, monkeypatch):
 
     monkeypatch.setattr("chess_harness.commands.cmd_rebuild_elo", lambda: None)
     monkeypatch.setattr(
-        "chess_harness.snapshot_leaderboard.export_leaderboard_snapshot",
-        lambda: harness / "leaderboard.json",
+        "chess_harness.commands._publish_public_snapshots",
+        lambda: None,
     )
 
     assert cmd_prune_no_result(export_snapshot=False) == 0

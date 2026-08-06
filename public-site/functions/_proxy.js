@@ -23,7 +23,11 @@ export function shouldProxyPath(pathname) {
     pathname === "/api/contact" ||
     pathname === "/api/contact/" ||
     pathname === "/api/leaderboard/live" ||
+    pathname === "/api/leaderboard/puzzles/live" ||
+    pathname === "/api/leaderboard/identify/live" ||
     pathname.startsWith("/g/") ||
+    pathname.startsWith("/p/") ||
+    pathname.startsWith("/i/") ||
     pathname.startsWith("/play/")
   );
 }

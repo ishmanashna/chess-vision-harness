@@ -88,6 +88,76 @@ def resolve_models_file() -> Path:
     )
 
 
+def resolve_followup_approvals_file() -> Path:
+    """Runtime store for follow-up approval lifecycle (under CHESS_HARNESS_DIR).
+
+    Kept outside game state files and the finished-games SQLite.
+    """
+    return resolve_base_dir() / "followup_approvals.json"
+
+
+def resolve_child_credentials_file() -> Path:
+    """Runtime store for side-scoped child credentials (under CHESS_HARNESS_DIR)."""
+    return resolve_base_dir() / "child_credentials.json"
+
+
+def resolve_orchestrations_file() -> Path:
+    """Runtime store for parent orchestration records (under CHESS_HARNESS_DIR)."""
+    return resolve_base_dir() / "orchestrations.json"
+
+
+def resolve_puzzles_dir() -> Path:
+    """Runtime puzzle dataset directory (under CHESS_HARNESS_DIR, outside git).
+
+    Puzzle rows are imported data (Lichess CC0) and are never committed to the
+    repository; only the content manifest is committed.
+    """
+    return _resolve_env_path(
+        "CHESS_HARNESS_PUZZLES_DIR",
+        resolve_base_dir() / "puzzles",
+    )
+
+
+def resolve_puzzle_dataset_file() -> Path:
+    """Indexed puzzle dataset (id -> record), runtime, never committed."""
+    return resolve_puzzles_dir() / "puzzles.json"
+
+
+def resolve_puzzle_manifest_file() -> Path:
+    """Runtime import manifest (version, source, license, counts)."""
+    return resolve_puzzles_dir() / "manifest.json"
+
+
+def resolve_puzzle_attempts_file() -> Path:
+    """Runtime store for puzzle attempts (under CHESS_HARNESS_DIR).
+
+    Puzzle attempts are not games and never appear in ``results.jsonl``.
+    """
+    return resolve_base_dir() / "puzzle_attempts.json"
+
+
+def resolve_puzzle_ratings_file() -> Path:
+    """Runtime store for Glicko-2 puzzle ratings (under CHESS_HARNESS_DIR).
+
+    Holds per-agent puzzle ratings and runtime puzzle difficulty. Independent
+    of ``models.json`` — ``inscribe`` / ``reset_all_elo`` never touch it.
+    """
+    return resolve_base_dir() / "puzzle_ratings.json"
+
+
+def resolve_identify_attempts_file() -> Path:
+    """Runtime store for board-identification attempts (under CHESS_HARNESS_DIR).
+
+    Identification attempts are not games and never appear in ``results.jsonl``.
+    """
+    return resolve_base_dir() / "identify_attempts.json"
+
+
+def resolve_puzzles_content_manifest() -> Path:
+    """Committed content manifest describing the dataset source and license."""
+    return project_root() / "config" / "puzzles_manifest.json"
+
+
 def resolve_finished_games_db() -> Path:
     """Permanent finished-games SQLite path (outside ``.chess_harness/``).
 

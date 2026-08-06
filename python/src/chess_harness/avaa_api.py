@@ -15,6 +15,7 @@ from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, key_fingerprin
 from .avaa import is_avaa_state, participant_color
 from .game_service import GameService
 from .game_types import GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
+from .scope_auth import reject_scoped_auth
 
 
 class CreateAvAAGameBody(BaseModel):
@@ -89,6 +90,10 @@ def register_avaa_routes(
         authorization: Optional[str] = Header(None),
     ):
         from .models import ModelRegistry
+
+        denied = reject_scoped_auth(auth, err)
+        if denied:
+            return denied
 
         white_id = body.white_model_id.strip()
         black_id = body.black_model_id.strip()

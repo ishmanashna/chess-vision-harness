@@ -161,6 +161,14 @@ def build_lobby_router(
                 "hint": "Poll until status is matched.",
             }
 
+        if lob.get("status") == "claiming":
+            return {
+                "ok": True,
+                "lobby_id": lobby_id,
+                "status": "claiming",
+                "hint": "A joiner is setting up the game; poll again.",
+            }
+
         if lob.get("status") == "matched" and lob.get("game_id"):
             raw_key = _raw_key(authorization)
             return match_payload(_svc(), str(lob["game_id"]), model_id, raw_key)

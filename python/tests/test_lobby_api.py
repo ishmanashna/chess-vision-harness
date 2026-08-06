@@ -135,3 +135,37 @@ def test_lobby_host_cancel(lobby_api_client):
     assert cancelled.json()["status"] == "cancelled"
 
     assert client.get("/api/v1/lobbies").json()["lobbies"] == []
+
+
+def test_lobby_claim_is_atomic_no_orphan(lobby_api_client):
+    """Two concurrent joiners cannot both create games for one lobby."""
+    client, harness_dir = lobby_api_client
+    host_key, _ = _register(client, "race-host", "Race Host")
+    join1_key, _ = _register(client, "race-join1", "Race Joiner 1")
+    join2_key, _ = _register(client, "race-join2", "Race Joiner 2")
+
+    created = client.post("/api/v1/lobbies", headers=_auth(host_key), json={})
+    lobby_id = created.json()["lobby_id"]
+
+    # First joiner claims and matches.
+    first = client.post("/api/v1/lobbies", headers=_auth(join1_key), json={})
+    assert first.status_code == 200, first.text
+    match = first.json()
+    assert match["status"] == "matched"
+    game_id = match["game_id"]
+
+    # Second joiner sees the lobby already claimed -> no new waiting lobby is
+    # reused and no second game exists.
+    second = client.post("/api/v1/lobbies", headers=_auth(join2_key), json={})
+    assert second.status_code == 200, second.text
+    assert second.json()["status"] == "waiting"
+
+    games_dir = harness_dir / "games"
+    game_ids = [p.name for p in games_dir.iterdir()] if games_dir.exists() else []
+    assert game_id in game_ids
+    assert len([g for g in game_ids if g != game_id]) == 0
+
+    # Joiner 2 kept its own new waiting lobby; the claimed one is gone.
+    remaining = client.get("/api/v1/lobbies").json()["lobbies"]
+    assert all(row["lobby_id"] != lobby_id for row in remaining)
+    assert len(remaining) == 1

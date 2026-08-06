@@ -9,7 +9,7 @@ import shutil
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import Callable, Deque, Dict, Optional
+from typing import Any, Callable, Deque, Dict, Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -95,6 +95,7 @@ def limit_error(status: int, message: str, retry_after: int) -> JSONResponse:
 class AuthContext:
     model_id: str
     key_fingerprint: str
+    scoped: Optional[Dict[str, Any]] = None
 
 
 class _SlidingWindow:
@@ -259,6 +260,42 @@ class ApiLimitEnforcer:
     def record_imagine(self, auth: AuthContext) -> None:
         self._imagines_by_key.add(auth.key_fingerprint)
 
+    def check_puzzle_attempt(
+        self, active_count: int, auth: AuthContext
+    ) -> Optional[JSONResponse]:
+        """Operator-tunable concurrency cap for puzzle attempts per key.
+
+        Puzzle attempts are not games: they never count against the game or
+        move caps. This dedicated cap bounds concurrent attempts only —
+        "unlimited" means no rating cap, not unbounded concurrency.
+        """
+        lim = self.limits()
+        if active_count >= lim.max_puzzle_attempts_per_key:
+            return limit_error(
+                429,
+                f"Puzzle attempt concurrency limit reached ({lim.max_puzzle_attempts_per_key}); finish or abandon an active attempt first",
+                60,
+            )
+        return None
+
+    def check_identify_attempt(
+        self, active_count: int, auth: AuthContext
+    ) -> Optional[JSONResponse]:
+        """Operator-tunable concurrency cap for board-identification attempts.
+
+        Board-identification attempts are not games and never count against the
+        game or move caps. This dedicated cap bounds concurrent attempts only —
+        "unlimited" means no rating cap, not unbounded concurrency.
+        """
+        lim = self.limits()
+        if active_count >= lim.max_identify_attempts_per_key:
+            return limit_error(
+                429,
+                f"Identify attempt concurrency limit reached ({lim.max_identify_attempts_per_key}); finish or abandon an active attempt first",
+                60,
+            )
+        return None
+
     def reset_counters(self) -> None:
         """Clear sliding windows (tests / process restart semantics)."""
         self._games_by_key = _SlidingWindow()
@@ -287,6 +324,8 @@ class ApiLimitEnforcer:
                 "max_games_per_hour_per_key": lim.max_games_per_hour_per_key,
                 "max_moves_per_hour_per_key": lim.max_moves_per_hour_per_key,
                 "max_imagines_per_hour_per_key": lim.max_imagines_per_hour_per_key,
+                "max_puzzle_attempts_per_key": lim.max_puzzle_attempts_per_key,
+                "max_identify_attempts_per_key": lim.max_identify_attempts_per_key,
                 "idle_timeout_sec": lim.idle_timeout_sec,
             },
             "engine_count_note": (

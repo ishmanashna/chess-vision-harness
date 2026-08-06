@@ -28,6 +28,8 @@ class HarnessLimits:
     max_imagines_per_hour_per_key: int = 300
     idle_timeout_sec: int = 1800
     max_agent_registrations_per_ip_per_hour: int = 10
+    max_puzzle_attempts_per_key: int = 3
+    max_identify_attempts_per_key: int = 3
 
 
 def load_limits() -> HarnessLimits:
@@ -43,5 +45,11 @@ def load_limits() -> HarnessLimits:
         idle_timeout_sec=_int_env("CHESS_HARNESS_IDLE_TIMEOUT_SEC", 1800, minimum=60),
         max_agent_registrations_per_ip_per_hour=_int_env(
             "CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR", 10
+        ),
+        max_puzzle_attempts_per_key=_int_env(
+            "CHESS_HARNESS_MAX_PUZZLE_ATTEMPTS_PER_KEY", 3
+        ),
+        max_identify_attempts_per_key=_int_env(
+            "CHESS_HARNESS_MAX_IDENTIFY_ATTEMPTS_PER_KEY", 3
         ),
     )

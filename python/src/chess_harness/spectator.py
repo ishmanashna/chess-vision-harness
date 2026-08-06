@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 import chess
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .agent_surface import (
@@ -47,13 +47,36 @@ from .contact_api import register_contact_routes
 from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
 from .spectator_game_page import render_game_view_page
+from .puzzle_observer import (
+    observer_state,
+    public_attempt_row,
+    render_observer_board_png,
+    render_puzzle_watch_page,
+    replay_payload,
+)
+from .puzzle_attempt import PuzzleAttemptStore
+from .board_text import format_board_text
+from .identify_attempt import IdentifyAttemptStore
+from .identify_observer import (
+    observer_state as identify_observer_state,
+    public_attempt_row as identify_public_row,
+    render_answer_overlay_png,
+    render_identify_board_png,
+    render_identify_watch_page,
+    replay_payload as identify_replay_payload,
+)
 from .continuous_calibration import can_continuously_calibrate, get_continuous_calibration
 from .engine import EvalEngineAdapter
 from .game_manager import GameManager
 from .game_service import GameService
 from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
-from .snapshot_leaderboard import export_leaderboard_snapshot, load_live_leaderboard
+from .snapshot_leaderboard import (
+    export_public_snapshots,
+    load_live_identify_leaderboard,
+    load_live_leaderboard,
+    load_live_puzzle_leaderboard,
+)
 
 LEADERBOARD_SNAPSHOT_INTERVAL_SEC = 300
 
@@ -138,7 +161,7 @@ async def _lifespan(_app: FastAPI):
     _clear_stale_batch_calibration()
     rebuild_merged_ratings_file()
     try:
-        await asyncio.to_thread(export_leaderboard_snapshot)
+        await asyncio.to_thread(export_public_snapshots)
     except Exception:
         pass
 
@@ -154,7 +177,7 @@ async def _lifespan(_app: FastAPI):
         while True:
             await asyncio.sleep(LEADERBOARD_SNAPSHOT_INTERVAL_SEC)
             try:
-                await asyncio.to_thread(export_leaderboard_snapshot)
+                await asyncio.to_thread(export_public_snapshots)
             except Exception:
                 pass
 
@@ -249,6 +272,44 @@ async def live_leaderboard_api():
 async def live_leaderboard_data_file():
     """Serve live ladder at the static snapshot path while the origin is up."""
     return _live_leaderboard_json()
+
+
+def _live_puzzle_leaderboard_json() -> JSONResponse:
+    return JSONResponse(
+        load_live_puzzle_leaderboard(),
+        headers={"cache-control": "no-store"},
+    )
+
+
+def _live_identify_leaderboard_json() -> JSONResponse:
+    return JSONResponse(
+        load_live_identify_leaderboard(),
+        headers={"cache-control": "no-store"},
+    )
+
+
+@app.get("/api/leaderboard/puzzles/live")
+async def live_puzzle_leaderboard_api():
+    """Live puzzle leaderboard (agents + puzzle content view)."""
+    return _live_puzzle_leaderboard_json()
+
+
+@app.get("/api/leaderboard/identify/live")
+async def live_identify_leaderboard_api():
+    """Live board-identification leaderboard (mean accuracy + solve rates)."""
+    return _live_identify_leaderboard_json()
+
+
+@app.get("/data/puzzles_leaderboard.json")
+async def live_puzzle_data_file():
+    """Serve live puzzle leaderboard at the static snapshot path while up."""
+    return _live_puzzle_leaderboard_json()
+
+
+@app.get("/data/identify_leaderboard.json")
+async def live_identify_data_file():
+    """Serve live identify leaderboard at the static snapshot path while up."""
+    return _live_identify_leaderboard_json()
 
 
 if (_public_site / "data").is_dir():
@@ -775,6 +836,155 @@ async def get_board_image(game_id: str):
     if not board_path.exists():
         raise HTTPException(404, "Board not found")
     return FileResponse(board_path, media_type="image/png")
+
+
+def _public_attempt(attempt_id: str):
+    record = PuzzleAttemptStore().get(attempt_id)
+    if record is None:
+        raise HTTPException(404, "Attempt not found")
+    return record
+
+
+@app.get("/p/{attempt_id}", response_class=HTMLResponse)
+async def puzzle_watch_page(attempt_id: str):
+    _public_attempt(attempt_id)
+    return HTMLResponse(render_puzzle_watch_page(attempt_id))
+
+
+@app.get("/p/{attempt_id}/board.png")
+async def puzzle_watch_board_image(attempt_id: str):
+    record = _public_attempt(attempt_id)
+    return Response(
+        content=render_observer_board_png(record),
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/p/{attempt_id}/board.txt")
+async def puzzle_watch_board_text(attempt_id: str):
+    record = _public_attempt(attempt_id)
+    board = chess.Board(record.get("board_fen", chess.STARTING_FEN))
+    return PlainTextResponse(
+        content=format_board_text(board),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/v1/puzzles/public/attempts")
+async def public_puzzle_attempts(
+    status: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Observer-scoped discovery: active + finished attempts, newest first."""
+    records = PuzzleAttemptStore().list_records()
+    if status in ("active", "finished"):
+        records = [r for r in records if r.get("status") == status]
+    else:
+        records = [r for r in records if r.get("status") in ("active", "finished")]
+    records.sort(key=lambda r: r.get("started_at") or "", reverse=True)
+    total = len(records)
+    rows = [public_attempt_row(r) for r in records[offset : offset + limit]]
+    return {"ok": True, "attempts": rows, "total": total}
+
+
+@app.get("/api/v1/puzzles/public/{attempt_id}")
+async def public_puzzle_state(attempt_id: str):
+    return observer_state(_public_attempt(attempt_id))
+
+
+@app.get("/api/v1/puzzles/public/{attempt_id}/replay")
+async def public_puzzle_replay(attempt_id: str):
+    """Replay unlocks only after the attempt ends (no observer secrecy leak)."""
+    record = _public_attempt(attempt_id)
+    if record.get("status") == "active":
+        raise HTTPException(409, "Replay unlocks only after the attempt ends")
+    if record.get("status") != "finished":
+        raise HTTPException(404, "No replay for an abandoned attempt")
+    return replay_payload(record)
+
+
+def _public_identify(attempt_id: str):
+    record = IdentifyAttemptStore().get(attempt_id)
+    if record is None:
+        raise HTTPException(404, "Attempt not found")
+    return record
+
+
+@app.get("/i/{attempt_id}", response_class=HTMLResponse)
+async def identify_watch_page(attempt_id: str):
+    _public_identify(attempt_id)
+    return HTMLResponse(render_identify_watch_page(attempt_id))
+
+
+@app.get("/i/{attempt_id}/board.png")
+async def identify_watch_board_image(attempt_id: str):
+    record = _public_identify(attempt_id)
+    return Response(
+        content=render_identify_board_png(record),
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/i/{attempt_id}/board.txt")
+async def identify_watch_board_text(attempt_id: str):
+    record = _public_identify(attempt_id)
+    board = chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
+    return PlainTextResponse(
+        content=format_board_text(board),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/i/{attempt_id}/answer.png")
+async def identify_watch_answer_image(attempt_id: str):
+    """Answer overlay board (true placement); only after the attempt ends."""
+    record = _public_identify(attempt_id)
+    if record.get("status") == "active":
+        raise HTTPException(409, "Answer unlocks only after the attempt ends")
+    if record.get("status") != "finished":
+        raise HTTPException(404, "No answer for an abandoned attempt")
+    return Response(
+        content=render_answer_overlay_png(record),
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/v1/identify/public/attempts")
+async def public_identify_attempts(
+    status: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Observer-scoped discovery: active + finished identification attempts."""
+    records = IdentifyAttemptStore().list_records()
+    if status in ("active", "finished"):
+        records = [r for r in records if r.get("status") == status]
+    else:
+        records = [r for r in records if r.get("status") in ("active", "finished")]
+    records.sort(key=lambda r: r.get("started_at") or "", reverse=True)
+    total = len(records)
+    rows = [identify_public_row(r) for r in records[offset : offset + limit]]
+    return {"ok": True, "attempts": rows, "total": total}
+
+
+@app.get("/api/v1/identify/public/{attempt_id}")
+async def public_identify_state(attempt_id: str):
+    return identify_observer_state(_public_identify(attempt_id))
+
+
+@app.get("/api/v1/identify/public/{attempt_id}/replay")
+async def public_identify_replay(attempt_id: str):
+    """Replay unlocks only after the attempt ends (no observer secrecy leak)."""
+    record = _public_identify(attempt_id)
+    if record.get("status") == "active":
+        raise HTTPException(409, "Replay unlocks only after the attempt ends")
+    if record.get("status") != "finished":
+        raise HTTPException(404, "No replay for an abandoned attempt")
+    return identify_replay_payload(record)
 
 
 @app.get("/api/games")
