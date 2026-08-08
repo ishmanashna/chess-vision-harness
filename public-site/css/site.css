@@ -306,6 +306,7 @@ p {
   max-width: none;
   margin: 0 0 1rem;
   color: var(--text-secondary);
+  text-align: justify;
 }
 
 .about-copy p:last-child {
@@ -314,7 +315,7 @@ p {
 
 .home-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px 40px;
   align-items: start;
 }
@@ -512,6 +513,7 @@ p {
 
 .info-block-callout p {
   color: var(--text-secondary);
+  text-align: justify;
 }
 
 .snapshot-meta {
@@ -551,6 +553,7 @@ p {
   margin: 0 0 14px;
   color: var(--muted);
   max-width: 52rem;
+  text-align: justify;
 }
 
 .section-actions {
@@ -826,6 +829,7 @@ p {
   font-size: 0.9rem;
   color: var(--muted);
   max-width: none;
+  text-align: justify;
 }
 
 @media (max-width: 900px) {
@@ -903,9 +907,13 @@ p {
 
 .leaderboard-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px 40px;
   align-items: start;
+}
+
+.leaderboard-puzzle-content {
+  grid-column: 1 / -1;
 }
 
 .leaderboard-copy h2:first-of-type {
@@ -919,6 +927,11 @@ p {
 
 .rating-explain p {
   max-width: none;
+  text-align: justify;
+}
+
+.leaderboard-copy p {
+  text-align: justify;
 }
 
 @media (max-width: 860px) {

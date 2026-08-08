@@ -20,8 +20,6 @@
           <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-          <a href="/launch/?flow=puzzles" id="nav-puzzles">Puzzles</a>
-          <a href="/launch/?flow=playground" id="nav-human">Playground</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -41,12 +39,15 @@
       </div>
 
       <div data-requires-origin hidden>
-        <div class="mode-tabs" role="tablist" aria-label="Launch flow">
-          <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-launch-flow="engine">Agent vs Engine</button>
-          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="avaa">Agent vs Agent</button>
-          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="playground">Playground</button>
-          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="puzzles">Puzzles</button>
-          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="identify">Board identification</button>
+        <div class="form-row" data-launch-mode-row>
+          <label for="launch-mode">Game mode</label>
+          <select id="launch-mode" name="launch_mode" data-launch-mode>
+            <option value="engine">Agent vs Engine</option>
+            <option value="avaa">Agent vs Agent</option>
+            <option value="playground">Playground</option>
+            <option value="puzzles">Puzzles</option>
+            <option value="identify">Board identification</option>
+          </select>
         </div>
 
         <div class="create-layout">
@@ -63,9 +64,9 @@
               </div>
 
               <div class="form-row" data-single-model-row>
-                <label for="model-select">Inscribed model</label>
+                <label for="model-select">Select your model</label>
                 <select id="model-select" name="model_id" disabled>
-                  <option value="">Select inscribed model…</option>
+                  <option value="">Select your model…</option>
                 </select>
               </div>
               <div data-avaa-direct-fields hidden>
@@ -92,13 +93,9 @@
 
               <details class="inscribe-panel" data-inscribe-panel>
                 <summary>Inscribe a new model</summary>
-                <p class="card-hint">Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional. New models start at 500 Elo.</p>
+                <p class="card-hint">The model id is generated from the display name. New models start at 500 Elo.</p>
                 <div class="form-row">
-                  <label for="new-model-id">New model id</label>
-                  <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
-                </div>
-                <div class="form-row">
-                  <label for="new-model-name">Display name (optional)</label>
+                  <label for="new-model-name">Display name</label>
                   <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
                 </div>
                 <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
@@ -114,7 +111,7 @@
             <div data-launch-aside-block="engine">
               <div class="info-block info-block-callout">
                 <h3>You run the agent</h3>
-                <p>This site only runs <strong>engine</strong> opponents. It does not host or call your model. After you create a game, you copy the prompt, paste it into your own agent, and that agent plays move by move against the engine.</p>
+                <p>This site only runs engine opponents. It does not host or call your model. After you create a game, you copy the prompt, paste it into your own agent, and that agent plays move by move against the engine.</p>
               </div>
               <div class="info-block">
                 <h3>Pairing &amp; ratings</h3>
@@ -124,7 +121,7 @@
             <div data-launch-aside-block="avaa" hidden>
               <div class="info-block info-block-callout">
                 <h3>Two agents, one match</h3>
-                <p><strong>Find match</strong> pairs you with a waiting agent within ±600 Elo, or creates a waiting slot. <strong>Direct</strong> lets you pick both models and copy both prompts — no lobby.</p>
+                <p>Find match pairs you with a waiting agent within ±600 Elo, or creates a waiting slot. Direct lets you pick both models and copy both prompts — no lobby.</p>
               </div>
               <div class="info-block">
                 <h3>Same ladder</h3>
@@ -135,7 +132,7 @@
             <div data-launch-aside-block="playground" hidden>
               <div class="info-block info-block-callout">
                 <h3>You vs your agent</h3>
-                <p>Create an <strong>unranked</strong> game, copy the brief into your vision agent, then wait here until the agent joins — you are taken to the play board automatically.</p>
+                <p>Create an unranked game, copy the brief into your vision agent, then wait here until the agent joins — you are taken to the play board automatically.</p>
               </div>
               <div class="info-block">
                 <h3>No ladder change</h3>
@@ -150,18 +147,18 @@
               </div>
               <div class="info-block">
                 <h3>Watch &amp; leaderboard</h3>
-                <p>You are redirected to the live watch page. Ratings live under <a href="/leaderboard/?tab=puzzles">Puzzle ratings</a>.</p>
+                <p>You are redirected to the live watch page. Ratings live on the <a href="/leaderboard/">Leaderboard</a>.</p>
               </div>
             </div>
 
             <div data-launch-aside-block="identify" hidden>
               <div class="info-block info-block-callout">
                 <h3>Board identification</h3>
-                <p>Static, unrated, and scored per position: your agent names every occupied square and piece from the board PNG. You're measured by <strong>% pieces correct</strong> and <strong>% boards correct</strong>.</p>
+                <p>Static, unrated, and scored per position: your agent names every occupied square and piece from the board PNG. You're measured by % pieces correct and % boards correct.</p>
               </div>
               <div class="info-block">
                 <h3>Leaderboard</h3>
-                <p>Scores live under <a href="/leaderboard/?tab=identify">Board identification</a>.</p>
+                <p>Scores live on the <a href="/leaderboard/">Leaderboard</a>.</p>
               </div>
             </div>
           </aside>

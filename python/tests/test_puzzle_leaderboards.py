@@ -113,7 +113,7 @@ def test_identify_leaderboard_empty(tmp_path):
     assert board["agents"] == []
 
 
-def test_export_public_snapshots_writes_three_files(tmp_path, monkeypatch):
+def test_export_public_snapshots_writes_two_files(tmp_path, monkeypatch):
     harness = tmp_path / "harness"
     harness.mkdir()
     _write(harness / "models.json", {"models": [{"id": "solo", "name": "Solo", "elo": 650.0}]})
@@ -122,20 +122,18 @@ def test_export_public_snapshots_writes_three_files(tmp_path, monkeypatch):
     out = tmp_path / "out"
     written = export_public_snapshots(
         output_path=out / "leaderboard.json", puzzle_path=out / "puzzles_leaderboard.json",
-        identify_path=out / "identify_leaderboard.json", registry=ModelRegistry(harness / "models.json"))
+        registry=ModelRegistry(harness / "models.json"))
     assert [p.name for p in written.values()] == [
-        "leaderboard.json", "puzzles_leaderboard.json", "identify_leaderboard.json"]
+        "leaderboard.json", "puzzles_leaderboard.json"]
     ladder = json.loads(written["leaderboard"].read_text(encoding="utf-8"))
     assert ladder["agents"][0]["id"] == "solo"
-    for key in ("puzzles", "identify"):
-        data = json.loads(written[key].read_text(encoding="utf-8"))
-        assert data["agents"] == [] and isinstance(data["generated_at"], str)
     puzzles = json.loads(written["puzzles"].read_text(encoding="utf-8"))
+    assert puzzles["agents"] == []
     assert puzzles["puzzles"] == []
-    assert json.loads(written["identify"].read_text(encoding="utf-8"))["agents"] == []
+    assert "identify_leaderboard.json" not in [p.name for p in out.iterdir()]
 
 
-def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
+def test_live_puzzle_leaderboard_and_legacy_redirects(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     from conftest import FIXTURES
     from chess_harness.game_manager import GameManager
@@ -152,8 +150,7 @@ def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
     spec._game_service = None
     client = TestClient(spec.app)
     try:
-        for path in ("/api/leaderboard/puzzles/live", "/api/leaderboard/identify/live",
-                     "/data/puzzles_leaderboard.json", "/data/identify_leaderboard.json"):
+        for path in ("/api/leaderboard/puzzles/live", "/data/puzzles_leaderboard.json"):
             resp = client.get(path)
             assert resp.status_code == 200
             assert resp.headers.get("cache-control") == "public, max-age=5"
@@ -161,10 +158,12 @@ def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
             assert isinstance(data.get("agents"), list)
             assert isinstance(data.get("generated_at"), str)
         assert isinstance(client.get("/api/leaderboard/puzzles/live").json().get("puzzles"), list)
-        for path in ("/puzzles", "/puzzles/"):
-            resp = client.get(path)
-            assert resp.status_code == 200
-            assert "puzzle-launcher" in resp.text
+        for path, location in (("/puzzles", "/launch/?flow=puzzles"), ("/puzzles/", "/launch/?flow=puzzles")):
+            resp = client.get(path, follow_redirects=False)
+            assert resp.status_code == 301
+            assert resp.headers["location"] == location
+        for path in ("/api/leaderboard/identify/live", "/data/identify_leaderboard.json"):
+            assert client.get(path).status_code == 404
     finally:
         spec._game_service = None
         spec._controller = None
@@ -173,14 +172,19 @@ def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
             spec._engine = None
 
 
-def test_puzzles_launcher_page_has_tabs_and_scripts():
-    text = (ROOT / "public-site" / "puzzles" / "index.html").read_text(encoding="utf-8")
-    for needle in ('data-launcher-tab="puzzles"', 'data-launcher-tab="identify"',
-                   "data-launcher-form", "data-launcher-result",
-                   "/js/puzzle-launcher.js", 'id="launcher-model-select"',
-                   'id="nav-puzzles"'):
-        assert needle in text
-    js = (ROOT / "public-site" / "js" / "puzzle-launcher.js").read_text(encoding="utf-8")
+def test_puzzles_launcher_page_deleted_launch_is_dropdown():
+    text = (ROOT / "public-site" / "launch" / "index.html").read_text(encoding="utf-8")
+    for needle in ('data-launch-mode', '<option value="engine">Agent vs Engine</option>',
+                   '<option value="avaa">Agent vs Agent</option>',
+                   '<option value="playground">Playground</option>',
+                   '<option value="puzzles">Puzzles</option>',
+                   '<option value="identify">Board identification</option>',
+                   "Select your model", "Display name"):
+        assert needle in text, needle
+    assert "data-launch-flow" not in text
+    assert "launcher-model-select" not in text
+    assert not (ROOT / "public-site" / "puzzles" / "index.html").exists()
+    js = (ROOT / "public-site" / "js" / "launcher.js").read_text(encoding="utf-8")
     assert "/api/v1/puzzles/start" in js
     assert "/api/v1/identify/start" in js
     assert '"/p/" + attemptId' in js
@@ -190,7 +194,7 @@ def test_puzzles_launcher_page_has_tabs_and_scripts():
 def test_launch_page_has_five_flows_and_scripts():
     text = (ROOT / "public-site" / "launch" / "index.html").read_text(encoding="utf-8")
     for flow in ("engine", "avaa", "playground", "puzzles", "identify"):
-        assert 'data-launch-flow="%s"' % flow in text
+        assert '<option value="%s">' % flow in text
     for needle in ('data-launch-page', "data-create-form", "data-create-result",
                    "data-inscribe-submit", "/js/launcher.js", "/js/create-result.js",
                    "/js/create-match.js", "/js/create-human-wait.js"):
@@ -202,33 +206,45 @@ def test_launch_page_has_five_flows_and_scripts():
         assert needle in js, needle
 
 
-def test_all_headers_have_puzzles_nav():
-    for rel in ("index.html", "create/index.html", "spectator/index.html",
-                "leaderboard/index.html", "human/index.html", "contact/index.html",
-                "puzzles/index.html"):
+def test_all_headers_have_single_launcher_nav():
+    for rel in ("index.html", "spectator/index.html", "leaderboard/index.html",
+                "contact/index.html", "launch/index.html"):
         text = (ROOT / "public-site" / rel).read_text(encoding="utf-8")
-        assert 'id="nav-puzzles"' in text, rel
+        assert 'id="nav-create"' in text, rel
+        assert 'id="nav-puzzles"' not in text, rel
+        assert 'id="nav-human"' not in text, rel
     header = (ROOT / "python" / "src" / "chess_harness" / "ladder_display.py").read_text(encoding="utf-8")
-    assert 'id="nav-puzzles"' in header
+    assert 'id="nav-create"' in header
+    assert 'id="nav-puzzles"' not in header
+    assert 'id="nav-human"' not in header
 
 
 def test_proxy_allows_puzzle_leaderboard_paths():
     text = (ROOT / "public-site" / "functions" / "_proxy.js").read_text(encoding="utf-8")
     assert "/api/leaderboard/puzzles/live" in text
-    assert "/api/leaderboard/identify/live" in text
+    assert "/api/leaderboard/identify/live" not in text
     assert 'startsWith("/p/")' in text
     assert 'startsWith("/i/")' in text
 
 
-def test_leaderboard_page_has_tabs_and_scripts():
+def test_leaderboard_page_is_unified_no_tabs():
     text = (ROOT / "public-site" / "leaderboard" / "index.html").read_text(encoding="utf-8")
-    for needle in ('data-lb-tab="agents"', 'data-lb-tab="puzzles"', 'data-lb-tab="identify"',
-                   'data-lb-panel="puzzles"', 'data-lb-panel="identify"',
-                   "/js/puzzle-leaderboards.js", "data-puzzle-leaderboard",
-                   "data-puzzle-content-leaderboard", "data-identify-leaderboard"):
-        assert needle in text
-    # Phase C: identify columns relabeled to percentage-of-correct copy.
-    assert "% pieces correct" in text
-    assert "% boards correct" in text
-    # Phase B: puzzle difficulty copy states it is frozen at the import estimate.
-    assert "imported Lichess estimate and never changes" in text
+    for needle in ('data-show-unified-stats', "Puzzle rating", "Solve rate", "% pieces",
+                   "% boards", "data-puzzle-content-leaderboard", "data-engines-leaderboard",
+                   "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\""):
+        assert needle in text, needle
+    assert "data-lb-tab" not in text
+    assert "data-lb-panel" not in text
+    assert "data-puzzle-leaderboard" not in text
+    assert "data-identify-leaderboard" not in text
+    assert '?tab=' not in text
+    js = (ROOT / "public-site" / "js" / "puzzle-leaderboards.js").read_text(encoding="utf-8")
+    assert "data-puzzle-content-leaderboard" in js
+    assert "data-identify-leaderboard" not in js
+    assert "data-puzzle-leaderboard" not in js
+    assert "setTab" not in js
+    assert "/api/leaderboard/identify" not in js
+    common = (ROOT / "public-site" / "js" / "common.js").read_text(encoding="utf-8")
+    assert "data-show-unified-stats" in common
+    assert "puzzle_solve_rate" in common
+    assert "identify_full_position_rate" in common

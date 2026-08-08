@@ -232,7 +232,7 @@ def render_calibration_html() -> str:
     <link rel="stylesheet" href="/css/site.css"/>
     <style>
     .cal-page h2{{margin:24px 0 8px;font-size:1.05rem}}
-    .cal-lead{{margin:0 0 16px;color:var(--muted);font-size:.9rem;max-width:48rem}}
+    .cal-lead{{margin:0 0 16px;color:var(--muted);font-size:.9rem;max-width:48rem;text-align:justify}}
     .cal-panel{{max-width:920px;margin:0 0 18px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px}}
     .cal-panel h2{{margin:0 0 6px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}}
     .cal-panel p{{margin:0;color:var(--text-secondary);font-size:.88rem;max-width:none}}
@@ -255,7 +255,7 @@ def render_calibration_html() -> str:
     .cal-toolbar label{{font-size:.85em;font-weight:600;color:var(--muted)}}
     .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid var(--input-border,var(--border));border-radius:4px;background:var(--input-bg,var(--surface));color:var(--text)}}
     .cal-btn.primary{{border-color:var(--link);background:var(--link);color:#fff}}
-    .cal-legend{{font-size:.8em;color:var(--faint);margin:0 0 8px;max-width:none}}
+    .cal-legend{{font-size:.8em;color:var(--faint);margin:0 0 8px;max-width:none;text-align:justify}}
     .cal-table-wrap{{max-width:1100px;overflow-x:auto}}
     table.cal-table{{border-collapse:collapse;width:100%;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}}
     table.cal-table th,table.cal-table td{{border-bottom:1px solid var(--row);padding:10px 12px;text-align:left;font-size:.88em}}
@@ -517,11 +517,9 @@ PUBLIC_SITE_HEADER = """
       </div>
       <nav class="site-nav" aria-label="Main">
         <a href="/" id="nav-home">Home</a>
-        <a href="/create/" id="nav-create">Create Game</a>
+        <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
         <a href="/spectator/" id="nav-spectator">Spectator</a>
         <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-        <a href="/puzzles/" id="nav-puzzles">Puzzles</a>
-        <a href="/human/" id="nav-human">Playground</a>
         <a href="/contact/" id="nav-contact">Contact</a>
       </nav>
       <div class="header-controls">

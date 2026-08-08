@@ -53,14 +53,14 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "Finished games with a real result" in html
 
 
-def test_leaderboard_keeps_model_id_and_scored_games_copy(create_client):
+def test_leaderboard_keeps_scored_games_copy(create_client):
     client, _ = create_client
     html = client.get("/leaderboard/").text
-    assert "Model id" in html
-    assert "data-show-model-id" in html
+    assert "Model id" not in html
+    assert "data-show-model-id" not in html
     assert "Finished games with a real result" in html
     assert "100 rated games" in html
-    assert 'colspan="7"' in html
+    assert 'colspan="10"' in html
 
 
 def test_engines_js_renders_six_columns():
@@ -97,3 +97,43 @@ def test_calibration_html_play_rating_label():
     assert "Play rating" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
+
+
+def test_prose_copy_is_plain_and_justified():
+    import re
+
+    leaderboard = _read_public("leaderboard/index.html")
+    launch = _read_public("launch/index.html")
+    css = _read_public("css/site.css")
+    allowed_strong = {
+        "*",
+        "Launcher unavailable",
+        "Game server offline",
+        "No live games while the server is offline",
+    }
+    for html in (leaderboard, launch):
+        for match in re.finditer(r"<strong>([^<]*)</strong>", html):
+            assert match.group(1) in allowed_strong, match.group(1)
+    for selector in (
+        ".about-copy p",
+        ".leaderboard-copy p",
+        ".rating-explain p",
+        ".info-block p",
+        ".engines-section > p",
+    ):
+        block = css[css.index(selector):]
+        assert "text-align: justify" in block.split("}")[0], selector
+
+
+def test_calibration_lead_and_legend_justified():
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+    from chess_harness.ladder_display import render_calibration_html
+
+    html = render_calibration_html()
+    assert "text-align:justify" in html
+    assert html.count("cal-lead") == 2
+    assert html.count("cal-legend") == 3
+    assert html.count("<strong>") == html.count("</strong>")  # balanced markup

@@ -19,8 +19,6 @@ NAV_ORDER = (
     'id="nav-create"',
     'id="nav-spectator"',
     'id="nav-leaderboard"',
-    'id="nav-puzzles"',
-    'id="nav-human"',
     'id="nav-contact"',
 )
 
@@ -35,18 +33,16 @@ def _read_public(rel: str) -> str:
 
 def test_nav_order_consistent_across_shells(create_client):
     client, _ = create_client
-    for path in ("/human/", "/create", "/spectator/", "/contact/"):
+    for path in ("/launch/", "/spectator/", "/contact/"):
         html = client.get(path).text
         assert _nav_positions(html) == sorted(_nav_positions(html))
 
 
 def test_human_hub_no_your_games_or_registry_ui(create_client):
     client, _ = create_client
-    html = client.get("/human/").text
-    assert "Your games" not in html
-    assert "data-human-games-list" not in html
-    assert "human-games-ui.js" not in html
-    assert "Resume saved games in Spectator" in html
+    resp = client.get("/human/", follow_redirects=False)
+    assert resp.status_code == 301
+    assert resp.headers["location"] == "/launch/?flow=playground"
 
 
 def test_spectator_my_games_tab_wired(create_client):
@@ -64,11 +60,11 @@ def test_human_games_ui_compact_when_format():
     assert "dateStyle" not in js
 
 
-def test_create_human_mode_redirect_unchanged(create_client):
+def test_create_human_mode_redirects_to_launch(create_client):
     client, _ = create_client
     resp = client.get("/create?mode=human", follow_redirects=False)
     assert resp.status_code == 301
-    assert resp.headers["location"] == "/human/"
+    assert resp.headers["location"] == "/launch/?flow=engine"
 
 
 def test_create_brief_collapsible_in_js():
@@ -201,8 +197,8 @@ def test_show_eval_for_state_true_for_human_vs_agent():
     assert show_eval_for_state(state) is True
 
 
-@pytest.mark.parametrize("path", ["/human/", "/create"])
-def test_create_shells_include_collapsible_inscribe(create_client, path):
+@pytest.mark.parametrize("path", ["/launch/"])
+def test_launcher_includes_collapsible_inscribe(create_client, path):
     client, _ = create_client
     html = client.get(path).text
     assert "<details" in html

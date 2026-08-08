@@ -41,7 +41,7 @@ Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the g
 
 ### Local serve vs Pages (intentional diffs)
 
-When you run `chess-harness serve`, the origin serves the same `public-site/` HTML/CSS/JS as Pages for `/`, `/create/`, `/spectator/`, `/leaderboard/`, `/contact/`, and `/human/`. Shared static assets (`/css`, `/js`, `/data`, favicons) are mounted on the origin too.
+When you run `chess-harness serve`, the origin serves the same `public-site/` HTML/CSS/JS as Pages for `/`, `/launch/`, `/spectator/`, `/leaderboard/`, and `/contact/` (legacy `/create/`, `/human/`, `/puzzles/` 301 to their `/launch/?flow=` equivalents). Shared static assets (`/css`, `/js`, `/data`, favicons) are mounted on the origin too.
 
 | Behavior | Pages (public) | Local origin (`chess-harness serve`) |
 |----------|----------------|--------------------------------------|

@@ -68,7 +68,7 @@ def test_live_leaderboard_endpoint_shape(live_lb_client):
     client, _ = live_lb_client
     resp = client.get("/api/leaderboard/live")
     assert resp.status_code == 200
-    assert resp.headers.get("cache-control") == "no-store"
+    assert resp.headers.get("cache-control") == "public, max-age=5"
     data = resp.json()
     _assert_snapshot_shape(data)
     assert len(data["agents"]) >= 1
@@ -78,7 +78,7 @@ def test_data_leaderboard_json_serves_live_on_origin(live_lb_client):
     client, _ = live_lb_client
     resp = client.get("/data/leaderboard.json")
     assert resp.status_code == 200
-    assert resp.headers.get("cache-control") == "no-store"
+    assert resp.headers.get("cache-control") == "public, max-age=5"
     data = resp.json()
     _assert_snapshot_shape(data)
 

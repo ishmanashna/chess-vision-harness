@@ -156,6 +156,16 @@ def test_get_calibration_status_idle(cal_results):
     assert "warm" not in status["play_rating"]
 
 
+def test_get_calibration_status_keeps_anchor_rows(cal_results):
+    status = get_calibration_status()
+    anchors = [r for r in status["rating_table"] if r.get("anchor") is True]
+    assert anchors, "anchored engines must appear in the calibration rating table"
+    row = anchors[0]
+    assert row.get("activity") == "anchor"
+    assert row.get("continuous") is False
+    assert row.get("can_calibrate") is False
+
+
 def test_get_calibration_status_includes_play_rating_means(cal_results):
     continuous = cal_results / "continuous"
     continuous.mkdir(parents=True)

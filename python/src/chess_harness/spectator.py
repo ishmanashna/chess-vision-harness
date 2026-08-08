@@ -74,7 +74,6 @@ from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
 from .snapshot_leaderboard import (
     export_public_snapshots,
-    load_live_identify_leaderboard,
     load_live_leaderboard,
     load_live_puzzle_leaderboard,
 )
@@ -200,16 +199,6 @@ app = FastAPI(title="Chess Vision Harness Spectator", lifespan=_lifespan)
 
 
 @app.middleware("http")
-async def _human_create_redirect_middleware(request: Request, call_next):
-    path = request.url.path
-    if path in ("/create", "/create/"):
-        mode = request.query_params.get("mode", "")
-        if mode in ("human", "avh"):
-            return RedirectResponse(url="/human/", status_code=301)
-    return await call_next(request)
-
-
-@app.middleware("http")
 async def _calibration_post_auth_middleware(request: Request, call_next):
     if request.method == "POST" and request.url.path.startswith("/api/calibration/"):
         try:
@@ -299,32 +288,16 @@ def _live_puzzle_leaderboard_json() -> JSONResponse:
     return _live_cached_json("puzzles", load_live_puzzle_leaderboard)
 
 
-def _live_identify_leaderboard_json() -> JSONResponse:
-    return _live_cached_json("identify", load_live_identify_leaderboard)
-
-
 @app.get("/api/leaderboard/puzzles/live")
 async def live_puzzle_leaderboard_api():
     """Live puzzle leaderboard (agents + puzzle content view)."""
     return _live_puzzle_leaderboard_json()
 
 
-@app.get("/api/leaderboard/identify/live")
-async def live_identify_leaderboard_api():
-    """Live board-identification leaderboard (mean accuracy + solve rates)."""
-    return _live_identify_leaderboard_json()
-
-
 @app.get("/data/puzzles_leaderboard.json")
 async def live_puzzle_data_file():
     """Serve live puzzle leaderboard at the static snapshot path while up."""
     return _live_puzzle_leaderboard_json()
-
-
-@app.get("/data/identify_leaderboard.json")
-async def live_identify_data_file():
-    """Serve live identify leaderboard at the static snapshot path while up."""
-    return _live_identify_leaderboard_json()
 
 
 if (_public_site / "data").is_dir():
@@ -402,10 +375,7 @@ async def local_spectator():
 @app.get("/human")
 @app.get("/human/")
 async def local_human():
-    resp = _public_site_html("human", "index.html")
-    if resp:
-        return resp
-    raise HTTPException(status_code=404)
+    return RedirectResponse(url="/launch/?flow=playground", status_code=301)
 
 
 @app.get("/contact")
@@ -748,10 +718,7 @@ async def root(request: Request):
 @app.get("/create", response_class=HTMLResponse)
 @app.get("/create/", response_class=HTMLResponse)
 async def create_game_get():
-    resp = _public_site_html("create", "index.html")
-    if resp:
-        return resp
-    raise HTTPException(status_code=404)
+    return RedirectResponse(url="/launch/?flow=engine", status_code=301)
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
@@ -766,10 +733,7 @@ async def leaderboard():
 @app.get("/puzzles", response_class=HTMLResponse)
 @app.get("/puzzles/", response_class=HTMLResponse)
 async def puzzles_page():
-    resp = _public_site_html("puzzles", "index.html")
-    if resp:
-        return resp
-    raise HTTPException(status_code=404)
+    return RedirectResponse(url="/launch/?flow=puzzles", status_code=301)
 
 
 @app.get("/launch", response_class=HTMLResponse)

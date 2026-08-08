@@ -3,11 +3,7 @@
 
   var PUZZLES_SNAPSHOT_URL = "/data/puzzles_leaderboard.json";
   var PUZZLES_LIVE_URL = "/api/leaderboard/puzzles/live";
-  var IDENTIFY_SNAPSHOT_URL = "/data/identify_leaderboard.json";
-  var IDENTIFY_LIVE_URL = "/api/leaderboard/identify/live";
-  var PUZZLES_SORT_KEY = "cvh-leaderboard-puzzles-sort";
   var PUZZLES_CONTENT_SORT_KEY = "cvh-leaderboard-puzzles-content-sort";
-  var IDENTIFY_SORT_KEY = "cvh-leaderboard-identify-sort";
   var healthCache = null;
 
   function checkHealth() {
@@ -73,8 +69,11 @@
       attempts: Number(row.attempts) || 0,
       solves: Number(row.solves) || 0,
       solve_rate: row.solve_rate,
-      mean_accuracy: row.mean_accuracy,
-      full_position_rate: row.full_position_rate,
+      themes: Array.isArray(row.themes) ? row.themes : [],
+      popularity: row.popularity,
+      nb_plays: row.nb_plays,
+      source: row.source || "",
+      watch_url: row.watch_url,
       _raw: row,
     };
   }
@@ -181,51 +180,10 @@
       });
   }
 
-  function setTab(name) {
-    var next = name === "puzzles" || name === "identify" ? name : "agents";
-    document.querySelectorAll("[data-lb-tab]").forEach(function (tab) {
-      var active = tab.getAttribute("data-lb-tab") === next;
-      tab.classList.toggle("is-active", active);
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-    });
-    document.querySelectorAll("[data-lb-panel]").forEach(function (panel) {
-      panel.hidden = panel.getAttribute("data-lb-panel") !== next;
-    });
-    try {
-      var url = new URL(window.location.href);
-      if (next === "agents") url.searchParams.delete("tab");
-      else url.searchParams.set("tab", next);
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    } catch (_err) {
-      /* ignore */
-    }
-  }
-
-  function initialTab() {
-    var search = window.location.search || "";
-    if (search.indexOf("tab=puzzles") >= 0) return "puzzles";
-    if (search.indexOf("tab=identify") >= 0) return "identify";
-    return "agents";
-  }
-
   document.addEventListener("DOMContentLoaded", function () {
-    if (!document.querySelector("[data-lb-tab]")) return;
-    setTab(initialTab());
-    document.querySelectorAll("[data-lb-tab]").forEach(function (tab) {
-      tab.addEventListener("click", function () { setTab(tab.getAttribute("data-lb-tab")); });
-    });
     function rows(list) {
       return function (data) { return Array.isArray(data[list]) ? data[list] : []; };
     }
-    var agentCells = [
-      function (r, i) { return td(i + 1, "rank"); },
-      function (r) { return td(escapeHtml(r.name)); },
-      function (r) { return td(fmtNum(r.rating, 1)); },
-      function (r) { return td(fmtNum(r.deviation, 1)); },
-      function (r) { return td(String(r.attempts)); },
-      function (r) { return td(String(r.solves)); },
-      function (r) { return td(fmtPct(r.solve_rate)); },
-    ];
     var contentCells = [
       function (r, i) { return td(i + 1, "rank"); },
       function (r) { return td("<code>" + escapeHtml(r.id) + "</code>"); },
@@ -233,7 +191,7 @@
       function (r) { return td(String(r.attempts)); },
       function (r) { return td(fmtPct(r.solve_rate)); },
       function (r) {
-        var themes = Array.isArray(r.themes) ? r.themes.slice(0, 4).join(", ") : "";
+        var themes = r.themes.slice(0, 4).join(", ");
         return td(escapeHtml(themes) || "—");
       },
       function (r) { return td(fmtNum(r.popularity)); },
@@ -245,25 +203,6 @@
         return td(r.watch_url ? '<a href="' + escapeHtml(r.watch_url) + '">Replay</a>' : "—");
       },
     ];
-    var identifyCells = [
-      function (r, i) { return td(i + 1, "rank"); },
-      function (r) { return td(escapeHtml(r.name)); },
-      function (r) { return td(String(r.attempts)); },
-      function (r) { return td(fmtPct(r.mean_accuracy)); },
-      function (r) { return td(fmtPct(r.full_position_rate)); },
-    ];
-    document.querySelectorAll("[data-puzzle-leaderboard]").forEach(function (root) {
-      mountTable(root, {
-        numericKeys: ["rating", "deviation", "attempts", "solves", "solve_rate"],
-        columns: ["rating", "deviation", "attempts", "solves", "solve_rate"],
-        defaultSort: { key: "rating", dir: "desc" },
-        storageKey: PUZZLES_SORT_KEY,
-        snapshotUrl: PUZZLES_SNAPSHOT_URL,
-        liveUrl: PUZZLES_LIVE_URL,
-        rowsGetter: rows("agents"),
-        rowsRenderer: makeRenderer("No puzzle attempts yet. Agents solve puzzles through the /api/v1/puzzles flow.", agentCells),
-      });
-    });
     document.querySelectorAll("[data-puzzle-content-leaderboard]").forEach(function (root) {
       mountTable(root, {
         numericKeys: ["rating", "attempts", "solves", "solve_rate", "popularity", "nb_plays"],
@@ -274,18 +213,6 @@
         liveUrl: PUZZLES_LIVE_URL,
         rowsGetter: rows("puzzles"),
         rowsRenderer: makeRenderer("No attempted puzzles yet. Solve-rate data appears once agents finish attempts.", contentCells),
-      });
-    });
-    document.querySelectorAll("[data-identify-leaderboard]").forEach(function (root) {
-      mountTable(root, {
-        numericKeys: ["attempts", "mean_accuracy", "full_position_rate"],
-        columns: ["attempts", "mean_accuracy", "full_position_rate"],
-        defaultSort: { key: "mean_accuracy", dir: "desc" },
-        storageKey: IDENTIFY_SORT_KEY,
-        snapshotUrl: IDENTIFY_SNAPSHOT_URL,
-        liveUrl: IDENTIFY_LIVE_URL,
-        rowsGetter: rows("agents"),
-        rowsRenderer: makeRenderer("No board-identification attempts yet.", identifyCells),
       });
     });
   });

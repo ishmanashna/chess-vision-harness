@@ -9,12 +9,16 @@ import {
  * @param {URL} url
  * @returns {Response | null}
  */
-function humanCreateRedirect(url) {
+function launcherRedirect(url) {
   const pathname = url.pathname;
-  if (pathname !== "/create" && pathname !== "/create/") return null;
-  const mode = url.searchParams.get("mode");
-  if (mode === "human" || mode === "avh") {
-    return Response.redirect(new URL("/human/", url.origin), 301);
+  if (pathname === "/create" || pathname === "/create/") {
+    return Response.redirect(new URL("/launch/?flow=engine", url.origin), 301);
+  }
+  if (pathname === "/human" || pathname === "/human/") {
+    return Response.redirect(new URL("/launch/?flow=playground", url.origin), 301);
+  }
+  if (pathname === "/puzzles" || pathname === "/puzzles/") {
+    return Response.redirect(new URL("/launch/?flow=puzzles", url.origin), 301);
   }
   return null;
 }
@@ -28,8 +32,8 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
-  const humanRedirect = humanCreateRedirect(url);
-  if (humanRedirect) return humanRedirect;
+  const redirect = launcherRedirect(url);
+  if (redirect) return redirect;
 
   if (isCalibrationPath(pathname)) {
     return new Response("Not Found", {

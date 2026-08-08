@@ -94,7 +94,7 @@ def render_play_page(game_id: str) -> str:
       </div>
       <p class="play-links">
         <a href="{spectate}">Spectate this game</a>
-        · <a href="/human/">Create another Playground game</a>
+        · <a href="/launch/?flow=playground">Create another Playground game</a>
         <span class="play-download-slot" data-download-slot hidden>
           · <button type="button" class="export-link" data-download-board>Download position</button>
         </span>

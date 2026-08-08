@@ -29,7 +29,6 @@
       "/contact": "nav-contact",
       "/launch": "nav-create",
       "/create": "nav-create",
-      "/human": "nav-human",
       "/spectator": "nav-spectator",
       "/active": "nav-spectator",
       "/completed": "nav-spectator",
@@ -39,7 +38,7 @@
     if (!activeId && current.indexOf("/g/") === 0) activeId = "nav-spectator";
     if (!activeId && current.indexOf("/p/") === 0) activeId = "nav-spectator";
     if (!activeId && current.indexOf("/i/") === 0) activeId = "nav-spectator";
-    if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-human";
+    if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-create";
     if (!activeId) return;
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
@@ -126,7 +125,16 @@
     });
   }
 
-  var AGENT_NUMERIC_KEYS = ["elo", "mean_accuracy", "mean_play_rating", "games"];
+  var AGENT_NUMERIC_KEYS = [
+    "elo",
+    "mean_accuracy",
+    "mean_play_rating",
+    "games",
+    "puzzle_rating",
+    "puzzle_solve_rate",
+    "identify_mean_accuracy",
+    "identify_full_position_rate",
+  ];
 
   function normalizeAgentRow(agent) {
     return {
@@ -137,6 +145,10 @@
       mean_play_rating: agent.mean_play_rating,
       games: Number(agent.games) || 0,
       provisional: agent.provisional,
+      puzzle_rating: agent.puzzle_rating,
+      puzzle_solve_rate: agent.puzzle_solve_rate,
+      identify_mean_accuracy: agent.identify_mean_accuracy,
+      identify_full_position_rate: agent.identify_full_position_rate,
       _raw: agent,
     };
   }
@@ -230,17 +242,26 @@
     return String(Math.round(n));
   }
 
-  function leaderboardColCount(fullColumns, showModelId) {
+  /** Fraction (0..1) displayed as a percentage, or "—" when absent. */
+  function formatRatePct(value) {
+    if (value == null || value === "") return "—";
+    var n = Number(value);
+    if (isNaN(n)) return "—";
+    return (n * 100).toFixed(1) + "%";
+  }
+
+  function leaderboardColCount(fullColumns, showModelId, unified) {
     var n = fullColumns ? 6 : 4;
+    if (unified) n += 4;
     if (showModelId) n += 1;
     return n;
   }
 
-  function renderLeaderboardRows(agents, limit, fullColumns, showModelId, sortKey, sortDir) {
+  function renderLeaderboardRows(agents, limit, fullColumns, showModelId, unified, sortKey, sortDir) {
     var rows = (Array.isArray(agents) ? agents : []).map(normalizeAgentRow);
     var sorted = sortAgentRows(rows, sortKey, sortDir);
     var slice = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
-    var colCount = leaderboardColCount(fullColumns, showModelId);
+    var colCount = leaderboardColCount(fullColumns, showModelId, unified);
     if (!slice.length) {
       return (
         '<tr><td colspan="' +
@@ -271,6 +292,22 @@
             escapeHtml(formatQualityMean(agent.mean_play_rating)) +
             "</td>"
           : "";
+        var unifiedCells = unified
+          ? '<td title="' +
+            escapeHtml("Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it.") +
+            '">' +
+            escapeHtml(row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(formatRatePct(row.puzzle_solve_rate)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(formatRatePct(row.identify_full_position_rate)) +
+            "</td>"
+          : "";
         var modelCell = showModelId
           ? "<td><code>" + escapeHtml(agent.id || "") + "</code></td>"
           : "";
@@ -294,6 +331,7 @@
           "<td>" +
           games +
           "</td>" +
+          unifiedCells +
           modelCell +
           "</tr>"
         );
@@ -333,6 +371,9 @@
     var showModelId =
       options.showModelId === true ||
       container.hasAttribute("data-show-model-id");
+    var unified =
+      options.unified === true ||
+      container.hasAttribute("data-show-unified-stats");
     var table = container.querySelector("table");
     var tbody = container.querySelector("tbody");
     var ts = window.CVH && window.CVH.tableSort;
@@ -356,6 +397,7 @@
         limit,
         fullColumns,
         showModelId,
+        unified,
         sortKey,
         sortDir
       );
@@ -445,7 +487,7 @@
       })
       .catch(function () {
         if (tbody) {
-          var colCount = leaderboardColCount(fullColumns, showModelId);
+          var colCount = leaderboardColCount(fullColumns, showModelId, unified);
           tbody.innerHTML =
             '<tr><td colspan="' +
             colCount +

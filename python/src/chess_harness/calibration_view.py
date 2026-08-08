@@ -235,7 +235,7 @@ def get_calibration_status() -> Dict[str, Any]:
                     recent.append(json.loads(line))
 
     rating_table = build_ladder_rating_table(catalog, calibration)
-    rating_table = mgr.enrich_rating_rows([r for r in rating_table if not r.get("anchor")])
+    rating_table = mgr.enrich_rating_rows(rating_table)
 
     from .play_rating import load_play_rating_map, play_rating_status_summary
 

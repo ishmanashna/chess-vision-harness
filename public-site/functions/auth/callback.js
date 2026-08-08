@@ -84,7 +84,7 @@ export async function onRequestGet({ request, env }) {
     request
   );
 
-  const headers = new Headers({ Location: "/create/" });
+  const headers = new Headers({ Location: "/launch/" });
   headers.append("Set-Cookie", sessionCookie);
   headers.append("Set-Cookie", clearCookie(STATE_COOKIE, request));
   return new Response(null, { status: 302, headers });

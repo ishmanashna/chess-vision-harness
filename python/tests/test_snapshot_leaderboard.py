@@ -4,6 +4,8 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from chess_harness.play_rating import map_path
@@ -71,6 +73,14 @@ def test_build_snapshot_sorts_and_flags_provisional(tmp_path):
         "mean_accuracy": None,
         "mean_play_rating": None,
         "quality_games": 0,
+        "puzzle_rating": None,
+        "puzzle_deviation": None,
+        "puzzle_attempts": 0,
+        "puzzle_solves": 0,
+        "puzzle_solve_rate": None,
+        "identify_attempts": 0,
+        "identify_mean_accuracy": None,
+        "identify_full_position_rate": None,
     }
     assert snapshot["agents"][1]["provisional"] is False
 
@@ -100,6 +110,14 @@ def test_export_leaderboard_snapshot_writes_file(tmp_path, monkeypatch):
             "mean_accuracy": None,
             "mean_play_rating": None,
             "quality_games": 0,
+            "puzzle_rating": None,
+            "puzzle_deviation": None,
+            "puzzle_attempts": 0,
+            "puzzle_solves": 0,
+            "puzzle_solve_rate": None,
+            "identify_attempts": 0,
+            "identify_mean_accuracy": None,
+            "identify_full_position_rate": None,
         }
     ]
     assert data["generated_at"].endswith("Z")
@@ -346,6 +364,50 @@ def test_build_snapshot_includes_quality_stats(tmp_path):
     assert agent["mean_accuracy"] == 90.0
     assert agent["mean_play_rating"] == 800.0
     assert agent["quality_games"] == 1
+
+
+def test_build_snapshot_merges_puzzle_and_identify_stats(tmp_path):
+    models_file = tmp_path / "models.json"
+    models_file.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {"id": "agent-a", "name": "Agent A", "elo": 700.0},
+                    {"id": "agent-b", "name": "Agent B", "elo": 680.0},
+                    {"id": "puzzle-only", "name": "Puzzle Only", "elo": 500.0},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    registry = ModelRegistry(models_file)
+    snapshot = build_snapshot(
+        registry,
+        {"agent-a": 10, "agent-b": 5},
+        include_opponents=False,
+        puzzle_agents=[
+            {"id": "agent-a", "name": "Agent A", "rating": 1650.0, "deviation": 80.0,
+             "attempts": 3, "solves": 2, "solve_rate": 0.6667},
+            {"id": "puzzle-only", "name": "Puzzle Only", "rating": 1400.0, "deviation": 90.0,
+             "attempts": 1, "solves": 1, "solve_rate": 1.0},
+        ],
+        identify_agents=[
+            {"id": "agent-a", "name": "Agent A", "attempts": 4,
+             "mean_accuracy": 0.75, "full_position_rate": 0.5},
+        ],
+    )
+    by_id = {a["id"]: a for a in snapshot["agents"]}
+    aa = by_id["agent-a"]
+    assert aa["puzzle_rating"] == 1650.0 and aa["puzzle_solve_rate"] == pytest.approx(0.6667)
+    assert aa["puzzle_attempts"] == 3 and aa["puzzle_solves"] == 2
+    assert aa["identify_attempts"] == 4
+    assert aa["identify_mean_accuracy"] == pytest.approx(0.75)
+    assert aa["identify_full_position_rate"] == pytest.approx(0.5)
+    ab = by_id["agent-b"]
+    assert ab["puzzle_rating"] is None and ab["puzzle_attempts"] == 0
+    assert ab["identify_attempts"] == 0 and ab["identify_mean_accuracy"] is None
+    po = by_id["puzzle-only"]
+    assert po["games"] == 0 and po["puzzle_rating"] == 1400.0 and po["elo"] == 500
 
 
 def test_aggregate_quality_uses_stored_play_rating(tmp_path):

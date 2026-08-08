@@ -20,6 +20,7 @@
   var pollTimer = null;
   var activeLobbyId = null;
   var activeLobbyApiKey = null;
+  var agentsForLoad = [];
 
   var FLOW_META = {
     engine: { heading: "Create Game", card: "Rated game vs engine", submit: "Start game", aside: "engine" },
@@ -60,6 +61,33 @@
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
+  }
+
+  var ID_SUFFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+  function randomIdSuffix(len) {
+    var out = "";
+    for (var i = 0; i < len; i++) {
+      out += ID_SUFFIX_CHARS.charAt(Math.floor(Math.random() * ID_SUFFIX_CHARS.length));
+    }
+    return out;
+  }
+
+  function slugify(value) {
+    var slug = String(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return slug || "model";
+  }
+
+  function generateModelId(displayName, occupied) {
+    var base = slugify(displayName).slice(0, 32);
+    var id;
+    do {
+      id = base + "-" + randomIdSuffix(6);
+    } while (occupied.indexOf(id) >= 0);
+    return id;
   }
 
   function createEngineGame(apiKey) {
@@ -107,6 +135,7 @@
     var list = Array.isArray(selects) ? selects : [selects];
     return apiJson("/api/v1/agents").then(function (data) {
       var agents = Array.isArray(data.agents) ? data.agents : [];
+      agentsForLoad = agents.map(function (agent) { return agent.id || ""; });
       list.forEach(function (selectEl) {
         if (!selectEl) return;
         var placeholder =
@@ -114,7 +143,7 @@
             ? "Select white model…"
             : selectEl.id === "black-model-select"
               ? "Select black model…"
-              : "Select inscribed model…";
+              : "Select your model…";
         fillModelSelect(selectEl, agents, placeholder);
       });
       return agents;
@@ -151,24 +180,17 @@
   function hideChrome(root) {
     var form = root.querySelector("[data-create-form]");
     if (form) form.hidden = true;
-    root.querySelectorAll(".mode-tabs:not(.pairing-tabs)").forEach(function (el) {
-      el.hidden = true;
-    });
   }
 
-  function resolveModelAndKey(selectEl, newModelId, newModelName) {
-    var freshId = (newModelId && newModelId.value || "").trim();
+  function resolveModelAndKey(selectEl) {
     var modelId = (selectEl && selectEl.value || "").trim();
-    var chosenId = freshId || modelId;
-    if (!chosenId) {
+    if (!modelId) {
       return Promise.reject(new Error("Select an inscribed model, or inscribe one below."));
     }
-    return registerAgent(chosenId, freshId ? (newModelName && newModelName.value || undefined) : undefined).then(
-      function (reg) {
-        if (!reg.api_key) throw new Error("No API key returned.");
-        return { apiKey: reg.api_key, modelId: reg.id || chosenId };
-      }
-    );
+    return registerAgent(modelId).then(function (reg) {
+      if (!reg.api_key) throw new Error("No API key returned.");
+      return { apiKey: reg.api_key, modelId: reg.id || modelId };
+    });
   }
 
   function resolveDirectPair(whiteSelect, blackSelect) {
@@ -244,7 +266,7 @@
       '<div class="form-message form-message-ok">' +
       "<strong>" + escapeHtml(kind === "identify" ? "Board identification started" : "Puzzle started") + "</strong> · " +
       escapeHtml(label) +
-      ' · <a href="/leaderboard/?tab=' + (kind === "identify" ? "identify" : "puzzles") + '">Leaderboard</a></div>' +
+      ' · <a href="/leaderboard/">Leaderboard</a></div>' +
       '<p class="game-id-line">Attempt ID: <code>' + escapeHtml(attemptId) + "</code></p>" +
       (data.agent_brief
         ? resultApi.renderBriefCollapsible(data.agent_brief, escapeHtml)
@@ -257,7 +279,7 @@
   }
 
   /* --- module-local refs, assigned in mount --- */
-  var root, modelSelect, whiteSelect, blackSelect, newModelId, newModelName;
+  var root, modelSelect, whiteSelect, blackSelect, modeSelect, newModelName;
   var submitBtn, messageEl, inscribeBtn, resultEl, nicknameEl;
   var singleModelRow, directFields, pairingTabs, nicknameField;
 
@@ -277,11 +299,7 @@
     flow = VALID_FLOWS.indexOf(name) >= 0 ? name : "engine";
     var meta = FLOW_META[flow];
 
-    root.querySelectorAll("[data-launch-flow]").forEach(function (tab) {
-      var active = tab.getAttribute("data-launch-flow") === flow;
-      tab.classList.toggle("is-active", active);
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-    });
+    if (modeSelect) modeSelect.value = flow;
 
     var heading = root.querySelector("[data-launch-heading]");
     var cardHeading = root.querySelector("[data-launch-card-heading]");
@@ -323,7 +341,7 @@
     root.classList.toggle("create-online", online);
     var form = root.querySelector("[data-create-form]");
     if (form) form.hidden = !online;
-    [modelSelect, whiteSelect, blackSelect, newModelId, newModelName, inscribeBtn].forEach(function (el) {
+    [modelSelect, whiteSelect, blackSelect, newModelName, inscribeBtn].forEach(function (el) {
       if (el) el.disabled = !online;
     });
     if (submitBtn) submitBtn.disabled = !online;
@@ -360,7 +378,7 @@
   }
 
   function handleEngineSubmit() {
-    return resolveModelAndKey(modelSelect, newModelId, newModelName)
+    return resolveModelAndKey(modelSelect)
       .then(function (ctx) { return createEngineGame(ctx.apiKey); })
       .then(function (game) {
         if (!resultApi) throw new Error("Result module missing.");
@@ -380,7 +398,7 @@
           resultApi.showDualBriefResult(root, game, { escapeHtml: escapeHtml });
         });
     }
-    return resolveModelAndKey(modelSelect, newModelId, newModelName)
+    return resolveModelAndKey(modelSelect)
       .then(function (ctx) {
         if (!matchApi) throw new Error("Matchmaking module missing.");
         activeLobbyApiKey = ctx.apiKey;
@@ -392,7 +410,7 @@
 
   function handlePlaygroundSubmit() {
     var nickname = (nicknameEl && nicknameEl.value || "").trim();
-    return resolveModelAndKey(modelSelect, newModelId, newModelName)
+    return resolveModelAndKey(modelSelect)
       .then(function (ctx) { return createHumanGame(ctx.apiKey, nickname); })
       .then(function (game) { showHumanResult(root, game); });
   }
@@ -402,7 +420,7 @@
     var label =
       (modelSelect.selectedOptions[0] && modelSelect.selectedOptions[0].textContent) ||
       (modelSelect && modelSelect.value) || "";
-    return resolveModelAndKey(modelSelect, newModelId, newModelName)
+    return resolveModelAndKey(modelSelect)
       .then(function (ctx) { return startAttempt(kind, ctx.apiKey); })
       .then(function (data) { showPuzzleResult(root, kind, data, label); });
   }
@@ -414,7 +432,7 @@
     modelSelect = root.querySelector("#model-select");
     whiteSelect = root.querySelector("#white-model-select");
     blackSelect = root.querySelector("#black-model-select");
-    newModelId = root.querySelector("#new-model-id");
+    modeSelect = root.querySelector("[data-launch-mode]");
     newModelName = root.querySelector("#new-model-name");
     nicknameEl = root.querySelector("#human-nickname");
     submitBtn = root.querySelector("[data-launch-submit]");
@@ -438,8 +456,8 @@
       },
     });
 
-    root.querySelectorAll("[data-launch-flow]").forEach(function (tab) {
-      tab.addEventListener("click", function () {
+    root.querySelectorAll("[data-launch-mode]").forEach(function (selectEl) {
+      selectEl.addEventListener("change", function () {
         stopWaitPoll();
         stopPoll();
         if (root.dataset.avaaWaiting) {
@@ -451,7 +469,7 @@
         resultEl.hidden = true;
         resultEl.innerHTML = "";
         setMessage(messageEl, null, "");
-        setFlowId(tab.getAttribute("data-launch-flow"));
+        setFlowId(selectEl.value);
       });
     });
 
@@ -464,19 +482,23 @@
     if (inscribeBtn) {
       inscribeBtn.addEventListener("click", function () {
         setMessage(messageEl, null, "");
-        var id = (newModelId && newModelId.value || "").trim();
         var name = (newModelName && newModelName.value || "").trim();
-        if (!id) {
-          setMessage(messageEl, "error", "Enter a model id to inscribe.");
+        if (!name) {
+          setMessage(messageEl, "error", "Enter a display name.");
           return;
         }
+        var id = generateModelId(name, agentsForLoad);
         inscribeBtn.disabled = true;
-        registerAgent(id, name || undefined)
+        registerAgent(id, name)
           .then(function () {
-            setMessage(messageEl, "ok", "Model inscribed. Select it above, then start.");
-            if (newModelId) newModelId.value = "";
+            setMessage(messageEl, "ok", "Model inscribed as " + id + " and selected below.");
             if (newModelName) newModelName.value = "";
             return loadAgents([modelSelect, whiteSelect, blackSelect]);
+          })
+          .then(function () {
+            [modelSelect, whiteSelect, blackSelect].forEach(function (sel) {
+              if (sel && sel.querySelector('option[value="' + id + '"]')) sel.value = id;
+            });
           })
           .catch(function (err) {
             setMessage(messageEl, "error", err.message || "Inscribe failed.");
