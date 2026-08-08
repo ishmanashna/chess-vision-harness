@@ -156,7 +156,7 @@ def test_live_puzzle_and_identify_leaderboards(tmp_path, monkeypatch):
                      "/data/puzzles_leaderboard.json", "/data/identify_leaderboard.json"):
             resp = client.get(path)
             assert resp.status_code == 200
-            assert resp.headers.get("cache-control") == "no-store"
+            assert resp.headers.get("cache-control") == "public, max-age=5"
             data = resp.json()
             assert isinstance(data.get("agents"), list)
             assert isinstance(data.get("generated_at"), str)
@@ -185,6 +185,21 @@ def test_puzzles_launcher_page_has_tabs_and_scripts():
     assert "/api/v1/identify/start" in js
     assert '"/p/" + attemptId' in js
     assert '"/i/" + attemptId' in js
+
+
+def test_launch_page_has_five_flows_and_scripts():
+    text = (ROOT / "public-site" / "launch" / "index.html").read_text(encoding="utf-8")
+    for flow in ("engine", "avaa", "playground", "puzzles", "identify"):
+        assert 'data-launch-flow="%s"' % flow in text
+    for needle in ('data-launch-page', "data-create-form", "data-create-result",
+                   "data-inscribe-submit", "/js/launcher.js", "/js/create-result.js",
+                   "/js/create-match.js", "/js/create-human-wait.js"):
+        assert needle in text, needle
+    js = (ROOT / "public-site" / "js" / "launcher.js").read_text(encoding="utf-8")
+    for needle in ('"/api/v1/games"', '"/api/v1/games/human"',
+                   '"/api/v1/games/agent-vs-agent"', '"/api/v1/puzzles/start"',
+                   '"/api/v1/identify/start"', '"/api/v1/agents"'):
+        assert needle in js, needle
 
 
 def test_all_headers_have_puzzles_nav():

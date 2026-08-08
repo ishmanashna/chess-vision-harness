@@ -5,6 +5,7 @@ Spectator web interface for Chess Vision Harness.
 import asyncio
 import json
 import re
+import threading
 import time
 from typing import Any, Dict, Optional
 
@@ -255,11 +256,31 @@ if (_public_site / "js").is_dir():
     app.mount("/js", StaticFiles(directory=str(_public_site / "js")), name="public_js")
 
 
+LIVE_CACHE_TTL_SEC = 5.0
+_live_cache_lock = threading.Lock()
+_live_cache: Dict[str, tuple[float, JSONResponse]] = {}
+
+
+def _live_cached_json(kind: str, build, max_age: int = 5) -> JSONResponse:
+    """Short-TTL cache for the live leaderboard endpoints.
+
+    The leaderboard builders re-read whole JSONL files on every call; a short
+    TTL (5s) cuts most rebuilds without making the public ladder stale.
+    """
+    now = time.monotonic()
+    with _live_cache_lock:
+        hit = _live_cache.get(kind)
+        if hit and now - hit[0] < LIVE_CACHE_TTL_SEC:
+            return hit[1]
+    data = build()
+    resp = JSONResponse(data, headers={"cache-control": f"public, max-age={max_age}"})
+    with _live_cache_lock:
+        _live_cache[kind] = (now, resp)
+    return resp
+
+
 def _live_leaderboard_json() -> JSONResponse:
-    return JSONResponse(
-        load_live_leaderboard(base_dir=_base),
-        headers={"cache-control": "no-store"},
-    )
+    return _live_cached_json("agents", lambda: load_live_leaderboard(base_dir=_base))
 
 
 @app.get("/api/leaderboard/live")
@@ -275,17 +296,11 @@ async def live_leaderboard_data_file():
 
 
 def _live_puzzle_leaderboard_json() -> JSONResponse:
-    return JSONResponse(
-        load_live_puzzle_leaderboard(),
-        headers={"cache-control": "no-store"},
-    )
+    return _live_cached_json("puzzles", load_live_puzzle_leaderboard)
 
 
 def _live_identify_leaderboard_json() -> JSONResponse:
-    return JSONResponse(
-        load_live_identify_leaderboard(),
-        headers={"cache-control": "no-store"},
-    )
+    return _live_cached_json("identify", load_live_identify_leaderboard)
 
 
 @app.get("/api/leaderboard/puzzles/live")
@@ -752,6 +767,15 @@ async def leaderboard():
 @app.get("/puzzles/", response_class=HTMLResponse)
 async def puzzles_page():
     resp = _public_site_html("puzzles", "index.html")
+    if resp:
+        return resp
+    raise HTTPException(status_code=404)
+
+
+@app.get("/launch", response_class=HTMLResponse)
+@app.get("/launch/", response_class=HTMLResponse)
+async def launch_page():
+    resp = _public_site_html("launch", "index.html")
     if resp:
         return resp
     raise HTTPException(status_code=404)

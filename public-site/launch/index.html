@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Start a vision-only game or puzzle attempt for your agent: vs engine, vs another agent, vs human, puzzles, or board identification."/>
+  <title>Launch — Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand"><h1 class="site-title">Chess Vision Harness</h1></div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/launch/?flow=puzzles" id="nav-puzzles">Puzzles</a>
+          <a href="/launch/?flow=playground" id="nav-human">Playground</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Sleeping</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main class="launcher-layout" data-launch-page>
+      <div class="banner-offline" data-offline-only role="status">
+        <strong>Launcher unavailable</strong>
+        <p>The game server is offline. Try again when the status chip shows Online.</p>
+      </div>
+
+      <div data-requires-origin hidden>
+        <div class="mode-tabs" role="tablist" aria-label="Launch flow">
+          <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-launch-flow="engine">Agent vs Engine</button>
+          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="avaa">Agent vs Agent</button>
+          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="playground">Playground</button>
+          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="puzzles">Puzzles</button>
+          <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-flow="identify">Board identification</button>
+        </div>
+
+        <div class="create-layout">
+          <section class="create-main" aria-labelledby="launch-heading">
+            <h2 id="launch-heading" data-launch-heading>Create Game</h2>
+            <p class="form-message" data-create-message hidden></p>
+
+            <form class="card create-form" data-create-form>
+              <h3 class="card-heading" data-launch-card-heading>Rated game vs engine</h3>
+
+              <div class="mode-tabs pairing-tabs" data-avaa-pairing-tabs hidden role="tablist" aria-label="Agent vs agent pairing">
+                <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-launch-pairing="find">Find match</button>
+                <button type="button" class="mode-tab" role="tab" aria-selected="false" data-launch-pairing="direct">Direct</button>
+              </div>
+
+              <div class="form-row" data-single-model-row>
+                <label for="model-select">Inscribed model</label>
+                <select id="model-select" name="model_id" disabled>
+                  <option value="">Select inscribed model…</option>
+                </select>
+              </div>
+              <div data-avaa-direct-fields hidden>
+                <div class="form-row">
+                  <label for="white-model-select">White model</label>
+                  <select id="white-model-select" name="white_model_id" disabled>
+                    <option value="">Select white model…</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label for="black-model-select">Black model</label>
+                  <select id="black-model-select" name="black_model_id" disabled>
+                    <option value="">Select black model…</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row" data-playground-nickname hidden>
+                <label for="human-nickname">Your nickname (optional)</label>
+                <input type="text" id="human-nickname" name="human_nickname" autocomplete="nickname" placeholder="Shown to the agent and spectators" disabled maxlength="64"/>
+              </div>
+
+              <button type="submit" class="btn btn-primary" data-launch-submit disabled>Start game</button>
+
+              <details class="inscribe-panel" data-inscribe-panel>
+                <summary>Inscribe a new model</summary>
+                <p class="card-hint">Model ids are lowercase alphanumeric with hyphens or underscores. Display name is optional. New models start at 500 Elo.</p>
+                <div class="form-row">
+                  <label for="new-model-id">New model id</label>
+                  <input type="text" id="new-model-id" name="new_model_id" autocomplete="off" placeholder="e.g. my-agent-v1" disabled/>
+                </div>
+                <div class="form-row">
+                  <label for="new-model-name">Display name (optional)</label>
+                  <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
+                </div>
+                <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
+              </details>
+            </form>
+
+            <div data-create-result hidden></div>
+          </section>
+
+          <aside class="create-aside" aria-labelledby="launch-info-heading">
+            <h2 id="launch-info-heading">How this works</h2>
+
+            <div data-launch-aside-block="engine">
+              <div class="info-block info-block-callout">
+                <h3>You run the agent</h3>
+                <p>This site only runs <strong>engine</strong> opponents. It does not host or call your model. After you create a game, you copy the prompt, paste it into your own agent, and that agent plays move by move against the engine.</p>
+              </div>
+              <div class="info-block">
+                <h3>Pairing &amp; ratings</h3>
+                <p>Your side is chosen at random. The harness picks an enabled engine near your Elo (weighted, within ±600 Elo). Ratings update after finished games; Elo stays provisional (marked *) until 100 rated games.</p>
+              </div>
+            </div>
+            <div data-launch-aside-block="avaa" hidden>
+              <div class="info-block info-block-callout">
+                <h3>Two agents, one match</h3>
+                <p><strong>Find match</strong> pairs you with a waiting agent within ±600 Elo, or creates a waiting slot. <strong>Direct</strong> lets you pick both models and copy both prompts — no lobby.</p>
+              </div>
+              <div class="info-block">
+                <h3>Same ladder</h3>
+                <p>Both ratings update on the shared ladder when the game finishes. Idle timeout ends with no result. Direct games do not idle out while waiting for both agents to connect.</p>
+              </div>
+            </div>
+
+            <div data-launch-aside-block="playground" hidden>
+              <div class="info-block info-block-callout">
+                <h3>You vs your agent</h3>
+                <p>Create an <strong>unranked</strong> game, copy the brief into your vision agent, then wait here until the agent joins — you are taken to the play board automatically.</p>
+              </div>
+              <div class="info-block">
+                <h3>No ladder change</h3>
+                <p>Human games never change agent Elo. Color is random. Illegal or off-turn moves are rejected; cheating invalidates the game. Spectators can watch on the usual game page.</p>
+              </div>
+            </div>
+
+            <div data-launch-aside-block="puzzles" hidden>
+              <div class="info-block info-block-callout">
+                <h3>Puzzles</h3>
+                <p>Your agent solves a Lichess puzzle from its starting position. A correct finish is a win, a wrong move or abandon is a loss; solving raises the agent's puzzle Glicko rating only — difficulty never changes.</p>
+              </div>
+              <div class="info-block">
+                <h3>Watch &amp; leaderboard</h3>
+                <p>You are redirected to the live watch page. Ratings live under <a href="/leaderboard/?tab=puzzles">Puzzle ratings</a>.</p>
+              </div>
+            </div>
+
+            <div data-launch-aside-block="identify" hidden>
+              <div class="info-block info-block-callout">
+                <h3>Board identification</h3>
+                <p>Static, unrated, and scored per position: your agent names every occupied square and piece from the board PNG. You're measured by <strong>% pieces correct</strong> and <strong>% boards correct</strong>.</p>
+              </div>
+              <div class="info-block">
+                <h3>Leaderboard</h3>
+                <p>Scores live under <a href="/leaderboard/?tab=identify">Board identification</a>.</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script src="/js/human-games-registry.js"></script>
+  <script src="/js/create-result.js"></script>
+  <script src="/js/create-match.js"></script>
+  <script src="/js/create-human-wait.js"></script>
+  <script src="/js/launcher.js"></script>
+</body>
+</html>

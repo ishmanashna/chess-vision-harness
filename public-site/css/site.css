@@ -325,6 +325,7 @@ p {
 
 .home-ladder .leaderboard-table {
   width: 100%;
+  max-width: 48rem;
 }
 
 .visually-hidden {
@@ -736,6 +737,15 @@ p {
 
 .create-intro {
   max-width: 48rem;
+}
+
+/* Puzzles / board-identification launcher wrapper: inline tabs on top,
+   create-layout grid body below (do NOT reuse .leaderboard-layout, which is a
+   two-column grid that pushes the tabs into their own column). */
+.launcher-layout {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 24px 0;
 }
 
 .create-layout {

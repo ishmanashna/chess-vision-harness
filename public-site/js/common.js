@@ -27,6 +27,7 @@
       "/": "nav-home",
       "/leaderboard": "nav-leaderboard",
       "/contact": "nav-contact",
+      "/launch": "nav-create",
       "/create": "nav-create",
       "/human": "nav-human",
       "/spectator": "nav-spectator",

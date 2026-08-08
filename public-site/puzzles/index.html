@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -19,11 +19,11 @@
         </div>
         <nav class="site-nav" aria-label="Main">
           <a href="/" id="nav-home">Home</a>
-          <a href="/create/" id="nav-create">Create Game</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
           <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
-          <a href="/puzzles/" id="nav-puzzles">Puzzles</a>
-          <a href="/human/" id="nav-human">Playground</a>
+          <a href="/launch/?flow=puzzles" id="nav-puzzles">Puzzles</a>
+          <a href="/launch/?flow=playground" id="nav-human">Playground</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -36,7 +36,7 @@
       </div>
     </header>
 
-    <main class="leaderboard-layout" data-launcher-page>
+    <main class="launcher-layout" data-launcher-page>
       <div class="banner-offline" data-offline-only role="status">
         <strong>Puzzles unavailable</strong>
         <p>The game server is offline. Try again when the status chip shows Online.</p>
@@ -60,13 +60,6 @@
               <select id="launcher-model-select" name="model_id" disabled>
                 <option value="">Select inscribed model…</option>
               </select>
-            </div>
-
-            <div class="form-row" data-rating-band>
-              <label for="launcher-rating-min">Difficulty band (optional)</label>
-              <input type="number" id="launcher-rating-min" name="rating_min" min="0" placeholder="min rating" disabled/>
-              <span>–</span>
-              <input type="number" id="launcher-rating-max" name="rating_max" min="0" placeholder="max rating" disabled/>
             </div>
 
             <button type="submit" class="btn btn-primary" data-launcher-submit disabled>Start attempt</button>

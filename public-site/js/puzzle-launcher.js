@@ -38,8 +38,8 @@
 
   function startAttempt(kind, apiKey, ratingMin, ratingMax) {
     var params = [];
-    if (ratingMin !== "") params.push("rating_min=" + encodeURIComponent(ratingMin));
-    if (ratingMax !== "") params.push("rating_max=" + encodeURIComponent(ratingMax));
+    if (ratingMin) params.push("rating_min=" + encodeURIComponent(ratingMin));
+    if (ratingMax) params.push("rating_max=" + encodeURIComponent(ratingMax));
     var suffix = params.length ? "?" + params.join("&") : "";
     var path = kind === "identify" ? "/api/v1/identify/start" : "/api/v1/puzzles/start";
     return apiJson(path + suffix, {
@@ -131,14 +131,14 @@
     result.innerHTML =
       '<div class="form-message form-message-ok">' +
       "<strong>" +
-      esc(kind === "identify" ? "Board identification started" : "Puzzle started") +
+      escapeHtml(kind === "identify" ? "Board identification started" : "Puzzle started") +
       "</strong> · " +
-      esc(modelLabel) +
+      escapeHtml(modelLabel) +
       ' · <a href="/leaderboard/?tab=' +
       (kind === "identify" ? "identify" : "puzzles") +
       '">Leaderboard</a></div>' +
       '<p class="game-id-line">Attempt ID: <code>' +
-      esc(attemptId) +
+      escapeHtml(attemptId) +
       "</code></p>" +
       (data.agent_brief
         ? renderBriefCollapsible(data.agent_brief, escapeHtml, watchPath, kind)
@@ -185,8 +185,6 @@
     var modelSelect = root.querySelector("#launcher-model-select");
     var newModelId = root.querySelector("#launcher-new-model-id");
     var newModelName = root.querySelector("#launcher-new-model-name");
-    var ratingMin = root.querySelector("#launcher-rating-min");
-    var ratingMax = root.querySelector("#launcher-rating-max");
     var submitBtn = root.querySelector("[data-launcher-submit]");
     var messageEl = root.querySelector("[data-launcher-message]");
     var inscribeBtn = root.querySelector("[data-launcher-inscribe]");
@@ -197,7 +195,7 @@
     function enableForm(online) {
       root.classList.toggle("create-online", online);
       if (form) form.hidden = !online;
-      [modelSelect, newModelId, newModelName, ratingMin, ratingMax, inscribeBtn].forEach(
+      [modelSelect, newModelId, newModelName, inscribeBtn].forEach(
         function (el) {
           if (el) el.disabled = !online;
         }
@@ -270,7 +268,7 @@
         registerAgent(modelId)
           .then(function (reg) {
             if (!reg.api_key) throw new Error("No API key returned.");
-            return startAttempt(kind, reg.api_key, ratingMin.value, ratingMax.value);
+            return startAttempt(kind, reg.api_key);
           })
           .then(function (data) {
             setMessage(messageEl, null, "");

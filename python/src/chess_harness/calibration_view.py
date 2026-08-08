@@ -23,7 +23,7 @@ def _results_root() -> Path:
 _MERGE_CACHE: Optional[Tuple[float, Dict[str, Dict[str, Any]]]] = None
 MERGE_CACHE_TTL_SEC = 2.0
 _STATUS_CACHE: Optional[Tuple[float, Dict[str, Any]]] = None
-STATUS_CACHE_TTL_SEC = 4.0
+STATUS_CACHE_TTL_SEC = 10.0
 
 
 def invalidate_merge_cache() -> None:
