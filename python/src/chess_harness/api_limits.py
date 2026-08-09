@@ -21,6 +21,7 @@ from .paths import resolve_base_dir
 __all__ = [
     "ApiLimitEnforcer",
     "AuthContext",
+    "PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR",
     "limit_error",
     "client_ip",
     "key_fingerprint",
@@ -43,6 +44,11 @@ def get_limit_enforcer() -> "ApiLimitEnforcer":
 
 
 _WINDOW_SEC = 3600.0
+
+# Per-(client ip, fingerprint) cap on public attempts-list scans driven by the
+# ``by_key`` (attempt chain) filter: enough for watch-page auto-follow cadence
+# (a few requests per minute) while stopping unbounded key-scanning loops.
+PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR = 600
 
 
 def _trusted_proxy_networks() -> list[ipaddress._BaseNetwork]:
@@ -180,6 +186,7 @@ class ApiLimitEnforcer:
         self._moves_by_key = _SlidingWindow()
         self._imagines_by_key = _SlidingWindow()
         self._registrations_by_ip = _SlidingWindow()
+        self._public_by_key_by_ip = _SlidingWindow()
 
     def limits(self) -> HarnessLimits:
         return self._limits if self._limits is not None else self._get_limits()
@@ -278,6 +285,27 @@ class ApiLimitEnforcer:
             )
         return None
 
+    def check_public_by_key(
+        self, request: Request, fingerprint: str
+    ) -> Optional[JSONResponse]:
+        """Per-IP+key sliding window on public ``by_key`` attempt-chain scans."""
+        window_key = f"{client_ip(request)}:{fingerprint}"
+        if (
+            self._public_by_key_by_ip.count(window_key)
+            >= PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR
+        ):
+            return limit_error(
+                429,
+                "Too many attempt-chain lookups from this client; try again later",
+                self._public_by_key_by_ip.retry_after(
+                    window_key, PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR
+                ),
+            )
+        return None
+
+    def record_public_by_key(self, request: Request, fingerprint: str) -> None:
+        self._public_by_key_by_ip.add(f"{client_ip(request)}:{fingerprint}")
+
     def check_identify_attempt(
         self, active_count: int, auth: AuthContext
     ) -> Optional[JSONResponse]:
@@ -302,6 +330,7 @@ class ApiLimitEnforcer:
         self._moves_by_key = _SlidingWindow()
         self._imagines_by_key = _SlidingWindow()
         self._registrations_by_ip = _SlidingWindow()
+        self._public_by_key_by_ip = _SlidingWindow()
 
     def metrics(self, game_service: GameService) -> Dict[str, object]:
         lim = self.limits()

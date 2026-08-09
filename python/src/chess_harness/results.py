@@ -240,6 +240,42 @@ class ResultsManager:
             out[model_id] = entry
         return out
 
+    def recompute_play_rating_rows(
+        self, *, map_root: Optional[Path] = None
+    ) -> int:
+        """Re-derive stored play_rating from the rebuilt accuracy→Elo map.
+
+        Rewrites every results row whose accuracy maps to a play rating,
+        dropping the stale compound-Q era values. Returns the number of rows
+        rewritten; 0 when the map is cold, nothing changed, or lock failure.
+        """
+        from .accuracy_elo_map import play_rating_from_accuracy
+
+        try:
+            with self._results_lock():
+                results = self.load_results()
+                changed = 0
+                for row in results:
+                    acc = row.get("accuracy")
+                    if acc is None:
+                        continue
+                    new_rating = play_rating_from_accuracy(float(acc), root=map_root)
+                    if new_rating is None:
+                        continue
+                    old = row.get("play_rating")
+                    if old is None or float(old) != new_rating:
+                        row["play_rating"] = new_rating
+                        changed += 1
+                if changed == 0:
+                    return 0
+                self.base_dir.mkdir(parents=True, exist_ok=True)
+                with open(self.results_file, "w", encoding="utf-8") as f:
+                    for row in results:
+                        f.write(json.dumps(row) + "\n")
+                return changed
+        except (OSError, filelock.Timeout):
+            return 0
+
     def calculate_winrate(self, skill: Optional[int] = None) -> float:
         results = self.load_results()
         if skill is not None:

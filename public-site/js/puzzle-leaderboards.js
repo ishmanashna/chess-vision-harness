@@ -69,7 +69,6 @@
       attempts: Number(row.attempts) || 0,
       solves: Number(row.solves) || 0,
       solve_rate: row.solve_rate,
-      themes: Array.isArray(row.themes) ? row.themes : [],
       popularity: row.popularity,
       nb_plays: row.nb_plays,
       source: row.source || "",
@@ -190,10 +189,6 @@
       function (r) { return td(fmtNum(r.rating, 1)); },
       function (r) { return td(String(r.attempts)); },
       function (r) { return td(fmtPct(r.solve_rate)); },
-      function (r) {
-        var themes = r.themes.slice(0, 4).join(", ");
-        return td(escapeHtml(themes) || "—");
-      },
       function (r) { return td(fmtNum(r.popularity)); },
       function (r) { return td(fmtPlays(r.nb_plays)); },
       function (r) {

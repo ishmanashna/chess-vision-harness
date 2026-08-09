@@ -7,8 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
+from chess_harness.accuracy_elo_map import map_path
 from chess_harness.agent_surface import agent_safe_status
-from chess_harness.play_rating import map_path, play_rating_for_side
+from chess_harness.play_rating import play_rating_for_side
 from chess_harness.game_manager import GameManager
 from chess_harness.game_quality import GameQuality, SideQuality
 from chess_harness.game_types import GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
@@ -17,19 +18,17 @@ from chess_harness.results import ResultsManager
 
 
 def _warm_play_rating_map_root(tmp_path):
-    """Fixture Q→play-rating map with the documented cold-start threshold."""
+    """Fixture accuracy→Elo map with the documented warm criteria (≥2 engines)."""
     map_root = tmp_path / "cal_results"
     path = map_path(map_root)
     path.parent.mkdir(parents=True)
     payload = {
-        "alpha": 8.0,
-        "beta": 25.0,
-        "min_samples": 30,
-        "sample_count": 30,
+        "engine_count": 2,
+        "min_engines": 2,
         "fitted_at": "2026-01-01T00:00:00+00:00",
         "knots": [
-            {"q": 0.0, "play_rating": 800.0},
-            {"q": 100.0, "play_rating": 1500.0},
+            {"accuracy": 0.0, "elo": 800.0},
+            {"accuracy": 100.0, "elo": 1500.0},
         ],
     }
     path.write_text(json.dumps(payload), encoding="utf-8")

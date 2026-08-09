@@ -171,6 +171,11 @@ def test_start_safe_payload_and_flow(identify_client):
     assert start["review_url"] == f"/api/v1/identify/{attempt_id}/review"
     assert "identify" in start["agent_brief"].lower()
     assert "identify" in start["agent_brief"].lower()
+    brief = start["agent_brief"]
+    assert "Continuous loop" in brief
+    assert "indefinitely" in brief
+    assert "accuracy" in brief
+    assert "/api/v1/identify/start" in brief
     _assert_no_leak(start)
 
     board = client.get(start["board_url"], headers=_auth(key))
@@ -444,6 +449,10 @@ def test_watch_pages_browse_and_media(identify_client):
     assert f'data-attempt-id="{attempt_id}"' in page.text
     assert "/js/identify-watch.js" in page.text
     assert "pieces" not in page.text.lower()
+    assert 'id="moves-col"' in page.text, "watch page uses the 3-column spectator layout"
+    assert "Attempt chain" in page.text
+    assert 'id="chain"' in page.text
+    assert "Placement review" in page.text
 
     img = client.get(f"/i/{attempt_id}/board.png")
     assert img.status_code == 200
@@ -482,11 +491,65 @@ def test_watch_pages_browse_and_media(identify_client):
     assert finished_row["status"] == "finished"
     assert finished_row["result"] == "correct"
     assert finished_row["accuracy"] == 1.0
+    assert finished_row["key"]
+    assert finished_row["full_position"] is True
+    assert finished_row["total_pieces"] > 0
+    assert finished_row["difficulty"] == 1500
 
     active_only = client.get(
         "/api/v1/identify/public/attempts", params={"status": "active"}
     ).json()
     assert all(r["status"] == "active" for r in active_only["attempts"])
+
+
+def test_public_identify_chain_by_key(identify_client):
+    client, _ = identify_client
+    key = _register(client, "id-chain-agent")
+
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    second = _start(client, key, rating_min=1400, rating_max=1600)["attempt_id"]
+
+    rows = client.get("/api/v1/identify/public/attempts").json()["attempts"]
+    chain_key = next(r["key"] for r in rows if r["attempt_id"] == second)
+    assert chain_key
+
+    chain = client.get(
+        "/api/v1/identify/public/attempts", params={"by_key": chain_key}
+    ).json()["attempts"]
+    ids = [r["attempt_id"] for r in chain]
+    assert ids == [second, first], "chain is newest first"
+    for row in chain:
+        assert row["key"] == chain_key
+        _assert_no_leak(row)
+
+    foreign = client.get(
+        "/api/v1/identify/public/attempts", params={"by_key": "0" * 16}
+    ).json()["attempts"]
+    assert foreign == []
+
+
+def test_identify_by_key_scan_public_rate_limited(identify_client):
+    from chess_harness.api_limits import (
+        PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR,
+    )
+
+    client, _ = identify_client
+    key = _register(client, "id-scanner-agent")
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    rows = client.get("/api/v1/identify/public/attempts").json()["attempts"]
+    fingerprint = next(r["key"] for r in rows if r["attempt_id"] == first)
+    url = f"/api/v1/identify/public/attempts?by_key={fingerprint}"
+
+    ok = 0
+    denied = 0
+    for _ in range(PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR + 5):
+        resp = client.get(url)
+        if resp.status_code == 200:
+            ok += 1
+        else:
+            denied += 1
+    assert ok == PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR
+    assert denied >= 1, "excess by_key scans must be rate-limited"
 
 
 def test_identify_attempts_never_write_results_jsonl(identify_client):

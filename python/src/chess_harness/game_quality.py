@@ -58,7 +58,7 @@ PgnOrMoves = Union[str, Sequence[str]]
 
 @dataclass
 class SideQuality:
-    """Per-side metrics; sufficient for Phase 4 play-rating Q."""
+    """Per-side metrics; used for accuracy → display-strength play rating."""
 
     accuracy: Optional[float]
     acpl: Optional[float]

@@ -131,7 +131,6 @@
     "mean_play_rating",
     "games",
     "puzzle_rating",
-    "puzzle_solve_rate",
     "identify_mean_accuracy",
     "identify_full_position_rate",
   ];
@@ -146,7 +145,6 @@
       games: Number(agent.games) || 0,
       provisional: agent.provisional,
       puzzle_rating: agent.puzzle_rating,
-      puzzle_solve_rate: agent.puzzle_solve_rate,
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
       _raw: agent,
@@ -297,9 +295,6 @@
             escapeHtml("Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it.") +
             '">' +
             escapeHtml(row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)) +
-            "</td>" +
-            "<td>" +
-            escapeHtml(formatRatePct(row.puzzle_solve_rate)) +
             "</td>" +
             "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +

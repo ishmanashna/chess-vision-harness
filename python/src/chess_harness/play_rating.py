@@ -1,8 +1,10 @@
 """
-Play-rating map: monotone Q → display strength (not ladder Elo).
+Play-rating samples: monotone accuracy → display strength (not ladder Elo).
 
-Training samples come from continuous calibration floaters only.
-Never calls CalibrationLadder.record_game or writes ratings.json.
+Training samples come from continuous calibration floaters only. The
+accuracy→Elo map itself lives in accuracy_elo_map.py and changes only via the
+operator's rebuild endpoint. Never calls CalibrationLadder.record_game or
+writes ratings.json.
 """
 
 from __future__ import annotations
@@ -10,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import statistics
-import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -23,16 +24,8 @@ from .game_quality import SideQuality, analyse_game, composite_q_value
 from .paths import project_root
 
 CONTINUOUS_SUITE = "continuous"
-Q_ALPHA = 8.0
-Q_BETA = 25.0
 MIN_MAP_SAMPLES = 30
 MIN_GAMES_FOR_SAMPLE = 101
-MAP_REFIT_DEBOUNCE_SEC = 1.0
-
-_map_cache: Optional[Dict[str, Any]] = None
-_map_cache_path: Optional[str] = None
-_refit_timer: Optional[threading.Timer] = None
-_refit_timer_lock = threading.Lock()
 
 
 def continuous_results_dir(root: Optional[Path] = None) -> Path:
@@ -48,12 +41,8 @@ def games_log_path(root: Optional[Path] = None) -> Path:
     return continuous_results_dir(root) / "games.jsonl"
 
 
-def map_path(root: Optional[Path] = None) -> Path:
-    return continuous_results_dir(root) / "play_rating_map.json"
-
-
 def continuous_fit_lock_path(root: Optional[Path] = None) -> Path:
-    """Shared lock for play_rating_map.json refits (legacy CLI/tests)."""
+    """Shared lock for map-file refits (estimation bake-off CLI/tests)."""
     return continuous_results_dir(root) / "continuous_fit"
 
 
@@ -159,7 +148,11 @@ def rewrite_play_rating_samples(
 
 
 def fit_map_knots(samples: List[Dict[str, Any]]) -> List[Dict[str, float]]:
-    """Monotone piecewise-linear knots from (Q, calibration_elo_before) samples."""
+    """Monotone piecewise-linear knots from (x, reference Elo) samples.
+
+    x is composite Q for the estimation bake-off, or mean accuracy for the
+    accuracy→Elo display map (see accuracy_elo_map.py).
+    """
     if not samples:
         return []
     blocks: List[Dict[str, float]] = []
@@ -213,49 +206,6 @@ def interpolate_map(knots: Sequence[Dict[str, float]], q: float) -> Optional[flo
     return float(knots[-1]["play_rating"])
 
 
-def fit_play_rating_map(*, root: Optional[Path] = None) -> Dict[str, Any]:
-    """Read samples, fit monotone map, write play_rating_map.json under file lock."""
-    global _map_cache, _map_cache_path
-    out_path = map_path(root)
-    sample_rows = load_samples(root)
-    payload: Dict[str, Any] = {
-        "alpha": Q_ALPHA,
-        "beta": Q_BETA,
-        "min_samples": MIN_MAP_SAMPLES,
-        "sample_count": len(sample_rows),
-        "fitted_at": datetime.now(timezone.utc).isoformat(),
-        "knots": fit_map_knots(sample_rows) if sample_rows else [],
-    }
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = continuous_fit_lock_path(root)
-    with _play_rating_lock(lock_path):
-        _atomic_write_json(out_path, payload)
-        _map_cache = payload
-        _map_cache_path = str(out_path.resolve())
-    return payload
-
-
-def schedule_map_refit(*, root: Optional[Path] = None, debounce_sec: float = MAP_REFIT_DEBOUNCE_SEC) -> None:
-    """No-op: accuracy→Elo map rebuilds only via operator POST (Phase 3)."""
-    del root, debounce_sec
-
-
-def load_play_rating_map(*, root: Optional[Path] = None, force: bool = False) -> Optional[Dict[str, Any]]:
-    global _map_cache, _map_cache_path
-    path = map_path(root)
-    path_key = str(path.resolve()) if path.exists() or path.parent.exists() else str(path)
-    if (
-        not force
-        and _map_cache is not None
-        and _map_cache_path == path_key
-    ):
-        return _map_cache
-    data = _read_json_object(path)
-    _map_cache = data
-    _map_cache_path = path_key
-    return data
-
-
 def _population_stdev(values: Sequence[float]) -> Optional[float]:
     """Population stdev (statistics.pstdev); null when n < 2."""
     if len(values) < 2:
@@ -263,19 +213,12 @@ def _population_stdev(values: Sequence[float]) -> Optional[float]:
     return statistics.pstdev(values)
 
 
-def play_rating_from_q(q: float, *, root: Optional[Path] = None) -> Optional[float]:
-    m = load_play_rating_map(root=root)
-    if not m or m.get("sample_count", 0) < MIN_MAP_SAMPLES or not m.get("fitted_at"):
-        return None
-    rating = interpolate_map(m.get("knots", []), q)
-    return round(rating, 1) if rating is not None else None
-
-
 def play_rating_for_side(side: SideQuality, *, root: Optional[Path] = None) -> Optional[float]:
-    q = composite_q(side)
-    if q is None:
+    if side is None or side.accuracy is None:
         return None
-    return play_rating_from_q(q, root=root)
+    from .accuracy_elo_map import play_rating_from_accuracy
+
+    return play_rating_from_accuracy(side.accuracy, root=root)
 
 
 def play_rating_status_summary(
@@ -284,56 +227,40 @@ def play_rating_status_summary(
     engine_elos: Optional[Dict[str, int]] = None,
 ) -> Dict[str, Any]:
     """
-    Lightweight operator summary for /calibration: per-engine mean accuracy from
-    quality samples (single pass). Does not touch ladder Elo or accuracy→Elo map.
+    Lightweight operator summary for /calibration: per-engine mean accuracy and
+    per-sample play rating via the accuracy→Elo map (single pass). Does not
+    touch ladder Elo or map files.
     """
     del engine_elos  # reserved for API compat; not used on the slim status path
 
+    from .accuracy_elo_map import play_rating_from_accuracy
+
     samples = load_samples(root)
-    buckets: Dict[str, Dict[str, Any]] = {}
+    buckets: Dict[str, List[float]] = {}
     for sample in samples:
         eid = sample.get("engine_id")
-        if not eid:
-            continue
-        bucket = buckets.setdefault(
-            eid,
-            {
-                "n": 0,
-                "acc_sum": 0.0,
-                "acc_n": 0,
-                "accuracies": [],
-                "play_ratings": [],
-            },
-        )
-        sample_rating = play_rating_from_q(float(sample["q"]), root=root) if sample.get("q") is not None else None
-        if sample_rating is not None:
-            bucket["play_ratings"].append(sample_rating)
-        bucket["n"] += 1
         acc = sample.get("accuracy")
-        if acc is not None:
-            acc_f = float(acc)
-            bucket["acc_sum"] += acc_f
-            bucket["acc_n"] += 1
-            bucket["accuracies"].append(acc_f)
+        if not eid or acc is None:
+            continue
+        buckets.setdefault(str(eid), []).append(float(acc))
 
     engines: List[Dict[str, Any]] = []
-    for eid, bucket in sorted(buckets.items()):
-        mean_accuracy = (
-            round(bucket["acc_sum"] / bucket["acc_n"], 1) if bucket["acc_n"] else None
-        )
-        acc_std = _population_stdev(bucket["accuracies"])
-        accuracy_std = round(acc_std, 1) if acc_std is not None else None
+    for eid, accs in sorted(buckets.items()):
+        ratings = [
+            rating
+            for acc in accs
+            if (rating := play_rating_from_accuracy(acc, root=root)) is not None
+        ]
+        acc_std = _population_stdev(accs)
         engines.append(
             {
                 "engine_id": eid,
-                "sample_count": bucket["n"],
-                "mean_accuracy": mean_accuracy,
+                "sample_count": len(accs),
+                "mean_accuracy": round(sum(accs) / len(accs), 1),
                 "mean_play_rating": (
-                    round(sum(bucket["play_ratings"]) / len(bucket["play_ratings"]), 1)
-                    if bucket["play_ratings"]
-                    else None
+                    round(sum(ratings) / len(ratings), 1) if ratings else None
                 ),
-                "accuracy_std": accuracy_std,
+                "accuracy_std": round(acc_std, 1) if acc_std is not None else None,
             }
         )
 

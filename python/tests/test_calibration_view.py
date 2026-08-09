@@ -224,20 +224,20 @@ def test_get_calibration_status_includes_play_rating_means(cal_results):
 
 
 def test_get_calibration_status_play_rating_map_warm(cal_results):
-    from chess_harness.play_rating import fit_play_rating_map, MIN_MAP_SAMPLES
+    from chess_harness.accuracy_elo_map import rebuild_accuracy_elo_map
 
     continuous = cal_results / "continuous"
     continuous.mkdir(parents=True)
     rows = []
-    for i in range(30):
+    for i in range(101):
         rows.append(
             {
                 "engine_id": "stockfish-handicap:noise10",
                 "game_index": i,
-                "ts": f"2026-01-01T00:00:{i:02d}+00:00",
-                "q": 50.0 + i,
-                "q_midgame": 49.0 + i,
-                "q_trimmed": 51.0 + i,
+                "ts": f"2026-01-01T00:00:{i % 60:02d}+00:00",
+                "q": 50.0 + (i % 20),
+                "q_midgame": 49.0 + (i % 20),
+                "q_trimmed": 51.0 + (i % 20),
                 "accuracy": 80.0 + (i % 5),
                 "acpl": 30.0 + (i % 3),
                 "blunder_rate": 0.05,
@@ -246,10 +246,10 @@ def test_get_calibration_status_play_rating_map_warm(cal_results):
         )
         rows.append(
             {
-                "engine_id": "stockfish-handicap:noise70",
+                "engine_id": "stockfish-handicap:noise7",
                 "game_index": i,
-                "ts": f"2026-01-01T00:01:{i:02d}+00:00",
-                "q": 40.0 + i,
+                "ts": f"2026-01-01T00:01:{i % 60:02d}+00:00",
+                "q": 40.0 + (i % 20),
                 "accuracy": 60.0 + (i % 4),
                 "calibration_elo_before": 520.0 + i,
             }
@@ -261,27 +261,27 @@ def test_get_calibration_status_play_rating_map_warm(cal_results):
     ratings = {
         "ratings": {
             "stockfish-handicap:noise10": 950.0,
-            "stockfish-handicap:noise70": 520.0,
+            "stockfish-handicap:noise7": 520.0,
         },
         "games_played": {
             "stockfish-handicap:noise10": 120,
-            "stockfish-handicap:noise70": 120,
+            "stockfish-handicap:noise7": 120,
         },
     }
     (cal_results / "suite-a" / "ratings.json").write_text(
         json.dumps(ratings), encoding="utf-8"
     )
-    fit_play_rating_map(root=cal_results)
+    rebuild_accuracy_elo_map(root=cal_results)
     from chess_harness.calibration_view import invalidate_merge_cache
 
     invalidate_merge_cache()
     status = get_calibration_status()
     row = next(r for r in status["rating_table"] if r["id"] == "stockfish-handicap:noise10")
     assert row["mean_accuracy"] is not None
-    assert row["quality_samples"] == 30
+    assert row["quality_samples"] == 101
     assert row["play_rating"] is not None
     assert status["play_rating_map"]["warm"] is True
-    assert status["play_rating_map"]["sample_count"] >= MIN_MAP_SAMPLES
+    assert status["play_rating_map"]["sample_count"] == 2
     assert "elo_estimations" not in row
     assert "estimators" not in status["play_rating"]
 

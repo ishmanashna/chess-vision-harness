@@ -67,6 +67,7 @@ from .identify_observer import (
     replay_payload as identify_replay_payload,
 )
 from .continuous_calibration import can_continuously_calibrate, get_continuous_calibration
+from .api_limits import get_limit_enforcer
 from .engine import EvalEngineAdapter
 from .game_manager import GameManager
 from .game_service import GameService
@@ -74,6 +75,7 @@ from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
 from .snapshot_leaderboard import (
     export_public_snapshots,
+    load_live_identify_leaderboard,
     load_live_leaderboard,
     load_live_puzzle_leaderboard,
 )
@@ -298,6 +300,22 @@ async def live_puzzle_leaderboard_api():
 async def live_puzzle_data_file():
     """Serve live puzzle leaderboard at the static snapshot path while up."""
     return _live_puzzle_leaderboard_json()
+
+
+def _live_identify_leaderboard_json() -> JSONResponse:
+    return _live_cached_json("identify", load_live_identify_leaderboard)
+
+
+@app.get("/api/leaderboard/identify/live")
+async def live_identify_leaderboard_api():
+    """Live board-identification leaderboard (agent metrics per watch page)."""
+    return _live_identify_leaderboard_json()
+
+
+@app.get("/data/identify_leaderboard.json")
+async def live_identify_data_file():
+    """Serve live identify leaderboard at the static snapshot path while up."""
+    return _live_identify_leaderboard_json()
 
 
 if (_public_site / "data").is_dir():
@@ -807,15 +825,23 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
 
 @app.post("/api/calibration/rebuild-play-rating-map")
 async def calibration_rebuild_play_rating_map():
-    from .play_rating import fit_play_rating_map
+    from .accuracy_elo_map import rebuild_accuracy_elo_map
+    from .results import ResultsManager
 
-    payload = await asyncio.to_thread(fit_play_rating_map)
+    payload = await asyncio.to_thread(rebuild_accuracy_elo_map)
+    recomputed = await asyncio.to_thread(ResultsManager().recompute_play_rating_rows)
+    await asyncio.to_thread(export_public_snapshots)
+    engine_count = int(payload.get("engine_count") or 0)
+    min_engines = int(payload.get("min_engines") or 2)
     return {
         "ok": True,
-        "sample_count": payload.get("sample_count", 0),
-        "min_samples": payload.get("min_samples"),
+        "engine_count": engine_count,
+        "min_engines": min_engines,
+        "sample_count": engine_count,
+        "min_samples": min_engines,
         "fitted_at": payload.get("fitted_at"),
-        "warm": payload.get("sample_count", 0) >= payload.get("min_samples", 30),
+        "rows_recomputed": recomputed,
+        "warm": engine_count >= min_engines and bool(payload.get("fitted_at")),
     }
 
 
@@ -872,12 +898,27 @@ async def puzzle_watch_board_text(attempt_id: str):
 
 @app.get("/api/v1/puzzles/public/attempts")
 async def public_puzzle_attempts(
+    request: Request,
     status: Optional[str] = Query(None),
+    by_key: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """Observer-scoped discovery: active + finished attempts, newest first."""
+    """Observer-scoped discovery: active + finished attempts, newest first.
+
+    ``by_key`` narrows the list to one pseudonymous attempt chain; it is
+    rate-limited per client (and caps the page size) so a key cannot be used
+    as an unbounded scanning handle over the whole store.
+    """
     records = PuzzleAttemptStore().list_records()
+    if by_key:
+        limits = get_limit_enforcer()
+        denied = limits.check_public_by_key(request, by_key)
+        if denied is not None:
+            return denied
+        limits.record_public_by_key(request, by_key)
+        records = [r for r in records if r.get("key_fingerprint") == by_key]
+        limit = min(limit, 50)
     if status in ("active", "finished"):
         records = [r for r in records if r.get("status") == status]
     else:
@@ -954,12 +995,27 @@ async def identify_watch_answer_image(attempt_id: str):
 
 @app.get("/api/v1/identify/public/attempts")
 async def public_identify_attempts(
+    request: Request,
     status: Optional[str] = Query(None),
+    by_key: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """Observer-scoped discovery: active + finished identification attempts."""
+    """Observer-scoped discovery: active + finished identification attempts.
+
+    ``by_key`` narrows the list to one pseudonymous attempt chain; it is
+    rate-limited per client (and caps the page size) so a key cannot be used
+    as an unbounded scanning handle over the whole store.
+    """
     records = IdentifyAttemptStore().list_records()
+    if by_key:
+        limits = get_limit_enforcer()
+        denied = limits.check_public_by_key(request, by_key)
+        if denied is not None:
+            return denied
+        limits.record_public_by_key(request, by_key)
+        records = [r for r in records if r.get("key_fingerprint") == by_key]
+        limit = min(limit, 50)
     if status in ("active", "finished"):
         records = [r for r in records if r.get("status") == status]
     else:

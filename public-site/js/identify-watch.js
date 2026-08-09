@@ -1,10 +1,12 @@
 /**
  * Public board-identification watch/replay page (/i/{id}).
- * Live: poll the observer-safe public state and render the visible board.
- * After submission: unlock the placement review — the answer board overlay
- * (green = exact, red = mismatch) and the per-square table (submitted vs
- * expected). Observers never see the true placement while the attempt is
- * active.
+ * Mirrors the game spectator layout: info column, board column, review column.
+ * Live state polls the observer-safe API and renders the visible board; after
+ * submission the placement review unlocks — the answer board overlay (green =
+ * exact, red = mismatch) and the per-square table (submitted vs expected).
+ * The info column shows the agent's current board-identification metrics at
+ * all times and the attempt chain (same pseudonymous key); when the agent
+ * starts the next attempt the page auto-follows to it.
  */
 
 import {
@@ -16,6 +18,8 @@ import {
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 const POLL_MS = 3000;
+const CHAIN_POLL_MS = 15000;
+const FOLLOW_DELAY_MS = 10000;
 
 function attemptIdFromPage() {
   const root = document.body;
@@ -48,8 +52,13 @@ function fmtAccuracy(a) {
   return Math.round(Number(a) * 100) + "%";
 }
 
+function fmtYesNo(v) {
+  if (v == null) return "—";
+  return v ? "Yes" : "No";
+}
+
 async function main() {
-  const ATTEMPT_ID = attemptIdFromPage();
+  let ATTEMPT_ID = attemptIdFromPage();
   const mount = document.getElementById("board");
   if (!ATTEMPT_ID || !mount) return;
 
@@ -68,6 +77,10 @@ async function main() {
   let lastFen = null;
   let replay = null;
   let pollTimer = null;
+  let chainTimer = null;
+  let followTimer = null;
+  let agentKey = null;
+  let currentStartedAt = null;
 
   function setPosition(fen, animate) {
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
@@ -76,59 +89,53 @@ async function main() {
   }
 
   function renderMeta(state) {
-    const meta = document.getElementById("meta");
-    if (meta) {
-      meta.innerHTML =
+    const dl = document.getElementById("meta");
+    if (dl) {
+      dl.innerHTML =
         "<dt>Attempt</dt><dd>" +
         escHtml(state.attempt_id) +
-        '</dd><dt>Agent</dt><dd>' +
+        "</dd><dt>Agent</dt><dd>" +
         escHtml(state.agent_name) +
         "</dd>";
     }
     const statusEl = document.getElementById("state-status");
     const resultEl = document.getElementById("state-result");
     const accEl = document.getElementById("state-accuracy");
-    const subEl = document.getElementById("state-submitted");
+    const fullEl = document.getElementById("state-full-position");
     const diffEl = document.getElementById("state-difficulty");
+    const subEl = document.getElementById("state-submitted");
     if (statusEl) statusEl.textContent = statusLabel(state);
     if (resultEl) resultEl.textContent = state.result || "—";
     if (accEl) accEl.textContent = fmtAccuracy(state.accuracy);
-    if (subEl) subEl.textContent = String(state.submitted_count);
+    if (fullEl) fullEl.textContent = fmtYesNo(state.full_position);
     if (diffEl) {
       diffEl.textContent = state.difficulty != null ? String(state.difficulty) : "—";
     }
+    if (subEl) subEl.textContent = String(state.submitted_count);
   }
 
-  function renderReplay() {
-    const panel = document.getElementById("replay-panel");
-    const body = document.getElementById("results-body");
-    if (!panel || !body || !replay) return;
-    panel.hidden = false;
-    const rows = replyRows(replay);
-    body.innerHTML = rows
-      .map(
-        (r) =>
-          '<tr><td>' +
-          escHtml(r.square) +
-          "</td><td>" +
-          escHtml(r.expected || "—") +
-          "</td><td>" +
-          escHtml(r.submitted || "—") +
-          '</td><td><span class="badge ' +
-          r.status +
-          '">' +
-          escHtml(r.status.replace("_", " ")) +
-          "</span></td></tr>"
-      )
-      .join("");
-    const wrap = document.getElementById("answer-wrap");
-    if (wrap) {
-      wrap.style.display = "block";
-      const img = document.getElementById("answer-img");
-      if (img) {
-        img.src = "/i/" + encodeURIComponent(ATTEMPT_ID) + "/answer.png?" + Date.now();
-      }
-    }
+  function renderAgentMetrics(state) {
+    if (!window.CVH) return;
+    fetch("/api/leaderboard/identify/live")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const agents = (data && data.agents) || [];
+        const agent = agents.find((a) => a.name === state.agent_name);
+        const rate = document.getElementById("state-agent-rate");
+        const full = document.getElementById("state-agent-full");
+        const attempts = document.getElementById("state-attempts");
+        if (agent) {
+          if (rate) rate.textContent = fmtAccuracy(agent.mean_accuracy);
+          if (full) full.textContent = fmtAccuracy(agent.full_position_rate);
+          if (attempts) attempts.textContent =
+            String(agent.attempts != null ? agent.attempts : "—");
+        } else {
+          if (rate) rate.textContent = "—";
+          if (full) full.textContent = "—";
+          if (attempts) attempts.textContent = "—";
+        }
+      })
+      .catch(() => {});
   }
 
   function replyRows(replay) {
@@ -158,6 +165,40 @@ async function main() {
       }));
   }
 
+  function renderReplay() {
+    const mv = document.getElementById("mv");
+    if (!mv || !replay) return;
+    const rows = replyRows(replay);
+    mv.innerHTML =
+      '<table class="results-table"><thead><tr><th>Square</th><th>Expected</th>' +
+      "<th>Submitted</th><th>Status</th></tr></thead><tbody>" +
+      rows
+        .map(
+          (r) =>
+            "<tr><td>" +
+            escHtml(r.square) +
+            "</td><td>" +
+            escHtml(r.expected || "—") +
+            "</td><td>" +
+            escHtml(r.submitted || "—") +
+            '</td><td><span class="badge ' +
+            r.status +
+            '">' +
+            escHtml(String(r.status).replace("_", " ")) +
+            "</span></td></tr>"
+        )
+        .join("") +
+      "</tbody></table>";
+    const wrap = document.getElementById("answer-wrap");
+    if (wrap) {
+      wrap.style.display = "block";
+      const img = document.getElementById("answer-img");
+      if (img) {
+        img.src = "/i/" + encodeURIComponent(ATTEMPT_ID) + "/answer.png?" + Date.now();
+      }
+    }
+  }
+
   async function loadReplay() {
     try {
       const r = await fetch(
@@ -171,6 +212,134 @@ async function main() {
     }
   }
 
+  function renderChain(rows) {
+    const list = document.getElementById("chain");
+    const empty = document.getElementById("chain-empty");
+    if (!list || !empty) return;
+    const all = (rows || []).slice();
+    if (!all.length) {
+      list.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.hidden = false;
+    list.innerHTML = all
+      .map((row) => {
+        const isYou = row.attempt_id === ATTEMPT_ID;
+        const label =
+          (row.started_at ? new Date(row.started_at).toLocaleTimeString() : "") +
+          " · " +
+          (isYou
+            ? "this attempt"
+            : statusLabel(row) +
+              " · " +
+              (row.status === "finished" ? fmtAccuracy(row.accuracy) : "…"));
+        if (isYou) {
+          return '<li class="chain-you">' + escHtml(label) + "</li>";
+        }
+        return (
+          '<li><a href="' +
+          escHtml(row.watch_url || "/i/" + row.attempt_id) +
+          '">' +
+          escHtml(label) +
+          "</a></li>"
+        );
+      })
+      .join("");
+  }
+
+  async function refreshChain() {
+    if (!agentKey) return;
+    try {
+      const r = await fetch(
+        "/api/v1/identify/public/attempts?by_key=" +
+          encodeURIComponent(agentKey) +
+          "&limit=50"
+      );
+      if (!r.ok) return;
+      const rows = (await r.json()).attempts || [];
+      renderChain(rows);
+      if (!currentStartedAt) return;
+      const newer = rows
+        .filter(
+          (row) =>
+            row.attempt_id !== ATTEMPT_ID &&
+            String(row.started_at || "") > String(currentStartedAt)
+        )
+        .sort((a, b) =>
+          String(b.started_at).localeCompare(String(a.started_at))
+        );
+      if (newer.length && !followTimer) {
+        const banner = document.getElementById("follow-banner");
+        if (banner) {
+          banner.textContent =
+            "Agent started the next identification — following in " +
+            Math.round(FOLLOW_DELAY_MS / 1000) +
+            "s…";
+          banner.style.display = "block";
+        }
+        followTimer = setTimeout(
+          () => followTo(newer[0].attempt_id),
+          FOLLOW_DELAY_MS
+        );
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function startChainTracking(state) {
+    agentKey = state.key || agentKey;
+    currentStartedAt = state.started_at || currentStartedAt;
+    if (!agentKey || chainTimer) return;
+    chainTimer = setInterval(refreshChain, CHAIN_POLL_MS);
+    refreshChain();
+  }
+
+  function resetWatch() {
+    lastFen = null;
+    replay = null;
+    if (followTimer) {
+      clearTimeout(followTimer);
+      followTimer = null;
+    }
+    const banner = document.getElementById("follow-banner");
+    if (banner) {
+      banner.style.display = "none";
+      banner.textContent = "";
+    }
+    const wrap = document.getElementById("answer-wrap");
+    if (wrap) wrap.style.display = "none";
+    const mv = document.getElementById("mv");
+    if (mv) {
+      mv.innerHTML =
+        '<p style="color:var(--faint);margin:0">' +
+        "Per-square review unlocks after the attempt ends." +
+        "</p>";
+    }
+    renderMeta({ attempt_id: ATTEMPT_ID, agent_name: "—", status: "active", result: null });
+  }
+
+  function followTo(nextId) {
+    followTimer = null;
+    window.history.replaceState({}, "", "/i/" + encodeURIComponent(nextId));
+    ATTEMPT_ID = nextId;
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    resetWatch();
+    poll();
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
   async function poll() {
     try {
       const r = await fetch(
@@ -179,23 +348,30 @@ async function main() {
       if (!r.ok) return;
       const state = await r.json();
       renderMeta(state);
+      renderAgentMetrics(state);
       setPosition(state.fen, true);
       if (state.status === "finished") {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
+        stopPolling();
         await loadReplay();
+        startChainTracking(state);
       } else if (state.status === "abandoned") {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
+        stopPolling();
+        startChainTracking(state);
+      } else {
+        startChainTracking(state);
       }
     } catch (e) {
       /* ignore */
     }
   }
+
+  window.addEventListener("resize", () => {
+    const wrap = document.getElementById("board-wrap");
+    if (wrap) {
+      const movesCol = document.getElementById("moves-col");
+      if (movesCol) movesCol.style.maxHeight = wrap.offsetHeight + "px";
+    }
+  });
 
   pollTimer = setInterval(poll, POLL_MS);
   poll();

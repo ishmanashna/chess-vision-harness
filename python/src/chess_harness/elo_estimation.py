@@ -4,7 +4,7 @@ Elo estimation bake-off: five monotone PWL estimators on continuous floater samp
 Holdout split (deterministic): samples sorted by (game_index, ts); the last 20% are
 holdout. Metrics (MAE/RMSE) are written for operator comparison. Champion is **not**
 auto-selected — use ``set_champion`` / ``clear_champion`` after calibration review.
-Until set, runtime scoring uses baseline A ``q_composite`` / ``play_rating_map.json``.
+Until set, runtime scoring uses the accuracy→Elo display map (accuracy_elo_map.json).
 
 Estimator C uses negated normalized ACPL (-acpl/100) so higher feature → stronger play.
 

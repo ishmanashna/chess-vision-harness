@@ -1,8 +1,11 @@
 /**
  * Public puzzle watch/replay page (/p/{id}).
- * Live: poll the observer-safe public state and render the current board.
- * Replay: after the attempt ends, unlock the per-ply steps (solution shown).
- * Observers never see submitted moves or solution data while active.
+ * Mirrors the game spectator layout: info column, board column, moves column.
+ * Live state polls the observer-safe API and lists the agent's submitted moves
+ * as SAN move rows; after the attempt ends the solution line replaces them
+ * (first wrong move flagged). The info column shows the agent's current puzzle
+ * metrics at all times and the attempt chain (same pseudonymous key); when the
+ * agent starts the next puzzle the page auto-follows to it.
  */
 
 import {
@@ -14,6 +17,8 @@ import {
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 const POLL_MS = 3000;
+const CHAIN_POLL_MS = 15000;
+const FOLLOW_DELAY_MS = 10000;
 
 function attemptIdFromPage() {
   const root = document.body;
@@ -45,8 +50,92 @@ function statusLabel(s) {
   return "In progress";
 }
 
+function stepParts(label) {
+  const text = String(label || "");
+  const mover = text.match(/^(\d+)\.\.\.\s*(.*)$/);
+  if (mover) return { num: Number(mover[1]), san: mover[2], opponent: true };
+  const moverb = text.match(/^(\d+)\.\s*(.*)$/);
+  if (moverb) return { num: Number(moverb[1]), san: moverb[2], opponent: false };
+  return { num: null, san: text, opponent: false };
+}
+
+function moveRowsFromPlies(plies) {
+  const rows = [];
+  for (let i = 0; i < plies.length; i++) {
+    const part = stepParts(plies[i] && plies[i].label);
+    const num = part.num != null ? part.num : Math.floor(i / 2) + 1;
+    let row = rows.find((r) => r.num === num);
+    if (!row) {
+      row = { num: num, agent: "", opponent: "" };
+      rows.push(row);
+    }
+    if (part.opponent) row.opponent = part.san;
+    else row.agent = part.san;
+  }
+  return rows;
+}
+
+function moveRowsFromSan(submitted, opponent) {
+  const rows = [];
+  const count = Math.max(submitted.length, opponent.length);
+  for (let i = 0; i < count; i++) {
+    rows.push({
+      num: i + 1,
+      agent: submitted[i] || "",
+      opponent: opponent[i] || "",
+    });
+  }
+  return rows;
+}
+
+function renderMoveRows(rows, onStyle, onPly) {
+  const mv = document.getElementById("mv");
+  if (!mv) return;
+  if (!rows.length) {
+    mv.innerHTML = '<p style="color:var(--faint);margin:0">No moves yet.</p>';
+    return;
+  }
+  const fromPlies = onStyle === "plies";
+  mv.innerHTML = rows
+    .map((row, i) => {
+      const wOn = fromPlies && onPly != null && onPly >= i * 2;
+      const bOn = fromPlies && onPly != null && onPly >= i * 2 + 1;
+      const wCls = wOn ? " w on" : "";
+      const bCls = bOn ? " b on" : "";
+      const bClick = bOn || (onPly != null && onPly < i * 2 + 1) ? "" : " data-ply";
+      return (
+        '<div class="move-row"><span class="mn">' +
+        escHtml(String(row.num)) +
+        '.</span><span class="w' +
+        wCls +
+        '" data-ply="' +
+        (i * 2) +
+        '">' +
+        escHtml(row.agent) +
+        '</span><span class="b' +
+        bCls +
+        '"' +
+        bClick +
+        ' data-ply="' +
+        (i * 2 + 1) +
+        '">' +
+        escHtml(row.opponent) +
+        "</span></div>"
+      );
+    })
+    .join("");
+  mv.querySelectorAll("[data-ply]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const ply = Number(cell.getAttribute("data-ply"));
+      if (Number.isFinite(ply) && replay && replay.plies) goToStep(ply);
+    });
+  });
+  const active = mv.querySelector(".on");
+  if (active) active.scrollIntoView({ block: "nearest" });
+}
+
 async function main() {
-  const ATTEMPT_ID = attemptIdFromPage();
+  let ATTEMPT_ID = attemptIdFromPage();
   const mount = document.getElementById("board");
   if (!ATTEMPT_ID || !mount) return;
 
@@ -64,8 +153,12 @@ async function main() {
 
   let lastFen = null;
   let replay = null;
-  let replayIndex = -1;
+  let scanPly = -1;
   let pollTimer = null;
+  let chainTimer = null;
+  let followTimer = null;
+  let agentKey = null;
+  let currentStartedAt = null;
 
   function setPosition(fen, animate) {
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
@@ -73,98 +166,135 @@ async function main() {
     return board.setPosition(fen, doAnimate);
   }
 
+  function turnLabel(fen) {
+    const el = document.getElementById("board-label-turn");
+    if (el) el.textContent = sideToMoveFromFen(fen);
+  }
+
   function renderMeta(state) {
-    const meta = document.getElementById("meta");
-    if (meta) {
-      meta.innerHTML =
+    const dl = document.getElementById("meta");
+    if (dl) {
+      dl.innerHTML =
         "<dt>Attempt</dt><dd>" +
         escHtml(state.attempt_id) +
-        '</dd><dt>Agent</dt><dd>' +
+        "</dd><dt>Agent</dt><dd>" +
         escHtml(state.agent_name) +
         "</dd>";
     }
     const statusEl = document.getElementById("state-status");
     const resultEl = document.getElementById("state-result");
-    const movesEl = document.getElementById("state-moves");
-    const ratingEl = document.getElementById("state-rating");
-    const themesEl = document.getElementById("state-themes");
+    const diffEl = document.getElementById("state-difficulty");
     if (statusEl) statusEl.textContent = statusLabel(state);
     if (resultEl) resultEl.textContent = state.result || "—";
-    if (movesEl) movesEl.textContent = String(state.moves_played);
-    if (ratingEl) ratingEl.textContent = String(state.puzzle_rating || "—");
-    if (themesEl) {
-      themesEl.innerHTML =
-        state.themes && state.themes.length
-          ? state.themes
-              .map((t) => '<span class="theme-tag">' + escHtml(t) + "</span>")
-              .join("")
-          : '<span style="color:var(--faint)">—</span>';
+    if (diffEl) {
+      diffEl.textContent =
+        state.puzzle_rating > 0 ? String(state.puzzle_rating) : "—";
     }
-    const turnEl = document.getElementById("board-label-turn");
-    if (turnEl) turnEl.textContent = sideToMoveFromFen(state.fen);
   }
 
-  function renderReplay() {
-    const panel = document.getElementById("replay-panel");
-    const steps = document.getElementById("replay-steps");
-    const pos = document.getElementById("replay-pos");
-    if (!panel || !steps) return;
-    panel.hidden = false;
-    const plies = replay.plies || [];
-    steps.innerHTML =
-      '<button type="button" class="step-chip' +
-      (replayIndex < 0 ? " on" : "") +
-      '" data-step="-1">Start</button>' +
-      plies
-        .map(
-          (p, i) =>
-            '<button type="button" class="step-chip' +
-            (i === replayIndex ? " on" : "") +
-            '" data-step="' +
-            i +
-            '">' +
-            escHtml(p.label) +
-            "</button>"
-        )
-        .join("");
-    if (pos) {
-      pos.textContent =
-        replayIndex < 0
-          ? "0 / " + plies.length
-          : replayIndex + 1 + " / " + plies.length;
+  function renderFinishedMeta(r) {
+    const puzzle = document.getElementById("state-puzzle");
+    const puzzleLabel = document.getElementById("state-puzzle-label");
+    if (puzzle && puzzleLabel) {
+      puzzleLabel.hidden = false;
+      puzzle.hidden = false;
+      puzzle.textContent = r.puzzle_id || "—";
     }
-    steps.querySelectorAll("[data-step]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        goToStep(Number(btn.getAttribute("data-step")));
-      });
-    });
-    const prevBtn = document.getElementById("replay-prev");
-    const nextBtn = document.getElementById("replay-next");
-    if (prevBtn) prevBtn.disabled = replayIndex < 0;
-    if (nextBtn) nextBtn.disabled = replayIndex >= plies.length - 1;
-    renderFirstWrongStep(plies);
+    const source = document.getElementById("state-source");
+    const sourceLabel = document.getElementById("state-source-label");
+    if (source && sourceLabel) {
+      sourceLabel.hidden = false;
+      source.hidden = false;
+      if (r.source_link) {
+        source.innerHTML =
+          '<a href="' +
+          escHtml(r.source_link) +
+          '" target="_blank" rel="noopener" style="color:var(--link)">View source game</a>';
+      } else {
+        source.textContent = "—";
+      }
+    }
+    const rating = document.getElementById("state-rating");
+    const ratingLabel = document.getElementById("state-rating-label");
+    if (rating && ratingLabel) {
+      ratingLabel.hidden = false;
+      rating.hidden = false;
+      let text = "—";
+      if (r.rating_before != null && r.rating_after != null) {
+        const delta =
+          r.rating_change != null
+            ? " (" + (Number(r.rating_change) > 0 ? "+" : "") + r.rating_change + ")"
+            : "";
+        text = r.rating_before + " → " + r.rating_after + delta;
+      }
+      rating.textContent = text;
+    }
   }
 
-  function renderFirstWrongStep(plies) {
-    if (!replay || replay.result !== "failed" || !replay.first_wrong_move) return;
-    const steps = document.getElementById("replay-steps");
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "step-chip is-wrong";
-    chip.textContent = "✗ " + replay.first_wrong_move;
-    chip.title = "First wrong move (attempt ended)";
-    steps.appendChild(chip);
+  function renderAgentMetrics(state) {
+    if (!window.CVH) return;
+    fetch("/api/leaderboard/puzzles/live")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const agents = (data && data.agents) || [];
+        const agent = agents.find((a) => a.name === state.agent_name);
+        const rating = document.getElementById("state-agent-rating");
+        const dev = document.getElementById("state-deviation");
+        const attempts = document.getElementById("state-attempts");
+        const solves = document.getElementById("state-solves");
+        if (agent) {
+          if (rating) rating.textContent =
+            agent.rating != null ? String(agent.rating) : "—";
+          if (dev) dev.textContent =
+            agent.deviation != null ? String(agent.deviation) : "—";
+          if (attempts) attempts.textContent = String(agent.attempts != null ? agent.attempts : "—");
+          if (solves) solves.textContent = String(agent.solves != null ? agent.solves : "—");
+        } else {
+          if (rating) rating.textContent = "—";
+          if (dev) dev.textContent = "—";
+          if (attempts) attempts.textContent = "—";
+          if (solves) solves.textContent = "—";
+        }
+      })
+      .catch(() => {});
+  }
+
+  function renderLiveMoves(state) {
+    const heading = document.getElementById("moves-heading");
+    if (heading) heading.textContent = "Moves";
+    renderMoveRows(
+      moveRowsFromSan(state.submitted_moves || [], state.opponent_moves || []),
+      "none",
+      null
+    );
+  }
+
+  function renderSolution() {
+    const heading = document.getElementById("moves-heading");
+    if (heading) heading.textContent = "Solution";
+    const mv = document.getElementById("mv");
+    if (!mv || !replay) return;
+    const rows = moveRowsFromPlies(replay.plies || []);
+    renderMoveRows(rows, "plies", scanPly);
+    if (replay.result === "failed" && replay.first_wrong_move) {
+      const wrong = document.createElement("div");
+      wrong.className = "move-row";
+      wrong.innerHTML =
+        '<span class="mn">✗</span><span class="w is-wrong" title="First wrong move (attempt ended)">' +
+        escHtml(replay.first_wrong_move) +
+        "</span><span class='b'></span>";
+      mv.appendChild(wrong);
+    }
   }
 
   function goToStep(index) {
-    const plies = replay.plies || [];
+    if (!replay || !replay.plies) return;
+    const plies = replay.plies;
     const n = Math.max(-1, Math.min(index, plies.length - 1));
-    replayIndex = n;
-    const fen = n < 0 ? replay.start_fen : plies[n].fen;
-    setPosition(fen, true);
-    renderReplay();
-    const turnEl = document.getElementById("board-label-turn");
-    if (turnEl) turnEl.textContent = sideToMoveFromFen(fen);
+    scanPly = n;
+    setPosition(n < 0 ? replay.start_fen : plies[n].fen, true);
+    turnLabel(n < 0 ? replay.start_fen : plies[n].fen);
+    renderSolution();
   }
 
   async function loadReplay() {
@@ -176,13 +306,149 @@ async function main() {
       );
       if (!r.ok) return;
       replay = await r.json();
-      replayIndex = replay.plies ? replay.plies.length - 1 : -1;
-      if (replayIndex >= 0 && replay.plies.length) {
-        setPosition(replay.plies[replayIndex].fen, true);
+      scanPly = replay.plies ? replay.plies.length - 1 : -1;
+      if (scanPly >= 0 && replay.plies.length) {
+        setPosition(replay.plies[scanPly].fen, true);
       }
-      renderReplay();
+      turnLabel(scanPly >= 0 ? replay.plies[scanPly].fen : replay.start_fen);
+      renderSolution();
+      renderFinishedMeta(replay);
     } catch (e) {
       /* ignore */
+    }
+  }
+
+  function renderChain(rows) {
+    const list = document.getElementById("chain");
+    const empty = document.getElementById("chain-empty");
+    if (!list || !empty) return;
+    const visible = (rows || []).filter((row) => row.attempt_id !== ATTEMPT_ID);
+    const all = (rows || []).slice();
+    if (!all.length) {
+      list.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.hidden = false;
+    list.innerHTML = all
+      .map((row) => {
+        const isYou = row.attempt_id === ATTEMPT_ID;
+        const label =
+          (row.started_at ? new Date(row.started_at).toLocaleTimeString() : "") +
+          " · " +
+          (isYou ? "this attempt" : statusLabel(row) + " · " + row.moves_played + " moves");
+        if (isYou) {
+          return '<li class="chain-you">' + escHtml(label) + "</li>";
+        }
+        return (
+          '<li><a href="' +
+          escHtml(row.watch_url || "/p/" + row.attempt_id) +
+          '">' +
+          escHtml(label) +
+          "</a></li>"
+        );
+      })
+      .join("");
+    if (!visible.length) return;
+  }
+
+  async function refreshChain() {
+    if (!agentKey) return;
+    try {
+      const r = await fetch(
+        "/api/v1/puzzles/public/attempts?by_key=" +
+          encodeURIComponent(agentKey) +
+          "&limit=50"
+      );
+      if (!r.ok) return;
+      const rows = (await r.json()).attempts || [];
+      renderChain(rows);
+      if (!currentStartedAt) return;
+      const newer = rows
+        .filter(
+          (row) =>
+            row.attempt_id !== ATTEMPT_ID &&
+            String(row.started_at || "") > String(currentStartedAt)
+        )
+        .sort((a, b) =>
+          String(b.started_at).localeCompare(String(a.started_at))
+        );
+      if (newer.length && !followTimer) {
+        const banner = document.getElementById("follow-banner");
+        if (banner) {
+          banner.textContent =
+            "Agent started the next puzzle — following in " +
+            Math.round(FOLLOW_DELAY_MS / 1000) +
+            "s…";
+          banner.style.display = "block";
+        }
+        followTimer = setTimeout(
+          () => followTo(newer[0].attempt_id),
+          FOLLOW_DELAY_MS
+        );
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function startChainTracking(state) {
+    agentKey = state.key || agentKey;
+    currentStartedAt = state.started_at || currentStartedAt;
+    if (!agentKey || chainTimer) return;
+    chainTimer = setInterval(refreshChain, CHAIN_POLL_MS);
+    refreshChain();
+  }
+
+  function resetWatch() {
+    lastFen = null;
+    replay = null;
+    scanPly = -1;
+    if (followTimer) {
+      clearTimeout(followTimer);
+      followTimer = null;
+    }
+    const banner = document.getElementById("follow-banner");
+    if (banner) {
+      banner.style.display = "none";
+      banner.textContent = "";
+    }
+    renderMeta({ attempt_id: ATTEMPT_ID, agent_name: "—", status: "active", result: null });
+    const puzzle = document.getElementById("state-puzzle");
+    const puzzleLabel = document.getElementById("state-puzzle-label");
+    const source = document.getElementById("state-source");
+    const sourceLabel = document.getElementById("state-source-label");
+    const rating = document.getElementById("state-rating");
+    const ratingLabel = document.getElementById("state-rating-label");
+    if (puzzle) puzzle.hidden = true;
+    if (puzzleLabel) puzzleLabel.hidden = true;
+    if (source) source.hidden = true;
+    if (sourceLabel) sourceLabel.hidden = true;
+    if (rating) rating.hidden = true;
+    if (ratingLabel) ratingLabel.hidden = true;
+    const heading = document.getElementById("moves-heading");
+    if (heading) heading.textContent = "Moves";
+    const mv = document.getElementById("mv");
+    if (mv) mv.innerHTML = "";
+  }
+
+  function followTo(nextId) {
+    followTimer = null;
+    window.history.replaceState({}, "", "/p/" + encodeURIComponent(nextId));
+    ATTEMPT_ID = nextId;
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    resetWatch();
+    poll();
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
     }
   }
 
@@ -194,28 +460,32 @@ async function main() {
       if (!r.ok) return;
       const state = await r.json();
       renderMeta(state);
+      renderAgentMetrics(state);
+      renderLiveMoves(state);
       setPosition(state.fen, true);
+      turnLabel(state.fen);
       if (state.status === "finished") {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
+        stopPolling();
         await loadReplay();
+        startChainTracking(state);
       } else if (state.status === "abandoned") {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
+        stopPolling();
+        startChainTracking(state);
+      } else {
+        startChainTracking(state);
       }
     } catch (e) {
       /* ignore */
     }
   }
 
-  const prevBtn = document.getElementById("replay-prev");
-  const nextBtn = document.getElementById("replay-next");
-  if (prevBtn) prevBtn.addEventListener("click", () => goToStep(replayIndex - 1));
-  if (nextBtn) nextBtn.addEventListener("click", () => goToStep(replayIndex + 1));
+  window.addEventListener("resize", () => {
+    const wrap = document.getElementById("board-wrap");
+    if (wrap) {
+      const movesCol = document.getElementById("moves-col");
+      if (movesCol) movesCol.style.maxHeight = wrap.offsetHeight + "px";
+    }
+  });
 
   pollTimer = setInterval(poll, POLL_MS);
   poll();

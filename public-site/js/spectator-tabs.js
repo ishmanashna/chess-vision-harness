@@ -3,6 +3,7 @@
 
   function normalizeTab(name) {
     if (name === "completed" || name === "mygames") return name;
+    if (name === "puzzles" || name === "identify") return name;
     return "active";
   }
 
@@ -27,12 +28,17 @@
     if (next === "mygames" && window.CVH && window.CVH.refreshHumanGamesLists) {
       window.CVH.refreshHumanGamesLists();
     }
+    if ((next === "puzzles" || next === "identify") && window.CVH && window.CVH.refreshAttemptsLists) {
+      window.CVH.refreshAttemptsLists();
+    }
   }
 
   function initialTab() {
     var search = window.location.search || "";
     if (search.indexOf("tab=mygames") >= 0) return "mygames";
     if (search.indexOf("tab=completed") >= 0) return "completed";
+    if (search.indexOf("tab=puzzles") >= 0) return "puzzles";
+    if (search.indexOf("tab=identify") >= 0) return "identify";
     return "active";
   }
 

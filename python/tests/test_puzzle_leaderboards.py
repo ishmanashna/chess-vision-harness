@@ -85,7 +85,7 @@ def test_puzzle_content_rows_use_frozen_import_difficulty(tmp_path):
     (row,) = board["puzzles"]
     assert row["id"] == "pz-1" and row["rating"] == 1500.0 and row["deviation"] == 120.0
     assert row["attempts"] == 2 and row["solves"] == 1 and row["solve_rate"] == 0.5
-    assert row["themes"] == ["mateIn2", "sacrifice"]
+    assert "themes" not in row, "themes never leave the puzzle records"
     assert row["popularity"] == 88 and row["nb_plays"] == 12345
     assert row["source"] == "https://lichess.org/abc"
     assert row["watch_url"] == "/p/pz-new"
@@ -163,7 +163,12 @@ def test_live_puzzle_leaderboard_and_legacy_redirects(tmp_path, monkeypatch):
             assert resp.status_code == 301
             assert resp.headers["location"] == location
         for path in ("/api/leaderboard/identify/live", "/data/identify_leaderboard.json"):
-            assert client.get(path).status_code == 404
+            resp = client.get(path)
+            assert resp.status_code == 200
+            assert resp.headers.get("cache-control") == "public, max-age=5"
+            data = resp.json()
+            assert isinstance(data.get("agents"), list)
+            assert isinstance(data.get("generated_at"), str)
     finally:
         spec._game_service = None
         spec._controller = None
@@ -222,17 +227,19 @@ def test_all_headers_have_single_launcher_nav():
 def test_proxy_allows_puzzle_leaderboard_paths():
     text = (ROOT / "public-site" / "functions" / "_proxy.js").read_text(encoding="utf-8")
     assert "/api/leaderboard/puzzles/live" in text
-    assert "/api/leaderboard/identify/live" not in text
+    assert "/api/leaderboard/identify/live" in text
     assert 'startsWith("/p/")' in text
     assert 'startsWith("/i/")' in text
 
 
 def test_leaderboard_page_is_unified_no_tabs():
     text = (ROOT / "public-site" / "leaderboard" / "index.html").read_text(encoding="utf-8")
-    for needle in ('data-show-unified-stats', "Puzzle rating", "Solve rate", "% pieces",
+    for needle in ('data-show-unified-stats', "PUZZLES", "Solve rate", "% pieces",
                    "% boards", "data-puzzle-content-leaderboard", "data-engines-leaderboard",
                    "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\""):
         assert needle in text, needle
+    assert 'data-sort="puzzle_solve_rate"' not in text, "agent solve-rate column removed"
+    assert "<th scope=\"col\">Themes</th>" not in text, "theme column removed"
     assert "data-lb-tab" not in text
     assert "data-lb-panel" not in text
     assert "data-puzzle-leaderboard" not in text
@@ -244,7 +251,11 @@ def test_leaderboard_page_is_unified_no_tabs():
     assert "data-puzzle-leaderboard" not in js
     assert "setTab" not in js
     assert "/api/leaderboard/identify" not in js
+    assert "themes" not in js
     common = (ROOT / "public-site" / "js" / "common.js").read_text(encoding="utf-8")
     assert "data-show-unified-stats" in common
-    assert "puzzle_solve_rate" in common
+    assert "puzzle_solve_rate" not in common
     assert "identify_full_position_rate" in common
+    css = (ROOT / "public-site" / "css" / "site.css").read_text(encoding="utf-8")
+    assert ".leaderboard-table .elo" in css
+    assert ".leaderboard-table .accuracy" not in css, "accuracy cell is a plain td like other metrics"

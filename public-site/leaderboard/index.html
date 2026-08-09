@@ -63,7 +63,7 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
           </p>
           <p>
             Puzzle rating is a separate Glicko-2 surface: a correct puzzle finish is a win, a wrong or illegal move is a loss,
-            and abandoned attempts never rate — it never changes game Elo. Solve rate is solves over finished attempts.
+            and abandoned attempts never rate — it never changes game Elo.
             % pieces and % boards come from board identification runs, which are unrated and measured only by
             placement accuracy. These are separate, ungame-related surfaces shown in the same table for one agent — cells stay empty
             (<code>—</code>) until the agent has activity.
@@ -80,16 +80,15 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
                 <th scope="col" data-sort="name">Agent</th>
                 <th scope="col" data-sort="elo" title="Results-only ladder Elo (win/draw/loss). Not the same as Play rating.">Elo</th>
                 <th scope="col" data-sort="mean_accuracy" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
-                <th scope="col" data-sort="mean_play_rating" title="Play rating from composite move quality — not ladder Elo.">Play rating</th>
+                <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Play rating</th>
                 <th scope="col" data-sort="games" title="Finished games with a real result (rated, AvH, and unrated same-model AvH). Idle timeouts (*) excluded.">Games</th>
-                <th scope="col" data-sort="puzzle_rating" title="Glicko-2 puzzle rating from finished attempts — separate from game Elo, never affects it.">Puzzle rating</th>
-                <th scope="col" data-sort="puzzle_solve_rate" title="Solves over finished puzzle attempts. Abandoned attempts are not counted.">Solve rate</th>
+                <th scope="col" data-sort="puzzle_rating" title="Glicko-2 puzzle rating from finished attempts — separate from game Elo, never affects it.">PUZZLES</th>
                 <th scope="col" data-sort="identify_mean_accuracy" title="Average exact-piece placement across finished board-identification attempts.">% pieces</th>
                 <th scope="col" data-sort="identify_full_position_rate" title="Share of finished board-identification attempts with every piece placed exactly.">% boards</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="10" class="empty-state">Loading snapshot…</td></tr>
+              <tr><td colspan="9" class="empty-state">Loading snapshot…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-snapshot-meta></p>
@@ -136,7 +135,6 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
               <th scope="col" data-sort="rating" title="Imported Lichess difficulty estimate — never changes.">Difficulty</th>
               <th scope="col" data-sort="attempts">Attempts</th>
               <th scope="col" data-sort="solve_rate">Solve rate</th>
-              <th scope="col">Themes</th>
               <th scope="col" data-sort="popularity" title="Popularity from the Lichess dataset.">Popularity</th>
               <th scope="col" data-sort="nb_plays" title="Times played from the Lichess dataset.">Plays</th>
               <th scope="col">Source</th>
@@ -144,7 +142,7 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="10" class="empty-state">Loading snapshot…</td></tr>
+            <tr><td colspan="9" class="empty-state">Loading snapshot…</td></tr>
           </tbody>
         </table>
         <p class="snapshot-meta" data-snapshot-meta></p>

@@ -18,25 +18,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "elo_cali
 
 from conftest import LOW_OPPONENT, MID_OPPONENT  # noqa: E402
 from calibration.ratings import CalibrationLadder, GameRecord, RatingUpdate  # noqa: E402
-from chess_harness.game_quality import SideQuality, analyse_game  # noqa: E402
+from chess_harness.game_quality import (
+    COMPOSITE_Q_ALPHA,
+    COMPOSITE_Q_BETA,
+    SideQuality,
+    analyse_game,
+)  # noqa: E402
 from chess_harness.play_rating import (  # noqa: E402
     MIN_GAMES_FOR_SAMPLE,
     MIN_MAP_SAMPLES,
-    Q_ALPHA,
-    Q_BETA,
     append_play_rating_sample,
     build_samples_for_calibration_game,
     composite_q,
     fit_map_knots,
-    fit_play_rating_map,
     interpolate_map,
     is_sample_eligible,
     play_rating_for_side,
-    play_rating_from_q,
     play_rating_status_summary,
     process_calibration_game_quality,
     rebuild_estimation_samples,
-    schedule_map_refit,
 )
 
 
@@ -58,9 +58,30 @@ def _side(accuracy=90.0, acpl=20.0, blunder_rate=0.05) -> SideQuality:
     )
 
 
+def _write_warm_accuracy_map(root: Path) -> Path:
+    """Fixture accuracy→Elo map with the documented warm criteria (≥2 engines)."""
+    path = root / "accuracy_elo_map.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "engine_count": 2,
+                "min_engines": 2,
+                "fitted_at": "2026-01-01T00:00:00+00:00",
+                "knots": [
+                    {"accuracy": 0.0, "elo": 500.0},
+                    {"accuracy": 100.0, "elo": 1500.0},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_composite_q_formula():
     side = _side(accuracy=80.0, acpl=50.0, blunder_rate=0.1)
-    expected = 80.0 - Q_ALPHA * 0.5 - Q_BETA * 0.1
+    expected = 80.0 - COMPOSITE_Q_ALPHA * 0.5 - COMPOSITE_Q_BETA * 0.1
     assert composite_q(side) == pytest.approx(expected)
 
 
@@ -106,24 +127,18 @@ def test_play_rating_cold_start(tmp_path: Path):
 
     for i in range(MIN_MAP_SAMPLES - 1):
         append_play_rating_sample(
-            {"q": 50.0 + i, "calibration_elo_before": 800.0 + i},
+            {"engine_id": "engine-a", "q": 50.0 + i, "accuracy": 80.0, "calibration_elo_before": 800.0 + i},
             root=root,
         )
-    fit_play_rating_map(root=root)
     assert play_rating_for_side(side, root=root) is None
 
 
 def test_play_rating_warm_map(tmp_path: Path):
     root = tmp_path / "results"
-    for i in range(MIN_MAP_SAMPLES):
-        append_play_rating_sample(
-            {"q": float(i), "calibration_elo_before": 500.0 + i * 10.0},
-            root=root,
-        )
-    fit_play_rating_map(root=root)
-    rating = play_rating_from_q(15.0, root=root)
+    _write_warm_accuracy_map(root)
+    rating = play_rating_for_side(_side(accuracy=90.0), root=root)
     assert rating is not None
-    assert 600.0 <= rating <= 700.0
+    assert 1300.0 <= rating <= 1500.0  # 500 + 0.9 * 1000 = 1400
 
 
 def test_play_rating_status_summary_aggregates(tmp_path: Path):
@@ -141,7 +156,6 @@ def test_play_rating_status_summary_aggregates(tmp_path: Path):
             },
             root=root,
         )
-    fit_play_rating_map(root=root)
     summary = play_rating_status_summary(
         root=root,
         engine_elos={"stockfish-handicap:noise22": 750},
@@ -312,19 +326,17 @@ def test_quality_path_does_not_mutate_ratings_json(tmp_path: Path):
     assert ratings_path.read_bytes() == before
 
 
-def test_parallel_map_refit_no_corruption(tmp_path: Path):
+def test_parallel_sample_append_no_corruption(tmp_path: Path):
     root = tmp_path / "results"
-    for i in range(MIN_MAP_SAMPLES):
-        append_play_rating_sample(
-            {"q": float(i % 20), "calibration_elo_before": 700.0 + (i % 20) * 5.0},
-            root=root,
-        )
-
     errors: list[Exception] = []
 
     def worker() -> None:
         try:
-            fit_play_rating_map(root=root)
+            for _ in range(20):
+                append_play_rating_sample(
+                    {"engine_id": "engine-a", "q": 1.0, "accuracy": 70.0, "calibration_elo_before": 900.0},
+                    root=root,
+                )
         except Exception as exc:
             errors.append(exc)
 
@@ -335,21 +347,16 @@ def test_parallel_map_refit_no_corruption(tmp_path: Path):
         t.join()
 
     assert not errors
-    data = json.loads((root / "continuous" / "play_rating_map.json").read_text())
-    assert data["sample_count"] == MIN_MAP_SAMPLES
-    assert data.get("fitted_at")
-    assert isinstance(data.get("knots"), list)
-
-
-def test_schedule_map_refit_is_noop(tmp_path: Path):
-    root = tmp_path / "results"
-    for i in range(MIN_MAP_SAMPLES):
-        append_play_rating_sample(
-            {"q": float(i), "calibration_elo_before": 600.0 + i},
-            root=root,
-        )
-    schedule_map_refit(root=root)
-    assert not (root / "continuous" / "play_rating_map.json").exists()
+    lines = (
+        (root / "continuous" / "play_rating_samples.jsonl")
+        .read_text()
+        .strip()
+        .splitlines()
+    )
+    assert len(lines) == 160
+    for line in lines:
+        assert json.loads(line)["engine_id"] == "engine-a"
+    assert not (root / "accuracy_elo_map.json").exists()
 
 
 def test_append_game_log_persists_uci_moves(tmp_path: Path):

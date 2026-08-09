@@ -23,8 +23,6 @@ from chess_harness.puzzle_import import PuzzleImporter
 _LEAK_KEYS = frozenset(
     {
         "solution_moves",
-        "submitted_moves",
-        "opponent_moves",
         "board_fen",
         "start_fen",
         "puzzle_id",
@@ -166,7 +164,10 @@ def test_public_state_active_is_secret_safe(observer_client):
     assert state["result"] is None
     assert state["moves_played"] == 0
     assert state["agent_name"] == "observer-agent"
-    assert state["themes"] == [], "spoiler theme 'mateIn2' must be withheld"
+    assert state["submitted_moves"] == [], "no moves submitted yet"
+    assert state["opponent_moves"] == []
+    assert "themes" not in state, "themes are never user-facing"
+    assert state["key"], "attempt chain key is published"
     assert " b " in state["fen"], "live board fen must reflect the visible position"
 
     # pz-c's solution is a single agent move: after it the attempt is finished.
@@ -181,6 +182,8 @@ def test_public_state_active_is_secret_safe(observer_client):
     assert state2["status"] == "finished"
     assert state2["result"] == "correct"
     assert state2["moves_played"] == 1
+    assert state2["submitted_moves"] == ["e5"], "SAN labels are public once played"
+    assert state2["opponent_moves"] == ["Nf3"], "the finishing puzzle reply was played"
     assert state2["fen"] != before
 
     # A multi-move puzzle stays active after a correct move, still leak-free.
@@ -194,6 +197,8 @@ def test_public_state_active_is_secret_safe(observer_client):
     _assert_no_leak(st3)
     assert st3["status"] == "active"
     assert st3["moves_played"] == 1
+    assert st3["submitted_moves"] == ["e5"]
+    assert st3["opponent_moves"] == ["Nf3"], "the puzzle reply is public SAN too"
 
 
 def test_watch_page_board_media_and_missing(observer_client):
@@ -208,6 +213,9 @@ def test_watch_page_board_media_and_missing(observer_client):
     assert f'data-attempt-id="{attempt_id}"' in page.text
     assert "/js/puzzle-watch.js" in page.text
     assert "solution" not in page.text.lower()
+    assert "moves-col" in page.text, "P2: moves column mirrors the game spectator"
+    assert "attempt chain" in page.text.lower()
+    assert "theme-tag" not in page.text, "no theme rendering anywhere"
 
     img = client.get(f"/p/{attempt_id}/board.png")
     assert img.status_code == 200
@@ -266,7 +274,7 @@ def test_correct_solve_replay_unlocks(observer_client):
     assert rv["submitted_moves"] == ["e7e5", "g8f6"]
     assert rv["opponent_moves"] == ["g1f3", "f1c4"]
     assert rv["solution_moves"] == ["e7e5", "g1f3", "g8f6", "f1c4"]
-    assert rv["themes"] == ["opening"]
+    assert "themes" not in rv, "themes are never published on public surfaces"
     assert rv["source_link"] == "https://lichess.org/a"
     assert rv["started_at"] and rv["finished_at"]
 
@@ -327,11 +335,12 @@ def test_public_browse_lists_without_secrets(observer_client):
         _assert_no_leak(row)
         assert row["watch_url"].startswith("/p/")
         assert row["result"] in (None, "correct", "failed")
+        assert row["key"], "attempt chain key travels on discovery rows"
 
     won_row = next(r for r in rows if r["attempt_id"] == won["attempt_id"])
     assert won_row["status"] == "finished"
     assert won_row["result"] == "failed"
-    assert won_row["themes"] == [], "spoiler theme withheld even in discovery"
+    assert "themes" not in won_row, "themes are never user-facing, not even filtered"
 
     active_only = client.get("/api/v1/puzzles/public/attempts", params={"status": "active"})
     active_ids = {r["attempt_id"] for r in active_only.json()["attempts"]}
@@ -342,3 +351,54 @@ def test_public_browse_lists_without_secrets(observer_client):
     finished_ids = {r["attempt_id"] for r in finished_only.json()["attempts"]}
     assert won["attempt_id"] in finished_ids
     assert active["attempt_id"] not in finished_ids
+
+
+def test_public_attempt_chain_by_key(observer_client):
+    client, _ = observer_client
+    key = _register(client, "chain-agent")
+
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    client.post(f"/api/v1/puzzles/{first}/move/a7a6", headers=_auth(key))
+    second = _start(client, key, rating_min=1400, rating_max=1600)["attempt_id"]
+
+    rows = client.get("/api/v1/puzzles/public/attempts").json()["attempts"]
+    chain_key = next(r["key"] for r in rows if r["attempt_id"] == second)
+    assert chain_key
+
+    chain = client.get(
+        "/api/v1/puzzles/public/attempts", params={"by_key": chain_key}
+    ).json()["attempts"]
+    ids = [r["attempt_id"] for r in chain]
+    assert ids == [second, first], "chain is newest first"
+    for row in chain:
+        assert row["key"] == chain_key
+        _assert_no_leak(row)
+
+    foreign = client.get(
+        "/api/v1/puzzles/public/attempts", params={"by_key": "0" * 16}
+    ).json()["attempts"]
+    assert foreign == []
+
+
+def test_by_key_scan_public_rate_limited(observer_client):
+    from chess_harness.api_limits import (
+        PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR,
+    )
+
+    client, _ = observer_client
+    key = _register(client, "scanner-agent")
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    rows = client.get("/api/v1/puzzles/public/attempts").json()["attempts"]
+    fingerprint = next(r["key"] for r in rows if r["attempt_id"] == first)
+    url = f"/api/v1/puzzles/public/attempts?by_key={fingerprint}"
+
+    ok = 0
+    denied = 0
+    for _ in range(PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR + 5):
+        resp = client.get(url)
+        if resp.status_code == 200:
+            ok += 1
+        else:
+            denied += 1
+    assert ok == PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR
+    assert denied >= 1, "excess by_key scans must be rate-limited"

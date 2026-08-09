@@ -23,8 +23,6 @@ from chess_harness.elo_estimation import (  # noqa: E402
 )
 from chess_harness.play_rating import (  # noqa: E402
     MIN_MAP_SAMPLES,
-    append_play_rating_sample,
-    fit_play_rating_map,
     rewrite_play_rating_samples,
 )
 
@@ -120,17 +118,6 @@ def test_fit_all_preserves_explicit_champion(tmp_path: Path):
     refit = fit_all_estimators(root=root)
     assert refit["champion"] == "accuracy_only"
     assert champion_id(root=root) == "accuracy_only"
-
-
-def test_fit_play_rating_map_writes_play_rating_map(tmp_path: Path):
-    root = tmp_path / "results"
-    for i in range(35):
-        append_play_rating_sample(
-            _synthetic_sample(i, q=float(i), elo=500.0 + i * 10),
-            root=root,
-        )
-    fit_play_rating_map(root=root)
-    assert (root / "continuous" / "play_rating_map.json").exists()
 
 
 def test_fit_all_deterministic(tmp_path: Path):

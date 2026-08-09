@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from chess_harness.play_rating import map_path
+from chess_harness.accuracy_elo_map import map_path
 from chess_harness.models import ModelRegistry
 from chess_harness.results import ResultsManager
 from chess_harness.snapshot_leaderboard import (
@@ -25,8 +25,8 @@ def _write_warm_map(cal_root, knots):
     map_path(cal_root).write_text(
         json.dumps(
             {
-                "min_samples": 30,
-                "sample_count": 30,
+                "engine_count": 2,
+                "min_engines": 2,
                 "knots": knots,
                 "fitted_at": "2026-01-01T00:00:00.000Z",
             }
@@ -77,7 +77,6 @@ def test_build_snapshot_sorts_and_flags_provisional(tmp_path):
         "puzzle_deviation": None,
         "puzzle_attempts": 0,
         "puzzle_solves": 0,
-        "puzzle_solve_rate": None,
         "identify_attempts": 0,
         "identify_mean_accuracy": None,
         "identify_full_position_rate": None,
@@ -114,7 +113,6 @@ def test_export_leaderboard_snapshot_writes_file(tmp_path, monkeypatch):
             "puzzle_deviation": None,
             "puzzle_attempts": 0,
             "puzzle_solves": 0,
-            "puzzle_solve_rate": None,
             "identify_attempts": 0,
             "identify_mean_accuracy": None,
             "identify_full_position_rate": None,
@@ -398,7 +396,8 @@ def test_build_snapshot_merges_puzzle_and_identify_stats(tmp_path):
     )
     by_id = {a["id"]: a for a in snapshot["agents"]}
     aa = by_id["agent-a"]
-    assert aa["puzzle_rating"] == 1650.0 and aa["puzzle_solve_rate"] == pytest.approx(0.6667)
+    assert aa["puzzle_rating"] == 1650.0
+    assert "puzzle_solve_rate" not in aa, "agent rows no longer carry a solve rate"
     assert aa["puzzle_attempts"] == 3 and aa["puzzle_solves"] == 2
     assert aa["identify_attempts"] == 4
     assert aa["identify_mean_accuracy"] == pytest.approx(0.75)

@@ -237,7 +237,8 @@ def get_calibration_status() -> Dict[str, Any]:
     rating_table = build_ladder_rating_table(catalog, calibration)
     rating_table = mgr.enrich_rating_rows(rating_table)
 
-    from .play_rating import load_play_rating_map, play_rating_status_summary
+    from .accuracy_elo_map import MIN_ENGINE_PAIRS, status_summary as accuracy_map_status
+    from .play_rating import play_rating_status_summary
 
     cal_root = project_root() / "elo_calibration" / "results"
     try:
@@ -247,12 +248,10 @@ def get_calibration_status() -> Dict[str, Any]:
             "sample_count": 0,
             "min_samples": 30,
         }
-    play_rating_map = load_play_rating_map(root=cal_root) or {
-        "sample_count": 0,
-        "min_samples": 30,
-        "fitted_at": None,
-        "warm": False,
-    }
+    try:
+        accuracy_map = accuracy_map_status(root=cal_root)
+    except Exception:
+        accuracy_map = {}
     by_engine = {row["engine_id"]: row for row in play_rating.get("engines", [])}
     for row in rating_table:
         info = by_engine.get(row["id"])
@@ -292,10 +291,10 @@ def get_calibration_status() -> Dict[str, Any]:
             "min_samples": play_rating["min_samples"],
         },
         "play_rating_map": {
-            "sample_count": int(play_rating_map.get("sample_count", 0)),
-            "min_samples": int(play_rating_map.get("min_samples", 30)),
-            "fitted_at": play_rating_map.get("fitted_at"),
-            "warm": int(play_rating_map.get("sample_count", 0)) >= int(play_rating_map.get("min_samples", 30)) and bool(play_rating_map.get("fitted_at")),
+            "sample_count": int(accuracy_map.get("engine_count") or 0),
+            "min_samples": int(accuracy_map.get("min_engines") or MIN_ENGINE_PAIRS),
+            "fitted_at": accuracy_map.get("fitted_at"),
+            "warm": bool(accuracy_map.get("warm")),
         },
     }
     _STATUS_CACHE = (now, payload)

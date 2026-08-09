@@ -1,6 +1,29 @@
 {
   "version": 1,
-  "generated_at": "2026-08-09T15:37:38.000Z",
-  "agents": [],
-  "puzzles": []
+  "generated_at": "2026-08-09T23:06:32.000Z",
+  "agents": [
+    {
+      "id": "mimo-v2.5",
+      "name": "mimo-v2.5",
+      "rating": 1074.9,
+      "deviation": 294.5,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "00Gvr",
+      "rating": 1149.0,
+      "deviation": 77.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 89,
+      "nb_plays": 2801,
+      "source": "https://lichess.org/tHhRpYsL/black#92",
+      "watch_url": "/p/pz-l0XY0qtt8cBUXHJ0hzObHA"
+    }
+  ]
 }

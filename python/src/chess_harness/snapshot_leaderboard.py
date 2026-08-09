@@ -142,7 +142,6 @@ def build_snapshot(
                 "puzzle_deviation": pz.get("deviation"),
                 "puzzle_attempts": int(pz.get("attempts") or 0),
                 "puzzle_solves": int(pz.get("solves") or 0),
-                "puzzle_solve_rate": pz.get("solve_rate"),
                 "identify_attempts": int(iz.get("attempts") or 0),
                 "identify_mean_accuracy": iz.get("mean_accuracy"),
                 "identify_full_position_rate": iz.get("full_position_rate"),
@@ -197,6 +196,13 @@ def load_live_puzzle_leaderboard(
 ) -> Dict[str, Any]:
     """Public-site puzzle leaderboard JSON from current harness state."""
     return build_puzzle_leaderboard(registry=registry)
+
+
+def load_live_identify_leaderboard(
+    *, registry: Optional[ModelRegistry] = None
+) -> Dict[str, Any]:
+    """Public-site board-identification leaderboard JSON from current state."""
+    return build_identify_leaderboard(registry=registry)
 
 
 def export_public_snapshots(

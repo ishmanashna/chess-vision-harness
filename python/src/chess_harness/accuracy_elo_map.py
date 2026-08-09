@@ -1,9 +1,12 @@
 """
-Legacy compatibility map for older operator data. Runtime quality scoring uses play_rating.py.
+Accuracy→Elo map: monotone (mean accuracy, reference Elo) pairs → display strength.
 
 Each eligible engine contributes one (mean_accuracy, Elo) pair from quality
-samples. Floaters use calibrated ladder Elo; anchors use fixed catalog Elo.
-Monotone piecewise-linear knots are fitted for lookup at game finish.
+samples. Floaters need >= MIN_GAMES_FOR_SAMPLE samples after 101 rated
+calibration games — their Elo is a moving target until enough games. Anchors
+(stockfish) are eligible from the first scored game — their fixed catalog Elo
+stretches the accuracy→Elo table at the top. Monotone piecewise-linear knots
+are fitted for lookup at game finish.
 
 Never writes ladder Elo / ratings.json. The map changes only via rebuild_accuracy_elo_map.
 """
@@ -16,6 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .paths import project_root
 from .play_rating import (
+    MIN_GAMES_FOR_SAMPLE,
     _atomic_write_json,
     _play_rating_lock,
     _read_json_object,
@@ -48,6 +52,20 @@ def _calibration_ratings() -> Dict[str, Dict[str, Any]]:
     return merge_calibration_ratings(max_age_sec=None)
 
 
+def _is_anchor(engine_id: str, calibration: Dict[str, Dict[str, Any]]) -> bool:
+    """Anchors are stockfish-type opponents pinned to the fixed catalog Elo."""
+    row = calibration.get(engine_id)
+    if row is not None and "anchor" in row:
+        return bool(row.get("anchor"))
+    from .opponents import get_catalog
+
+    try:
+        opp = get_catalog().get(engine_id)
+    except ValueError:
+        return False
+    return opp is not None and opp.type == "stockfish"
+
+
 def _pair_elo(
     engine_id: str, calibration: Dict[str, Dict[str, Any]]
 ) -> Optional[int]:
@@ -60,14 +78,21 @@ def _pair_elo(
 
     from .opponents import get_catalog
 
-    opp = get_catalog().get(engine_id)
+    try:
+        opp = get_catalog().get(engine_id)
+    except ValueError:
+        return None
     if opp is not None and opp.type == "stockfish":
         return int(opp.elo)
     return None
 
 
 def collect_engine_pairs(*, root: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Mean move accuracy per eligible engine paired with reference Elo."""
+    """Mean move accuracy per eligible engine paired with reference Elo.
+
+    Floaters need >= MIN_GAMES_FOR_SAMPLE quality samples (their Elo is a moving
+    target until 101 rated games); anchors are eligible with any scored sample.
+    """
     samples = load_samples(results_root(root))
     calibration = _calibration_ratings()
 
@@ -83,6 +108,8 @@ def collect_engine_pairs(*, root: Optional[Path] = None) -> List[Dict[str, Any]]
     for eid, accs in sorted(buckets.items()):
         elo = _pair_elo(eid, calibration)
         if elo is None:
+            continue
+        if not _is_anchor(eid, calibration) and len(accs) < MIN_GAMES_FOR_SAMPLE:
             continue
         mean_accuracy = sum(accs) / len(accs)
         pairs.append(
@@ -137,6 +164,7 @@ def rebuild_accuracy_elo_map(*, root: Optional[Path] = None) -> Dict[str, Any]:
     payload: Dict[str, Any] = {
         "engine_count": len(pairs),
         "min_engines": MIN_ENGINE_PAIRS,
+        "min_games_for_sample": MIN_GAMES_FOR_SAMPLE,
         "fitted_at": datetime.now(timezone.utc).isoformat(),
         "pairs": pairs,
         "knots": fit_accuracy_elo_knots(pairs) if pairs else [],
@@ -164,13 +192,15 @@ def load_accuracy_elo_map(
     return data
 
 
-def est_elo_from_accuracy(accuracy: float, *, root: Optional[Path] = None) -> Optional[int]:
-    """Lookup estimated Elo for a move-accuracy percentage via the static map."""
+def play_rating_from_accuracy(
+    accuracy: float, *, root: Optional[Path] = None
+) -> Optional[float]:
+    """Lookup estimated display strength for a move-accuracy percentage via the static map."""
     m = load_accuracy_elo_map(root=root)
     if not map_warm(m):
         return None
     rating = interpolate_accuracy_elo(m.get("knots", []), float(accuracy))
-    return int(round(rating)) if rating is not None else None
+    return round(rating, 1) if rating is not None else None
 
 
 def status_summary(*, root: Optional[Path] = None) -> Dict[str, Any]:

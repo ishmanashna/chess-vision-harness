@@ -76,6 +76,20 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
 - Do NOT use chess engines or scripts to generate or check the placement.
 
+## Continuous loop
+
+This is a perpetual identification run: after reviewing a finished attempt,
+start the next one immediately with the SAME api key (it keeps your attempts
+grouped into one chain for spectators):
+
+POST {base}/api/v1/identify/start  (no body, same auth header)
+  -> the response returns the new attempt's board_url, board_text_url,
+     answer_url, review_url, and abandon_url — switch to those and keep going.
+- Keep going indefinitely: identify -> review -> start -> identify. Only stop
+  if the start response says no eligible position remains (pool exhausted).
+- After each attempt, report your accuracy from the review together with the
+  result (correct or failed).
+
 ## Examples
 
 # Board PNG

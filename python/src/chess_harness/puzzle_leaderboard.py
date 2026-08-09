@@ -145,7 +145,6 @@ def build_puzzle_leaderboard(
                 "attempts": stats["attempts"],
                 "solves": stats["solves"],
                 "solve_rate": _row_rate(stats["solves"], stats["attempts"]),
-                "themes": list(content.get("themes") or []),
                 "popularity": content.get("popularity"),
                 "nb_plays": content.get("nb_plays"),
                 "source": content.get("game_url") or "",

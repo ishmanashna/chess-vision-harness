@@ -143,7 +143,7 @@ def test_spectator_page_modern_column_headers(list_client):
     assert 'class="col-side"' in html
     assert 'class="col-quality"' in html
     assert 'class="col-est-elo"' in html
-    assert ">Agent</th>" not in html
+    assert html.count('">Agent</th>') == 2, "Agent column exists only on the Puzzles/Identify tables"
     assert ">Opponent</th>" not in html
     assert html.count('colspan="10"') >= 2
 
@@ -271,3 +271,34 @@ def test_spectator_list_avaa_white_black_columns(list_client):
     assert row["white_elo"] is not None
     assert row["black_elo"] is not None
     assert row["agent_elo"] == row["white_elo"]
+
+
+def test_spectator_attempts_tabs_wired(list_client):
+    client, _ = list_client
+    html = client.get("/spectator/").text
+    for tab in ('data-spec-tab="puzzles"', 'data-spec-tab="identify"'):
+        assert tab in html, tab
+    assert 'data-spec-panel="puzzles"' in html
+    assert 'data-spec-panel="identify"' in html
+    assert 'data-attempts-kind="puzzles"' in html
+    assert 'data-attempts-kind="identify"' in html
+    assert 'data-attempts-table' in html
+    assert "/js/attempts-list.js" in html
+    assert 'data-sort="puzzle_rating"' in html
+    assert 'data-sort="accuracy"' in html
+    assert 'data-sort="full"' in html
+    assert "themes" not in html.lower()
+
+    tabs_js = (PUBLIC_SITE / "js" / "spectator-tabs.js").read_text(encoding="utf-8")
+    assert 'name === "puzzles"' in tabs_js
+    assert 'name === "identify"' in tabs_js
+    assert "tab=puzzles" in tabs_js
+    assert "tab=identify" in tabs_js
+    assert "refreshAttemptsLists" in tabs_js
+
+    lists_js = (PUBLIC_SITE / "js" / "attempts-list.js").read_text(encoding="utf-8")
+    assert "/api/v1/puzzles/public/attempts" in lists_js
+    assert "/api/v1/identify/public/attempts" in lists_js
+    assert 'WATCH_PREFIX = { puzzles: "/p/", identify: "/i/" }' in lists_js
+    assert "CVH.refreshAttemptsLists" in lists_js
+    assert "empty-state" in lists_js

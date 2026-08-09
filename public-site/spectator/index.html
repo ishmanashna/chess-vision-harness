@@ -41,6 +41,8 @@
         <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-spec-tab="active">Active</button>
         <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="completed">Completed</button>
         <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="mygames">My games</button>
+        <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="puzzles">Puzzles</button>
+        <button type="button" class="mode-tab" role="tab" aria-selected="false" data-spec-tab="identify">Identify</button>
       </div>
 
       <div class="banner-offline" data-offline-only role="status">
@@ -116,6 +118,54 @@
         <ul class="your-games-list" data-human-games-list></ul>
         <p class="empty-state" data-human-games-empty hidden>No saved games on this browser yet.</p>
       </section>
+
+      <section class="offline-panel" aria-labelledby="puzzles-heading" data-attempts-list data-attempts-kind="puzzles" data-spec-panel="puzzles" hidden>
+        <h3 id="puzzles-heading" class="visually-hidden">Puzzle attempts</h3>
+        <table class="leaderboard-table games-table" data-attempts-table aria-label="Puzzle attempts">
+          <colgroup>
+            <col class="col-game"/><col class="col-side"/><col class="col-result"/><col class="col-result"/>
+            <col class="col-quality"/><col class="col-quality"/><col class="col-updated"/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="attempt_id">Attempt</th>
+              <th scope="col" data-sort="agent_name">Agent</th>
+              <th scope="col" data-sort="status">Status</th>
+              <th scope="col" data-sort="result">Result</th>
+              <th scope="col" data-sort="puzzle_rating">Rating</th>
+              <th scope="col" data-sort="moves">Moves</th>
+              <th scope="col" data-sort="startedMs">Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="offline-panel" aria-labelledby="identify-heading" data-attempts-list data-attempts-kind="identify" data-spec-panel="identify" hidden>
+        <h3 id="identify-heading" class="visually-hidden">Board-identification attempts</h3>
+        <table class="leaderboard-table games-table" data-attempts-table aria-label="Board-identification attempts">
+          <colgroup>
+            <col class="col-game"/><col class="col-side"/><col class="col-result"/><col class="col-result"/>
+            <col class="col-quality"/><col class="col-quality"/><col class="col-updated"/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="attempt_id">Attempt</th>
+              <th scope="col" data-sort="agent_name">Agent</th>
+              <th scope="col" data-sort="status">Status</th>
+              <th scope="col" data-sort="result">Result</th>
+              <th scope="col" data-sort="accuracy">Accuracy</th>
+              <th scope="col" data-sort="full">Full position</th>
+              <th scope="col" data-sort="startedMs">Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </section>
     </main>
 
     <footer class="site-footer">
@@ -127,6 +177,7 @@
   <script src="/js/human-games-registry.js"></script>
   <script src="/js/human-games-ui.js"></script>
   <script src="/js/games-list.js"></script>
+  <script src="/js/attempts-list.js"></script>
   <script src="/js/spectator-tabs.js"></script>
 </body>
 </html>

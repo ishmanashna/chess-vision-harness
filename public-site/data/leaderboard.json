@@ -1,146 +1,19 @@
 {
-  "generated_at": "2026-08-09T15:37:33.000Z",
+  "generated_at": "2026-08-09T23:06:27.000Z",
   "agents": [
     {
-      "id": "cursor-auto",
-      "name": "Cursor Auto",
-      "elo": 500,
-      "games": 2,
-      "provisional": true,
-      "mean_accuracy": 52.46,
-      "mean_play_rating": 108.0,
-      "quality_games": 1,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "gemini-3.6-flash-high",
-      "name": "Gemini 3.6 Flash High",
-      "elo": 500,
-      "games": 1,
-      "provisional": true,
-      "mean_accuracy": 85.52,
-      "mean_play_rating": 1435.0,
-      "quality_games": 1,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "gpt-5.6terra-high",
-      "name": "GPT 5.6 Terra High",
-      "elo": 500,
-      "games": 1,
-      "provisional": true,
-      "mean_accuracy": 71.28,
-      "mean_play_rating": 922.0,
-      "quality_games": 1,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "grok-4.5-high",
-      "name": "Grok 4.5 High",
-      "elo": 500,
-      "games": 1,
-      "provisional": true,
-      "mean_accuracy": 67.8,
-      "mean_play_rating": 685.0,
-      "quality_games": 1,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "muse-spark-1.2",
-      "name": "Muse Spark 1.2",
-      "elo": 500,
-      "games": 0,
-      "provisional": true,
-      "mean_accuracy": null,
-      "mean_play_rating": null,
-      "quality_games": 0,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "gpt5.6-luna-max",
-      "name": "GPT 5.6 Luna Max",
-      "elo": 492,
-      "games": 5,
-      "provisional": true,
-      "mean_accuracy": 67.81,
-      "mean_play_rating": 623.8,
-      "quality_games": 4,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
       "id": "mimo-v2.5",
-      "name": "MiMo V2.5",
-      "elo": 486,
+      "name": "mimo-v2.5",
+      "elo": 500,
       "games": 3,
       "provisional": true,
       "mean_accuracy": 56.16,
       "mean_play_rating": 510.9,
       "quality_games": 3,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
+      "puzzle_rating": 1074.9,
+      "puzzle_deviation": 294.5,
+      "puzzle_attempts": 1,
       "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
-      "identify_attempts": 0,
-      "identify_mean_accuracy": null,
-      "identify_full_position_rate": null
-    },
-    {
-      "id": "claude-sonnet-4.5",
-      "name": "Claude Sonnet 4.5",
-      "elo": 444,
-      "games": 3,
-      "provisional": true,
-      "mean_accuracy": 54.09,
-      "mean_play_rating": 165.7,
-      "quality_games": 3,
-      "puzzle_rating": null,
-      "puzzle_deviation": null,
-      "puzzle_attempts": 0,
-      "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
       "identify_attempts": 0,
       "identify_mean_accuracy": null,
       "identify_full_position_rate": null
@@ -148,7 +21,7 @@
     {
       "id": "composer-2.5",
       "name": "Composer 2.5",
-      "elo": 441,
+      "elo": 499,
       "games": 6,
       "provisional": true,
       "mean_accuracy": 61.46,
@@ -158,7 +31,6 @@
       "puzzle_deviation": null,
       "puzzle_attempts": 0,
       "puzzle_solves": 0,
-      "puzzle_solve_rate": null,
       "identify_attempts": 0,
       "identify_mean_accuracy": null,
       "identify_full_position_rate": null
@@ -172,9 +44,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 96.4,
-      "mean_play_rating": 2177.0,
-      "quality_games": 151
+      "mean_accuracy": 96.1,
+      "mean_play_rating": 2891.5,
+      "quality_games": 178
     },
     {
       "id": "stockfish:19",
@@ -183,9 +55,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.9,
-      "mean_play_rating": 2078.4,
-      "quality_games": 132
+      "mean_accuracy": 95.6,
+      "mean_play_rating": 2823.7,
+      "quality_games": 161
     },
     {
       "id": "stockfish:18",
@@ -194,9 +66,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.8,
-      "mean_play_rating": 2123.7,
-      "quality_games": 148
+      "mean_accuracy": 95.4,
+      "mean_play_rating": 2775.8,
+      "quality_games": 181
     },
     {
       "id": "stockfish:17",
@@ -205,9 +77,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.6,
-      "mean_play_rating": 2132.6,
-      "quality_games": 106
+      "mean_accuracy": 95.4,
+      "mean_play_rating": 2767.5,
+      "quality_games": 136
     },
     {
       "id": "stockfish:16",
@@ -216,9 +88,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.4,
-      "mean_play_rating": 2132.0,
-      "quality_games": 133
+      "mean_accuracy": 95.1,
+      "mean_play_rating": 2725.1,
+      "quality_games": 163
     },
     {
       "id": "stockfish:15",
@@ -227,9 +99,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.4,
-      "mean_play_rating": 2188.9,
-      "quality_games": 156
+      "mean_accuracy": 95.1,
+      "mean_play_rating": 2718.7,
+      "quality_games": 188
     },
     {
       "id": "stockfish:14",
@@ -238,9 +110,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 95.1,
-      "mean_play_rating": 2169.2,
-      "quality_games": 143
+      "mean_accuracy": 94.6,
+      "mean_play_rating": 2638.6,
+      "quality_games": 168
     },
     {
       "id": "stockfish:13",
@@ -249,9 +121,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 94.3,
-      "mean_play_rating": 2172.7,
-      "quality_games": 111
+      "mean_accuracy": 93.5,
+      "mean_play_rating": 2435.2,
+      "quality_games": 143
     },
     {
       "id": "stockfish:12",
@@ -260,9 +132,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 93.2,
-      "mean_play_rating": 2058.3,
-      "quality_games": 141
+      "mean_accuracy": 92.8,
+      "mean_play_rating": 2291.3,
+      "quality_games": 173
     },
     {
       "id": "stockfish:11",
@@ -271,9 +143,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 92.9,
-      "mean_play_rating": 2025.9,
-      "quality_games": 115
+      "mean_accuracy": 92.1,
+      "mean_play_rating": 2251.7,
+      "quality_games": 144
     },
     {
       "id": "stockfish:10",
@@ -282,9 +154,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 92.6,
-      "mean_play_rating": 2006.0,
-      "quality_games": 140
+      "mean_accuracy": 92.0,
+      "mean_play_rating": 2268.3,
+      "quality_games": 173
     },
     {
       "id": "stockfish:9",
@@ -293,9 +165,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 92.4,
-      "mean_play_rating": 1992.5,
-      "quality_games": 123
+      "mean_accuracy": 91.2,
+      "mean_play_rating": 2152.5,
+      "quality_games": 160
     },
     {
       "id": "stockfish:8",
@@ -304,9 +176,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 92.9,
-      "mean_play_rating": 2016.2,
-      "quality_games": 127
+      "mean_accuracy": 92.3,
+      "mean_play_rating": 2236.2,
+      "quality_games": 154
     },
     {
       "id": "stockfish:7",
@@ -315,9 +187,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 91.5,
-      "mean_play_rating": 1925.4,
-      "quality_games": 144
+      "mean_accuracy": 90.7,
+      "mean_play_rating": 2078.3,
+      "quality_games": 173
     },
     {
       "id": "stockfish:6",
@@ -326,9 +198,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 91.7,
-      "mean_play_rating": 1883.3,
-      "quality_games": 115
+      "mean_accuracy": 90.9,
+      "mean_play_rating": 2077.3,
+      "quality_games": 149
     },
     {
       "id": "stockfish:5",
@@ -337,9 +209,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 92.0,
-      "mean_play_rating": 1893.5,
-      "quality_games": 134
+      "mean_accuracy": 91.1,
+      "mean_play_rating": 2113.8,
+      "quality_games": 168
     },
     {
       "id": "stockfish:4",
@@ -348,9 +220,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 90.0,
-      "mean_play_rating": 1720.9,
-      "quality_games": 121
+      "mean_accuracy": 89.2,
+      "mean_play_rating": 1911.9,
+      "quality_games": 162
     },
     {
       "id": "stockfish:3",
@@ -359,9 +231,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 89.8,
-      "mean_play_rating": 1755.4,
-      "quality_games": 122
+      "mean_accuracy": 89.3,
+      "mean_play_rating": 1910.8,
+      "quality_games": 154
     },
     {
       "id": "stockfish:2",
@@ -370,9 +242,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 89.7,
-      "mean_play_rating": 1684.4,
-      "quality_games": 135
+      "mean_accuracy": 89.2,
+      "mean_play_rating": 1924.1,
+      "quality_games": 162
     },
     {
       "id": "stockfish-handicap:depth4",
@@ -382,7 +254,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 84.8,
-      "mean_play_rating": 1255.7,
+      "mean_play_rating": 1432.5,
       "quality_games": 204
     },
     {
@@ -392,9 +264,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 88.4,
-      "mean_play_rating": 1554.2,
-      "quality_games": 156
+      "mean_accuracy": 88.0,
+      "mean_play_rating": 1805.1,
+      "quality_games": 179
     },
     {
       "id": "stockfish:0",
@@ -403,9 +275,9 @@
       "games": 0,
       "anchor": true,
       "uncalibrated": false,
-      "mean_accuracy": 85.2,
-      "mean_play_rating": 1406.1,
-      "quality_games": 140
+      "mean_accuracy": 85.0,
+      "mean_play_rating": 1573.6,
+      "quality_games": 178
     },
     {
       "id": "stockfish-handicap:noise5",
@@ -415,7 +287,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 81.7,
-      "mean_play_rating": 1144.3,
+      "mean_play_rating": 1304.3,
       "quality_games": 199
     },
     {
@@ -426,7 +298,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 80.4,
-      "mean_play_rating": 1109.7,
+      "mean_play_rating": 1200.8,
       "quality_games": 198
     },
     {
@@ -437,7 +309,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 78.8,
-      "mean_play_rating": 1050.4,
+      "mean_play_rating": 1141.5,
       "quality_games": 194
     },
     {
@@ -448,7 +320,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 80.1,
-      "mean_play_rating": 1106.9,
+      "mean_play_rating": 1192.5,
       "quality_games": 204
     },
     {
@@ -459,7 +331,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 79.0,
-      "mean_play_rating": 1066.1,
+      "mean_play_rating": 1134.6,
       "quality_games": 225
     },
     {
@@ -470,7 +342,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 78.6,
-      "mean_play_rating": 1037.1,
+      "mean_play_rating": 1143.5,
       "quality_games": 223
     },
     {
@@ -481,7 +353,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 77.1,
-      "mean_play_rating": 976.6,
+      "mean_play_rating": 1053.4,
       "quality_games": 216
     },
     {
@@ -492,7 +364,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 75.4,
-      "mean_play_rating": 915.0,
+      "mean_play_rating": 994.1,
       "quality_games": 216
     },
     {
@@ -503,7 +375,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 75.6,
-      "mean_play_rating": 946.6,
+      "mean_play_rating": 997.9,
       "quality_games": 212
     },
     {
@@ -514,7 +386,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 77.3,
-      "mean_play_rating": 973.4,
+      "mean_play_rating": 1046.2,
       "quality_games": 210
     },
     {
@@ -525,7 +397,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 75.8,
-      "mean_play_rating": 953.8,
+      "mean_play_rating": 994.5,
       "quality_games": 202
     },
     {
@@ -536,7 +408,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 74.0,
-      "mean_play_rating": 905.2,
+      "mean_play_rating": 925.4,
       "quality_games": 204
     },
     {
@@ -547,7 +419,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 73.0,
-      "mean_play_rating": 879.2,
+      "mean_play_rating": 876.2,
       "quality_games": 208
     },
     {
@@ -558,7 +430,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 72.8,
-      "mean_play_rating": 875.1,
+      "mean_play_rating": 873.3,
       "quality_games": 199
     },
     {
@@ -569,7 +441,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 71.8,
-      "mean_play_rating": 843.8,
+      "mean_play_rating": 831.5,
       "quality_games": 214
     },
     {
@@ -580,7 +452,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 71.4,
-      "mean_play_rating": 824.1,
+      "mean_play_rating": 821.1,
       "quality_games": 204
     },
     {
@@ -591,7 +463,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 69.5,
-      "mean_play_rating": 772.7,
+      "mean_play_rating": 765.5,
       "quality_games": 209
     },
     {
@@ -602,7 +474,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 68.6,
-      "mean_play_rating": 716.3,
+      "mean_play_rating": 717.7,
       "quality_games": 208
     },
     {
@@ -613,7 +485,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 65.9,
-      "mean_play_rating": 684.0,
+      "mean_play_rating": 656.6,
       "quality_games": 208
     },
     {
@@ -624,7 +496,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 65.2,
-      "mean_play_rating": 700.1,
+      "mean_play_rating": 651.2,
       "quality_games": 213
     },
     {
@@ -635,7 +507,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 62.3,
-      "mean_play_rating": 639.9,
+      "mean_play_rating": 546.1,
       "quality_games": 199
     },
     {
@@ -646,7 +518,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 62.9,
-      "mean_play_rating": 636.7,
+      "mean_play_rating": 576.8,
       "quality_games": 207
     },
     {
@@ -657,7 +529,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 60.5,
-      "mean_play_rating": 583.1,
+      "mean_play_rating": 517.2,
       "quality_games": 203
     },
     {
@@ -668,7 +540,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 59.6,
-      "mean_play_rating": 531.5,
+      "mean_play_rating": 499.7,
       "quality_games": 194
     },
     {
@@ -679,7 +551,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 56.6,
-      "mean_play_rating": 530.9,
+      "mean_play_rating": 480.1,
       "quality_games": 206
     },
     {
@@ -690,7 +562,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 57.3,
-      "mean_play_rating": 527.7,
+      "mean_play_rating": 484.0,
       "quality_games": 188
     },
     {
@@ -701,7 +573,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 55.8,
-      "mean_play_rating": 485.2,
+      "mean_play_rating": 456.4,
       "quality_games": 183
     },
     {
@@ -712,7 +584,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 54.1,
-      "mean_play_rating": 482.2,
+      "mean_play_rating": 446.1,
       "quality_games": 196
     },
     {
@@ -723,7 +595,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 53.9,
-      "mean_play_rating": 476.1,
+      "mean_play_rating": 398.9,
       "quality_games": 211
     },
     {
@@ -734,7 +606,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 54.4,
-      "mean_play_rating": 472.5,
+      "mean_play_rating": 447.6,
       "quality_games": 215
     },
     {
@@ -745,7 +617,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 51.1,
-      "mean_play_rating": 393.2,
+      "mean_play_rating": 397.4,
       "quality_games": 166
     },
     {
@@ -756,7 +628,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 51.9,
-      "mean_play_rating": 414.3,
+      "mean_play_rating": 402.3,
       "quality_games": 185
     },
     {
@@ -767,7 +639,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 51.0,
-      "mean_play_rating": 406.2,
+      "mean_play_rating": 364.8,
       "quality_games": 178
     },
     {
@@ -778,7 +650,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 50.4,
-      "mean_play_rating": 394.1,
+      "mean_play_rating": 394.7,
       "quality_games": 182
     },
     {
@@ -789,7 +661,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 45.7,
-      "mean_play_rating": 199.4,
+      "mean_play_rating": 232.9,
       "quality_games": 154
     },
     {
@@ -800,7 +672,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 45.9,
-      "mean_play_rating": 242.2,
+      "mean_play_rating": 313.1,
       "quality_games": 180
     },
     {
@@ -811,7 +683,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 40.4,
-      "mean_play_rating": 91.8,
+      "mean_play_rating": 93.5,
       "quality_games": 180
     },
     {
@@ -822,7 +694,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 41.0,
-      "mean_play_rating": 96.9,
+      "mean_play_rating": 107.4,
       "quality_games": 165
     },
     {
@@ -833,7 +705,7 @@
       "anchor": false,
       "uncalibrated": false,
       "mean_accuracy": 40.9,
-      "mean_play_rating": 93.5,
+      "mean_play_rating": 105.8,
       "quality_games": 166
     }
   ]

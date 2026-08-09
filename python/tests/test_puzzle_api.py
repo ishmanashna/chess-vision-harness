@@ -403,6 +403,17 @@ def test_move_json_body_legacy(puzzle_api_client):
     assert move.json()["moves_played"] == 1
 
 
+def test_start_brief_covers_perpetual_loop(puzzle_api_client):
+    client, _ = puzzle_api_client
+    key = _register(client, "loop-agent")
+    start = _start(client, key)
+    brief = start["agent_brief"]
+    assert "Continuous loop" in brief
+    assert "indefinitely" in brief
+    assert "rating delta" in brief
+    assert "/api/v1/puzzles/start" in brief
+
+
 def test_attempts_never_write_results_jsonl(puzzle_api_client):
     client, harness_dir = puzzle_api_client
     key = _register(client, "no-results-agent")
