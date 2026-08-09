@@ -166,6 +166,26 @@ def test_get_calibration_status_keeps_anchor_rows(cal_results):
     assert row.get("can_calibrate") is False
 
 
+def test_get_calibration_status_anchors_can_calibrate_in_anchors_self(cal_results):
+    from chess_harness.calibration_view import invalidate_merge_cache
+    from chess_harness.continuous_calibration import get_continuous_calibration
+
+    mgr = get_continuous_calibration()
+    mgr.set_pairing_mode("anchors-self")
+    try:
+        invalidate_merge_cache()
+        status = get_calibration_status()
+        anchors = [r for r in status["rating_table"] if r.get("anchor") is True]
+        assert anchors
+        for row in anchors:
+            assert row.get("can_calibrate") is True
+            assert row.get("activity") == "idle"
+            assert row.get("continuous") is False
+    finally:
+        mgr.set_pairing_mode("floaters")
+        invalidate_merge_cache()
+
+
 def test_get_calibration_status_includes_play_rating_means(cal_results):
     continuous = cal_results / "continuous"
     continuous.mkdir(parents=True)

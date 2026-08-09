@@ -758,7 +758,9 @@ async def calibration_status():
 
 @app.post("/api/calibration/continuous/{engine_id}/start")
 async def calibration_continuous_start(engine_id: str, parallel: int = Query(1, ge=1, le=100)):
-    if not can_continuously_calibrate(engine_id):
+    if not can_continuously_calibrate(
+        engine_id, pairing_mode=get_continuous_calibration().pairing_mode()
+    ):
         raise HTTPException(400, f"Engine cannot be continuously calibrated: {engine_id}")
     try:
         await get_continuous_calibration().start(engine_id, parallel=parallel)

@@ -275,6 +275,7 @@ def render_calibration_html() -> str:
         <option value="floaters">Among floaters (ELO-weighted)</option>
         <option value="random">Random (any opponent)</option>
         <option value="anchors">Only vs Stockfish anchors</option>
+        <option value="anchors-self">Anchors among themselves</option>
         <option value="fixed">Fixed opponent</option>
       </select>
       <label for="fixed-opponent">Play against</label>

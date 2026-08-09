@@ -99,10 +99,56 @@ def test_normalize_pairing_mode_rejects_unknown():
         normalize_pairing_mode("nonsense")
 
 
+def test_normalize_pairing_mode_accepts_anchors_self():
+    assert normalize_pairing_mode("anchors-self") == "anchors-self"
+
+
+def test_pick_opponent_anchors_self_only_anchors():
+    from chess_harness.opponents import get_catalog
+    from calibration.ratings import is_anchor
+
+    cat = get_catalog()
+    for _ in range(30):
+        opp = pick_opponent("stockfish:0", pairing_mode="anchors-self")
+        assert is_anchor(cat.get(opp)), opp
+        assert opp != "stockfish:0"
+
+
 def test_cannot_continuously_calibrate_anchor():
     assert not can_continuously_calibrate("stockfish:0")
     assert can_continuously_calibrate(LOW)
     assert can_continuously_calibrate("random")
+
+
+def test_can_continuously_calibrate_anchor_under_anchors_self():
+    from calibration.ratings import is_anchor
+
+    cat = get_catalog()
+    for o in cat.list_opponents():
+        if is_anchor(o):
+            assert can_continuously_calibrate(o.id, pairing_mode="anchors-self")
+            assert not can_continuously_calibrate(o.id, pairing_mode="floaters")
+            assert not can_continuously_calibrate(o.id)
+            continue
+        assert can_continuously_calibrate(o.id, pairing_mode="floaters") == (
+            o.enabled and cat._is_playable(o)
+        )
+        assert not can_continuously_calibrate(o.id, pairing_mode="anchors-self")
+
+
+def test_list_calibratable_engine_ids_anchors_self_only_anchors():
+    from calibration.ratings import is_anchor
+
+    cat = get_catalog()
+    ids = list_calibratable_engine_ids(pairing_mode="anchors-self")
+    assert ids
+    for oid in ids:
+        assert is_anchor(cat.get(oid)), oid
+    anchors = {o.id for o in cat.list_opponents() if is_anchor(o) and o.enabled and cat._is_playable(o)}
+    assert set(ids) == anchors
+    assert not list_calibratable_engine_ids(pairing_mode="floaters") or all(
+        not is_anchor(cat.get(oid)) for oid in list_calibratable_engine_ids(pairing_mode="floaters")
+    )
 
 
 def test_list_calibratable_engine_ids_includes_random():
@@ -142,6 +188,53 @@ def test_manager_pairing_mode_default():
 
     mgr = ContinuousCalibrationManager()
     assert mgr.pairing_mode() == "floaters"
+
+
+def test_start_all_anchors_self_starts_only_anchors(monkeypatch):
+    import asyncio
+
+    from chess_harness.continuous_calibration import ContinuousCalibrationManager
+    from calibration.ratings import is_anchor
+    from chess_harness.opponents import get_catalog
+
+    cat = get_catalog()
+    mgr = ContinuousCalibrationManager()
+    assert mgr.set_pairing_mode("anchors-self") == "anchors-self"
+
+    started: list = []
+
+    async def fake_start(engine_id, *, parallel=1):
+        started.append(engine_id)
+
+    monkeypatch.setattr(mgr, "start", fake_start)
+
+    async def go():
+        return await mgr.start_all(parallel=1)
+
+    result = asyncio.run(go())
+    assert result == started
+    assert started
+    for oid in started:
+        assert is_anchor(cat.get(oid)), oid
+
+
+def test_enrich_rating_rows_anchors_get_controls_only_in_anchors_self():
+    from chess_harness.continuous_calibration import ContinuousCalibrationManager
+
+    rows = [{"id": "stockfish:0", "elo": 1350, "anchor": True, "catalog_elo": 1350}]
+    mgr = ContinuousCalibrationManager()
+    assert mgr.pairing_mode() == "floaters"
+    out = mgr.enrich_rating_rows(rows)
+    assert out[0]["can_calibrate"] is False
+    assert out[0]["activity"] == "anchor"
+    assert out[0]["continuous"] is False
+
+    mgr.set_pairing_mode("anchors-self")
+    out = mgr.enrich_rating_rows(rows)
+    assert out[0]["can_calibrate"] is True
+    assert out[0]["activity"] == "idle"
+    assert out[0]["continuous"] is False
+    assert out[0]["playing"] == 0
 
 
 def test_clamp_parallel():

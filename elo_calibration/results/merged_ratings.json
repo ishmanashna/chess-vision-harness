@@ -2,25 +2,25 @@
   "ratings": {
     "stockfish-handicap:noise10": {
       "id": "stockfish-handicap:noise10",
-      "elo": 1113,
-      "elo_exact": 1113.08,
-      "games": 2758,
+      "elo": 1136,
+      "elo_exact": 1135.71,
+      "games": 2759,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise5": {
       "id": "stockfish-handicap:noise5",
-      "elo": 1224,
-      "elo_exact": 1223.55,
-      "games": 2616,
+      "elo": 1223,
+      "elo_exact": 1223.44,
+      "games": 2617,
       "suite": "continuous",
       "anchor": false
     },
     "random": {
       "id": "random",
       "elo": 155,
-      "elo_exact": 155.43,
-      "games": 3057,
+      "elo_exact": 155.39,
+      "games": 3059,
       "suite": "continuous",
       "anchor": false
     },
@@ -28,15 +28,15 @@
       "id": "stockfish-handicap:depth4",
       "elo": 1430,
       "elo_exact": 1430.3,
-      "games": 2495,
+      "games": 2496,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise12": {
       "id": "stockfish-handicap:noise12",
       "elo": 1145,
-      "elo_exact": 1145.21,
-      "games": 2800,
+      "elo_exact": 1145.01,
+      "games": 2801,
       "suite": "continuous",
       "anchor": false
     },
@@ -211,32 +211,32 @@
     "stockfish-handicap:noise38": {
       "id": "stockfish-handicap:noise38",
       "elo": 711,
-      "elo_exact": 711.22,
-      "games": 2341,
+      "elo_exact": 711.21,
+      "games": 2342,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise22": {
       "id": "stockfish-handicap:noise22",
-      "elo": 1052,
-      "elo_exact": 1052.48,
-      "games": 2205,
+      "elo": 1048,
+      "elo_exact": 1048.24,
+      "games": 2206,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise30": {
       "id": "stockfish-handicap:noise30",
       "elo": 886,
-      "elo_exact": 886.39,
-      "games": 2289,
+      "elo_exact": 886.37,
+      "games": 2291,
       "suite": "continuous",
       "anchor": false
     },
     "inverse-sf:exclude-top1": {
       "id": "inverse-sf:exclude-top1",
       "elo": 33,
-      "elo_exact": 33.32,
-      "games": 1864,
+      "elo_exact": 33.31,
+      "games": 1865,
       "suite": "continuous",
       "anchor": false
     },
@@ -244,15 +244,15 @@
       "id": "inverse-sf:worst-d10",
       "elo": -52,
       "elo_exact": -52.23,
-      "games": 2287,
+      "games": 2288,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise62": {
       "id": "stockfish-handicap:noise62",
       "elo": 481,
-      "elo_exact": 481.25,
-      "games": 2410,
+      "elo_exact": 481.21,
+      "games": 2411,
       "suite": "continuous",
       "anchor": false
     },
@@ -260,7 +260,7 @@
       "id": "stockfish-handicap:noise52",
       "elo": 540,
       "elo_exact": 539.67,
-      "games": 2156,
+      "games": 2157,
       "suite": "continuous",
       "anchor": false
     },
@@ -268,15 +268,15 @@
       "id": "stockfish-handicap:noise46",
       "elo": 623,
       "elo_exact": 622.92,
-      "games": 2084,
+      "games": 2085,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise41": {
       "id": "stockfish-handicap:noise41",
       "elo": 701,
-      "elo_exact": 701.29,
-      "games": 1974,
+      "elo_exact": 701.21,
+      "games": 1975,
       "suite": "continuous",
       "anchor": false
     },
@@ -284,7 +284,7 @@
       "id": "stockfish-handicap:noise55",
       "elo": 481,
       "elo_exact": 481.28,
-      "games": 2095,
+      "games": 2096,
       "suite": "continuous",
       "anchor": false
     },
@@ -292,31 +292,31 @@
       "id": "stockfish-handicap:noise7",
       "elo": 1214,
       "elo_exact": 1214.13,
-      "games": 1712,
+      "games": 1713,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise8": {
       "id": "stockfish-handicap:noise8",
       "elo": 1162,
-      "elo_exact": 1161.69,
-      "games": 1797,
+      "elo_exact": 1161.67,
+      "games": 1798,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise13": {
       "id": "stockfish-handicap:noise13",
-      "elo": 1198,
-      "elo_exact": 1198.1,
-      "games": 1882,
+      "elo": 1195,
+      "elo_exact": 1194.63,
+      "games": 1883,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise33": {
       "id": "stockfish-handicap:noise33",
       "elo": 799,
-      "elo_exact": 798.64,
-      "games": 2017,
+      "elo_exact": 798.59,
+      "games": 2018,
       "suite": "continuous",
       "anchor": false
     },
@@ -324,31 +324,31 @@
       "id": "stockfish-handicap:noise16",
       "elo": 1056,
       "elo_exact": 1056.24,
-      "games": 1916,
+      "games": 1917,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise24": {
       "id": "stockfish-handicap:noise24",
-      "elo": 929,
-      "elo_exact": 929.33,
-      "games": 1966,
+      "elo": 928,
+      "elo_exact": 928.5,
+      "games": 1967,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise27": {
       "id": "stockfish-handicap:noise27",
-      "elo": 907,
-      "elo_exact": 907.09,
-      "games": 1992,
+      "elo": 906,
+      "elo_exact": 905.86,
+      "games": 1993,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise19": {
       "id": "stockfish-handicap:noise19",
       "elo": 982,
-      "elo_exact": 982.14,
-      "games": 1928,
+      "elo_exact": 982.09,
+      "games": 1929,
       "suite": "continuous",
       "anchor": false
     },
@@ -356,15 +356,15 @@
       "id": "stockfish-handicap:noise21",
       "elo": 995,
       "elo_exact": 994.82,
-      "games": 1904,
+      "games": 1905,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise72": {
       "id": "stockfish-handicap:noise72",
       "elo": 402,
-      "elo_exact": 402.26,
-      "games": 1934,
+      "elo_exact": 402.25,
+      "games": 1936,
       "suite": "continuous",
       "anchor": false
     },
@@ -372,15 +372,15 @@
       "id": "stockfish-handicap:noise98",
       "elo": 179,
       "elo_exact": 179.43,
-      "games": 1848,
+      "games": 1849,
       "suite": "continuous",
       "anchor": false
     },
     "stockfish-handicap:noise94": {
       "id": "stockfish-handicap:noise94",
       "elo": 248,
-      "elo_exact": 247.83,
-      "games": 1938,
+      "elo_exact": 247.81,
+      "games": 1940,
       "suite": "continuous",
       "anchor": false
     },
@@ -388,7 +388,7 @@
       "id": "stockfish-handicap:noise99",
       "elo": 177,
       "elo_exact": 177.1,
-      "games": 1836,
+      "games": 1837,
       "suite": "continuous",
       "anchor": false
     },
@@ -396,7 +396,7 @@
       "id": "stockfish-handicap:noise96",
       "elo": 222,
       "elo_exact": 222.39,
-      "games": 1909,
+      "games": 1910,
       "suite": "continuous",
       "anchor": false
     },
@@ -404,7 +404,7 @@
       "id": "stockfish-handicap:noise90",
       "elo": 237,
       "elo_exact": 237.11,
-      "games": 1854,
+      "games": 1855,
       "suite": "continuous",
       "anchor": false
     },
@@ -412,7 +412,7 @@
       "id": "stockfish-handicap:noise68",
       "elo": 431,
       "elo_exact": 431.25,
-      "games": 1924,
+      "games": 1925,
       "suite": "continuous",
       "anchor": false
     },
@@ -420,7 +420,7 @@
       "id": "stockfish-handicap:noise76",
       "elo": 344,
       "elo_exact": 343.88,
-      "games": 1898,
+      "games": 1899,
       "suite": "continuous",
       "anchor": false
     },
@@ -428,7 +428,7 @@
       "id": "stockfish-handicap:noise84",
       "elo": 329,
       "elo_exact": 328.58,
-      "games": 1895,
+      "games": 1896,
       "suite": "continuous",
       "anchor": false
     },
@@ -436,7 +436,7 @@
       "id": "inverse-sf:worst-d16",
       "elo": -65,
       "elo_exact": -64.83,
-      "games": 1395,
+      "games": 1396,
       "suite": "continuous",
       "anchor": false
     },
@@ -444,7 +444,7 @@
       "id": "inverse-sf:abyss",
       "elo": -15,
       "elo_exact": -15.47,
-      "games": 1267,
+      "games": 1268,
       "suite": "continuous",
       "anchor": false
     },
@@ -452,7 +452,7 @@
       "id": "inverse-sf:exclude-top1-d14",
       "elo": 71,
       "elo_exact": 70.94,
-      "games": 1487,
+      "games": 1488,
       "suite": "continuous",
       "anchor": false
     },
@@ -460,7 +460,7 @@
       "id": "inverse-sf:worst-d18",
       "elo": -59,
       "elo_exact": -58.53,
-      "games": 1376,
+      "games": 1377,
       "suite": "continuous",
       "anchor": false
     },
@@ -468,7 +468,7 @@
       "id": "inverse-sf:bottom-half-d16",
       "elo": -41,
       "elo_exact": -40.98,
-      "games": 1394,
+      "games": 1395,
       "suite": "continuous",
       "anchor": false
     },
@@ -476,7 +476,7 @@
       "id": "inverse-sf:exclude-top1-d6",
       "elo": 66,
       "elo_exact": 66.3,
-      "games": 981,
+      "games": 982,
       "suite": "continuous",
       "anchor": false
     },
@@ -484,7 +484,7 @@
       "id": "inverse-sf:exclude-top1-d8",
       "elo": 34,
       "elo_exact": 34.49,
-      "games": 882,
+      "games": 883,
       "suite": "continuous",
       "anchor": false
     }

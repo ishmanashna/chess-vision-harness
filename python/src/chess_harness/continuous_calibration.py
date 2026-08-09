@@ -40,7 +40,7 @@ MAX_PARALLEL_GAMES = 100
 SAVE_DEBOUNCE_SEC = 1.0
 PROCESS_POOL_WORKERS = max(1, min(os.cpu_count() or 4, MAX_PARALLEL_GAMES))
 
-PAIRING_MODES = ("floaters", "random", "anchors", "fixed")
+PAIRING_MODES = ("floaters", "random", "anchors", "anchors-self", "fixed")
 DEFAULT_PAIRING_MODE = "floaters"
 
 
@@ -127,7 +127,7 @@ def pick_opponent(
             continue
         if mode == "floaters" and is_anchor(opp):
             continue
-        if mode == "anchors" and not is_anchor(opp):
+        if mode in ("anchors", "anchors-self") and not is_anchor(opp):
             continue
         if mode == "floaters":
             opp_elo = display_elo(opp, cal)
@@ -207,17 +207,35 @@ def build_random_match(focus_id: str, opponent_id: str, *, rng: Optional[random.
     )
 
 
-def can_continuously_calibrate(opponent_id: str, catalog: Optional[OpponentCatalog] = None) -> bool:
+def can_continuously_calibrate(
+    opponent_id: str,
+    catalog: Optional[OpponentCatalog] = None,
+    *,
+    pairing_mode: Optional[str] = None,
+) -> bool:
+    """Whether an engine may run continuous games.
+
+    Anchors are read-only reference tiers — they only run when the pairing
+    mode is ``anchors-self`` (anchors between themselves).
+    """
     cat = catalog or get_catalog()
     opp = cat.get(opponent_id)
     if is_anchor(opp):
-        return False
-    return opp.enabled and cat._is_playable(opp)
+        return pairing_mode == "anchors-self"
+    return pairing_mode != "anchors-self" and opp.enabled and cat._is_playable(opp)
 
 
-def list_calibratable_engine_ids(catalog: Optional[OpponentCatalog] = None) -> List[str]:
+def list_calibratable_engine_ids(
+    catalog: Optional[OpponentCatalog] = None,
+    *,
+    pairing_mode: Optional[str] = None,
+) -> List[str]:
     cat = catalog or get_catalog()
-    return [o.id for o in cat.list_opponents() if can_continuously_calibrate(o.id, cat)]
+    return [
+        o.id
+        for o in cat.list_opponents()
+        if can_continuously_calibrate(o.id, cat, pairing_mode=pairing_mode)
+    ]
 
 
 def list_pairing_opponent_choices(catalog: Optional[OpponentCatalog] = None) -> List[Dict[str, str]]:
@@ -366,7 +384,7 @@ class ContinuousCalibrationManager:
 
     async def start_all(self, *, parallel: int = 1) -> List[str]:
         started: List[str] = []
-        for engine_id in list_calibratable_engine_ids():
+        for engine_id in list_calibratable_engine_ids(pairing_mode=self._pairing_mode):
             if self.is_running(engine_id):
                 continue
             await self.start(engine_id, parallel=parallel)
@@ -374,7 +392,7 @@ class ContinuousCalibrationManager:
         return started
 
     async def start(self, engine_id: str, *, parallel: int = 1) -> None:
-        if not can_continuously_calibrate(engine_id):
+        if not can_continuously_calibrate(engine_id, pairing_mode=self._pairing_mode):
             raise ValueError(f"Cannot continuously calibrate engine: {engine_id}")
         if self.is_running(engine_id):
             return
@@ -575,7 +593,9 @@ class ContinuousCalibrationManager:
             "pairing_mode": self._pairing_mode,
             "fixed_opponent_id": self._fixed_opponent_id,
             "pairing_opponents": list_pairing_opponent_choices(),
-            "calibratable_engines": list_calibratable_engine_ids(),
+            "calibratable_engines": list_calibratable_engine_ids(
+                pairing_mode=self._pairing_mode
+            ),
             "active": bool(running),
             "continuous_engines": sorted(running),
             "parallel_by_engine": dict(self._parallel),
@@ -593,26 +613,27 @@ class ContinuousCalibrationManager:
         enriched: List[Dict[str, Any]] = []
         for row in rows:
             copy = dict(row)
-            if copy.get("anchor"):
+            if copy.get("anchor") and self._pairing_mode != "anchors-self":
                 copy["continuous"] = False
                 copy["can_calibrate"] = False
                 copy["playing"] = 0
                 copy["activity"] = "anchor"
+                enriched.append(copy)
+                continue
+            eid = copy["id"]
+            copy["can_calibrate"] = bool(copy.get("enabled", True))
+            copy["continuous"] = eid in running
+            copy["parallel"] = int(self._parallel.get(eid, 1))
+            playing = int(in_flight.get(eid, 0))
+            copy["playing"] = playing
+            if playing > 0:
+                copy["activity"] = "playing"
+            elif copy["continuous"]:
+                copy["activity"] = "continuous"
+            elif not copy.get("enabled", True):
+                copy["activity"] = "disabled"
             else:
-                eid = copy["id"]
-                copy["can_calibrate"] = bool(copy.get("enabled", True))
-                copy["continuous"] = eid in running
-                copy["parallel"] = int(self._parallel.get(eid, 1))
-                playing = int(in_flight.get(eid, 0))
-                copy["playing"] = playing
-                if playing > 0:
-                    copy["activity"] = "playing"
-                elif copy["continuous"]:
-                    copy["activity"] = "continuous"
-                elif not copy.get("enabled", True):
-                    copy["activity"] = "disabled"
-                else:
-                    copy["activity"] = "idle"
+                copy["activity"] = "idle"
             enriched.append(copy)
         return enriched
 
