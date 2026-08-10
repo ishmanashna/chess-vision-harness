@@ -19,7 +19,7 @@ const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 const POLL_MS = 3000;
 const CHAIN_POLL_MS = 15000;
-const FOLLOW_DELAY_MS = 10000;
+const FOLLOW_DELAY_MS = 5000;
 
 function attemptIdFromPage() {
   const root = document.body;
@@ -80,6 +80,7 @@ async function main() {
   let chainTimer = null;
   let followTimer = null;
   let agentKey = null;
+  let agentName = null;
   let currentStartedAt = null;
 
   function setPosition(fen, animate) {
@@ -250,12 +251,15 @@ async function main() {
   }
 
   async function refreshChain() {
-    if (!agentKey) return;
+    const keyParam = agentKey
+      ? "by_key=" + encodeURIComponent(agentKey)
+      : agentName
+        ? "by_agent=" + encodeURIComponent(agentName)
+        : null;
+    if (!keyParam) return;
     try {
       const r = await fetch(
-        "/api/v1/identify/public/attempts?by_key=" +
-          encodeURIComponent(agentKey) +
-          "&limit=50"
+        "/api/v1/identify/public/attempts?" + keyParam + "&limit=50"
       );
       if (!r.ok) return;
       const rows = (await r.json()).attempts || [];
@@ -291,8 +295,9 @@ async function main() {
 
   function startChainTracking(state) {
     agentKey = state.key || agentKey;
+    agentName = state.agent_name || agentName;
     currentStartedAt = state.started_at || currentStartedAt;
-    if (!agentKey || chainTimer) return;
+    if ((!agentKey && !agentName) || chainTimer) return;
     chainTimer = setInterval(refreshChain, CHAIN_POLL_MS);
     refreshChain();
   }

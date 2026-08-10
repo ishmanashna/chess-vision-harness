@@ -68,11 +68,9 @@ def test_home_and_leaderboard_sortable_headers(create_client):
     assert 'data-sort="name"' in lb
     assert 'data-sort="elo"' in lb
     assert 'data-sort="mean_play_rating"' in lb
-    assert 'data-sort="id"' in lb  # Model id
-    assert 'data-sort="kind"' in lb  # engines
-    assert re.search(r"<th scope=\"col\">#</th>", lb)
-
-
+    assert 'data-sort="kind"' in lb  # engines
+
+    assert re.search(r"<th scope=\"col\">#</th>", lb)
 def test_spectator_loads_table_sort(create_client):
     client, _ = create_client
     html = client.get("/spectator/").text

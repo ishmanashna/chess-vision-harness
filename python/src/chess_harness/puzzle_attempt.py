@@ -108,6 +108,7 @@ def apply_submission(record: Dict[str, Any], raw_move: str) -> Dict[str, Any]:
         return _fail(record, raw_move, "wrong_move")
 
     if move != chess.Move.from_uci(solution[index]):
+        record["submitted_moves"].append(move.uci())
         return _fail(record, raw_move, "wrong_move")
 
     record["submitted_moves"].append(move.uci())

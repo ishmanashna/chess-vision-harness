@@ -304,7 +304,7 @@ def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
     assert rv["result"] == "failed"
     assert rv["failure_reason"] == "wrong_move"
     assert rv["first_wrong_move"] == "a7a6"
-    assert rv["submitted_moves"] == [], "no correct moves preceded the failure"
+    assert rv["submitted_moves"] == ["a7a6"], "wrong move is now recorded"
 
     state = _public_state(client, attempt_id)
     _assert_no_leak(state)
@@ -402,3 +402,26 @@ def test_by_key_scan_public_rate_limited(observer_client):
             denied += 1
     assert ok == PUBLIC_BY_KEY_LIMIT_PER_IP_PER_HOUR
     assert denied >= 1, "excess by_key scans must be rate-limited"
+
+
+def test_public_attempt_chain_by_agent_fallback(observer_client):
+    client, _ = observer_client
+    key = _register(client, "fallback-agent")
+
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    client.post(f"/api/v1/puzzles/{first}/move/a7a6", headers=_auth(key))
+    second = _start(client, key, rating_min=1400, rating_max=1600)["attempt_id"]
+
+    rows = client.get(
+        "/api/v1/puzzles/public/attempts", params={"by_agent": "fallback-agent"}
+    ).json()["attempts"]
+    ids = [r["attempt_id"] for r in rows]
+    assert second in ids, "by_agent returns both attempts"
+    assert first in ids
+    for row in rows:
+        assert row["agent_name"] == "fallback-agent"
+
+    empty = client.get(
+        "/api/v1/puzzles/public/attempts", params={"by_agent": "nobody"}
+    ).json()["attempts"]
+    assert empty == []

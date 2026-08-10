@@ -1,6 +1,6 @@
 import { normalizeOrigin } from "../_proxy.js";
 
-const HEALTH_TIMEOUT_MS = 3000;
+const HEALTH_TIMEOUT_MS = 10000;
 
 /**
  * GET /api/edge-health — probes GAME_ORIGIN/health with a short timeout.

@@ -10,7 +10,7 @@
   "use strict";
 
   var SORT_KEY_PREFIX = "cvh-attempts-sort-";
-  var NUMERIC_SORT_KEYS = ["puzzle_rating", "accuracy", "moves", "startedMs"];
+  var NUMERIC_SORT_KEYS = ["puzzle_rating", "accuracy", "moves", "puzzles", "startedMs"];
 
   var ENDPOINTS = {
     puzzles: "/api/v1/puzzles/public/attempts?limit=100",
@@ -78,6 +78,7 @@
       result: row.status === "active" ? "—" : row.result || "—",
       startedMs: startedMs,
       started: formatWhen(row.started_at),
+      puzzles: 0,
     };
     if (kind === "puzzles") {
       common.puzzle_rating =
@@ -98,6 +99,8 @@
         escapeHtml(row.puzzle_rating) +
         "</td><td>" +
         escapeHtml(row.moves) +
+        "</td><td>" +
+        escapeHtml(row.puzzles) +
         "</td>"
       );
     }
@@ -112,7 +115,7 @@
 
   function renderRows(rows, kind) {
     if (!rows.length) {
-      return '<tr><td colspan="7" class="empty-state">' + escapeHtml(emptyText(kind)) + "</td></tr>";
+      return '<tr><td colspan="8" class="empty-state">' + escapeHtml(emptyText(kind)) + "</td></tr>";
     }
     return rows
       .map(function (row) {
@@ -204,7 +207,7 @@
         .catch(function () {
           cache = [];
           tbody.innerHTML =
-            '<tr><td colspan="7" class="empty-state">Could not load attempts — is the server online?</td></tr>';
+            '<tr><td colspan="8" class="empty-state">Could not load attempts — is the server online?</td></tr>';
         });
     };
   }

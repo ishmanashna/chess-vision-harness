@@ -179,7 +179,12 @@
   }
 
   function fetchLeaderboardSnapshot() {
-    return fetch(SNAPSHOT_LEADERBOARD_URL, { cache: "no-cache" }).then(function (res) {
+    if (window.CVH_INLINE_SNAPSHOT) {
+      var inline = window.CVH_INLINE_SNAPSHOT;
+      window.CVH_INLINE_SNAPSHOT = null;
+      return Promise.resolve(inline);
+    }
+    return fetchWithTimeout(SNAPSHOT_LEADERBOARD_URL, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(function (res) {
       if (!res.ok) throw new Error("leaderboard snapshot fetch failed");
       return res.json();
     });

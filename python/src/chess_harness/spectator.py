@@ -49,6 +49,7 @@ from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
 from .spectator_game_page import render_game_view_page
 from .puzzle_observer import (
+    _agent_name,
     observer_state,
     public_attempt_row,
     render_observer_board_png,
@@ -59,6 +60,7 @@ from .puzzle_attempt import PuzzleAttemptStore
 from .board_text import format_board_text
 from .identify_attempt import IdentifyAttemptStore
 from .identify_observer import (
+    _agent_name as identify_agent_name,
     observer_state as identify_observer_state,
     public_attempt_row as identify_public_row,
     render_answer_overlay_png,
@@ -901,6 +903,7 @@ async def public_puzzle_attempts(
     request: Request,
     status: Optional[str] = Query(None),
     by_key: Optional[str] = Query(None),
+    by_agent: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -918,6 +921,9 @@ async def public_puzzle_attempts(
             return denied
         limits.record_public_by_key(request, by_key)
         records = [r for r in records if r.get("key_fingerprint") == by_key]
+        limit = min(limit, 50)
+    elif by_agent:
+        records = [r for r in records if _agent_name(r) == by_agent]
         limit = min(limit, 50)
     if status in ("active", "finished"):
         records = [r for r in records if r.get("status") == status]
@@ -998,6 +1004,7 @@ async def public_identify_attempts(
     request: Request,
     status: Optional[str] = Query(None),
     by_key: Optional[str] = Query(None),
+    by_agent: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -1015,6 +1022,9 @@ async def public_identify_attempts(
             return denied
         limits.record_public_by_key(request, by_key)
         records = [r for r in records if r.get("key_fingerprint") == by_key]
+        limit = min(limit, 50)
+    elif by_agent:
+        records = [r for r in records if identify_agent_name(r) == by_agent]
         limit = min(limit, 50)
     if status in ("active", "finished"):
         records = [r for r in records if r.get("status") == status]

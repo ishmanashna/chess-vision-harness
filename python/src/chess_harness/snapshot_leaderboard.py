@@ -205,6 +205,33 @@ def load_live_identify_leaderboard(
     return build_identify_leaderboard(registry=registry)
 
 
+def _inject_inline_snapshot(snapshot_json: str) -> None:
+    """Inject leaderboard JSON into HTML pages as an inline <script> tag.
+
+    The JS front-end picks up ``window.CVH_INLINE_SNAPSHOT`` and paints
+    the table instantly — no fetch needed. A subsequent live fetch upgrades
+    the data if the server is reachable.
+    """
+    sentinel = "window.CVH_INLINE_SNAPSHOT"
+    snippet = f'<script>{sentinel}={snapshot_json}</script>\n</head>'
+    root = project_root() / "public-site"
+    for rel in ("index.html", "leaderboard/index.html"):
+        html_path = root / rel
+        if not html_path.is_file():
+            continue
+        text = html_path.read_text(encoding="utf-8")
+        # Remove any prior inline snapshot
+        import re
+        cleaned = re.sub(
+            r"<script>window\.CVH_INLINE_SNAPSHOT=.*?</script>\n",
+            "",
+            text,
+            flags=re.DOTALL,
+        )
+        new_text = cleaned.replace("</head>", snippet, 1)
+        html_path.write_text(new_text, encoding="utf-8")
+
+
 def export_public_snapshots(
     *,
     output_path: Optional[Path | str] = None,
@@ -230,6 +257,8 @@ def export_public_snapshots(
         json.dumps(load_live_puzzle_leaderboard(registry=registry), indent=2) + "\n",
         encoding="utf-8",
     )
+    snapshot_json = ladder_path.read_text(encoding="utf-8").strip()
+    _inject_inline_snapshot(snapshot_json)
     return {"leaderboard": ladder_path, "puzzles": puzzle_out}
 
 

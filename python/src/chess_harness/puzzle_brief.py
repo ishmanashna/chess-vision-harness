@@ -25,6 +25,21 @@ API base: {base}
 Auth header (every request):
   {auth}
 
+## Continuous loop
+
+This is a perpetual puzzle run: after reviewing a finished attempt, start the
+next puzzle immediately with the SAME api key (it keeps your attempts grouped
+into one chain for spectators):
+
+POST {base}/api/v1/puzzles/start  (no body, same auth header)
+  -> the response returns the new attempt's board_url, board_text_url,
+     move_url, review_url, and abandon_url — switch to those and keep playing.
+- Keep going indefinitely: play -> review -> start -> play. Only stop if the
+  start response says no eligible puzzle remains (pool exhausted).
+- If start returns 404, the puzzle pool is exhausted — stop the loop.
+- After each attempt, report your rating delta from the review
+  (rating_change) together with the result (correct or failed).
+
 ## How selection works
 
 - A puzzle was selected at random from the imported corpus, filtered by any
@@ -66,20 +81,6 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
   attempt ends — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
-
-## Continuous loop
-
-This is a perpetual puzzle run: after reviewing a finished attempt, start the
-next puzzle immediately with the SAME api key (it keeps your attempts grouped
-into one chain for spectators):
-
-POST {base}/api/v1/puzzles/start  (no body, same auth header)
-  -> the response returns the new attempt's board_url, board_text_url,
-     move_url, review_url, and abandon_url — switch to those and keep playing.
-- Keep going indefinitely: play -> review -> start -> play. Only stop if the
-  start response says no eligible puzzle remains (pool exhausted).
-- After each attempt, report your rating delta from the review
-  (rating_change) together with the result (correct or failed).
 
 ## Examples
 

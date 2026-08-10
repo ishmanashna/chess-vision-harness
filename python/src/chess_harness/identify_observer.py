@@ -233,7 +233,7 @@ def render_identify_watch_page(attempt_id: str) -> str:
       </aside>
       <div class="col board-col" id="board-col">
         <div class="board-stack">
-          <div class="board-label">Position<span class="sub">white at bottom · a1 bottom-left</span></div>
+          <div class="board-label">Position</div>
           <div class="puzzle-board-wrap" id="board-wrap">
             <div id="board" class="puzzle-board" role="img" aria-label="position board"></div>
           </div>

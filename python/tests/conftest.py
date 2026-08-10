@@ -32,3 +32,36 @@ def restore_models_fixture():
     original = path.read_bytes()
     yield
     path.write_bytes(original)
+
+
+@pytest.fixture(autouse=True)
+def isolate_shipped_data(tmp_path, monkeypatch):
+    """Redirect snapshot and calibration writes into tmp_path.
+
+    Prevents the test suite from ever touching ``public-site/data/`` or
+    ``elo_calibration/results/`` — the two directories that ship to production.
+    """
+    snap_out = tmp_path / "leaderboard.json"
+    puzzle_out = tmp_path / "puzzles_leaderboard.json"
+    monkeypatch.setattr(
+        "chess_harness.snapshot_leaderboard.default_output_path",
+        lambda: snap_out,
+    )
+    monkeypatch.setattr(
+        "chess_harness.snapshot_leaderboard.default_puzzle_leaderboard_path",
+        lambda: puzzle_out,
+    )
+    cal_results = tmp_path / "elo_calibration" / "results"
+    cal_results.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        "chess_harness.calibration_view._results_root",
+        lambda: cal_results,
+    )
+    monkeypatch.setattr(
+        "chess_harness.snapshot_leaderboard.request_public_snapshots_refresh",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "chess_harness.snapshot_leaderboard._inject_inline_snapshot",
+        lambda _json: None,
+    )

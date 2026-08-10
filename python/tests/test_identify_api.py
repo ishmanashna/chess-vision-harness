@@ -552,6 +552,28 @@ def test_identify_by_key_scan_public_rate_limited(identify_client):
     assert denied >= 1, "excess by_key scans must be rate-limited"
 
 
+def test_public_identify_chain_by_agent_fallback(identify_client):
+    client, _ = identify_client
+    key = _register(client, "id-fallback-agent")
+
+    first = _start(client, key, rating_min=1100, rating_max=1300)["attempt_id"]
+    second = _start(client, key, rating_min=1400, rating_max=1600)["attempt_id"]
+
+    rows = client.get(
+        "/api/v1/identify/public/attempts", params={"by_agent": "id-fallback-agent"}
+    ).json()["attempts"]
+    ids = [r["attempt_id"] for r in rows]
+    assert second in ids, "by_agent returns both attempts"
+    assert first in ids
+    for row in rows:
+        assert row["agent_name"] == "id-fallback-agent"
+
+    empty = client.get(
+        "/api/v1/identify/public/attempts", params={"by_agent": "nobody"}
+    ).json()["attempts"]
+    assert empty == []
+
+
 def test_identify_attempts_never_write_results_jsonl(identify_client):
     client, harness_dir = identify_client
     key = _register(client, "id-no-results-agent")

@@ -224,6 +224,14 @@ def test_all_headers_have_single_launcher_nav():
     assert 'id="nav-human"' not in header
 
 
+def test_no_orientation_sublabel_in_observer_pages():
+    """Phase 7: 'white at bottom' and 'a1 bottom-left' removed from observer HTML."""
+    for name in ("puzzle_observer.py", "identify_observer.py"):
+        text = (ROOT / "python" / "src" / "chess_harness" / name).read_text(encoding="utf-8")
+        assert "white at bottom" not in text.lower(), f"{name} still has orientation sub-label"
+        assert "a1 bottom-left" not in text.lower(), f"{name} still has orientation sub-label"
+
+
 def test_proxy_allows_puzzle_leaderboard_paths():
     text = (ROOT / "public-site" / "functions" / "_proxy.js").read_text(encoding="utf-8")
     assert "/api/leaderboard/puzzles/live" in text
@@ -234,24 +242,21 @@ def test_proxy_allows_puzzle_leaderboard_paths():
 
 def test_leaderboard_page_is_unified_no_tabs():
     text = (ROOT / "public-site" / "leaderboard" / "index.html").read_text(encoding="utf-8")
-    for needle in ('data-show-unified-stats', "PUZZLES", "Solve rate", "% pieces",
-                   "% boards", "data-puzzle-content-leaderboard", "data-engines-leaderboard",
+    for needle in ('data-show-unified-stats', "PUZZLES", "% pieces",
+                   "% boards", "data-engines-leaderboard",
                    "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\""):
         assert needle in text, needle
     assert 'data-sort="puzzle_solve_rate"' not in text, "agent solve-rate column removed"
     assert "<th scope=\"col\">Themes</th>" not in text, "theme column removed"
+    assert "data-puzzle-content-leaderboard" not in text, "puzzle content section removed"
+    assert "Solve rate" not in text, "puzzle content section removed"
     assert "data-lb-tab" not in text
     assert "data-lb-panel" not in text
     assert "data-puzzle-leaderboard" not in text
     assert "data-identify-leaderboard" not in text
-    assert '?tab=' not in text
-    js = (ROOT / "public-site" / "js" / "puzzle-leaderboards.js").read_text(encoding="utf-8")
-    assert "data-puzzle-content-leaderboard" in js
-    assert "data-identify-leaderboard" not in js
-    assert "data-puzzle-leaderboard" not in js
-    assert "setTab" not in js
-    assert "/api/leaderboard/identify" not in js
-    assert "themes" not in js
+    assert "?tab=" not in text
+    assert "white at bottom" not in text.lower(), "orientation sub-label removed"
+    assert "a1 bottom-left" not in text.lower(), "orientation sub-label removed"
     common = (ROOT / "public-site" / "js" / "common.js").read_text(encoding="utf-8")
     assert "data-show-unified-stats" in common
     assert "puzzle_solve_rate" not in common
