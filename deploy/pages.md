@@ -99,15 +99,16 @@ gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"
 gh workflow run "Deploy public site"
 ```
 
-After a successful deploy with that secret, `/api/edge-health` reports online when the tunnel and harness are up. You do **not** edit HTML when the origin URL changes — only the secret/dashboard value.
+After a successful deploy with that secret, `/api/edge-health` reports online when the tunnel and harness are up. You do **not** edit HTML when the origin URL changes — only the secret/dashboard value. After changing `GAME_ORIGIN`, always redeploy; if the chip stays Sleeping, redeploy once more (secret update and workflow start can race).
 
 **What it does when set:**
 
-- `GET /api/edge-health` on Pages probes `{GAME_ORIGIN}/health` (3s timeout). The status chip shows **Online** when the probe succeeds.
+- `GET /api/edge-health` on Pages probes `{GAME_ORIGIN}/health` (~10s timeout). The status chip shows **Online** when the probe succeeds.
+- `origin: true` only means the variable is configured; `online: true` / `status: "online"` means the origin answered healthy. Localhost `/health` does not imply public Online.
 - These paths are proxied to the origin: `/api/v1/*`, `/api/games/*`, `/g/*`.
 - `/calibration*` is blocked at the edge (404) — calibration stays operator-only on the PC.
 
-**When unset or the PC is down:** static pages and the leaderboard snapshot still work; Create Game and Spectator show the sleeping/offline UX.
+**When unset or the PC / tunnel origin is unreachable:** static pages and the leaderboard snapshot still work; Create Game and Spectator show the sleeping/offline UX. A common cause is a stale Quick Tunnel `*.trycloudflare.com` in `GAME_ORIGIN` while the harness is still fine on `127.0.0.1:8765` — see [`home-pc.md`](home-pc.md) troubleshooting.
 
 ### Game PC environment variable
 

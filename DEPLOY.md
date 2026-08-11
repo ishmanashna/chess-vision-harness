@@ -148,6 +148,27 @@ Stop with Ctrl+C. Production uses systemd (Linux) or NSSM (Windows) below — se
 
 No open inbound ports. Tunnel to `127.0.0.1:8765`; set `GAME_ORIGIN` on Pages; keep `CHESS_HARNESS_PUBLIC_URL` as the Pages URL. See [`deploy/home-pc.md`](deploy/home-pc.md).
 
+### Online vs Sleeping (localhost up, public site Sleeping)
+
+These are different checks:
+
+| Check | What it proves |
+|-------|----------------|
+| `http://127.0.0.1:8765/health` | Harness process is up **on this PC only** |
+| `https://chessvisionharness.pages.dev/api/edge-health` | Pages can reach **`GAME_ORIGIN`/health** from the public internet |
+
+Edge-health fields:
+
+- `origin: false` — `GAME_ORIGIN` is not configured on Pages.
+- `origin: true`, `online: false` — `GAME_ORIGIN` is set, but Cloudflare cannot reach that URL (stale Quick Tunnel hostname, named tunnel with no public route, tunnel process down, or wrong host/port).
+- `online: true` — live play/proxy path is usable.
+
+**Typical failure:** Quick Tunnel was restarted (or its edge registration died) while GitHub secret `GAME_ORIGIN` still held the old `*.trycloudflare.com` URL. Localhost stays healthy; the public chip shows Sleeping. The named tunnel Windows service can be “Healthy” and still not help until it has a **public hostname** route to `http://127.0.0.1:8765`.
+
+**Recovery (Quick Tunnel):** start a fresh `cloudflared tunnel --url http://127.0.0.1:8765`, set `GAME_ORIGIN` to the new HTTPS URL (no trailing slash), redeploy Pages, wait for the workflow, then re-check `/api/edge-health`. If you update the secret and redeploy in the same second, run deploy **once more** after the secret has settled — the first run can still inject the previous value.
+
+**Lasting setup:** prefer named tunnel `chess-harness-pc` + a stable public hostname on a domain you control, then point `GAME_ORIGIN` at that hostname once. Quick Tunnel is fine for smoke tests; it is not a stable production origin.
+
 ### Alternative: Caddy on a VPS (classic reverse proxy)
 
 1. Install [Caddy](https://caddyserver.com/docs/install).

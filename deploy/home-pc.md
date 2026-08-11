@@ -16,10 +16,11 @@ Related docs
 |------|--------|
 | Public site | **https://chessvisionharness.pages.dev** (Pages project `chessvisionharness`) |
 | Named tunnel | `chess-harness-pc` — connector **Healthy** in Cloudflare Zero Trust |
-| Public route | **None yet** — tunnel has no published hostname, so Pages cannot reach the PC until you add a route or use a Quick Tunnel |
+| Public route (named) | **None yet** — no published hostname on the named tunnel |
+| Live path today | **Quick Tunnel** → `GAME_ORIGIN` GitHub secret + Pages redeploy (URL changes whenever Quick Tunnel restarts) |
 | Harness bind | `127.0.0.1:8765` (localhost only; tunnel or proxy reaches it) |
 
-Until `GAME_ORIGIN` points at a URL that reaches your PC, Create Game and Spectator show the sleeping/offline state. The leaderboard still loads from the last offline snapshot when Sleeping; when Online it uses the live ladder API.
+`GAME_ORIGIN` must be a URL that currently reaches this PC. A stale Quick Tunnel hostname (or a named tunnel with no public hostname) makes the site show Sleeping even when localhost `/health` is fine. Leaderboard uses the live API when Online and the offline snapshot when Sleeping.
 
 ---
 
@@ -290,10 +291,33 @@ No HTML or Worker code changes — only origin env and where the harness runs.
 
 | Symptom | What to check |
 |---------|----------------|
+| Localhost `/health` OK, public chip **Sleeping** | Stale or unreachable `GAME_ORIGIN`. Probe `{GAME_ORIGIN}/health` (not only `127.0.0.1`). Edge-health `origin: true` + `online: false` means the configured URL is dead from Cloudflare’s edge. |
 | Status always **Sleeping** | `GAME_ORIGIN` unset/wrong; harness stopped; tunnel down; `/health` fails on origin URL |
 | Create Game works but brief shows `127.0.0.1` | Set `CHESS_HARNESS_PUBLIC_URL` on PC and restart harness |
-| Quick Tunnel worked yesterday | URL changed — update `GAME_ORIGIN` and redeploy |
+| Quick Tunnel worked yesterday | URL changed or registration died — restart Quick Tunnel, update `GAME_ORIGIN`, redeploy Pages (`gh workflow run "Deploy public site"`). Redeploy again if the first run raced the secret update. |
+| Named `cloudflared` service Running / Healthy, still Sleeping | Connector ≠ public URL. Add a **public hostname** on `chess-harness-pc` to `http://127.0.0.1:8765`, or use a live Quick Tunnel URL in `GAME_ORIGIN`. |
 | Tunnel healthy but no public URL | Add a **public hostname** route on `chess-harness-pc`, or use Quick Tunnel |
 | Calibration 404 on Pages | Expected — calibration is not exposed on the public site |
+
+### Diagnose Online vs Sleeping
+
+```powershell
+curl http://127.0.0.1:8765/health
+curl https://chessvisionharness.pages.dev/api/edge-health
+# Replace with the exact GAME_ORIGIN value (GitHub secret or Pages Production env):
+curl https://YOUR-GAME-ORIGIN/health
+```
+
+Only the third URL is what Pages probes. If it fails, the site stays Sleeping no matter how healthy localhost looks.
+
+### Refresh Quick Tunnel origin (when Sleeping after a restart)
+
+1. Stop any old Quick Tunnel process (`cloudflared tunnel --url …`).
+2. Start fresh: `cloudflared tunnel --url http://127.0.0.1:8765` and copy the new `https://….trycloudflare.com` URL.
+3. `gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"` (no trailing slash).
+4. `gh workflow run "Deploy public site"` — confirm the run finishes; if edge-health is still offline, run deploy once more.
+5. Confirm: `curl https://chessvisionharness.pages.dev/api/edge-health` → `"online": true`.
+
+For a lasting origin that survives reboots without secret churn, use **Option B** (named tunnel + public hostname) above and leave `GAME_ORIGIN` on that stable host.
 
 More Pages/tunnel detail: [`pages.md`](pages.md) (Phase 3 — `GAME_ORIGIN`, edge health).
