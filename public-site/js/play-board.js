@@ -48,6 +48,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
     orientation: humanSide,
     style: {
       borderType: BORDER_TYPE.none,
+      showCoordinates: true,
       pieces: { file: "pieces/staunty.svg" },
       animationDuration: 200,
     },

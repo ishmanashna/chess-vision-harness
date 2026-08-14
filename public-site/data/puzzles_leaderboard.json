@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-08-10T21:11:23.000Z",
+  "generated_at": "2026-08-13T14:40:37.000Z",
   "agents": [
     {
       "id": "mimo-v2.5",
@@ -20,14 +20,6 @@
       "attempts": 1,
       "solves": 0,
       "solve_rate": 0.0,
-      "themes": [
-        "advantage",
-        "bishopEndgame",
-        "defensiveMove",
-        "endgame",
-        "master",
-        "short"
-      ],
       "popularity": 89,
       "nb_plays": 2801,
       "source": "https://lichess.org/tHhRpYsL/black#92",
@@ -40,12 +32,6 @@
       "attempts": 1,
       "solves": 0,
       "solve_rate": 0.0,
-      "themes": [
-        "mate",
-        "mateIn2",
-        "middlegame",
-        "short"
-      ],
       "popularity": 80,
       "nb_plays": 72,
       "source": "https://lichess.org/SA1K2pZD/black#68",

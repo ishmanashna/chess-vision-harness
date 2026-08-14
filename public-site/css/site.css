@@ -854,6 +854,21 @@ p {
   table-layout: fixed;
 }
 
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.games-table[data-list-kind="active"] col.col-quality,
+.games-table[data-list-kind="active"] col.col-est-elo,
+.games-table[data-list-kind="active"] th:nth-child(7),
+.games-table[data-list-kind="active"] td:nth-child(7),
+.games-table[data-list-kind="active"] th:nth-child(8),
+.games-table[data-list-kind="active"] td:nth-child(8) {
+  display: none;
+}
+
 .games-table .col-game { width: 12%; }
 .games-table .col-mode { width: 5%; }
 .games-table .col-side { width: 11%; }

@@ -4,14 +4,61 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  schedule:
+    # Nightly full suite with Stockfish-backed integration tests.
+    - cron: "0 4 * * *"
 
 jobs:
-  test:
+  test-fast:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e "python/[dev]"
+
+      - name: Install frontend tooling
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend typecheck and lint
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run lint
+
+      - name: Install Stockfish (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y stockfish
+
+      - name: Download engines (Windows)
+        if: runner.os == 'Windows'
+        run: python scripts/fetch_opponents.py
+
+      - name: Run fast tests (PR tier)
+        working-directory: python
+        env:
+          STOCKFISH_PATH: ${{ runner.os == 'Windows' && '../bin/stockfish-windows-x86-64.exe' || 'stockfish' }}
+          MODELS_FILE: python/tests/fixtures/models.json
+          OPPONENTS_FILE: config/opponents.json
+        run: pytest -q -m "not slow"
+
+  test-slow:
+    if: github.event_name == 'schedule' || github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest"]') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +78,10 @@ jobs:
         if: runner.os == 'Windows'
         run: python scripts/fetch_opponents.py
 
-      - name: Run tests
+      - name: Run slow / integration tests
         working-directory: python
         env:
           STOCKFISH_PATH: ${{ runner.os == 'Windows' && '../bin/stockfish-windows-x86-64.exe' || 'stockfish' }}
           MODELS_FILE: python/tests/fixtures/models.json
           OPPONENTS_FILE: config/opponents.json
-        run: pytest -q
+        run: pytest -q -m slow

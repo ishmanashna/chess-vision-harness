@@ -85,9 +85,11 @@ def test_mcp_idle_prune_and_release_parity(mcp, tmp_path, monkeypatch):
 
         prune_calls = []
         release_calls = []
+        trim_calls = []
 
         original_prune = mcp.game_service.controller.check_idle_games
         original_release = mcp.game_service.controller.opponent_mgr.release
+        original_trim = mcp.game_service._trim_engines
 
         def track_prune():
             prune_calls.append(True)
@@ -97,8 +99,13 @@ def test_mcp_idle_prune_and_release_parity(mcp, tmp_path, monkeypatch):
             release_calls.append(True)
             return original_release()
 
+        def track_trim():
+            trim_calls.append(True)
+            return original_trim()
+
         mcp.game_service.controller.check_idle_games = track_prune
         mcp.game_service.controller.opponent_mgr.release = track_release
+        mcp.game_service._trim_engines = track_trim
 
         game_id = "mcp-release"
         await mcp.handle_tool_call(
@@ -111,27 +118,34 @@ def test_mcp_idle_prune_and_release_parity(mcp, tmp_path, monkeypatch):
             },
         )
         assert prune_calls
-        assert release_calls
+        assert trim_calls
+        assert not release_calls
 
         prune_calls.clear()
         release_calls.clear()
+        trim_calls.clear()
         await mcp.handle_tool_call(
             "chess_make_move",
             {"game_id": game_id, "move": "e2e4"},
         )
         assert prune_calls
-        assert release_calls
+        assert trim_calls
+        assert not release_calls
 
         prune_calls.clear()
         release_calls.clear()
+        trim_calls.clear()
         await mcp.handle_tool_call("chess_status", {"game_id": game_id})
         assert not prune_calls
         assert not release_calls
+        assert not trim_calls
 
         prune_calls.clear()
         release_calls.clear()
+        trim_calls.clear()
         await mcp.handle_tool_call("chess_resign", {"game_id": game_id})
         assert prune_calls
         assert not release_calls
+        assert not trim_calls
 
     asyncio.run(run())

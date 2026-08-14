@@ -12,7 +12,7 @@ Technical reference for the Chess Vision Harness codebase. Read with [`PRODUCT.m
 | **Public edge** | **Cloudflare Pages** + Functions | Always-on site (`public-site/`); proxies live traffic via `GAME_ORIGIN` |
 | **Agents** | **MCP** (stdio) + **HTTP `/api/v1`** | IDE tools and remote play |
 | **Images** | **Pillow** | Board PNG rendering |
-| **Frontend** | **TypeScript** (`frontend/`) + static HTML/JS (`public-site/`) | Local UI tooling + public Pages shell |
+| **Frontend** | **TypeScript** (`frontend/`) + static HTML/JS (`public-site/`) | `public-site/` is the shipped UI; `frontend/` is a strict `tsc` / ESLint scaffold (`placeholder.ts` only — no game UI in TS yet) |
 | **Tooling** | **Node.js** (npm) | `tsc`, ESLint in `frontend/` |
 | **Engines** | **Stockfish** (UCI binary) | Opponents, eval bar, inverse-SF, calibration |
 | **Persistence** | **Filesystem** + **SQLite** | Live games: JSON/JSONL/PNG/PGN under `.chess_harness/`; finished scored games also dual-written to `data/finished_games.sqlite` |
@@ -89,7 +89,37 @@ Agents (CLI / MCP / HTTP)                 Public site (Pages)
  OpponentEngineManager            catalogs + ratings
 ```
 
-**Source of truth** per `game_id`: `state.json`, `board.png`, `game.pgn` under the data directory. Agents get the PNG first and, for web HTTP play only, an authenticated plaintext board fallback when the PNG cannot be fetched or read; status remains redacted metadata. The public leaderboard snapshot is a published copy (`public-site/data/leaderboard.json`), not a second source of game state.
+**Source of truth** per `game_id`: `state.json`, `board.png`, `game.pgn` under the data directory. Agents get the PNG first and, for web HTTP play only, an authenticated plaintext board fallback when the PNG cannot be fetched or read; status remains redacted metadata. Puzzle and identify attempts use separate stores (`puzzle_attempts/`, `identify_attempts/`) — not game directories and not `results.jsonl`.
+
+**Leaderboards:** live APIs on the game origin (`/api/leaderboard/live`, `/api/leaderboard/puzzles/live`, `/api/leaderboard/identify/live`); Sleeping/offline fallbacks are committed snapshots in `public-site/data/*.json` (published via `chess-harness snapshot-leaderboard`). Serve debounced refresh writes runtime copies under `$CHESS_HARNESS_DIR/publish/` only.
+
+## Public routes (game origin + Pages proxy)
+
+| Path | Role |
+|------|------|
+| `/` | Home (`public-site/index.html`) |
+| `/launch/` | Launcher — engine, AvA, Playground, puzzles, identify (`?flow=`) |
+| `/spectator/` | Active / completed games; My games (AvH resume); puzzle/identify attempt hubs |
+| `/leaderboard/` | Ladder + puzzle + identify tables (snapshot-first, live upgrade) |
+| `/g/{id}` | Watch a rated or AvH game |
+| `/p/{id}` | Watch a puzzle attempt |
+| `/i/{id}` | Watch an identify attempt |
+| `/play/{id}` | Interactive human vs agent board |
+| `/calibration` | Engine calibration UI (**localhost only** on public edge) |
+| `/create`, `/human`, `/puzzles`, `/identify`, `/lobby/` | Redirects to `/launch/?flow=…` (`/lobby/` → `avaa`) |
+
+Pages Functions proxy live API and watch/play paths to `GAME_ORIGIN`; block `/calibration*`; static shell for home, launch, leaderboard, contact. See `public-site/functions/_middleware.js`.
+
+## Agent API surfaces (`/api/v1`)
+
+| Surface | Prefix | Notes |
+|---------|--------|-------|
+| Rated games | `/api/v1/games/*` | AvE, AvA, AvH; image-first board + optional `board.txt` |
+| Puzzles | `/api/v1/puzzles/*` | Separate rating; not ladder Elo |
+| Identify | `/api/v1/identify/*` | Static placement task; unrated |
+| Orchestration | `/api/v1/orchestrations/*` | **Operator-only** — localhost or `CHESS_HARNESS_ORCHESTRATION_SECRET` |
+
+Public spectator JSON for puzzles/identify: `/api/v1/puzzles/public/*`, `/api/v1/identify/public/*` (no agent secrets).
 
 ## Layers
 
@@ -101,7 +131,7 @@ Agents (CLI / MCP / HTTP)                 Public site (Pages)
 | Game logic | New game, move, resign, idle timeout, audit, agent ELO |
 | Engines | Pooled Stockfish + catalog adapters |
 | Persistence | Filesystem (live) + SQLite finished-games DB |
-| Calibration | `elo_calibration/` — engine-vs-engine, no agents (localhost only on public edge) |
+| Calibration | `elo_calibration/` — engine-vs-engine, no agents (localhost spectator only; blocked on public Pages edge) |
 
 **Entry-point parity:** CLI, MCP, and HTTP mutations for agent play (`new` / `move` / `resign` / `status` / `board` / `pgn`) go through `GameService`, which delegates to `BoardController`. Adapters stay thin; idle prune and engine `release()` after `new_game` / `make_move` live in `GameService`.
 
@@ -126,7 +156,8 @@ Resolved in `python/src/chess_harness/paths.py` (repo root = parent of `python/`
 | Opponent catalog | `config/opponents.json` |
 | Model registry | `<repo>/.chess_harness/models.json` (from `config/models.json.example`) |
 | Stockfish | `STOCKFISH_PATH` or `bin/stockfish*` |
-| Public ladder snapshot | `public-site/data/leaderboard.json` |
+| Public ladder snapshot (Sleeping) | `public-site/data/leaderboard.json` (CLI publish) |
+| Runtime snapshot cache (serve) | `$CHESS_HARNESS_DIR/publish/*.json` |
 
 **Finished-games durability:** Scored finishes dual-write to `data/finished_games.sqlite` (git-tracked; commit periodically). `prune-no-result` / `remove-game` / live delete never touch this DB. Import: `chess-harness finished-db import-live`. After accidental live delete: `finished-db list` / `finished-db restore <game_id>` (rebuilds `games/<id>/` + missing `results.jsonl` row; board PNG re-renders on next view).
 
@@ -142,15 +173,15 @@ Resolved in `python/src/chess_harness/paths.py` (repo root = parent of `python/`
 
 ## Coding conventions
 
-### Line limit (hard)
+### Line limit (aspirational)
 
-**Every coding file ≤ 300 lines** (Python, TypeScript, JavaScript; not Markdown, JSON catalogs, lockfiles).
+**Target: coding files ≤ 300 lines** (Python, TypeScript, JavaScript; not Markdown, JSON catalogs, lockfiles). Several core modules still exceed this while responsibilities are split incrementally — `scripts/check_line_limits.py` reports violations; `quality_gate.py` still runs the check. When splitting, split by responsibility (not meaningless fragments).
 
 ```bash
 python scripts/quality_gate.py
 ```
 
-Runs: line limit → `tsc` (in `frontend/`) → pytest (from `python/`) → ESLint.
+Runs: line limit check → `tsc` (in `frontend/`) → pytest (from `python/`) → ESLint.
 
 ### Python
 

@@ -1,9 +1,8 @@
 """
 Thin facade over BoardController — single mutation path for adapters.
 
-Engine lifecycle: opponent and eval engines are released after new_game and
-make_move. resign prunes idle games but does not acquire engines. Read-only
-calls (status, board, imagine, pgn, audit) skip prune and release.
+Engine lifecycle: opponent pools are trimmed to CHESS_HARNESS_MAX_ENGINE_PROCESSES
+after moves; full release on serve shutdown. Read-only calls skip prune and trim.
 """
 
 from __future__ import annotations
@@ -14,6 +13,7 @@ from typing import Any, Dict, Optional
 from .board_controller import BoardController
 from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, GAME_TYPE_HUMAN_VS_AGENT
 from .game_manager import GameManager
+from .limits import load_limits
 
 __all__ = [
     "DEFAULT_GAME_TYPE",
@@ -24,7 +24,7 @@ __all__ = [
 
 
 class GameService:
-    """Delegates game rules to BoardController; owns idle prune + engine release."""
+    """Delegates game rules to BoardController; owns idle prune + engine pool trim."""
 
     def __init__(
         self,
@@ -36,6 +36,12 @@ class GameService:
 
     def _prune_idle(self) -> None:
         self.controller.check_idle_games()
+
+    def _trim_engines(self) -> None:
+        lim = load_limits()
+        # Reserve headroom for move-time eval + spectator eval adapters.
+        max_opponent = max(1, lim.max_engine_processes - 2)
+        self.controller.opponent_mgr.trim(max_opponent)
 
     def _release_engines(self) -> None:
         self.controller.opponent_mgr.release()
@@ -73,7 +79,7 @@ class GameService:
                 game_type=game_type,
             )
         finally:
-            self._release_engines()
+            self._trim_engines()
 
     def new_agent_vs_agent_game(
         self,
@@ -120,7 +126,7 @@ class GameService:
                 game_id, move_str, caller_color=caller_color
             )
         finally:
-            self._release_engines()
+            self._trim_engines()
 
     def resign(
         self,
@@ -167,7 +173,10 @@ class GameService:
         from .human_vs_agent_human import make_human_move
 
         self._prune_idle()
-        return make_human_move(self.controller.human_play, game_id, move_str)
+        try:
+            return make_human_move(self.controller.human_play, game_id, move_str)
+        finally:
+            self._trim_engines()
 
     def human_resign(self, game_id: str, reason: str = "resignation") -> Dict[str, Any]:
         from .human_vs_agent_human import human_resign

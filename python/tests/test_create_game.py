@@ -2,47 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
-import pytest
-from fastapi.testclient import TestClient
-
-from conftest import FIXTURES
-
 from chess_harness.game_manager import GameManager
-from chess_harness.spectator import app
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_SITE = REPO_ROOT / "public-site"
-
-@pytest.fixture
-def create_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-
-    import chess_harness.spectator as spec
-
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
-    yield client, harness_dir
-    spec._game_service = None
-    spec._controller = None
-    if spec._engine is not None:
-        spec._engine.quit()
-        spec._engine = None
-    if hasattr(spec, "_get_controller"):
-        try:
-            spec._get_controller().opponent_mgr.release()
-        except Exception:
-            pass
 
 
 def test_home_serves_public_shell(create_client):
@@ -90,13 +55,17 @@ def test_legacy_launcher_pages_redirect_to_launch_flows(create_client):
         ("/create", "/launch/?flow=engine"),
         ("/create/", "/launch/?flow=engine"),
         ("/create?mode=engine", "/launch/?flow=engine"),
-        ("/create?mode=human", "/launch/?flow=engine"),
-        ("/create?mode=avh", "/launch/?flow=engine"),
-        ("/create?mode=avaa", "/launch/?flow=engine"),
+        ("/create?mode=human", "/launch/?flow=playground"),
+        ("/create?mode=avh", "/launch/?flow=playground"),
+        ("/create?mode=avaa", "/launch/?flow=avaa"),
         ("/human", "/launch/?flow=playground"),
         ("/human/", "/launch/?flow=playground"),
         ("/puzzles", "/launch/?flow=puzzles"),
         ("/puzzles/", "/launch/?flow=puzzles"),
+        ("/identify", "/launch/?flow=identify"),
+        ("/identify/", "/launch/?flow=identify"),
+        ("/lobby", "/launch/?flow=avaa"),
+        ("/lobby/", "/launch/?flow=avaa"),
     ):
         resp = client.get(path, follow_redirects=False)
         assert resp.status_code == 301

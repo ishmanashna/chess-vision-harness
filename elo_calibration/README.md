@@ -33,7 +33,7 @@ python elo_calibration/scripts/run_calibration.py --suite quick --reset-ratings 
 
 Reports: `elo_calibration/results/<suite>/summary.md`, `ratings.json`, `games.jsonl`.
 
-**Note:** `elo_calibration/results/` is gitignored except **`merged_ratings.json`**, **`continuous/ratings.json`**, and **`continuous/games.jsonl`** — commit those to restore calibration after clone. Per-suite `quick/` / `ladder/` outputs stay local.
+**Note:** `elo_calibration/results/` is gitignored except **`merged_ratings.json`** and **`accuracy_elo_map.json`** — commit those operator snapshots when you intentionally publish ladder/map changes. Continuous JSONL logs (`continuous/games.jsonl`, `play_rating_samples.jsonl`, `continuous/ratings.json`, etc.) stay local; back them up with `scripts/backup_harness.py`. Per-suite `quick/` / `ladder/` outputs stay local.
 
 **Spectator continuous calibration** (`chess-harness serve` → `/calibration`): per-engine Start/Stop, parallel games, writes to `results/continuous/`. Do not run the batch CLI and spectator calibration at the same time.
 

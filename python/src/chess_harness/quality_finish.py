@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ QualityJob = Tuple[Literal["final", "provisional"], int, bool]
 _running: Set[str] = set()
 _pending: Dict[str, QualityJob] = {}
 _queue_lock = threading.Lock()
+_quality_slots = threading.Semaphore(max(1, min(4, (os.cpu_count() or 4) // 2)))
 
 
 def schedule_game_quality(
@@ -103,20 +105,21 @@ def _run_queue(
                 break
             mode, move_count, force = job
             try:
-                if mode == "provisional":
-                    run_provisional_game_quality(
-                        game_id,
-                        move_count=move_count,
-                        base_dir=base_dir,
-                        map_root=map_root,
-                    )
-                else:
-                    run_game_quality(
-                        game_id,
-                        base_dir=base_dir,
-                        map_root=map_root,
-                        force=force,
-                    )
+                with _quality_slots:
+                    if mode == "provisional":
+                        run_provisional_game_quality(
+                            game_id,
+                            move_count=move_count,
+                            base_dir=base_dir,
+                            map_root=map_root,
+                        )
+                    else:
+                        run_game_quality(
+                            game_id,
+                            base_dir=base_dir,
+                            map_root=map_root,
+                            force=force,
+                        )
             except Exception:
                 _log.exception("quality job failed for %s (%s)", game_id, mode)
             with _queue_lock:

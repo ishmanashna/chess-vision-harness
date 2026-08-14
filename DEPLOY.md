@@ -35,7 +35,7 @@ https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
 | `CHESS_HARNESS_PUBLIC_URL` | Game PC / harness service | URL in agent briefs — always the **Pages** URL, never the raw tunnel hostname |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `AUTH_SESSION_SECRET` | Pages deploy (GitHub Actions secrets, injected like `GAME_ORIGIN`) | Cosmetic Google sign-in on the public site — does **not** gate create/inscribe. Setup: [`deploy/pages.md`](deploy/pages.md). |
 | `CHESS_HARNESS_AUDIT_SALT` | Game PC / harness service | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl` (create/inscribe log). |
-| `CHESS_HARNESS_TRUSTED_PROXIES` | Game PC / harness service | Optional comma-separated CIDRs allowed to supply `X-Forwarded-For`; unset means the direct peer address is used. |
+| `CHESS_HARNESS_TRUSTED_PROXIES` | Game PC / harness service | Comma-separated CIDRs for the **immediate** proxy hop (typically `127.0.0.0/8` when `cloudflared` connects to localhost). **Required for Online** — Pages forwards each visitor via `X-Forwarded-For`; without this, all traffic looks like `127.0.0.1` for per-IP limits. The harness logs a one-time warning on the first loopback request that carries forwarded identity headers when unset. |
 
 Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). On loopback hostnames (`127.0.0.1`, `localhost`), the shared site nav inserts **Calibration** after Leaderboard with no status probe; on the deployed Pages host the tab never appears. Direct loopback Host (`127.0.0.1` / `localhost`) may POST without a secret. Via tunnel or any non-loopback Host, calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1`. Do not rely on client IP behind Cloudflare Tunnel.
 
@@ -60,16 +60,16 @@ Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are r
 
 1. **Pages always-on site** — auto-deploys from `public-site/` via GitHub Actions. One-time secrets: [`deploy/pages.md`](deploy/pages.md).
 2. **Game PC** — `chess-harness serve` on `127.0.0.1:8765` with  
-   `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`.
-3. **Reach the PC** — Quick Tunnel (URL changes on restart) or named tunnel + domain (stable). Full steps: [`deploy/home-pc.md`](deploy/home-pc.md).
-4. **Wire live play** — set GitHub secret `GAME_ORIGIN` to the tunnel/host URL, then redeploy Pages (`gh workflow run "Deploy public site"`).
+   `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`. Production: [`deploy/install-harness-nssm.ps1`](deploy/install-harness-nssm.ps1) (survives reboot).
+3. **Reach the PC** — **Quick Tunnel** is the current public path (URL changes on restart). Named `cloudflared` without a public hostname does **not** make Pages Online. Full steps: [`deploy/home-pc.md`](deploy/home-pc.md).
+4. **Wire live play** — set GitHub secret `GAME_ORIGIN` to the tunnel/host URL, then redeploy Pages (`gh workflow run "Deploy public site"`). Verify: [`deploy/verify-online.ps1`](deploy/verify-online.ps1).
 
 **Leaderboard (live vs offline)**
 
 - **Online** (status chip / edge-health): Home and `/leaderboard/` load the ladder from the **live** API (`/api/leaderboard/live` on Pages via proxy; same numbers as the game PC). Calibration Elo and agent ladder updates appear without git.
-- **Sleeping** (game server down): the site falls back to the committed file `public-site/data/leaderboard.json` — last offline snapshot. The edge health field `origin: true` only means `GAME_ORIGIN` is configured; clients must use `status: "online"` or `online: true` to treat the origin as reachable. If a live leaderboard request fails, the browser also falls back to the snapshot.
-- While `chess-harness serve` runs, the origin refreshes that snapshot file in the background (after rating changes / on a light schedule) so Sleeping visitors are not stuck on ancient data. That refresh is automatic maintenance, not an operator chore and not a calibration button.
-- Optional: `chess-harness snapshot-leaderboard` or a git commit of `leaderboard.json` is backup for offline visitors only — **not** how you publish live Elos when Online.
+- **Sleeping** (game server down): the site falls back to the committed files `public-site/data/*.json` — last intentional offline snapshot. The edge health field `origin: true` only means `GAME_ORIGIN` is configured; clients must use `status: "online"` or `online: true` to treat the origin as reachable. If a live leaderboard request fails, the browser also falls back to the snapshot.
+- While `chess-harness serve` runs, debounced snapshot refresh writes to `$CHESS_HARNESS_DIR/publish/` (runtime only — does not touch git). Online visitors load live APIs; no git step.
+- **Sleeping publish (operator):** before a long offline period or when you want Pages to show fresher fallback data, run `chess-harness snapshot-leaderboard`, commit `public-site/data/*.json`, and push (or let the deploy workflow run). That is **not** how you publish live Elos when Online.
 
 **Detailed runbooks**
 
@@ -114,9 +114,9 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY` | No | Per API key (default `600`) |
 | `CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR` | No | Unauthenticated `POST /api/v1/agents` (default `10`) |
 | `CHESS_HARNESS_AUDIT_SALT` | No | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl`. Read with `chess-harness audit tail`. |
-| `CHESS_HARNESS_TRUSTED_PROXIES` | No | Comma-separated proxy CIDRs allowed to provide `X-Forwarded-For`; leave unset unless the immediate proxy network is known. |
+| `CHESS_HARNESS_TRUSTED_PROXIES` | No | Comma-separated CIDRs for the immediate proxy hop (`127.0.0.0/8` for local `cloudflared` → `127.0.0.1:8765`). Pages sets `X-Forwarded-For` from the visitor's `CF-Connecting-IP`; the harness trusts that header only when the peer is in this list. Leave unset only for direct localhost access with no tunnel. |
 | `CHESS_HARNESS_INBOX_SECRET` | No | Optional secret for inbox list/read/delete from a trusted non-loopback operator path; loopback access remains available. |
-| `CHESS_HARNESS_CALIBRATION_SECRET` | For calibration UI POSTs | Shared secret for `/api/calibration/*` mutations when the harness is reachable via tunnel. Injected into the local `/calibration` page for same-origin POSTs. |
+| `CHESS_HARNESS_CALIBRATION_SECRET` | For calibration UI POSTs | Shared secret for `/api/calibration/*` mutations when the harness is reachable via tunnel. On loopback Host only, the `/calibration` page may embed it in a meta tag for same-origin POSTs; non-loopback hosts never receive the secret in HTML — paste it in the on-page field or send the header yourself. |
 | `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION` | No | Set to `1` to allow calibration POSTs without the secret (explicit override; not recommended on exposed hosts). |
 
 Create Game briefs read `CHESS_HARNESS_PUBLIC_URL`. Without it, briefs default to `http://127.0.0.1:8765` (local only).
@@ -146,16 +146,19 @@ Stop with Ctrl+C. Production uses systemd (Linux) or NSSM (Windows) below — se
 
 ### Preferred for this project: Cloudflare Tunnel → Pages `GAME_ORIGIN`
 
-No open inbound ports. Tunnel to `127.0.0.1:8765`; set `GAME_ORIGIN` on Pages; keep `CHESS_HARNESS_PUBLIC_URL` as the Pages URL. See [`deploy/home-pc.md`](deploy/home-pc.md).
+No open inbound ports. Tunnel to `127.0.0.1:8765`; set `GAME_ORIGIN` on Pages; keep `CHESS_HARNESS_PUBLIC_URL` as the Pages URL. On the game PC set `CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8` so rate limits and audit hashes see each visitor IP that Pages forwards (not the tunnel peer). See [`deploy/home-pc.md`](deploy/home-pc.md).
 
 ### Online vs Sleeping (localhost up, public site Sleeping)
 
-These are different checks:
+These are **three separate probes** (same order as [`deploy/home-pc.md`](deploy/home-pc.md#sleeping-runbook-card-three-urls-only)):
 
-| Check | What it proves |
-|-------|----------------|
-| `http://127.0.0.1:8765/health` | Harness process is up **on this PC only** |
-| `https://chessvisionharness.pages.dev/api/edge-health` | Pages can reach **`GAME_ORIGIN`/health** from the public internet |
+| # | Check | What it proves |
+|---|-------|----------------|
+| 1 | `http://127.0.0.1:8765/health` | Harness process is up **on this PC only** |
+| 2 | `{GAME_ORIGIN}/health` | Tunnel/origin URL that Pages is configured to use |
+| 3 | `https://chessvisionharness.pages.dev/api/edge-health` | Public **Online** (`online: true`) |
+
+Automated: `.\deploy\verify-online.ps1 -GameOrigin "https://your-current.trycloudflare.com"` (exit codes in script header).
 
 Edge-health fields:
 
@@ -207,16 +210,28 @@ Logs: `journalctl -u chess-harness -f`. On SIGTERM, lifespan releases engines (`
 
 ## 6. Windows (NSSM)
 
+Use the install helper (creates `.chess_harness\logs`, sets `CHESS_HARNESS_PUBLIC_URL` and `CHESS_HARNESS_TRUSTED_PROXIES`, merges existing `AppEnvironmentExtra`, restart-on-failure):
+
+```powershell
+# Elevated PowerShell, from repo root
+.\deploy\install-harness-nssm.ps1
+```
+
+Manual equivalent:
+
 ```powershell
 nssm install ChessHarness "C:\path\to\chess-vision-harness\.venv\Scripts\chess-harness.exe" serve
 nssm set ChessHarness AppDirectory "C:\path\to\chess-vision-harness"
-nssm set ChessHarness AppEnvironmentExtra "CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev"
+nssm set ChessHarness AppEnvironmentExtra "CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev" "CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8"
 nssm set ChessHarness AppStdout "C:\path\to\chess-vision-harness\.chess_harness\logs\harness.log"
 nssm set ChessHarness AppStderr "C:\path\to\chess-vision-harness\.chess_harness\logs\harness.err.log"
 nssm set ChessHarness AppRotateFiles 1
 nssm set ChessHarness AppRotateBytes 10485760
+nssm set ChessHarness AppExit Default Restart
 nssm start ChessHarness
 ```
+
+After reboot, the harness should answer `http://127.0.0.1:8765/health` within a few minutes. **Public Online** is separate — Quick Tunnel URLs change on restart; see [`deploy/home-pc.md`](deploy/home-pc.md).
 
 Put Cloudflare Tunnel (or another proxy) in front of `127.0.0.1:8765`. Do not bind the harness to `0.0.0.0`.
 
@@ -257,14 +272,65 @@ Classic single-host check: `curl https://your-host/health` and Create Game brief
 
 ## 10. Backup (nightly)
 
-[`scripts/backup_harness.py`](scripts/backup_harness.py) — models, API key hashes, results, recent live games, the durable `data/finished_games.sqlite` database, and calibration files.
+[`scripts/backup_harness.py`](scripts/backup_harness.py) archives runtime data:
+
+| Archive path | Source |
+|--------------|--------|
+| `harness/models.json`, `api_keys.json`, `results.jsonl` | `$CHESS_HARNESS_DIR` (default `.chess_harness/`) |
+| `harness/games/<game_id>/` | Recent live game dirs (age/count filters) |
+| `harness/puzzle_attempts.json`, `identify_attempts.json`, `puzzle_ratings.json` | Puzzle / identify runtime stores |
+| `harness/puzzles/` | Imported puzzle dataset (`puzzles.json`, manifest) |
+| `harness/audit/activity.jsonl` | Create/inscribe audit log |
+| `data/finished_games.sqlite` | Permanent scored-game archive |
+| `calibration/merged_ratings.json`, `accuracy_elo_map.json` | Operator calibration snapshots (still git-tracked when intentionally committed) |
+| `calibration/continuous/*` | Live calibration (`ratings.json`, `games.jsonl`, `play_rating_samples.jsonl`, `play_rating_map.json`) |
+| `calibration/<suite>/` | Batch suite outputs (`ratings.json`, `games.jsonl`) when present |
 
 ```bash
 python scripts/backup_harness.py
 python scripts/backup_harness.py --output /var/backups/chess-harness --game-days 0 --keep 14
 ```
 
-Schedule via cron, systemd timer, or Windows Task Scheduler (examples historically lived in `deploy/`; same commands apply). Copy archives off-host.
+**Windows Task Scheduler (this PC):** edit paths in [`deploy/backup-nightly.ps1`](deploy/backup-nightly.ps1), then register [`deploy/backup-task-scheduler.xml`](deploy/backup-task-scheduler.xml):
+
+```powershell
+schtasks /Create /TN "ChessHarnessNightlyBackup" /XML "deploy\backup-task-scheduler.xml" /F
+```
+
+Copy archives off-host. Calibration JSONL logs are capped on disk (`CHESS_HARNESS_MAX_CALIBRATION_JSONL_LINES`, default `100000` newest lines per log).
+
+---
+
+## 10a. Truth matrix (runtime vs git)
+
+| Data | Canonical location | In git? | Sleeping / public fallback |
+|------|-------------------|---------|----------------------------|
+| Live in-progress games | `$CHESS_HARNESS_DIR/games/<id>/` | No | N/A — requires Online origin |
+| Scored game history | `data/finished_games.sqlite` | **No** (backup only) | N/A |
+| Agent registry + ladder Elo | `$CHESS_HARNESS_DIR/models.json`, `results.jsonl` | No | Live API when Online |
+| Calibration JSONL + continuous ratings | `elo_calibration/results/continuous/` | **No** | N/A (localhost calibration UI) |
+| Operator calibration snapshots | `merged_ratings.json`, `accuracy_elo_map.json` | Yes — intentional commits | N/A |
+| Public ladder / puzzle snapshots | `public-site/data/*.json` | Yes — deliberate Sleeping fallbacks | Pages static `/data/*.json` when Sleeping |
+| Runtime snapshot cache (serve) | `$CHESS_HARNESS_DIR/publish/*.json` | No | N/A — live APIs when Online; copy via CLI for Sleeping publish |
+| Puzzle / identify attempts | `$CHESS_HARNESS_DIR/puzzle_*.json`, `identify_attempts.json` | No | Live API when Online |
+
+**Git quiet going forward:** volatile paths above marked **No** should be untracked (see operator commands below). Historical blobs stay in old commits — no history rewrite.
+
+**Sleeping publish (operator or CI):** `chess-harness snapshot-leaderboard` writes `public-site/data/leaderboard.json`, `puzzles_leaderboard.json`, and `identify_leaderboard.json`, and injects inline snapshot into home/leaderboard HTML. Commit and push so Pages deploy picks up the fallback. Run before extended offline, or periodically if you care about Sleeping freshness. While Online, live ladder APIs need no commit.
+
+Serve-time debounced refresh (rated finish, calibration tick, startup watcher) writes only to `$CHESS_HARNESS_DIR/publish/` — never `public-site/`.
+
+**Operator — untrack volatile files (run once after pulling Phase 2):**
+
+```bash
+git rm --cached data/finished_games.sqlite
+git rm --cached elo_calibration/results/continuous/ratings.json
+git rm --cached elo_calibration/results/continuous/games.jsonl
+git rm --cached elo_calibration/results/continuous/play_rating_samples.jsonl
+git rm --cached elo_calibration/results/continuous/play_rating_map.json
+git add data/.gitignore elo_calibration/results/.gitignore
+git commit -m "Stop tracking volatile runtime data (Phase 2 quiet git)"
+```
 
 ---
 
@@ -272,9 +338,17 @@ Schedule via cron, systemd timer, or Windows Task Scheduler (examples historical
 
 1. Stop the harness (`systemctl stop` / `nssm stop`).
 2. Optional safety copy of `$CHESS_HARNESS_DIR`, `data/finished_games.sqlite`, and `elo_calibration/results/`.
-3. Extract archive; restore `data/finished_games.sqlite` first, then copy `harness/*` into `$CHESS_HARNESS_DIR` and calibration files back under `elo_calibration/results/`.
-4. Verify `chess-harness finished-db list`; use `chess-harness finished-db restore <game_id>` for deleted live games, then run `chess-harness rebuild-elo` if needed.
-5. Start harness; `curl http://127.0.0.1:8765/health`; confirm public site Online if `GAME_ORIGIN` is set.
+3. Extract the backup archive to a throwaway directory; read `manifest.json` for the path list.
+4. Restore in order:
+   - `data/finished_games.sqlite` → repo `data/finished_games.sqlite`
+   - `harness/models.json`, `api_keys.json`, `results.jsonl` → `$CHESS_HARNESS_DIR/`
+   - `harness/games/*` → `$CHESS_HARNESS_DIR/games/`
+   - `harness/puzzle_attempts.json`, `identify_attempts.json`, `puzzle_ratings.json`, `harness/puzzles/`, `harness/audit/` → matching paths under `$CHESS_HARNESS_DIR/`
+   - `calibration/*` → `elo_calibration/results/`
+5. Verify `chess-harness finished-db list`; use `chess-harness finished-db restore <game_id>` for deleted live games, then run `chess-harness rebuild-elo` if needed.
+6. Start harness; `curl http://127.0.0.1:8765/health`; confirm public site Online if `GAME_ORIGIN` is set.
+
+**Restore drill:** extract a recent archive into `%TEMP%\cvh-restore-test`, copy one file back, confirm `manifest.json` paths match section 10, then discard the temp dir.
 
 ---
 
@@ -285,6 +359,15 @@ Schedule via cron, systemd timer, or Windows Task Scheduler (examples historical
 | Edge health (Pages) | `GET https://chessvisionharness.pages.dev/api/edge-health` |
 | Harness liveness | `GET http://127.0.0.1:8765/health` (or via tunnel/proxy) |
 | Load | `GET …/api/v1/metrics` |
+
+**Windows — all three probes in one script** (exit codes in script header):
+
+```powershell
+$env:GAME_ORIGIN = "https://your-current.trycloudflare.com"   # or -GameOrigin
+.\deploy\verify-online.ps1
+```
+
+Schedule `verify-online.ps1` via Task Scheduler when the PC is expected Online; non-zero exit → follow [`deploy/home-pc.md`](deploy/home-pc.md) recovery.
 
 Alert on stuck `engine_count` with `active_games == 0`, and low `disk_free_bytes`.
 

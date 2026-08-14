@@ -165,10 +165,10 @@ def cmd_leaderboard() -> None:
 
 
 def _publish_public_snapshots() -> None:
-    """Write all public-site leaderboard snapshots (ladder, puzzles, identify)."""
-    from .snapshot_leaderboard import export_public_snapshots
+    """Write Sleeping fallbacks to public-site/data (operator CLI publish)."""
+    from .snapshot_leaderboard import export_git_publish_snapshots
 
-    written = export_public_snapshots()
+    written = export_git_publish_snapshots()
     for label, path in written.items():
         print(f"Wrote {label} snapshot: {path}")
 
@@ -176,9 +176,11 @@ def _publish_public_snapshots() -> None:
 def cmd_snapshot_leaderboard(output: Optional[str] = None) -> None:
     from pathlib import Path
 
-    from .snapshot_leaderboard import export_public_snapshots
+    from .snapshot_leaderboard import export_git_publish_snapshots
 
-    written = export_public_snapshots(output_path=Path(output) if output else None)
+    written = export_git_publish_snapshots(
+        output_path=Path(output) if output else None,
+    )
     for label, path in written.items():
         print(f"Wrote {label} snapshot: {path}")
 
@@ -257,6 +259,12 @@ def cmd_rebuild_elo() -> None:
     ladder.process_results_file()
     print("ELO ratings rebuilt from results.jsonl")
     cmd_leaderboard()
+
+
+def cmd_calibration_worker(host: str = "127.0.0.1", port: int | None = None) -> None:
+    from .calibration_supervisor import cmd_calibration_worker as _run_worker
+
+    _run_worker(host=host, port=port)
 
 
 def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) -> None:

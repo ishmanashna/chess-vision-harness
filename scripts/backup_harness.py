@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Backup Chess Vision Harness runtime data (models, keys, results, recent games)."""
+"""Backup Chess Vision Harness runtime data.
+
+Includes harness registry/results, recent live game dirs, finished-games SQLite,
+calibration snapshots and JSONL logs, puzzle/identify stores, and activity audit.
+"""
 
 from __future__ import annotations
 
@@ -23,10 +27,23 @@ from chess_harness.paths import (
     resolve_base_dir,
     resolve_finished_games_db,
     resolve_models_file,
+    resolve_puzzles_dir,
 )
 
 HARNESS_FILES = ("models.json", "api_keys.json", "results.jsonl")
+HARNESS_RUNTIME_FILES = (
+    "puzzle_attempts.json",
+    "identify_attempts.json",
+    "puzzle_ratings.json",
+)
 CALIBRATION_ROOT = project_root() / "elo_calibration" / "results"
+CALIBRATION_SNAPSHOTS = ("merged_ratings.json", "accuracy_elo_map.json")
+CONTINUOUS_FILES = (
+    "ratings.json",
+    "games.jsonl",
+    "play_rating_samples.jsonl",
+    "play_rating_map.json",
+)
 
 
 def _archive_suffix() -> str:
@@ -55,14 +72,43 @@ def _calibration_paths() -> list[Path]:
     if not CALIBRATION_ROOT.is_dir():
         return []
     paths: list[Path] = []
-    merged = CALIBRATION_ROOT / "merged_ratings.json"
-    if merged.is_file():
-        paths.append(merged)
-    for ratings in CALIBRATION_ROOT.glob("*/ratings.json"):
-        paths.append(ratings)
-    for games_log in CALIBRATION_ROOT.glob("*/games.jsonl"):
-        paths.append(games_log)
+    for name in CALIBRATION_SNAPSHOTS:
+        candidate = CALIBRATION_ROOT / name
+        if candidate.is_file():
+            paths.append(candidate)
+    continuous = CALIBRATION_ROOT / "continuous"
+    if continuous.is_dir():
+        for name in CONTINUOUS_FILES:
+            candidate = continuous / name
+            if candidate.is_file():
+                paths.append(candidate)
+    for suite_dir in CALIBRATION_ROOT.iterdir():
+        if not suite_dir.is_dir() or suite_dir.name == "continuous":
+            continue
+        for name in ("ratings.json", "games.jsonl"):
+            candidate = suite_dir / name
+            if candidate.is_file():
+                paths.append(candidate)
     return sorted(set(paths))
+
+
+def _harness_runtime_paths(base_dir: Path) -> list[tuple[Path, Path]]:
+    """Return (source, staging-relative) pairs under harness/."""
+    pairs: list[tuple[Path, Path]] = []
+    for name in HARNESS_RUNTIME_FILES:
+        src = base_dir / name
+        if src.is_file():
+            pairs.append((src, Path("harness") / name))
+    audit = base_dir / "audit" / "activity.jsonl"
+    if audit.is_file():
+        pairs.append((audit, Path("harness") / "audit" / "activity.jsonl"))
+    puzzles_dir = resolve_puzzles_dir()
+    if puzzles_dir.is_dir() and any(puzzles_dir.iterdir()):
+        for src in sorted(puzzles_dir.rglob("*")):
+            if src.is_file():
+                rel = Path("harness") / "puzzles" / src.relative_to(puzzles_dir)
+                pairs.append((src, rel))
+    return pairs
 
 
 def _copy_finished_db(staging: Path) -> dict[str, object]:
@@ -123,6 +169,12 @@ def _stage_backup(
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         copied.append(f"calibration/{rel.as_posix()}")
+
+    for src, rel in _harness_runtime_paths(base_dir):
+        dest = staging / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        copied.append(rel.as_posix())
 
     finished_db = _copy_finished_db(staging)
     if finished_db["exists"]:

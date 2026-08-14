@@ -52,6 +52,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: full-stack or Stockfish-backed integration tests",
 ]
 
 [tool.coverage.run]

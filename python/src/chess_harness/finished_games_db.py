@@ -3,10 +3,11 @@
 Live play stays on the filesystem; this DB is the forever record. Official
 delete/prune/remove of live game dirs must never DELETE rows here.
 
-Default path: ``data/finished_games.sqlite`` (repo-relative, git-tracked).
-Override with ``CHESS_HARNESS_FINISHED_DB`` for experiments only.
+Default path: ``data/finished_games.sqlite`` (repo-relative). Override with
+``CHESS_HARNESS_FINISHED_DB`` for local experiments only.
 
-Operators should commit the DB file periodically so GitHub retains history.
+The SQLite file is **runtime data** — gitignored after Phase 2. Back it up with
+``scripts/backup_harness.py``; restore from the archive manifest, not git history.
 """
 
 from __future__ import annotations

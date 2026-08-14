@@ -46,14 +46,13 @@ from .ladder_display import (
 from .calibration_auth import require_calibration_auth
 from .contact_api import register_contact_routes
 from .play_page import register_play_routes
-from .calibration_view import get_calibration_status, rebuild_merged_ratings_file
-from .spectator_game_page import render_game_view_page
+from .calibration_view import get_calibration_status, get_calibration_status_live, rebuild_merged_ratings_file
+from .public_site_shell import watch_shell_response
 from .puzzle_observer import (
     _agent_name,
     observer_state,
     public_attempt_row,
     render_observer_board_png,
-    render_puzzle_watch_page,
     replay_payload,
 )
 from .puzzle_attempt import PuzzleAttemptStore
@@ -65,16 +64,29 @@ from .identify_observer import (
     public_attempt_row as identify_public_row,
     render_answer_overlay_png,
     render_identify_board_png,
-    render_identify_watch_page,
     replay_payload as identify_replay_payload,
 )
-from .continuous_calibration import can_continuously_calibrate, get_continuous_calibration
+from .continuous_calibration import (
+    assess_fleet_parallel,
+    assess_parallel_start,
+    assess_start_all,
+    can_continuously_calibrate,
+    resolve_calibration_manager,
+)
+from .calibration_supervisor import (
+    calibration_worker_error,
+    calibration_worker_healthy,
+    ensure_calibration_worker,
+    shutdown_calibration_worker,
+)
+from .calibration_worker_ipc import calibration_in_process
 from .api_limits import get_limit_enforcer
 from .engine import EvalEngineAdapter
 from .game_manager import GameManager
 from .game_service import GameService
 from .paths import project_root, resolve_base_dir
 from .serve_utils import remove_spectator_meta
+from .serve_workers import run_blocking, run_eval, shutdown_workers
 from .snapshot_leaderboard import (
     export_public_snapshots,
     load_live_identify_leaderboard,
@@ -116,6 +128,25 @@ def _game_elo_change(state: Dict[str, Any], game_id: str) -> Optional[Dict[str, 
     if is_avaa_state(state) or is_human_vs_agent_state(state):
         return None
     return _get_controller().apply_elo_delta({**state, "game_id": game_id})
+
+
+def _list_elo_delta(state: Dict[str, Any], game_id: str) -> Optional[Dict[str, int]]:
+    """Cheap list projection: state fields only — no results.jsonl replay."""
+    if state.get("status") == "in_progress":
+        return None
+    if is_avaa_state(state) or is_human_vs_agent_state(state):
+        return None
+    before = state.get("elo_before")
+    if before is None:
+        return None
+    after = state.get("elo_after")
+    if after is None:
+        return None
+    return {
+        "elo_before": before,
+        "elo_after": after,
+        "elo_delta": state.get("elo_delta", after - before),
+    }
 
 
 def _format_elo_change(delta: Optional[Dict[str, int]], state: Dict[str, Any]) -> str:
@@ -174,6 +205,13 @@ async def _lifespan(_app: FastAPI):
             await asyncio.sleep(60)
             try:
                 await asyncio.to_thread(_get_game_service().prune_idle_games)
+                from .identify_attempt import IdentifyAttemptStore
+                from .limits import load_limits
+
+                idle_sec = float(load_limits().idle_timeout_sec)
+                await asyncio.to_thread(
+                    IdentifyAttemptStore().prune_idle_active, idle_sec
+                )
             except Exception:
                 pass
 
@@ -187,16 +225,25 @@ async def _lifespan(_app: FastAPI):
 
     idle_task = asyncio.create_task(_idle_watcher())
     snapshot_task = asyncio.create_task(_leaderboard_snapshot_watcher())
+    if not calibration_in_process():
+        try:
+            await ensure_calibration_worker()
+        except Exception:
+            pass
     yield
     idle_task.cancel()
     snapshot_task.cancel()
-    await get_continuous_calibration().stop_all()
-    _get_game_service().controller.opponent_mgr.release()
-    remove_spectator_meta()
+    if calibration_in_process():
+        await resolve_calibration_manager().stop_all()
+    else:
+        await shutdown_calibration_worker()
+    _get_game_service()._release_engines()
     global _engine
     if _engine is not None:
         _engine.quit()
         _engine = None
+    shutdown_workers()
+    remove_spectator_meta()
 
 
 app = FastAPI(title="Chess Vision Harness Spectator", lifespan=_lifespan)
@@ -357,7 +404,15 @@ async def favicon_alert_svg():
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "status": "up"}
+    payload: Dict[str, Any] = {"ok": True, "status": "up"}
+    if not calibration_in_process():
+        worker_ok = await asyncio.to_thread(calibration_worker_healthy)
+        payload["calibration_worker_ok"] = worker_ok
+        if not worker_ok:
+            err = calibration_worker_error()
+            if err:
+                payload["calibration_worker_error"] = err
+    return payload
 
 
 @app.get("/api/edge-health")
@@ -557,6 +612,75 @@ def _active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
     }
 
 
+def _list_active_card(state: Dict[str, Any], game_id: str) -> Dict[str, Any]:
+    """Games-list projection without live Stockfish eval (uses cached last_eval_cp only)."""
+    ctrl = _get_controller()
+    board = chess.Board(state["board_fen"])
+    elo = ctrl._elo_context(state)
+    cached_cp = state.get("last_eval_cp")
+    eval_ui = (
+        _spectator_eval_ui(state, cached_cp)
+        if cached_cp is not None and show_eval_for_state(state)
+        else None
+    )
+
+    if is_avaa_state(state):
+        white_name, black_name = BoardController.avaa_display_names(state)
+        mover = white_name if board.turn == chess.WHITE else black_name
+        turn = f"{mover} to move"
+        if board.is_check():
+            turn += " · check"
+        return {
+            "game_type": GAME_TYPE_AGENT_VS_AGENT,
+            "white_name": white_name,
+            "black_name": black_name,
+            "white_elo": elo.get("white_elo"),
+            "black_elo": elo.get("black_elo"),
+            "agent_name": white_name,
+            "opponent_label": black_name,
+            "move_number": board.fullmove_number,
+            "plies": len(state.get("moves", [])),
+            "turn_label": turn,
+            "eval_white_cp": cached_cp,
+            "eval_ui": eval_ui,
+            "show_eval": True,
+            "board_url": f"/g/{game_id}/board.png",
+            "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
+        }
+
+    if is_human_vs_agent_state(state):
+        card = human_active_card(state, game_id, board, elo)
+        card["eval_white_cp"] = cached_cp
+        card["eval_ui"] = eval_ui
+        return card
+
+    persp = ctrl._perspective(board, state["agent_color"])
+    model = state.get("model_display_name") or state.get("model_name") or "Agent"
+    opponent_label = BoardController.engine_display_label(state)
+    turn = "Agent to move" if persp["your_turn"] else "Opponent to move"
+    if persp["in_check"] and persp["your_turn"]:
+        turn += " · check"
+    return {
+        "agent_name": model,
+        "agent_color": state["agent_color"],
+        "opponent_label": opponent_label,
+        "engine_label": opponent_label,
+        "opponent_id": state.get("opponent_id"),
+        "agent_elo": elo.get("agent_elo"),
+        "opponent_elo": elo.get("opponent_elo"),
+        "engine_elo": elo.get("engine_elo"),
+        "move_number": board.fullmove_number,
+        "plies": len(state.get("moves", [])),
+        "your_turn": persp["your_turn"],
+        "turn_label": turn,
+        "eval_white_cp": cached_cp,
+        "eval_ui": eval_ui,
+        "show_eval": True,
+        "board_url": f"/g/{game_id}/board.png",
+        "board_cache": f"{len(state.get('moves', []))}:{state.get('last_move_uci') or ''}",
+    }
+
+
 def _avaa_list_fields(state: Dict[str, Any], elo: Dict[str, Any]) -> Dict[str, Any]:
     white_name, black_name = BoardController.avaa_display_names(state)
     return {
@@ -647,14 +771,14 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     active_card = None
     agent_outcome = None
     if state.get("status") != "in_progress":
-        elo_delta_raw = _game_elo_change(state, game_id)
+        elo_delta_raw = _list_elo_delta(state, game_id)
         elo_delta = _format_elo_change(elo_delta_raw, state)
         if not avaa:
             agent_outcome = BoardController.agent_outcome(
                 state["agent_color"], state.get("result")
             )
     else:
-        active_card = _active_card(state, game_id)
+        active_card = _list_active_card(state, game_id)
 
     elo = ctrl._elo_context(state)
     names = _side_list_fields(state, elo, avaa=avaa, human=human)
@@ -672,11 +796,16 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
         )
         opp_label = _display_name_without_elo(BoardController.engine_display_label(state))
 
-    end_reason_label = (
-        ctrl.resolve_end_reason(state, game_id)
-        if state.get("status") != "in_progress"
-        else None
-    )
+    if state.get("status") != "in_progress":
+        reason = state.get("end_reason")
+        if reason:
+            end_reason_label = ctrl.format_end_reason(reason, state)
+        elif state.get("result") == "*":
+            end_reason_label = "No result (idle timeout)"
+        else:
+            end_reason_label = None
+    else:
+        end_reason_label = None
     row: Dict[str, Any] = {
         "game_id": game_id,
         "revision": revision,
@@ -705,7 +834,7 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
             ctrl.format_spectator_summary(state).split(" — ", 1)[-1]
             if state.get("status") == "in_progress"
             else (
-                ctrl.resolve_end_reason(state, game_id) or "No result"
+                end_reason_label or "No result"
                 if state.get("result") == "*"
                 else state.get("result") or "done"
             )
@@ -720,6 +849,26 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     else:
         row["game_type"] = state.get("game_type") or DEFAULT_GAME_TYPE
     return row
+
+
+def _build_games_list(
+    status: Optional[str],
+    limit: Optional[int],
+    offset: int,
+) -> tuple[list[Dict[str, Any]], int]:
+    _get_game_service().prune_idle_games()
+    games = game_manager.list_games()
+    if status in ("in_progress", "active"):
+        games = [g for g in games if g["state"].get("status") == "in_progress"]
+    elif status in ("finished", "done", "completed"):
+        games = [g for g in games if g["state"].get("status") != "in_progress"]
+
+    total = len(games)
+    if limit is not None:
+        games = games[offset : offset + limit]
+    else:
+        games = games[offset:]
+    return [_enrich_list_game(g) for g in games], total
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -737,8 +886,27 @@ async def root(request: Request):
 
 @app.get("/create", response_class=HTMLResponse)
 @app.get("/create/", response_class=HTMLResponse)
-async def create_game_get():
-    return RedirectResponse(url="/launch/?flow=engine", status_code=301)
+async def create_game_get(mode: Optional[str] = None):
+    flow = "engine"
+    if mode == "human":
+        flow = "playground"
+    elif mode == "avaa":
+        flow = "avaa"
+    elif mode == "avh":
+        flow = "playground"
+    return RedirectResponse(url=f"/launch/?flow={flow}", status_code=301)
+
+
+@app.get("/identify", response_class=HTMLResponse)
+@app.get("/identify/", response_class=HTMLResponse)
+async def identify_page():
+    return RedirectResponse(url="/launch/?flow=identify", status_code=301)
+
+
+@app.get("/lobby", response_class=HTMLResponse)
+@app.get("/lobby/", response_class=HTMLResponse)
+async def lobby_page():
+    return RedirectResponse(url="/launch/?flow=avaa", status_code=301)
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
@@ -766,8 +934,15 @@ async def launch_page():
 
 
 @app.get("/calibration", response_class=HTMLResponse)
-async def calibration_page():
-    return HTMLResponse(render_calibration_html())
+async def calibration_page(request: Request):
+    from .calibration_auth import host_is_loopback
+
+    return HTMLResponse(render_calibration_html(loopback=host_is_loopback(request)))
+
+
+@app.get("/api/calibration/status/live")
+async def calibration_status_live():
+    return await asyncio.to_thread(get_calibration_status_live)
 
 
 @app.get("/api/calibration/status")
@@ -777,49 +952,90 @@ async def calibration_status():
 
 
 @app.post("/api/calibration/continuous/{engine_id}/start")
-async def calibration_continuous_start(engine_id: str, parallel: int = Query(1, ge=1, le=100)):
-    if not can_continuously_calibrate(
-        engine_id, pairing_mode=get_continuous_calibration().pairing_mode()
-    ):
+async def calibration_continuous_start(
+    engine_id: str,
+    parallel: int = Query(1, ge=1, le=100),
+    confirm: bool = Query(False),
+):
+    mgr = resolve_calibration_manager()
+    if not can_continuously_calibrate(engine_id, pairing_mode=mgr.pairing_mode()):
         raise HTTPException(400, f"Engine cannot be continuously calibrated: {engine_id}")
+    if mgr.is_running(engine_id):
+        raise HTTPException(409, f"Continuous calibration already running for {engine_id}")
+    err = assess_parallel_start(parallel, confirm=confirm)
+    if err:
+        raise HTTPException(400, err)
+    err = assess_fleet_parallel(mgr, parallel, confirm=confirm)
+    if err:
+        raise HTTPException(400, err)
     try:
-        await get_continuous_calibration().start(engine_id, parallel=parallel)
+        if not calibration_in_process():
+            await ensure_calibration_worker()
+        await mgr.start(engine_id, parallel=parallel)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except RuntimeError as e:
+        msg = str(e)
+        if "already running" in msg.lower():
+            raise HTTPException(409, msg) from e
+        raise HTTPException(503, msg) from e
     return {"ok": True, "engine_id": engine_id, "running": True, "parallel": parallel}
 
 
 @app.post("/api/calibration/continuous/{engine_id}/stop")
 async def calibration_continuous_stop(engine_id: str):
-    await get_continuous_calibration().stop(engine_id)
+    await resolve_calibration_manager().stop(engine_id)
     return {"ok": True, "engine_id": engine_id, "running": False}
+
+
+def _reject_pairing_change_while_running() -> None:
+    mgr = resolve_calibration_manager()
+    if mgr.running_engines():
+        raise HTTPException(
+            409,
+            "Stop continuous calibration before changing pairing settings",
+        )
 
 
 @app.post("/api/calibration/pairing-mode")
 async def calibration_set_pairing_mode(mode: str = Query(...)):
+    _reject_pairing_change_while_running()
     try:
-        pairing_mode = get_continuous_calibration().set_pairing_mode(mode)
+        pairing_mode = resolve_calibration_manager().set_pairing_mode(mode)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     return {"ok": True, "pairing_mode": pairing_mode}
 
 
 @app.post("/api/calibration/start-all")
-async def calibration_start_all(parallel: int = Query(1, ge=1, le=100)):
-    started = await get_continuous_calibration().start_all(parallel=parallel)
+async def calibration_start_all(
+    parallel: int = Query(1, ge=1, le=100),
+    confirm: bool = Query(False),
+):
+    mgr = resolve_calibration_manager()
+    err = assess_start_all(mgr, parallel, confirm=confirm)
+    if err:
+        raise HTTPException(400, err)
+    try:
+        if not calibration_in_process():
+            await ensure_calibration_worker()
+        started = await mgr.start_all(parallel=parallel)
+    except RuntimeError as e:
+        raise HTTPException(503, str(e)) from e
     return {"ok": True, "started": started, "count": len(started), "parallel": parallel}
 
 
 @app.post("/api/calibration/stop-all")
 async def calibration_stop_all():
-    stopped = await get_continuous_calibration().stop_all()
+    stopped = await resolve_calibration_manager().stop_all()
     return {"ok": True, "stopped": stopped, "count": len(stopped)}
 
 
 @app.post("/api/calibration/fixed-opponent")
 async def calibration_set_fixed_opponent(opponent: str = Query(...)):
+    _reject_pairing_change_while_running()
     try:
-        opponent_id = get_continuous_calibration().set_fixed_opponent(opponent)
+        opponent_id = resolve_calibration_manager().set_fixed_opponent(opponent)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     return {"ok": True, "fixed_opponent_id": opponent_id}
@@ -849,16 +1065,15 @@ async def calibration_rebuild_play_rating_map():
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
-    if not game_manager.validate_game_id(game_id):
-        raise HTTPException(404, "Game not found")
-    return HTMLResponse(render_game_view_page(game_id))
+    """Static shell from public-site/g/; game data via /api/games/*."""
+    return watch_shell_response("g")
 
 
 @app.get("/g/{game_id}/board.png")
 async def get_board_image(game_id: str):
     if not game_manager.validate_game_id(game_id):
         raise HTTPException(404, "Board not found")
-    await asyncio.to_thread(_get_controller().refresh_board_image, game_id)
+    await run_blocking(_get_controller().refresh_board_image, game_id)
     board_path = game_manager.get_board_path(game_id)
     if not board_path.exists():
         raise HTTPException(404, "Board not found")
@@ -874,8 +1089,8 @@ def _public_attempt(attempt_id: str):
 
 @app.get("/p/{attempt_id}", response_class=HTMLResponse)
 async def puzzle_watch_page(attempt_id: str):
-    _public_attempt(attempt_id)
-    return HTMLResponse(render_puzzle_watch_page(attempt_id))
+    """Static shell from public-site/p/; attempt data via public puzzle API."""
+    return watch_shell_response("p")
 
 
 @app.get("/p/{attempt_id}/board.png")
@@ -960,8 +1175,8 @@ def _public_identify(attempt_id: str):
 
 @app.get("/i/{attempt_id}", response_class=HTMLResponse)
 async def identify_watch_page(attempt_id: str):
-    _public_identify(attempt_id)
-    return HTMLResponse(render_identify_watch_page(attempt_id))
+    """Static shell from public-site/i/; attempt data via public identify API."""
+    return watch_shell_response("i")
 
 
 @app.get("/i/{attempt_id}/board.png")
@@ -1059,20 +1274,7 @@ async def list_games(
     offset: int = Query(0, ge=0),
 ):
     """List games newest-first. status=in_progress|finished; omit for all."""
-    await asyncio.to_thread(_get_game_service().prune_idle_games)
-    games = game_manager.list_games()
-    if status in ("in_progress", "active"):
-        games = [g for g in games if g["state"].get("status") == "in_progress"]
-    elif status in ("finished", "done", "completed"):
-        games = [g for g in games if g["state"].get("status") != "in_progress"]
-
-    total = len(games)
-    if limit is not None:
-        games = games[offset : offset + limit]
-    else:
-        games = games[offset:]
-
-    enriched = [_enrich_list_game(g) for g in games]
+    enriched, total = await run_blocking(_build_games_list, status, limit, offset)
     return {
         "games": enriched,
         "total": total,
@@ -1093,7 +1295,9 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
     board = chess.Board(state["board_fen"])
     labels = BoardController.side_labels(state)
     show_eval = show_eval_for_state(state)
-    score_white = _resolve_eval_cp(state, game_id) if show_eval else None
+    score_white = (
+        await run_eval(_resolve_eval_cp, state, game_id) if show_eval else None
+    )
     eval_ui = _spectator_eval_ui(state, score_white) if show_eval else None
     end_reason_label = (
         ctrl.resolve_end_reason(state, game_id) if state.get("status") != "in_progress" else None
@@ -1235,28 +1439,29 @@ async def get_eval(game_id: str, ply: Optional[int] = Query(None)):
     if not show_eval_for_state(state):
         return {"ok": True, "show_eval": False}
 
-    tip_ply = len(state.get("moves", []))
-    at_tip = ply is None or int(ply) >= tip_ply
-    final = state["status"] != "in_progress"
+    def _compute() -> Dict[str, Any]:
+        tip_ply = len(state.get("moves", []))
+        at_tip = ply is None or int(ply) >= tip_ply
+        final = state["status"] != "in_progress"
+        try:
+            if at_tip:
+                score = _resolve_eval_cp(state, game_id)
+            else:
+                n = max(0, int(ply))
+                fen = _fen_at_ply(state, n)
+                score = _eval_position(fen)
+            body: Dict[str, Any] = {
+                "ok": True,
+                "score": score if score is not None else 0,
+                "eval_ui": _spectator_eval_ui(state, score),
+            }
+            if final:
+                body["final"] = True
+            return body
+        except Exception:
+            return {"ok": False, "score": 0}
 
-    try:
-        if at_tip:
-            score = _resolve_eval_cp(state, game_id)
-        else:
-            # Historical: rebuild fen server-side; ignore last_eval_cp / tip caches.
-            n = max(0, int(ply))
-            fen = _fen_at_ply(state, n)
-            score = _eval_position(fen)
-        body: Dict[str, Any] = {
-            "ok": True,
-            "score": score if score is not None else 0,
-            "eval_ui": _spectator_eval_ui(state, score),
-        }
-        if final:
-            body["final"] = True
-        return body
-    except Exception:
-        return {"ok": False, "score": 0}
+    return await run_eval(_compute)
 
 
 def start_spectator(host: str = "127.0.0.1", port: int = 8765):

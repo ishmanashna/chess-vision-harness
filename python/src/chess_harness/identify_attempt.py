@@ -140,6 +140,38 @@ class IdentifyAttemptStore:
         """All identification attempt records (public browse filters and sorts)."""
         return list(self._load()["attempts"].values())
 
+    def prune_idle_active(self, idle_sec: float) -> List[str]:
+        """Abandon active attempts idle longer than ``idle_sec``; returns attempt ids."""
+        if idle_sec <= 0:
+            return []
+        now = datetime.now(timezone.utc).timestamp()
+        abandoned: List[str] = []
+
+        def _mutate(data: Dict[str, Any]) -> None:
+            for attempt_id, record in data["attempts"].items():
+                if record.get("status") != "active":
+                    continue
+                stamp = record.get("updated_at") or record.get("started_at")
+                if not stamp:
+                    continue
+                try:
+                    age = now - datetime.fromisoformat(stamp).timestamp()
+                except ValueError:
+                    continue
+                if age < idle_sec:
+                    continue
+                record["status"] = "abandoned"
+                record["finished_at"] = _now()
+                record["updated_at"] = record["finished_at"]
+                abandoned.append(str(attempt_id))
+
+        with self._lock:
+            data = self._load()
+            _mutate(data)
+            if abandoned:
+                self._save(data)
+        return abandoned
+
     def recent_puzzle_ids(
         self, key_fingerprint: str, window_sec: float
     ) -> set[str]:

@@ -44,9 +44,25 @@ def test_render_agent_brief_contains_play_loop():
     assert "Optional status" in brief
 
 
-def test_render_agent_brief_ave_still_says_rare_wait():
+def test_render_agent_brief_engine_no_rare_off_turn_wording():
     brief = render_agent_brief("http://127.0.0.1:8765", "game-1-2345", "secret-key-abc")
-    assert "rare" in brief.lower()
+    assert "rare" not in brief.lower()
+    assert "30 minutes" in brief
+    assert "/imagine" in brief
+    assert "hypothetical" in brief.lower()
+
+
+def test_render_agent_brief_avaa_has_imagine_and_idle_timeout():
+    brief = render_agent_brief_avaa(
+        "http://127.0.0.1:8765",
+        "game-avaa-1",
+        "key-white",
+        "white",
+        "Opponent Model",
+    )
+    assert "30 minutes" in brief
+    assert "/imagine" in brief
+    assert "hypothetical" in brief.lower()
 
 
 def test_render_agent_brief_avaa_contains_poll_loop():
@@ -117,3 +133,4 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "/imagine" in brief
     assert "hypothetical" in brief.lower()
     assert '"moves"' in brief
+    assert "30 minutes" in brief

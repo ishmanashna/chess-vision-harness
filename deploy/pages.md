@@ -30,7 +30,7 @@ In this repo on GitHub: **Settings → Secrets and variables → Actions → New
 |-------------|--------|
 | `CLOUDFLARE_API_TOKEN` | Token from step 1 |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID from step 2 |
-| `GAME_ORIGIN` | (optional until live play) Tunnel/host URL, no trailing slash — see Phase 3 |
+| `GAME_ORIGIN` | (optional until live play) Tunnel/host URL, no trailing slash — see [Live game origin](#live-game-origin-game_origin) |
 | `GOOGLE_CLIENT_ID` | (optional until OAuth) Google OAuth Web client id — see Google sign-in below |
 | `GOOGLE_CLIENT_SECRET` | (optional until OAuth) Google OAuth Web client secret |
 | `AUTH_SESSION_SECRET` | (optional until OAuth) Long random string used to sign the session cookie |
@@ -53,59 +53,63 @@ From the repo root:
 npx --yes serve public-site
 ```
 
-Then open `http://localhost:3000` (or the port `serve` prints). All routes (`/leaderboard/`, `/create/`, etc.) work when served from `public-site` as the web root.
+Then open `http://localhost:3000` (or the port `serve` prints). `public-site/serve.json` rewrites `/g/{id}`, `/p/{id}`, `/i/{id}`, and `/play/{id}` to the static watch/play shells; APIs and board PNGs still need the game server (see below).
+
+**Watch/play with live data locally:** run `chess-harness serve` on the PC (default `http://127.0.0.1:8765`). It serves the same static shells from `public-site/{g,p,i,play}/index.html` and proxies board images plus `/api/*` from the origin. Pages production uses the same shells; only asset subpaths (`/g/{id}/board.png`, etc.) hit `GAME_ORIGIN`.
 
 Opening `index.html` directly in a browser (`file://`) will not load `/data/leaderboard.json` or `/api/edge-health` — use a local static server instead.
 
 ## Leaderboard (live vs offline)
 
-When the game server is **Online**, the site loads the ladder from `/api/leaderboard/live` (proxied via `GAME_ORIGIN`). When **Sleeping**, it uses the committed file `public-site/data/leaderboard.json`.
+When the game server is **Online**, the site loads the ladder from `/api/leaderboard/live` (proxied via `GAME_ORIGIN`). When **Sleeping**, it uses the committed files `public-site/data/*.json`.
 
-While `chess-harness serve` runs, the origin refreshes that snapshot in the background. Optional manual backup when the PC is off:
+Serve writes debounced snapshots to `$CHESS_HARNESS_DIR/publish/` only (runtime — does not touch git). **Sleeping publish** before extended offline:
 
 ```bash
 chess-harness snapshot-leaderboard
+git add public-site/data/*.json public-site/index.html public-site/leaderboard/index.html
+git commit -m "Update Sleeping leaderboard snapshots"
+git push
 ```
 
-Default output is `public-site/data/leaderboard.json` (repo root). Commit/push only for offline fallback — not how you publish live Elos when Online.
+Default CLI output is `public-site/data/leaderboard.json` (+ puzzles and identify siblings). Commit/push only for offline fallback — not how you publish live Elos when Online.
 
 ## What deploys
 
 - Static HTML, CSS, JS, and `data/leaderboard.json` (offline fallback; live ladder when Online)
 - Pages Functions: `/api/edge-health` (probes the game origin), middleware proxy for live play when `GAME_ORIGIN` is set
-- No game server or tunnel in this workflow — the PC origin is configured separately: **[`home-pc.md`](home-pc.md)** (Phase 4 runbook)
+- No game server or tunnel in this workflow — the PC origin is configured separately: **[`home-pc.md`](home-pc.md)**
 
-## Phase 3 — Live game origin (`GAME_ORIGIN`)
+## Live game origin (`GAME_ORIGIN`)
 
 The public site stays online even when your home PC is off. When the PC is running `chess-harness serve`, Cloudflare Pages can proxy live API and spectator routes to it.
 
-### Cloudflare Pages environment variable
+### GitHub secret (primary)
 
-In the Cloudflare dashboard: **Workers & Pages → chessvisionharness → Settings → Environment variables**.
-
-Add a **plain-text** variable (Production and Preview if you use preview deploys):
+Set repository secret **`GAME_ORIGIN`** to the tunnel/host URL (**no trailing slash**). The deploy workflow appends it to `public-site/wrangler.toml` `[vars]` before upload (required so Direct Upload Functions actually bind it) and syncs the Pages project setting via `deploy/sync-game-origin.py`.
 
 | Variable | Example value | Notes |
 |----------|---------------|--------|
-| `GAME_ORIGIN` | `https://your-tunnel-or-host.example` | **No trailing slash.** Base URL where `chess-harness serve` is reachable (Cloudflare Tunnel, Quick Tunnel, or any HTTPS/HTTP origin). |
+| `GAME_ORIGIN` | `https://your-tunnel-or-host.example` | Base URL where `chess-harness serve` is reachable (Cloudflare Tunnel, Quick Tunnel, or any HTTPS/HTTP origin). |
 
-You can set it either:
-
-1. **Cloudflare dashboard** (Production env var), then redeploy, or
-2. **GitHub secret** `GAME_ORIGIN` — preferred for Quick Tunnel. The deploy workflow appends it to `public-site/wrangler.toml` `[vars]` before upload (required so Direct Upload Functions actually bind it) and syncs the Pages project setting via `deploy/sync-game-origin.py`. Update with:
+Update when the Quick Tunnel URL changes:
 
 ```bash
 gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"
 gh workflow run "Deploy public site"
 ```
 
+Optional: you can also set **Production** `GAME_ORIGIN` in **Workers & Pages → chessvisionharness → Settings → Environment variables**, but the GitHub secret is what the deploy pipeline uses — keep the secret current.
+
 After a successful deploy with that secret, `/api/edge-health` reports online when the tunnel and harness are up. You do **not** edit HTML when the origin URL changes — only the secret/dashboard value. After changing `GAME_ORIGIN`, always redeploy; if the chip stays Sleeping, redeploy once more (secret update and workflow start can race).
+
+**Named tunnel vs Quick Tunnel:** a Windows `cloudflared` service for a named tunnel (e.g. `chess-harness-pc`) with **no public hostname** does **not** make Pages Online. Only a URL in `GAME_ORIGIN` that currently reaches `{origin}/health` counts — typically a live Quick Tunnel `*.trycloudflare.com` hostname until you add a domain route. Verify from the game PC: [`verify-online.ps1`](verify-online.ps1).
 
 **What it does when set:**
 
 - `GET /api/edge-health` on Pages probes `{GAME_ORIGIN}/health` (~10s timeout). The status chip shows **Online** when the probe succeeds.
 - `origin: true` only means the variable is configured; `online: true` / `status: "online"` means the origin answered healthy. Localhost `/health` does not imply public Online.
-- These paths are proxied to the origin: `/api/v1/*`, `/api/games/*`, `/g/*`.
+- These paths are proxied to the origin (see `public-site/functions/proxy-routes.contract.json`): `/api/v1/*`, `/api/games/*`, `/api/play/*`, watch **asset** subpaths (`/g/{id}/board.png`, `/p/{id}/board.txt`, `/i/{id}/answer.png`, …), live leaderboard routes, and `/api/contact`. Watch/play **HTML** (`/g/{id}`, `/p/{id}`, `/i/{id}`, `/play/{id}`) is static on Pages and hydrates via those APIs.
 - `/calibration*` is blocked at the edge (404) — calibration stays operator-only on the PC.
 
 **When unset or the PC / tunnel origin is unreachable:** static pages and the leaderboard snapshot still work; Create Game and Spectator show the sleeping/offline UX. A common cause is a stale Quick Tunnel `*.trycloudflare.com` in `GAME_ORIGIN` while the harness is still fine on `127.0.0.1:8765` — see [`home-pc.md`](home-pc.md) troubleshooting.
@@ -116,11 +120,12 @@ On the machine running `chess-harness serve`, set:
 
 ```text
 CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev
+CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8
 ```
 
-(no trailing slash)
+(no trailing slash on the public URL)
 
-Agent briefs returned by `POST /api/v1/games` use this URL for board/move/PGN endpoints so agents hit the public hostname (proxied to your PC), not `127.0.0.1`.
+`CHESS_HARNESS_PUBLIC_URL` is what agent briefs use for board/move/PGN endpoints (public hostname, proxied to your PC). `CHESS_HARNESS_TRUSTED_PROXIES` tells the harness to trust `X-Forwarded-For` from the local tunnel hop — Pages sets that header from each visitor's `CF-Connecting-IP` when proxying live routes.
 
 Windows (current session): `set CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev` before starting the server. For a permanent setup, see **[`home-pc.md`](home-pc.md)** (NSSM, Task Scheduler, tunnel, on/off checklist).
 
@@ -162,7 +167,7 @@ While the consent screen is in **Testing**, only listed test users can sign in. 
 
 - **Workflow fails with auth error** — re-check token permissions and that Cloudflare secrets are set on the correct repo.
 - **404 on subpaths locally** — ensure you serve `public-site` as the document root, not the repo root.
-- **Status chip always Sleeping** — `GAME_ORIGIN` is unset, the tunnel/origin is down, or `/health` on the origin failed. Check the Pages env var and that `chess-harness serve` is running.
+- **Status chip always Sleeping** — `GAME_ORIGIN` is unset, the tunnel/origin is down, or `/health` on the origin failed. A named `cloudflared` connector without a public hostname does not help. Run [`verify-online.ps1`](verify-online.ps1) on the game PC; recovery: [`home-pc.md`](home-pc.md).
 - **Create Game online but brief missing** — set `CHESS_HARNESS_PUBLIC_URL` on the game PC to your Pages URL and restart the server.
 - **No Sign in button** — OAuth secrets not injected yet (`/auth/me` reports `oauth_configured: false`).
 - **redirect_uri_mismatch** — the Google client’s Authorized redirect URI must be exactly `https://chessvisionharness.pages.dev/auth/callback`.

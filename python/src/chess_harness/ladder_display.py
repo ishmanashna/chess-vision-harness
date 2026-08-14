@@ -55,7 +55,7 @@ def _format_quality_cli_suffix(entry: dict) -> str:
     if acc is not None:
         parts.append(f"acc {acc}%")
     if pr is not None:
-        parts.append(f"play rating {round(pr)}")
+        parts.append(f"performance {round(pr)}")
     qg = int(entry.get("quality_games", 0))
     if qg:
         parts.append(f"{qg} quality")
@@ -216,18 +216,30 @@ def render_leaderboard_html(ladder: ELOLadder) -> str:
     </body></html>"""
 
 
-def _calibration_secret_meta() -> str:
+def _calibration_secret_meta(*, loopback: bool) -> str:
+    if not loopback:
+        return ""
     secret = os.environ.get("CHESS_HARNESS_CALIBRATION_SECRET", "").strip()
     if not secret:
         return ""
     return f'<meta name="calibration-secret" content="{html.escape(secret, quote=True)}"/>'
 
 
-def render_calibration_html() -> str:
+def render_calibration_html(*, loopback: bool = True) -> str:
+    secret_panel = ""
+    if not loopback:
+        secret_panel = """
+    <div class="cal-panel" id="cal-secret-panel">
+      <h2>Calibration secret</h2>
+      <p>This host is not loopback — POST actions need <code>CHESS_HARNESS_CALIBRATION_SECRET</code>. Paste it below (stored in this tab only, never embedded in the page).</p>
+      <label for="cal-secret-input" class="sr-only">Calibration secret</label>
+      <input type="password" id="cal-secret-input" class="cal-secret-input" autocomplete="off" placeholder="Paste calibration secret" oninput="saveCalSecret(this.value)"/>
+    </div>"""
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Calibration · Chess Vision Harness</title>
     {FAVICON_LINKS}
-    {_calibration_secret_meta()}
+    {_calibration_secret_meta(loopback=loopback)}
+    <meta name="calibration-loopback" content="{"1" if loopback else "0"}"/>
     {THEME_INIT_SCRIPT}
     <link rel="stylesheet" href="/css/site.css"/>
     <style>
@@ -251,6 +263,10 @@ def render_calibration_html() -> str:
     .cal-par{{width:3em;padding:4px 6px;font-size:.85em;border:1px solid var(--input-border,var(--border));border-radius:4px;text-align:center;background:var(--input-bg,var(--surface));color:var(--text)}}
     .cal-par:disabled{{opacity:.6}}
     .status-meta{{margin:0 0 12px;color:var(--faint);font-size:.85em;min-height:1em}}
+    .cal-error{{margin:0 0 12px;padding:10px 12px;border-radius:6px;border:1px solid var(--warn);background:var(--err-bg);color:var(--warn);font-size:.88em;display:none}}
+    .cal-error.visible{{display:block}}
+    .cal-secret-input{{width:min(420px,100%);padding:6px 8px;font-size:.88em;border:1px solid var(--input-border,var(--border));border-radius:4px;background:var(--input-bg,var(--surface));color:var(--text)}}
+    .sr-only{{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}}
     .cal-toolbar{{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 16px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-width:920px}}
     .cal-toolbar label{{font-size:.85em;font-weight:600;color:var(--muted)}}
     .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid var(--input-border,var(--border));border-radius:4px;background:var(--input-bg,var(--surface));color:var(--text)}}
@@ -268,7 +284,8 @@ def render_calibration_html() -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <h2>Engine calibration</h2>
-    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Play rating maps composite move quality to the engine ladder scale — it is not ladder Elo. Rebuild the play-rating map after enough samples.</p>
+    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Performance maps move accuracy through the accuracy→Elo table — it is not ladder Elo. Rebuild the accuracy→Elo map after enough samples.</p>
+    {secret_panel}
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
       <select id="pairing-mode" onchange="onPairingModeChange(this.value)">
@@ -282,17 +299,18 @@ def render_calibration_html() -> str:
       <select id="fixed-opponent" disabled onchange="setFixedOpponent(this.value)"></select>
       <button type="button" class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
       <button type="button" class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
-      <button type="button" class="cal-btn" id="rebuild-play-rating-btn" onclick="rebuildPlayRatingMap(this)">Rebuild play-rating map</button>
+      <button type="button" class="cal-btn" id="rebuild-play-rating-btn" onclick="rebuildPlayRatingMap(this)">Rebuild accuracy→Elo table</button>
     </div>
+    <div id="cal-error" class="cal-error" role="alert"></div>
     <div id="status-meta" class="status-meta"></div>
     <div class="cal-panel" id="play-rating-panel">
-      <h2>Quality samples &amp; play-rating map</h2>
+      <h2>Quality samples &amp; accuracy→Elo map</h2>
       <p id="play-rating-summary">Loading…</p>
     </div>
     <h2>Calibrated ratings</h2>
-    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Play rating = composite move-quality map (not ladder Elo).</p>
+    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Performance = accuracy→Elo map (not ladder Elo).</p>
     <div class="cal-table-wrap">
-    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Play rating from composite move quality — not ladder Elo.">Play rating</th><th>Activity</th><th></th></tr>
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>
     <tr><td colspan="7" class="empty">No calibration data yet.</td></tr></table>
     </div>
     <h2>Recent games</h2>
@@ -313,48 +331,105 @@ def render_calibration_html() -> str:
       if(v==null||v==='')return '—';
       return String(Math.round(Number(v)));
     }}
+    let calState={{pairingLocked:false,confirmAbove:4,hardCap:16,fleetBudget:4,fleetConfirmAbove:4,fleetInUse:0,lastPairingMode:'floaters'}};
+    function showCalError(msg){{
+      const el=document.getElementById('cal-error');
+      if(!el)return;
+      if(!msg){{el.textContent='';el.classList.remove('visible');return;}}
+      el.textContent=msg;
+      el.classList.add('visible');
+    }}
+    function saveCalSecret(value){{
+      try{{sessionStorage.setItem('chess-harness-cal-secret',value||'');}}catch(e){{}}
+    }}
+    (function initCalSecretInput(){{
+      const inp=document.getElementById('cal-secret-input');
+      if(!inp)return;
+      try{{
+        const saved=sessionStorage.getItem('chess-harness-cal-secret');
+        if(saved)inp.value=saved;
+      }}catch(e){{}}
+    }})();
     function calHeaders(){{
-      const meta=document.querySelector('meta[name="calibration-secret"]');
       const headers={{}};
-      if(meta&&meta.content)headers['CHESS_HARNESS_CALIBRATION_SECRET']=meta.content;
+      const meta=document.querySelector('meta[name="calibration-secret"]');
+      if(meta&&meta.content){{headers['CHESS_HARNESS_CALIBRATION_SECRET']=meta.content;return headers;}}
+      try{{
+        const saved=sessionStorage.getItem('chess-harness-cal-secret');
+        if(saved)headers['CHESS_HARNESS_CALIBRATION_SECRET']=saved;
+      }}catch(e){{}}
       return headers;
     }}
     async function calPost(url){{
-      return fetch(url,{{method:'POST',headers:calHeaders()}});
+      const r=await fetch(url,{{method:'POST',headers:calHeaders()}});
+      if(!r.ok){{
+        let msg=r.status+' '+r.statusText;
+        try{{
+          const d=await r.json();
+          msg=(d&&d.detail)?(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail)):msg;
+        }}catch(e){{}}
+        showCalError(msg);
+        throw new Error(msg);
+      }}
+      showCalError('');
+      return r;
     }}
     function readParallel(id){{
       const inp=document.querySelector('input.cal-par[data-eid="'+id+'"]');
       const n=parseInt(inp&&inp.value?inp.value:'1',10);
-      return Math.max(1,Math.min(100,isNaN(n)?1:n));
+      const cap=calState.hardCap||16;
+      return Math.max(1,Math.min(cap,isNaN(n)?1:n));
     }}
     function savedParallel(id,fallback){{
       const inp=document.querySelector('input.cal-par[data-eid="'+id+'"]');
       if(inp&&!inp.disabled&&inp.value)return inp.value;
       return String(fallback);
     }}
+    function setPairingControlsLocked(locked){{
+      calState.pairingLocked=!!locked;
+      const modeSel=document.getElementById('pairing-mode');
+      const fixSel=document.getElementById('fixed-opponent');
+      if(modeSel)modeSel.disabled=locked;
+      if(fixSel)fixSel.disabled=locked||(modeSel&&modeSel.value!=='fixed');
+    }}
     async function setPairingMode(mode){{
-      try{{
-        await calPost('/api/calibration/pairing-mode?mode='+encodeURIComponent(mode));
-      }}catch(e){{}}
+      await calPost('/api/calibration/pairing-mode?mode='+encodeURIComponent(mode));
+      calState.lastPairingMode=mode;
     }}
     function onPairingModeChange(mode){{
+      if(calState.pairingLocked){{
+        showCalError('Stop continuous calibration before changing pairing settings.');
+        const modeSel=document.getElementById('pairing-mode');
+        if(modeSel)modeSel.value=calState.lastPairingMode||'floaters';
+        return;
+      }}
       const fix=document.getElementById('fixed-opponent');
       if(fix)fix.disabled=(mode!=='fixed');
-      setPairingMode(mode);
+      setPairingMode(mode).catch(()=>{{}});
     }}
     async function setFixedOpponent(opponent){{
-      if(!opponent)return;
-      try{{
-        await calPost('/api/calibration/fixed-opponent?opponent='+encodeURIComponent(opponent));
-      }}catch(e){{}}
+      if(!opponent||calState.pairingLocked)return;
+      await calPost('/api/calibration/fixed-opponent?opponent='+encodeURIComponent(opponent));
     }}
     async function startAllEngines(btn){{
+      const parallel=1;
+      const engines=(calState.calibratableEngines||[]).length;
+      const fleetBudget=calState.fleetBudget||4;
+      const fleetInUse=calState.fleetInUse||0;
+      const projected=fleetInUse+engines*parallel;
+      if(projected>fleetBudget){{
+        showCalError('Start all would exceed fleet parallel cap ('+fleetBudget+'); projected '+projected+' — stop engines or reduce parallel.');
+        return;
+      }}
+      const msg='Start continuous calibration for all eligible engines ('+engines+' × '+parallel+' parallel each, fleet cap '+fleetBudget+')? This can spawn many engine processes.';
+      if(!window.confirm(msg))return;
       if(btn)btn.disabled=true;
       try{{
-        await calPost('/api/calibration/start-all?parallel=1');
-      }}finally{{
+        await calPost('/api/calibration/start-all?parallel='+parallel+'&confirm=1');
+      }}catch(e){{}}finally{{
         if(btn)btn.disabled=false;
-        refresh();
+        refreshFull();
+        refreshLive();
       }}
     }}
     async function stopAllEngines(btn){{
@@ -363,43 +438,109 @@ def render_calibration_html() -> str:
         const ctrl=new AbortController();
         const t=setTimeout(()=>ctrl.abort(),120000);
         try{{
-          await fetch('/api/calibration/stop-all',{{method:'POST',headers:calHeaders(),signal:ctrl.signal}});
+          const r=await fetch('/api/calibration/stop-all',{{method:'POST',headers:calHeaders(),signal:ctrl.signal}});
+          if(!r.ok){{await calPost('/api/calibration/stop-all');}}
+          else showCalError('');
         }}finally{{clearTimeout(t);}}
-      }}catch(e){{}}
+      }}catch(e){{showCalError(e&&e.message?e.message:'Stop failed');}}
       finally{{
         if(btn){{btn.disabled=false;btn.textContent='Stop all';}}
-        refresh();
+        refreshFull();
+        refreshLive();
       }}
     }}
-async function rebuildPlayRatingMap(btn){{
-       if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
-       try{{
-         await calPost('/api/calibration/rebuild-play-rating-map');
-       }}finally{{
-         if(btn){{btn.disabled=false;btn.textContent='Rebuild play-rating map';}}
-         refresh();
-       }}
-     }}
+    async function rebuildPlayRatingMap(btn){{
+      if(!window.confirm('Rebuild the accuracy→Elo table from collected quality samples? This may take a minute and updates Performance on the leaderboard.'))return;
+      if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
+      const meta=document.getElementById('status-meta');
+      if(meta)meta.textContent='Rebuilding accuracy→Elo table…';
+      try{{
+        const r=await calPost('/api/calibration/rebuild-play-rating-map');
+        const d=await r.json();
+        const rows=d.rows_recomputed!=null?d.rows_recomputed:'?';
+        if(meta)meta.textContent='Rebuild complete — '+rows+' finished-game Performance rows updated.';
+      }}catch(e){{}}finally{{
+        if(btn){{btn.disabled=false;btn.textContent='Rebuild accuracy→Elo table';}}
+        refreshFull();
+        refreshLive();
+      }}
+    }}
     async function setContinuous(id,start,btn){{
+      if(start){{
+        const parallel=readParallel(id);
+        if(parallel>calState.confirmAbove){{
+          const msg='Start '+id+' with '+parallel+' parallel games? High parallel load can slow the PC.';
+          if(!window.confirm(msg))return;
+        }}
+      }}
       if(btn)btn.disabled=true;
       let path='/api/calibration/continuous/'+encodeURIComponent(id)+(start?'/start':'/stop');
-      if(start)path+='?parallel='+readParallel(id);
+      if(start){{
+        const parallel=readParallel(id);
+        path+='?parallel='+parallel;
+        if(parallel>calState.confirmAbove)path+='&confirm=1';
+      }}
       try{{
         await calPost(path);
-      }}finally{{
+      }}catch(e){{}}finally{{
         if(btn)btn.disabled=false;
-        refresh();
+        refreshFull();
+        refreshLive();
       }}
     }}
-    async function refresh(){{
+    function renderGameFeed(games){{
+      const feed=document.getElementById('game-feed');
+      if(!feed)return;
+      const list=(games||[]).slice().reverse();
+      feed.innerHTML=list.length?list.map(g=>{{
+        let upd='';
+        (g.updates||[]).forEach(u=>{{
+          const cls=u.elo_delta>=0?'delta-up':'delta-down';
+          const sign=u.elo_delta>=0?'+':'';
+          upd+=` <span class="${{cls}}">${{esc(u.opponent_id)}} ${{u.elo_before}}→${{u.elo_after}} (${{sign}}${{u.elo_delta.toFixed(1)}})</span>`;
+        }});
+        const skip=g.skipped?' <span class="idle-badge">(no Elo change)</span>':'';
+        return `<div class="game-line">#${{g.game_index||'?'}} <strong>${{esc(g.white)}}</strong> vs <strong>${{esc(g.black)}}</strong> → ${{esc(g.result)}}${{skip}}${{upd}}</div>`;
+      }}).join(''):'<p class="empty">No games logged yet.</p>';
+    }}
+    function applyLiveStatus(d){{
+      if(d.parallel_confirm_above!=null)calState.confirmAbove=d.parallel_confirm_above;
+      if(d.parallel_hard_cap!=null)calState.hardCap=d.parallel_hard_cap;
+      if(d.fleet_parallel_hard_cap!=null)calState.fleetBudget=d.fleet_parallel_hard_cap;
+      if(d.fleet_parallel_confirm_above!=null)calState.fleetConfirmAbove=d.fleet_parallel_confirm_above;
+      if(d.fleet_parallel_in_use!=null)calState.fleetInUse=d.fleet_parallel_in_use;
+      if(d.calibratable_engines)calState.calibratableEngines=d.calibratable_engines;
+      if(d.pairing_mode)calState.lastPairingMode=d.pairing_mode;
+      setPairingControlsLocked(d.pairing_locked||d.active);
+      let meta='';
+      if(d.pairing_mode)meta+='Pairing: '+d.pairing_mode;
+      if(d.pairing_mode==='fixed'&&d.fixed_opponent_id)meta+=(meta?' · ':'')+'vs '+d.fixed_opponent_id;
+      if(d.pairing_locked)meta+=(meta?' · ':'')+'pairing locked while running';
+      if(d.in_progress)meta+=(meta?' · ':'')+d.in_progress+' games in flight';
+      if(calState.fleetBudget)meta+=(meta?' · ':'')+'fleet parallel '+calState.fleetInUse+'/'+calState.fleetBudget;
+      if(d.calibration_worker_ok===false){{
+        const werr=d.calibration_worker_error||'calibration worker unreachable';
+        showCalError('Calibration worker down: '+werr);
+      }}
+      if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
+      const metaEl=document.getElementById('status-meta');
+      if(metaEl&&!metaEl.textContent.startsWith('Rebuilding')&&!metaEl.textContent.startsWith('Rebuild complete'))metaEl.textContent=meta;
+      renderGameFeed(d.recent_games);
+    }}
+    async function refreshLive(){{
+      try{{
+        const r=await fetch('/api/calibration/status/live');
+        const d=await r.json();
+        applyLiveStatus(d);
+      }}catch(e){{
+        showCalError('Live status poll failed: '+(e&&e.message?e.message:'unknown error'));
+      }}
+    }}
+    async function refreshFull(){{
       try{{
         const r=await fetch('/api/calibration/status');
         const d=await r.json();
-        let meta='';
-        if(d.pairing_mode)meta+='Pairing: '+d.pairing_mode;
-        if(d.pairing_mode==='fixed'&&d.fixed_opponent_id)meta+=(meta?' · ':'')+'vs '+d.fixed_opponent_id;
-        if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
-        document.getElementById('status-meta').textContent=meta;
+        applyLiveStatus(d);
         const pr=d.play_rating||{{}};
         const prm=d.play_rating_map||{{}};
         const prEl=document.getElementById('play-rating-summary');
@@ -415,15 +556,16 @@ async function rebuildPlayRatingMap(btn){{
           const sampleCount=prm.sample_count||0;
           const minSamples=prm.min_samples||30;
           if(prm.warm){{
-            lines.push('Play-rating map: warm — '+sampleCount+' samples'+(prm.fitted_at?' · '+prm.fitted_at:''));
+            lines.push('Accuracy→Elo map: warm — '+sampleCount+' engine pairs'+(prm.fitted_at?' · '+prm.fitted_at:''));
           }}else{{
-            lines.push('Play-rating map: need '+minSamples+' samples (have '+sampleCount+').');
+            lines.push('Accuracy→Elo map: need '+minSamples+' engine pairs (have '+sampleCount+').');
           }}
           prEl.textContent=lines.join(' · ');
         }}
         const modeSel=document.getElementById('pairing-mode');
-        if(modeSel&&d.pairing_mode){{
+        if(modeSel&&d.pairing_mode&&!calState.pairingLocked){{
           modeSel.value=d.pairing_mode;
+          calState.lastPairingMode=d.pairing_mode;
           const fix=document.getElementById('fixed-opponent');
           if(fix)fix.disabled=(d.pairing_mode!=='fixed');
         }}
@@ -434,6 +576,7 @@ async function rebuildPlayRatingMap(btn){{
           if(cur)fixSel.value=cur;
         }}
         const rt=document.getElementById('rating-table');
+        const hardCap=calState.hardCap||16;
         const rows=(d.rating_table||[]).map(row=>{{
           const elo=row.uncalibrated?`<span class="catalog">${{row.elo}}*</span>`:`<strong>${{row.elo}}</strong>`;
           const acc=fmtAcc(row.mean_accuracy,row.accuracy_std);
@@ -454,32 +597,23 @@ async function rebuildPlayRatingMap(btn){{
             const parVal=row.continuous?String(row.parallel||1):savedParallel(row.id,1);
             const parDisabled=row.continuous?' disabled':'';
             const parId=parFieldId(row.id);
-            const parInput=`<input class="cal-par" id="${{esc(parId)}}" name="${{esc(parId)}}" type="number" min="1" max="100" value="${{parVal}}" data-eid="${{esc(row.id)}}"${{parDisabled}} title="Parallel games">`;
+            const parInput=`<input class="cal-par" id="${{esc(parId)}}" name="${{esc(parId)}}" type="number" min="1" max="${{hardCap}}" value="${{parVal}}" data-eid="${{esc(row.id)}}"${{parDisabled}} title="Parallel games (max ${{hardCap}})">`;
             if(row.continuous){{
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn stop" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),false,this)">Stop</button></div>`;
             }}else{{
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Play rating from composite move quality; not ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Performance from move accuracy via the accuracy→Elo table; not ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Play rating from composite move quality — not ladder Elo.">Play rating</th><th>Activity</th><th></th></tr>'
+        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>'
           +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
-        const feed=document.getElementById('game-feed');
-        const games=(d.recent_games||[]).slice().reverse();
-        feed.innerHTML=games.length?games.map(g=>{{
-          let upd='';
-          (g.updates||[]).forEach(u=>{{
-            const cls=u.elo_delta>=0?'delta-up':'delta-down';
-            const sign=u.elo_delta>=0?'+':'';
-            upd+=` <span class="${{cls}}">${{esc(u.opponent_id)}} ${{u.elo_before}}→${{u.elo_after}} (${{sign}}${{u.elo_delta.toFixed(1)}})</span>`;
-          }});
-          const skip=g.skipped?' <span class="idle-badge">(no Elo change)</span>':'';
-          return `<div class="game-line">#${{g.game_index||'?'}} <strong>${{esc(g.white)}}</strong> vs <strong>${{esc(g.black)}}</strong> → ${{esc(g.result)}}${{skip}}${{upd}}</div>`;
-        }}).join(''):'<p class="empty">No games logged yet.</p>';
       }}catch(e){{}}
     }}
-    refresh();setInterval(refresh,5000);
+    refreshFull();
+    refreshLive();
+    setInterval(refreshLive,2500);
+    setInterval(refreshFull,30000);
     </script>
     <script src="/js/common.js" defer></script>
     </body></html>"""

@@ -144,7 +144,6 @@ def agent_safe_spectator_state(
         "agent_outcome": agent_outcome,
         "eval_ui": eval_ui,
         "show_eval": show_eval,
-        "board_path": board_path,
         "board_url": f"/g/{state.get('game_id')}/board.png",
     }
     if extra:

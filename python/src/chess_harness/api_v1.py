@@ -25,6 +25,7 @@ from .human_vs_agent_api import register_human_vs_agent_routes
 from .models import ModelRegistry
 from .orchestration_api import register_orchestration_routes
 from .paths import resolve_base_dir
+from .serve_workers import run_blocking
 from .puzzles_api import register_puzzle_routes
 from .identify_api import register_identify_routes
 from .scope_auth import reject_scoped_auth, require_scoped_game_participant
@@ -209,7 +210,8 @@ def build_router(
         except ValueError as exc:
             return _err(400, str(exc))
         game_id = new_game_id()
-        result = _svc().new_game(
+        result = await run_blocking(
+            _svc().new_game,
             game_id,
             color,
             model_name=auth.model_id,
@@ -244,7 +246,9 @@ def build_router(
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
-        result = _svc().status(game_id, caller_color=caller_color)
+        result = await run_blocking(
+            _svc().status, game_id, caller_color=caller_color
+        )
         if not result.get("ok"):
             return _err(404, result.get("error", "Game not found"))
         return _sanitize_agent_payload(result)
@@ -256,7 +260,9 @@ def build_router(
             return access
         _, caller_color = access
         try:
-            png = _svc().get_board_bytes(game_id, caller_color=caller_color)
+            png = await run_blocking(
+                _svc().get_board_bytes, game_id, caller_color=caller_color
+            )
         except ValueError as exc:
             return _err(404, str(exc))
         return Response(content=png, media_type="image/png")
@@ -267,7 +273,9 @@ def build_router(
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
-        result = _svc().get_board_text(game_id, caller_color=caller_color)
+        result = await run_blocking(
+            _svc().get_board_text, game_id, caller_color=caller_color
+        )
         if not result.get("ok"):
             return _err(404, result.get("error", "Board unavailable"))
         return PlainTextResponse(
@@ -287,7 +295,7 @@ def build_router(
         denied = limits.check_imagine(auth)
         if denied:
             return denied
-        result = _svc().imagine_board(game_id, list(body.moves))
+        result = await run_blocking(_svc().imagine_board, game_id, list(body.moves))
         if not result.get("ok"):
             content: Dict[str, Any] = {
                 "ok": False,
@@ -331,7 +339,9 @@ def build_router(
         move = (move or "").strip()
         if len(move) < 2:
             return _err(400, "Move required")
-        result = _svc().make_move(game_id, move, caller_color=caller_color)
+        result = await run_blocking(
+            _svc().make_move, game_id, move, caller_color=caller_color
+        )
         if not result.get("ok"):
             return _err(400, result.get("error", "Move failed"))
         limits.record_move(auth)
@@ -343,7 +353,9 @@ def build_router(
         if isinstance(access, JSONResponse):
             return access
         _, caller_color = access
-        result = _svc().resign(game_id, caller_color=caller_color)
+        result = await run_blocking(
+            _svc().resign, game_id, caller_color=caller_color
+        )
         if not result.get("ok"):
             return _err(400, result.get("error", "Resign failed"))
         return _sanitize_agent_payload(result)
@@ -362,7 +374,7 @@ def build_router(
         access = _require_game_participant("pgn", game_id, auth)
         if isinstance(access, JSONResponse):
             return access
-        result = _svc().export_pgn(game_id)
+        result = await run_blocking(_svc().export_pgn, game_id)
         if not result.get("ok"):
             message = result.get("error", "PGN unavailable")
             status = 404 if "not found" in message.lower() else 400

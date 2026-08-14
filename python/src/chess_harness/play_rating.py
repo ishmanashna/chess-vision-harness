@@ -129,11 +129,17 @@ def load_samples(root: Optional[Path] = None) -> List[Dict[str, Any]]:
 
 
 def append_play_rating_sample(sample: Dict[str, Any], *, root: Optional[Path] = None) -> None:
+    import sys
+
+    cal_root = project_root() / "elo_calibration"
+    if str(cal_root) not in sys.path:
+        sys.path.insert(0, str(cal_root))
+    from calibration.jsonl_store import append_jsonl_line  # noqa: E402
+
     path = samples_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     with _play_rating_lock(path):
-        with path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(sample) + "\n")
+        append_jsonl_line(path, sample)
 
 
 def rewrite_play_rating_samples(

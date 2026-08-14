@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import json
-import shutil
-
 import pytest
-from fastapi.testclient import TestClient
 
-from chess_harness.spectator import app
-from chess_harness.spectator_game_page import render_game_view_page
+from chess_harness.spectator_game_page import load_game_view_shell
 
-from conftest import FIXTURES
+
+@pytest.fixture(autouse=True)
+def clear_calibration_env(monkeypatch):
+    monkeypatch.delenv("CHESS_HARNESS_CALIBRATION_SECRET", raising=False)
+    monkeypatch.delenv("CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION", raising=False)
 
 
 def safe_logout_path(next_path: str | None) -> str:
@@ -41,18 +40,18 @@ def test_safe_logout_path(raw, expected):
     assert safe_logout_path(raw) == expected
 
 
-def test_game_view_rejects_invalid_id(spectator_client):
+def test_game_view_static_shell_has_no_embedded_id(spectator_client):
     client = spectator_client
-    bad = client.get("/g/<script>alert(1)</script>")
-    assert bad.status_code == 404
+    # Path segment must not contain '/' (would become a sub-route).
+    bad = client.get("/g/%22%3E%3Cscript%3Ealert(1)")
+    assert bad.status_code == 200
+    assert "<script>alert(1)" not in bad.text
 
 
-def test_game_view_escapes_game_id_in_html():
-    game_id = "game-test-escape"
-    body = render_game_view_page(game_id)
-    assert f"<title>{game_id} · Chess Vision Harness</title>" in body
-    assert f'download="{game_id}-board.png"' in body
-    assert f'data-game-id="{game_id}"' in body
+def test_game_view_shell_is_static_html():
+    body = load_game_view_shell()
+    assert "<title>Game · Chess Vision Harness</title>" in body
+    assert "data-board-download" in body
     assert "Spectating" not in body
     assert 'id="info-panel-title"' not in body
 
@@ -63,30 +62,6 @@ def test_game_view_invalid_id_not_rendered():
 
     gm = GameManager()
     assert gm.validate_game_id('"><script>alert(1)</script>') is False
-
-
-@pytest.fixture
-def spectator_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-    monkeypatch.delenv("CHESS_HARNESS_CALIBRATION_SECRET", raising=False)
-    monkeypatch.delenv("CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION", raising=False)
-
-    import chess_harness.spectator as spec
-    from chess_harness.game_manager import GameManager
-
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
-    yield client
-    spec._game_service = None
-    spec._controller = None
 
 
 def test_calibration_post_denied_without_secret(spectator_client):

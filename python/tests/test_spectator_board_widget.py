@@ -8,7 +8,7 @@ from chess_harness.move_rows import spectator_moves_payload
 from chess_harness.spectator_game_page import (
     CM_CDN,
     CM_CHESSBOARD_VERSION,
-    render_game_view_page,
+    load_game_view_shell,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -16,20 +16,19 @@ PUBLIC_JS = REPO_ROOT / "public-site" / "js"
 
 
 def test_spectator_game_page_board_widget_markup():
-    html = render_game_view_page("game-board-widget")
+    html = load_game_view_shell()
     assert 'id="board-wrap"' in html
     assert 'class="spec-board-wrap"' in html
     assert 'id="board"' in html
     assert 'class="spec-board"' in html
-    # On-screen board is a mount div, not a tip <img>; download link still Pillow PNG.
+    # On-screen board is a mount div, not a tip <img>; download link wired in JS.
     assert '<img id="board"' not in html
-    assert 'href="/g/game-board-widget/board.png"' in html
+    assert "data-board-download" in html
     assert "Download board PNG" in html
     assert 'type="module" src="/js/spectator-game.js"' in html
     assert f"cm-chessboard@{CM_CHESSBOARD_VERSION}" in html
     assert f"{CM_CDN}/assets/chessboard.css" in html
     assert "markers/markers.css" in html
-    assert 'data-game-id="game-board-widget"' in html
 
 
 def test_spectator_board_js_matches_playground_cdn():
@@ -45,6 +44,7 @@ def test_spectator_board_js_matches_playground_cdn():
     assert "syncTip" in board_js
     play_board = (PUBLIC_JS / "play-board.js").read_text(encoding="utf-8")
     assert "cm-chessboard@8.7.2" in play_board
+    assert "showCoordinates: true" in play_board
 
 
 def test_spectator_game_js_uses_moves_api_not_img_src():

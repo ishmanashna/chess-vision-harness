@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Watch a puzzle attempt on Chess Vision Harness."/>
+  <title>Puzzle · Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+  <link rel="stylesheet" href="/css/watch.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
+</head>
+<body class="puzzle-view">
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+        </div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Sleeping</span>
+          </span>
+        </div>
+      </div>
+    </header>
+    <main>
+      <p class="watch-poll-error" id="poll-error" role="alert" aria-live="polite"></p>
+      <div class="layout watch-layout">
+        <aside class="col info-col">
+          <div class="info-card">
+            <h2>Puzzle info</h2>
+            <dl class="meta-grid" id="meta">
+              <dt>Attempt</dt><dd>Loading…</dd>
+              <dt>Agent</dt><dd>—</dd>
+              <dt id="state-puzzle-label" hidden>Puzzle id</dt><dd id="state-puzzle" hidden>—</dd>
+              <dt id="state-source-label" hidden>Source</dt><dd id="state-source" hidden>—</dd>
+            </dl>
+          </div>
+          <div class="info-card">
+            <h2>Attempt state</h2>
+            <dl class="meta-grid" id="state-meta">
+              <dt>Status</dt><dd id="state-status">Loading…</dd>
+              <dt>Result</dt><dd id="state-result">—</dd>
+              <dt id="state-rating-label" hidden>Rating</dt><dd id="state-rating" hidden>—</dd>
+              <dt>Difficulty</dt><dd id="state-difficulty">—</dd>
+              <dt id="state-metrics-label">Puzzle rating</dt><dd id="state-agent-rating">—</dd>
+              <dt id="state-performance-label" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</dt><dd id="state-agent-performance">—</dd>
+              <dt>Deviation</dt><dd id="state-deviation">—</dd>
+              <dt>Attempts</dt><dd id="state-attempts">—</dd>
+              <dt>Solves</dt><dd id="state-solves">—</dd>
+            </dl>
+          </div>
+          <div class="info-card">
+            <h2>Attempt chain</h2>
+            <p class="chain-empty" id="chain-empty" style="margin:0;font-size:.84em;color:var(--faint)">No previous attempts for this agent yet.</p>
+            <ul class="chain-list" id="chain" hidden></ul>
+            <div class="follow-banner" id="follow-banner"></div>
+          </div>
+        </aside>
+        <div class="col board-col" id="board-col">
+          <div class="board-stack">
+            <div class="board-label">Puzzle</div>
+            <div class="puzzle-board-wrap" id="board-wrap">
+              <div id="board" class="puzzle-board" role="img" aria-label="puzzle board"></div>
+            </div>
+            <div class="board-label" id="board-label-turn">White to move</div>
+          </div>
+        </div>
+        <aside class="col moves-col" id="moves-col">
+          <div class="panel">
+            <h2 id="moves-heading">Moves</h2>
+            <div class="moves-scroll" id="mv"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script type="module" src="/js/puzzle-watch.js"></script>
+</body>
+</html>

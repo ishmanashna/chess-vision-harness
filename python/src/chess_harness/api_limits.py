@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import logging
 import os
 import shutil
 import time
@@ -28,7 +29,10 @@ __all__ = [
     "get_limit_enforcer",
 ]
 
+_log = logging.getLogger(__name__)
+
 _shared_enforcer: Optional["ApiLimitEnforcer"] = None
+_misconfigured_proxy_warned = False
 
 
 def key_fingerprint(raw_key: str) -> str:
@@ -74,18 +78,69 @@ def _peer_is_trusted(request: Request) -> bool:
     return any(address in network for network in _trusted_proxy_networks())
 
 
+def _parse_ip_header(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    candidate = value.split(",")[0].strip()
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return None
+    return candidate
+
+
+def _trusted_proxies_configured() -> bool:
+    return bool(os.environ.get("CHESS_HARNESS_TRUSTED_PROXIES", "").strip())
+
+
+def _is_loopback_peer(peer: str) -> bool:
+    try:
+        return ipaddress.ip_address(peer).is_loopback
+    except ValueError:
+        return False
+
+
+def _has_forwarded_identity_header(request: Request) -> bool:
+    for header in ("x-forwarded-for", "cf-connecting-ip"):
+        value = request.headers.get(header)
+        if value and value.strip():
+            return True
+    return False
+
+
+def _maybe_warn_misconfigured_trusted_proxies(request: Request) -> None:
+    """Log once when Online-style proxy headers arrive but trust is unset."""
+    global _misconfigured_proxy_warned
+    if _misconfigured_proxy_warned or _trusted_proxies_configured():
+        return
+    peer = request.client.host if request.client and request.client.host else ""
+    if not _is_loopback_peer(peer) or not _has_forwarded_identity_header(request):
+        return
+    _misconfigured_proxy_warned = True
+    _log.warning(
+        "CHESS_HARNESS_TRUSTED_PROXIES is unset but the request peer is loopback (%s) "
+        "and carries X-Forwarded-For or CF-Connecting-IP. All visitors will share the "
+        "peer IP for rate limits. For Pages/cloudflared Online deploys set "
+        "CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8 (trust is never enabled without this config).",
+        peer,
+    )
+
+
+def reset_trusted_proxy_warning_for_tests() -> None:
+    """Clear the one-shot misconfiguration warning (tests only)."""
+    global _misconfigured_proxy_warned
+    _misconfigured_proxy_warned = False
+
+
 def client_ip(request: Request) -> str:
+    _maybe_warn_misconfigured_trusted_proxies(request)
     peer = request.client.host if request.client and request.client.host else "unknown"
     if not _peer_is_trusted(request):
         return peer
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        candidate = forwarded.split(",")[0].strip()
-        try:
-            ipaddress.ip_address(candidate)
-            return candidate
-        except ValueError:
-            pass
+    for header in ("x-forwarded-for", "cf-connecting-ip"):
+        parsed = _parse_ip_header(request.headers.get(header))
+        if parsed:
+            return parsed
     return peer
 
 
@@ -358,6 +413,7 @@ class ApiLimitEnforcer:
                 "idle_timeout_sec": lim.idle_timeout_sec,
             },
             "engine_count_note": (
-                "Engines are released after each move; count reflects in-flight work only"
+                "Opponent pools are trimmed to CHESS_HARNESS_MAX_ENGINE_PROCESSES; "
+                "count is live pooled adapters plus move/eval engines"
             ),
         }

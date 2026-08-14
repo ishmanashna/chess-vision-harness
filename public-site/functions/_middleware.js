@@ -1,8 +1,10 @@
 import {
   isCalibrationPath,
+  isWatchShellHtml,
   normalizeOrigin,
   proxyToOrigin,
-  shouldProxyPath,
+  shouldProxyToOrigin,
+  watchShellAssetPath,
 } from "./_proxy.js";
 
 /**
@@ -12,6 +14,13 @@ import {
 function launcherRedirect(url) {
   const pathname = url.pathname;
   if (pathname === "/create" || pathname === "/create/") {
+    const mode = url.searchParams.get("mode");
+    if (mode === "human" || mode === "avh") {
+      return Response.redirect(new URL("/launch/?flow=playground", url.origin), 301);
+    }
+    if (mode === "avaa") {
+      return Response.redirect(new URL("/launch/?flow=avaa", url.origin), 301);
+    }
     return Response.redirect(new URL("/launch/?flow=engine", url.origin), 301);
   }
   if (pathname === "/human" || pathname === "/human/") {
@@ -19,6 +28,12 @@ function launcherRedirect(url) {
   }
   if (pathname === "/puzzles" || pathname === "/puzzles/") {
     return Response.redirect(new URL("/launch/?flow=puzzles", url.origin), 301);
+  }
+  if (pathname === "/identify" || pathname === "/identify/") {
+    return Response.redirect(new URL("/launch/?flow=identify", url.origin), 301);
+  }
+  if (pathname === "/lobby" || pathname === "/lobby/") {
+    return Response.redirect(new URL("/launch/?flow=avaa", url.origin), 301);
   }
   return null;
 }
@@ -36,14 +51,35 @@ export async function onRequest(context) {
   if (redirect) return redirect;
 
   if (isCalibrationPath(pathname)) {
-    return new Response("Not Found", {
+    return new Response(JSON.stringify({ ok: false, error: "Not Found" }), {
       status: 404,
-      headers: { "content-type": "text/plain; charset=utf-8" },
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+
+  if (
+    pathname.startsWith("/api/") &&
+    pathname !== "/api/edge-health" &&
+    !shouldProxyToOrigin(pathname)
+  ) {
+    return new Response(JSON.stringify({ ok: false, error: "Not Found" }), {
+      status: 404,
+      headers: { "content-type": "application/json; charset=utf-8" },
     });
   }
 
   const origin = normalizeOrigin(env.GAME_ORIGIN);
-  if (origin && shouldProxyPath(pathname)) {
+
+  if (isWatchShellHtml(pathname)) {
+    const asset = watchShellAssetPath(pathname);
+    if (asset && env.ASSETS) {
+      const shellUrl = new URL(asset, request.url);
+      return env.ASSETS.fetch(new Request(shellUrl, request));
+    }
+    return next();
+  }
+
+  if (origin && shouldProxyToOrigin(pathname)) {
     return proxyToOrigin(request, origin);
   }
 

@@ -1,6 +1,6 @@
 # Home PC runbook — live games through Cloudflare Pages
 
-This is the operator guide for running games on your Windows PC while the public site stays at **https://chessvisionharness.pages.dev**. You do not edit site code to turn live play on or off — you start/stop services on the PC and set Cloudflare environment variables.
+This is the operator guide for running games on your Windows PC while the public site stays at **https://chessvisionharness.pages.dev**. You do not edit site code to turn live play on or off — you start/stop services on the PC and refresh GitHub secret `GAME_ORIGIN` when the tunnel URL changes.
 
 Related docs
 
@@ -15,12 +15,27 @@ Related docs
 | Item | State |
 |------|--------|
 | Public site | **https://chessvisionharness.pages.dev** (Pages project `chessvisionharness`) |
-| Named tunnel | `chess-harness-pc` — connector **Healthy** in Cloudflare Zero Trust |
-| Public route (named) | **None yet** — no published hostname on the named tunnel |
+| Named tunnel | `chess-harness-pc` — connector may show **Healthy** in Cloudflare Zero Trust |
+| Public route (named) | **None** — no published hostname on the named tunnel |
 | Live path today | **Quick Tunnel** → `GAME_ORIGIN` GitHub secret + Pages redeploy (URL changes whenever Quick Tunnel restarts) |
 | Harness bind | `127.0.0.1:8765` (localhost only; tunnel or proxy reaches it) |
 
+**Do not confuse the two tunnels**
+
+| What | Makes localhost `/health` OK? | Makes Pages **Online**? |
+|------|------------------------------|-------------------------|
+| NSSM `ChessHarness` (`chess-harness serve`) | Yes | No |
+| Named `cloudflared` service (`chess-harness-pc`) with **no public hostname** | No (connector only) | **No** |
+| **Quick Tunnel** (`cloudflared tunnel --url …`) with URL in `GAME_ORIGIN` | No (harness still required) | **Yes** (when harness + tunnel + secret + deploy align) |
+
+A named tunnel connector can be Healthy while Pages stays **Sleeping** — there is no public URL for Pages to probe until you add a **public hostname** route (needs a domain) or point `GAME_ORIGIN` at a live Quick Tunnel URL.
+
 `GAME_ORIGIN` must be a URL that currently reaches this PC. A stale Quick Tunnel hostname (or a named tunnel with no public hostname) makes the site show Sleeping even when localhost `/health` is fine. Leaderboard uses the live API when Online and the offline snapshot when Sleeping.
+
+### Two success criteria (separate)
+
+1. **Harness (reboot durability)** — After reboot, NSSM brings `chess-harness serve` back; `http://127.0.0.1:8765/health` is green within a few minutes. Install: [`install-harness-nssm.ps1`](install-harness-nssm.ps1).
+2. **Public Online (operator present)** — Quick Tunnel gives a fresh `*.trycloudflare.com` URL; you copy it into GitHub secret `GAME_ORIGIN`, redeploy Pages, and confirm edge-health. Target **under ~15 minutes** with the operator at the PC. **Not** zero-touch across reboots — Quick Tunnel URLs change when the tunnel restarts.
 
 ---
 
@@ -45,12 +60,22 @@ Visitor → chessvisionharness.pages.dev (always on)
 
 | Variable | Where | Purpose |
 |----------|--------|---------|
-| `GAME_ORIGIN` | Cloudflare Pages (dashboard) | Where Pages proxies live traffic — your tunnel or host URL |
+| `GAME_ORIGIN` | GitHub secret `GAME_ORIGIN` (deploy workflow injects into Pages Functions) | Where Pages proxies live traffic — your tunnel or host URL |
 | `CHESS_HARNESS_PUBLIC_URL` | Game PC (harness service) | URL agents see in Create Game briefs — always the **Pages** URL |
 
 Agents must never get the raw tunnel hostname in briefs. Set `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev` on the PC.
 
+**Client IP through Pages:** Cloudflare Pages Functions copy each visitor's `CF-Connecting-IP` into `X-Forwarded-For` when proxying to `GAME_ORIGIN`. On the harness, set:
+
+```text
+CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8
+```
+
+so `cloudflared` (the immediate peer on localhost) is trusted to supply that header. Without it, every public agent appears to share one IP and per-IP rate limits collapse. Per-key limits still bucket by API key, but registration and `by_key` scan limits need the real visitor IP. The harness logs a one-time warning on the first proxied request if this variable is missing while loopback peers send `X-Forwarded-For` / `CF-Connecting-IP`.
+
 **Calibration** (`/calibration*`) is blocked at the Pages edge. Use **`http://127.0.0.1:8765/calibration`** on the PC (direct localhost, not via tunnel). On loopback hostnames the site nav shows Calibration after Leaderboard (no status probe). Loopback Host may POST without a secret; non-loopback / tunnel POSTs require `CHESS_HARNESS_CALIBRATION_SECRET` or `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1` — client IP is not trusted behind Cloudflare Tunnel. Map control: **Rebuild accuracy→Elo table** only (no snapshot/publish buttons).
+
+**Calibration worker (Phase 9d):** Continuous engine calibration runs in a **separate child process** so heavy cal work cannot starve live play. `chess-harness serve` spawns and supervises the worker on **`127.0.0.1:8766`** by default (control plane stays on port 8765; same calibration UI and `/api/calibration/*` routes). Operator override: run `chess-harness calibration-worker` manually (e.g. debugging) — serve reuses a healthy worker if one is already listening. Set `CHESS_HARNESS_CALIBRATION_IN_PROCESS=1` only for tests or emergency fallback (calibration back inside serve). Verify responsiveness: `python scripts/calibration_load_check.py` while capped cal is running.
 
 ---
 
@@ -65,7 +90,7 @@ Summary:
 3. Add GitHub repository secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 4. Push to `main`/`master`; confirm the **Deploy public site** workflow succeeds.
 
-Later, when live play is ready, add the Pages environment variable `GAME_ORIGIN` (see below). That is separate from the GitHub secrets.
+Later, when live play is ready, set GitHub secret `GAME_ORIGIN` and redeploy (see below). That is separate from the Cloudflare API token secrets.
 
 ---
 
@@ -73,9 +98,9 @@ Later, when live play is ready, add the Pages environment variable `GAME_ORIGIN`
 
 Pages needs an HTTPS (or HTTP) base URL for `GAME_ORIGIN` that forwards to `http://127.0.0.1:8765`. Options below, best first for a permanent setup.
 
-### Option A — Quick Tunnel (good for testing; URL changes on restart)
+### Option A — Quick Tunnel (current public path; URL changes on restart)
 
-No domain and no tunnel route configuration. Cloudflare gives you a random `*.trycloudflare.com` URL each time.
+No domain and no tunnel route configuration. Cloudflare gives you a random `*.trycloudflare.com` URL each time. This is the supported path without a paid domain.
 
 1. On the PC, start the harness (see [Start the harness](#start-the-harness-on-the-pc)).
 2. In a second terminal:
@@ -84,13 +109,27 @@ No domain and no tunnel route configuration. Cloudflare gives you a random `*.tr
    cloudflared tunnel --url http://127.0.0.1:8765
    ```
 
-3. Copy the `https://….trycloudflare.com` URL from the output.
-4. In Cloudflare: **Workers & Pages → chessvisionharness → Settings → Environment variables** → set **Production** `GAME_ORIGIN` to that URL (no trailing slash).
-5. Redeploy Pages (**Retry deployment** on the latest deploy, or push any commit).
+3. Copy the `https://….trycloudflare.com` URL from the output (no trailing slash).
+4. Update the deploy secret and redeploy Pages:
 
-Verify: open https://chessvisionharness.pages.dev — status chip should show **Online**; Create Game should work.
+   ```powershell
+   gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"
+   gh workflow run "Deploy public site"
+   ```
 
-**Downside:** the URL changes every time you restart the Quick Tunnel. You must update `GAME_ORIGIN` and redeploy after each restart. Fine for smoke tests, not for leaving up for weeks.
+   Wait for the workflow to finish. If the status chip stays **Sleeping**, run deploy **once more** (secret update and workflow start can race).
+
+   Optional: you can also set **Production** `GAME_ORIGIN` in **Workers & Pages → chessvisionharness → Settings → Environment variables**, but the GitHub secret is what the deploy pipeline uses — keep the secret current.
+
+5. Verify:
+
+   ```powershell
+   .\deploy\verify-online.ps1 -GameOrigin "https://….trycloudflare.com"
+   ```
+
+   Or open https://chessvisionharness.pages.dev — status chip should show **Online**; Create Game should work.
+
+**Downside:** the URL changes every time you restart the Quick Tunnel. You must update `GAME_ORIGIN` and redeploy after each restart. There is no zero-touch Online across reboots without refreshing the secret.
 
 ### Option B — Named tunnel + hostname (recommended when you have a domain)
 
@@ -105,7 +144,12 @@ You already have a named tunnel: **`chess-harness-pc`** (connector healthy). Add
    - Domain: your domain
    - Service: `http://127.0.0.1:8765`
 4. Confirm from another device: `curl https://games.yourdomain.com/health` returns OK.
-5. Set Pages `GAME_ORIGIN=https://games.yourdomain.com` (no trailing slash) and redeploy.
+5. Set GitHub secret `GAME_ORIGIN` to `https://games.yourdomain.com` (no trailing slash) and redeploy:
+
+   ```powershell
+   gh secret set GAME_ORIGIN -b "https://games.yourdomain.com"
+   gh workflow run "Deploy public site"
+   ```
 
 The tunnel connector runs as a Windows service (below); the hostname stays stable across reboots.
 
@@ -114,7 +158,7 @@ The tunnel connector runs as a Windows service (below); the hostname stays stabl
 - **Zero Trust paid** features — not required for a single published tunnel route.
 - **Binding the harness to `0.0.0.0`** — keep localhost-only; the tunnel connects outbound to your machine.
 
-**Ranking:** use **Option A** to verify end-to-end today; move to **Option B** when you add a domain so `GAME_ORIGIN` stops changing.
+**Ranking:** **Option A** is the current no-domain public path (operator refreshes `GAME_ORIGIN` after Quick Tunnel restarts). **Option B** when you add a domain so `GAME_ORIGIN` stays stable across reboots.
 
 ---
 
@@ -158,25 +202,37 @@ Stop with Ctrl+C. Production uses a Windows service (next section).
 
 ## Windows always-on services
 
-Run **two** things at boot: the harness and cloudflared (named tunnel or Quick Tunnel — named tunnel + route is preferred long-term).
-
 ### Harness — NSSM (recommended)
+
+[`install-harness-nssm.ps1`](install-harness-nssm.ps1) installs or updates the **ChessHarness** service: creates `.chess_harness\logs`, sets `CHESS_HARNESS_PUBLIC_URL` and `CHESS_HARNESS_TRUSTED_PROXIES`, log rotation, and restart-on-failure.
+
+```powershell
+# Elevated PowerShell, repo root
+.\deploy\install-harness-nssm.ps1
+```
+
+Manual steps and Task Scheduler alternative remain below if you prefer not to use the helper.
+
+`nssm stop ChessHarness` / `nssm restart ChessHarness` for maintenance.
+
+**After reboot:** wait a few minutes, then `curl http://127.0.0.1:8765/health`. That confirms harness durability only — not Public Online.
+
+### Harness — manual NSSM (reference)
 
 [NSSM](https://nssm.cc/) keeps `chess-harness serve` running and restarts it on failure.
 
 ```powershell
-# Run from an elevated PowerShell; adjust paths
+# Run from an elevated PowerShell; adjust paths — or use install-harness-nssm.ps1
 nssm install ChessHarness "C:\path\to\chess-vision-harness\.venv\Scripts\chess-harness.exe" serve
 nssm set ChessHarness AppDirectory "C:\path\to\chess-vision-harness"
-nssm set ChessHarness AppEnvironmentExtra "CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev"
+nssm set ChessHarness AppEnvironmentExtra "CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev" "CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8"
 nssm set ChessHarness AppStdout "C:\path\to\chess-vision-harness\.chess_harness\logs\harness.log"
 nssm set ChessHarness AppStderr "C:\path\to\chess-vision-harness\.chess_harness\logs\harness.err.log"
 nssm set ChessHarness AppRotateFiles 1
 nssm set ChessHarness AppRotateBytes 10485760
+nssm set ChessHarness AppExit Default Restart
 nssm start ChessHarness
 ```
-
-`nssm stop ChessHarness` / `nssm restart ChessHarness` for maintenance.
 
 ### Harness — Task Scheduler (alternative)
 
@@ -197,9 +253,9 @@ If you prefer not to use NSSM:
 
 5. **Settings:** restart on failure if desired.
 
-### cloudflared — named tunnel (already installed)
+### cloudflared — named tunnel (connector only today)
 
-If `cloudflared` was installed as a service for **`chess-harness-pc`**, ensure it is set to start automatically:
+If `cloudflared` was installed as a service for **`chess-harness-pc`**, it keeps the **connector** registered with Cloudflare. That is **not** the same as a public URL:
 
 ```powershell
 Get-Service cloudflared
@@ -208,11 +264,56 @@ Start-Service cloudflared
 Set-Service cloudflared -StartupType Automatic
 ```
 
-After you add a **public hostname** on the tunnel (Option B), this service keeps the route up without a manual Quick Tunnel window.
+Until you add a **public hostname** on the tunnel (Option B, requires a domain), this service does **not** satisfy `GAME_ORIGIN` and does **not** make Pages Online. For the current no-domain setup, use Quick Tunnel for the public path.
 
-### cloudflared — Quick Tunnel only (testing)
+### cloudflared — Quick Tunnel (current public path)
 
-Quick Tunnel is a foreground command, not ideal as a service. For a one-off test, run it in a console. For “always on” without a domain, you would need a script that restarts Quick Tunnel and updates `GAME_ORIGIN` each time — that is why Option B is better for production.
+Quick Tunnel is a foreground command. It is the supported way to expose the harness without a paid domain. The URL changes whenever Quick Tunnel restarts — plan on refreshing `GAME_ORIGIN` each time (see [Recover Public Online](#recover-public-online-from-stale-game_origin-15-min)).
+
+---
+
+## Sleeping runbook card (three URLs only)
+
+When the public chip shows **Sleeping**, check these in order:
+
+| # | URL | What it proves |
+|---|-----|----------------|
+| 1 | `http://127.0.0.1:8765/health` | Harness on this PC |
+| 2 | `{GAME_ORIGIN}/health` | Tunnel/origin Pages is configured to use |
+| 3 | `https://chessvisionharness.pages.dev/api/edge-health` | Public **Online** (`online: true`) |
+
+Automated check (exit codes documented in the script):
+
+```powershell
+$env:GAME_ORIGIN = "https://your-current.trycloudflare.com"
+.\deploy\verify-online.ps1
+```
+
+| Exit | Meaning |
+|------|---------|
+| 0 | Public Online |
+| 1 | Harness down — fix NSSM / `ChessHarness` |
+| 2 | Harness OK; `GAME_ORIGIN` dead — refresh Quick Tunnel + secret |
+| 3 | Tunnel OK from PC; Pages not Online — redeploy (twice if secret raced) |
+| 4 | Pass `-GameOrigin` or set `$env:GAME_ORIGIN` |
+
+**Schedule when Online:** Task Scheduler → daily or at log-on → run `verify-online.ps1` with `GAME_ORIGIN` set; alert on non-zero exit.
+
+---
+
+## Recover Public Online from stale `GAME_ORIGIN` (~15 min)
+
+Use when probe 1 passes and probe 2 or 3 fails (typical after reboot or Quick Tunnel restart).
+
+1. Confirm harness: `curl http://127.0.0.1:8765/health`
+2. Stop any old Quick Tunnel window/process.
+3. Start fresh: `cloudflared tunnel --url http://127.0.0.1:8765` → copy `https://….trycloudflare.com` (no trailing slash).
+4. `gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"`
+5. `gh workflow run "Deploy public site"` — wait for the workflow to finish.
+6. `.\deploy\verify-online.ps1 -GameOrigin "https://….trycloudflare.com"`
+7. If exit **3**, run deploy **once more** (secret update and workflow start can race), then re-verify.
+
+Optional later: a helper script may log the Quick Tunnel URL and drive secret+deploy; operator steps above are sufficient for phase done.
 
 ---
 
@@ -224,8 +325,8 @@ Checklist:
 2. **Tunnel reachable from the internet**
    - Quick Tunnel: `cloudflared tunnel --url http://127.0.0.1:8765` → note HTTPS URL.
    - Named tunnel: public hostname route → `http://127.0.0.1:8765`; `curl https://your-games-host/health` OK.
-3. **Pages `GAME_ORIGIN`** set to that tunnel/host URL (no trailing slash); redeploy if you changed it.
-4. **`CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`** on the harness; restart harness after changing.
+3. **GitHub secret `GAME_ORIGIN`** set to that tunnel/host URL (no trailing slash); `gh workflow run "Deploy public site"` if you changed it.
+4. **`CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`** and **`CHESS_HARNESS_TRUSTED_PROXIES=127.0.0.0/8`** on the harness (`install-harness-nssm.ps1` sets both); restart harness after changing.
 
 Verify:
 
@@ -249,25 +350,28 @@ You do not need to change site code or redeploy static HTML.
 
 - Remove or clear `GAME_ORIGIN` in Pages settings and redeploy. Static site still works; leaderboard uses the offline snapshot when Sleeping.
 
-When **Online**, the public leaderboard loads from the live proxied API (same numbers as your PC). When **Sleeping**, it uses `public-site/data/leaderboard.json`.
+When **Online**, public leaderboards load from the live proxied APIs (same numbers as your PC). When **Sleeping**, the site falls back to `public-site/data/*.json`.
 
 ---
 
 ## Leaderboard (live vs offline)
 
 - **Online:** Home and `/leaderboard/` fetch `/api/leaderboard/live` through Pages (no git step).
-- **Sleeping:** the site falls back to `public-site/data/leaderboard.json`.
-- While `chess-harness serve` runs, the origin refreshes that snapshot file in the background so offline visitors are not ancient — automatic, not a calibration button.
+- **Sleeping:** the site falls back to `public-site/data/*.json`.
+- Serve refreshes runtime snapshots in `$CHESS_HARNESS_DIR/publish/` only — not the git tree.
 
-Optional offline backup (PC off or before first Online visit):
+**Sleeping publish** (before extended offline or when you want fresher fallback data):
 
 ```powershell
 cd C:\path\to\chess-vision-harness
 .\.venv\Scripts\Activate.ps1
 chess-harness snapshot-leaderboard
+git add public-site/data/*.json public-site/index.html public-site/leaderboard/index.html
+git commit -m "Update Sleeping leaderboard snapshots"
+git push
 ```
 
-Default output: `public-site\data\leaderboard.json`. Commit and push only if you want that backup on Pages when the PC is off — **not** the normal path to publish live Elos.
+Writes `public-site\data\leaderboard.json`, `puzzles_leaderboard.json`, and `identify_leaderboard.json` (plus inline snapshot in home/leaderboard HTML). Commit and push only if you want fresher Sleeping fallbacks on Pages when the PC is off — **not** the normal path to publish live Elos while Online.
 
 You still push when you want the public site updated; the scheduled task only refreshes the local JSON file.
 
@@ -278,7 +382,7 @@ You still push when you want the public site updated; the scheduled task only re
 The public URL **https://chessvisionharness.pages.dev** stays the same. Agents keep using `CHESS_HARNESS_PUBLIC_URL` pointing at Pages.
 
 1. Stand up `chess-harness serve` on the new host (VPS, another machine) behind TLS or a tunnel.
-2. In Cloudflare Pages, change **`GAME_ORIGIN`** to the new origin URL. Redeploy.
+2. `gh secret set GAME_ORIGIN -b "https://new-origin.example"` then `gh workflow run "Deploy public site"`.
 3. On the **new** host, set `CHESS_HARNESS_PUBLIC_URL=https://chessvisionharness.pages.dev`.
 4. Run `chess-harness snapshot-leaderboard` on whichever machine owns ladder data; push `leaderboard.json` as today.
 5. Stop harness and cloudflared on the old PC.
@@ -301,23 +405,14 @@ No HTML or Worker code changes — only origin env and where the harness runs.
 
 ### Diagnose Online vs Sleeping
 
+See [Sleeping runbook card](#sleeping-runbook-card-three-urls-only) or run:
+
 ```powershell
-curl http://127.0.0.1:8765/health
-curl https://chessvisionharness.pages.dev/api/edge-health
-# Replace with the exact GAME_ORIGIN value (GitHub secret or Pages Production env):
-curl https://YOUR-GAME-ORIGIN/health
+.\deploy\verify-online.ps1 -GameOrigin "https://YOUR-GAME-ORIGIN"
 ```
 
-Only the third URL is what Pages probes. If it fails, the site stays Sleeping no matter how healthy localhost looks.
+Only `{GAME_ORIGIN}/health` (probe 2) is what Pages uses for edge-health. If it fails, the site stays Sleeping no matter how healthy localhost looks. A named `cloudflared` service without a public hostname does not replace probe 2.
 
-### Refresh Quick Tunnel origin (when Sleeping after a restart)
+For step-by-step recovery, see [Recover Public Online](#recover-public-online-from-stale-game_origin-15-min). For a stable origin across reboots (when you have a domain), use **Option B** (named tunnel + public hostname).
 
-1. Stop any old Quick Tunnel process (`cloudflared tunnel --url …`).
-2. Start fresh: `cloudflared tunnel --url http://127.0.0.1:8765` and copy the new `https://….trycloudflare.com` URL.
-3. `gh secret set GAME_ORIGIN -b "https://….trycloudflare.com"` (no trailing slash).
-4. `gh workflow run "Deploy public site"` — confirm the run finishes; if edge-health is still offline, run deploy once more.
-5. Confirm: `curl https://chessvisionharness.pages.dev/api/edge-health` → `"online": true`.
-
-For a lasting origin that survives reboots without secret churn, use **Option B** (named tunnel + public hostname) above and leave `GAME_ORIGIN` on that stable host.
-
-More Pages/tunnel detail: [`pages.md`](pages.md) (Phase 3 — `GAME_ORIGIN`, edge health).
+More Pages/tunnel detail: [`pages.md`](pages.md) (`GAME_ORIGIN`, edge health).

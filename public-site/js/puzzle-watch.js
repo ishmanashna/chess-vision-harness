@@ -38,6 +38,18 @@ function escHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function syncHeights() {
+  if (window.CVH && typeof window.CVH.syncWatchHeights === "function") {
+    window.CVH.syncWatchHeights();
+  }
+}
+
+function showPollError(message) {
+  if (window.CVH && typeof window.CVH.showWatchPollError === "function") {
+    window.CVH.showWatchPollError(message);
+  }
+}
+
 function sideToMoveFromFen(fen) {
   return String(fen || "").indexOf(" b ") >= 0 ? "Black to move" : "White to move";
 }
@@ -234,30 +246,77 @@ async function main() {
 
   function renderAgentMetrics(state) {
     if (!window.CVH) return;
-    fetch("/api/leaderboard/puzzles/live")
+    const modelId = state.model_id || null;
+    const perfEl = document.getElementById("state-agent-performance");
+    const perfLbl = document.getElementById("state-performance-label");
+    const rating = document.getElementById("state-agent-rating");
+    const dev = document.getElementById("state-deviation");
+    const attempts = document.getElementById("state-attempts");
+    const solves = document.getElementById("state-solves");
+
+    function applyPuzzleAgent(agent) {
+      if (agent) {
+        if (rating) rating.textContent =
+          agent.rating != null ? String(agent.rating) : "—";
+        if (dev) dev.textContent =
+          agent.deviation != null ? String(agent.deviation) : "—";
+        if (attempts) attempts.textContent =
+          String(agent.attempts != null ? agent.attempts : "—");
+        if (solves) solves.textContent =
+          String(agent.solves != null ? agent.solves : "—");
+      } else {
+        if (rating) rating.textContent = "—";
+        if (dev) dev.textContent = "—";
+        if (attempts) attempts.textContent = "—";
+        if (solves) solves.textContent = "—";
+      }
+    }
+
+    function applyPerformance(agent) {
+      if (!perfEl) return;
+      const value = agent && agent.mean_play_rating != null
+        ? String(Math.round(Number(agent.mean_play_rating)))
+        : "—";
+      perfEl.textContent = value;
+      if (perfLbl) perfLbl.hidden = false;
+      perfEl.hidden = false;
+    }
+
+    const puzzleReq = fetch("/api/leaderboard/puzzles/live")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         const agents = (data && data.agents) || [];
-        const agent = agents.find((a) => a.name === state.agent_name);
-        const rating = document.getElementById("state-agent-rating");
-        const dev = document.getElementById("state-deviation");
-        const attempts = document.getElementById("state-attempts");
-        const solves = document.getElementById("state-solves");
-        if (agent) {
-          if (rating) rating.textContent =
-            agent.rating != null ? String(agent.rating) : "—";
-          if (dev) dev.textContent =
-            agent.deviation != null ? String(agent.deviation) : "—";
-          if (attempts) attempts.textContent = String(agent.attempts != null ? agent.attempts : "—");
-          if (solves) solves.textContent = String(agent.solves != null ? agent.solves : "—");
-        } else {
-          if (rating) rating.textContent = "—";
-          if (dev) dev.textContent = "—";
-          if (attempts) attempts.textContent = "—";
-          if (solves) solves.textContent = "—";
-        }
+        const agent = modelId
+          ? agents.find((a) => a.id === modelId)
+          : agents.find((a) => a.name === state.agent_name);
+        applyPuzzleAgent(agent);
       })
-      .catch(() => {});
+      .catch(() => {
+        applyPuzzleAgent(null);
+      });
+
+    const ladderReq = fetch("/api/leaderboard/live")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const agents = (data && data.agents) || [];
+        const agent = modelId
+          ? agents.find((a) => a.id === modelId)
+          : agents.find((a) => a.name === state.agent_name);
+        applyPerformance(agent);
+      })
+      .catch(() => {
+        if (window.CVH_INLINE_SNAPSHOT && window.CVH_INLINE_SNAPSHOT.agents) {
+          const agents = window.CVH_INLINE_SNAPSHOT.agents;
+          const agent = modelId
+            ? agents.find((a) => a.id === modelId)
+            : agents.find((a) => a.name === state.agent_name);
+          applyPerformance(agent);
+        } else {
+          applyPerformance(null);
+        }
+      });
+
+    return Promise.all([puzzleReq, ladderReq]).catch(() => {});
   }
 
   function renderLiveMoves(state) {
@@ -479,18 +538,21 @@ async function main() {
       } else {
         startChainTracking(state);
       }
+      syncHeights();
+      showPollError("");
     } catch (e) {
-      /* ignore */
+      showPollError("Could not refresh puzzle state — is the server online?");
     }
   }
 
-  window.addEventListener("resize", () => {
+  window.addEventListener("resize", syncHeights);
+  if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
     if (wrap) {
-      const movesCol = document.getElementById("moves-col");
-      if (movesCol) movesCol.style.maxHeight = wrap.offsetHeight + "px";
+      const ro = new ResizeObserver(() => syncHeights());
+      ro.observe(wrap);
     }
-  });
+  }
 
   pollTimer = setInterval(poll, POLL_MS);
   poll();

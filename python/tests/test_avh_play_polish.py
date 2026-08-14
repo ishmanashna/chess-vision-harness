@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from chess_harness.spectator_game_page import render_game_view_page
+from chess_harness.spectator_game_page import load_game_view_shell
 from chess_harness.spectator_human import show_eval_for_state
 
 pytest_plugins = ["test_create_game", "test_human_vs_agent"]
@@ -64,7 +64,7 @@ def test_create_human_mode_redirects_to_launch(create_client):
     client, _ = create_client
     resp = client.get("/create?mode=human", follow_redirects=False)
     assert resp.status_code == 301
-    assert resp.headers["location"] == "/launch/?flow=engine"
+    assert resp.headers["location"] == "/launch/?flow=playground"
 
 
 def test_create_brief_collapsible_in_js():
@@ -110,12 +110,13 @@ def test_play_page_single_header_chat_markup(human_client, monkeypatch):
 
 
 def test_spectator_game_page_compact_export_links():
-    html = render_game_view_page("game-polish-1")
+    html = load_game_view_shell()
+    watch_css = _read_public("css/watch.css")
     assert 'class="export-links"' in html
     assert "Download board PNG" in html
     assert "Copy PGN" in html
     assert "<h2>Export</h2>" not in html
-    assert "max-content" in html
+    assert "max-content" in watch_css
 
 
 def test_spectator_game_page_avh_eval_trusts_api_flag():
@@ -128,7 +129,7 @@ def test_spectator_game_page_avh_eval_trusts_api_flag():
 
 
 def test_spectator_game_page_quality_metrics():
-    html = render_game_view_page("game-quality-ui")
+    html = load_game_view_shell()
     js = (PUBLIC_SITE / "js" / "spectator-game.js").read_text(encoding="utf-8")
     assert "state-acc-white" in html
     assert "state-pr-black" in html
@@ -153,13 +154,13 @@ def test_spectator_game_page_quality_metrics():
 
 
 def test_spectator_game_page_quality_analysing_pending():
-    html = render_game_view_page("game-quality-pending")
+    html = load_game_view_shell()
     js = (PUBLIC_SITE / "js" / "spectator-game.js").read_text(encoding="utf-8")
     assert "isQualityPending" in js
     assert "Analysing…" in js
     assert "quality-pending" in html
     assert 's.result !== "*"' in js
-    html = render_game_view_page("game-chat-toggle")
+    html = load_game_view_shell()
     assert 'id="info-panel-toggle"' in html
     assert 'id="spec-chat-panel"' in html
     assert 'id="spec-chat-log"' in html

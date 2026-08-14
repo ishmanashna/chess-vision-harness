@@ -124,13 +124,13 @@ def test_export_public_snapshots_writes_two_files(tmp_path, monkeypatch):
         output_path=out / "leaderboard.json", puzzle_path=out / "puzzles_leaderboard.json",
         registry=ModelRegistry(harness / "models.json"))
     assert [p.name for p in written.values()] == [
-        "leaderboard.json", "puzzles_leaderboard.json"]
+        "leaderboard.json", "puzzles_leaderboard.json", "identify_leaderboard.json"]
     ladder = json.loads(written["leaderboard"].read_text(encoding="utf-8"))
     assert ladder["agents"][0]["id"] == "solo"
     puzzles = json.loads(written["puzzles"].read_text(encoding="utf-8"))
     assert puzzles["agents"] == []
     assert puzzles["puzzles"] == []
-    assert "identify_leaderboard.json" not in [p.name for p in out.iterdir()]
+    assert "identify_leaderboard.json" in [p.name for p in out.iterdir()]
 
 
 def test_live_puzzle_leaderboard_and_legacy_redirects(tmp_path, monkeypatch):
@@ -226,18 +226,46 @@ def test_all_headers_have_single_launcher_nav():
 
 def test_no_orientation_sublabel_in_observer_pages():
     """Phase 7: 'white at bottom' and 'a1 bottom-left' removed from observer HTML."""
-    for name in ("puzzle_observer.py", "identify_observer.py"):
-        text = (ROOT / "python" / "src" / "chess_harness" / name).read_text(encoding="utf-8")
-        assert "white at bottom" not in text.lower(), f"{name} still has orientation sub-label"
-        assert "a1 bottom-left" not in text.lower(), f"{name} still has orientation sub-label"
+    for rel in ("p/index.html", "i/index.html"):
+        text = (ROOT / "public-site" / rel).read_text(encoding="utf-8")
+        assert "white at bottom" not in text.lower(), f"{rel} still has orientation sub-label"
+        assert "a1 bottom-left" not in text.lower(), f"{rel} still has orientation sub-label"
 
 
 def test_proxy_allows_puzzle_leaderboard_paths():
-    text = (ROOT / "public-site" / "functions" / "_proxy.js").read_text(encoding="utf-8")
-    assert "/api/leaderboard/puzzles/live" in text
-    assert "/api/leaderboard/identify/live" in text
-    assert 'startsWith("/p/")' in text
-    assert 'startsWith("/i/")' in text
+    import json
+
+    contract_path = ROOT / "public-site" / "functions" / "proxy-routes.contract.json"
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    exact = contract["proxy_path_exact"]
+    watch_assets = contract["watch_asset_path_prefixes"]
+    assert "/api/leaderboard/puzzles/live" in exact
+    assert "/api/leaderboard/identify/live" in exact
+    assert "/p/" in watch_assets
+    assert "/i/" in watch_assets
+    middleware = (ROOT / "public-site" / "functions" / "_middleware.js").read_text(encoding="utf-8")
+    assert "isCalibrationPath" in middleware
+    assert "isWatchShellHtml" in middleware
+
+
+def test_pages_middleware_unknown_api_returns_json_404():
+    text = (ROOT / "public-site" / "functions" / "_middleware.js").read_text(encoding="utf-8")
+    assert 'pathname.startsWith("/api/")' in text
+    assert "/api/edge-health" in text
+    assert 'application/json' in text
+    assert 'error: "Not Found"' in text
+    assert "isCalibrationPath" in text
+    assert 'text/plain' not in text
+    assert "/identify" in text
+    assert "flow=identify" in text
+    assert "flow=playground" in text
+
+
+def test_puzzle_watch_joins_performance_by_model_id():
+    text = (ROOT / "public-site" / "js" / "puzzle-watch.js").read_text(encoding="utf-8")
+    assert "state.model_id" in text
+    assert "agents.find((a) => a.id === modelId)" in text
+    assert "mean_play_rating" in text
 
 
 def test_leaderboard_page_is_unified_no_tabs():

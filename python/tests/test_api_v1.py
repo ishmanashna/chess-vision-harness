@@ -2,62 +2,11 @@
 
 from __future__ import annotations
 
-import shutil
-from typing import Any
-
-import pytest
-from fastapi.testclient import TestClient
-
-from conftest import FIXTURES, LOW_OPPONENT
+from conftest import LOW_OPPONENT
 
 from chess_harness.game_manager import GameManager
-from chess_harness.spectator import app
-
-_FORBIDDEN_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen"})
-
-
-def _assert_no_leaks(obj: Any) -> None:
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            assert key not in _FORBIDDEN_KEYS
-            _assert_no_leaks(value)
-    elif isinstance(obj, list):
-        for item in obj:
-            _assert_no_leaks(item)
-
-
-@pytest.fixture
-def api_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-
-    import chess_harness.api_limits as api_limits
-    import chess_harness.spectator as spec
-
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
-    yield client, harness_dir
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._game_service = None
-    spec._controller = None
-    if spec._engine is not None:
-        spec._engine.quit()
-        spec._engine = None
-    spec._game_service = None
-    if hasattr(spec._get_controller(), "opponent_mgr"):
-        spec._get_controller().opponent_mgr.release()
-
-
-def _auth_headers(api_key: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {api_key}"}
+from harness_client import auth_headers
+from leak_guards import assert_game_api_no_leaks
 
 
 def test_api_v1_full_game_flow(api_client):
@@ -70,7 +19,7 @@ def test_api_v1_full_game_flow(api_client):
     assert reg_data["model_id"] == "api-agent"
     assert reg_data["name"] == "API Agent"
     assert "api_key" in reg_data
-    _assert_no_leaks(reg_data)
+    assert_game_api_no_leaks(reg_data)
     api_key = reg_data["api_key"]
 
     keys_file = harness_dir / "api_keys.json"
@@ -85,7 +34,7 @@ def test_api_v1_full_game_flow(api_client):
 
     create = client.post(
         "/api/v1/games",
-        headers=_auth_headers(api_key),
+        headers=auth_headers(api_key),
         json={"opponent": LOW_OPPONENT, "agent_color": "white"},
     )
     assert create.status_code == 200
@@ -94,52 +43,52 @@ def test_api_v1_full_game_flow(api_client):
     game_id = game["game_id"]
     assert game.get("board_url") == f"/api/v1/games/{game_id}/board"
     assert "board_path" not in game
-    _assert_no_leaks(game)
+    assert_game_api_no_leaks(game)
 
-    status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth_headers(api_key))
+    status = client.get(f"/api/v1/games/{game_id}/status", headers=auth_headers(api_key))
     assert status.status_code == 200
     status_data = status.json()
     assert status_data["ok"] is True
-    _assert_no_leaks(status_data)
+    assert_game_api_no_leaks(status_data)
 
-    board = client.get(f"/api/v1/games/{game_id}/board", headers=_auth_headers(api_key))
+    board = client.get(f"/api/v1/games/{game_id}/board", headers=auth_headers(api_key))
     assert board.status_code == 200
     assert board.headers["content-type"] == "image/png"
     assert board.content[:8] == b"\x89PNG\r\n\x1a\n"
 
     move = client.post(
         f"/api/v1/games/{game_id}/move/e2e4",
-        headers=_auth_headers(api_key),
+        headers=auth_headers(api_key),
     )
     assert move.status_code == 200
     move_data = move.json()
     assert move_data["ok"] is True
-    _assert_no_leaks(move_data)
+    assert_game_api_no_leaks(move_data)
 
     bad_move = client.post(
         f"/api/v1/games/{game_id}/move/a9a9",
-        headers=_auth_headers(api_key),
+        headers=auth_headers(api_key),
     )
     assert bad_move.status_code == 400
     assert bad_move.json()["ok"] is False
-    _assert_no_leaks(bad_move.json())
+    assert_game_api_no_leaks(bad_move.json())
 
-    pgn_blocked = client.get(f"/api/v1/games/{game_id}/pgn", headers=_auth_headers(api_key))
+    pgn_blocked = client.get(f"/api/v1/games/{game_id}/pgn", headers=auth_headers(api_key))
     assert pgn_blocked.status_code == 400
     assert pgn_blocked.json()["ok"] is False
 
-    resign = client.post(f"/api/v1/games/{game_id}/resign", headers=_auth_headers(api_key))
+    resign = client.post(f"/api/v1/games/{game_id}/resign", headers=auth_headers(api_key))
     assert resign.status_code == 200
     resign_data = resign.json()
     assert resign_data["ok"] is True
-    _assert_no_leaks(resign_data)
+    assert_game_api_no_leaks(resign_data)
 
-    pgn = client.get(f"/api/v1/games/{game_id}/pgn", headers=_auth_headers(api_key))
+    pgn = client.get(f"/api/v1/games/{game_id}/pgn", headers=auth_headers(api_key))
     assert pgn.status_code == 200
     pgn_data = pgn.json()
     assert pgn_data["ok"] is True
     assert "pgn" in pgn_data
-    _assert_no_leaks(pgn_data)
+    assert_game_api_no_leaks(pgn_data)
 
     leaderboard = client.get("/api/v1/leaderboard")
     assert leaderboard.status_code == 200
@@ -163,12 +112,12 @@ def test_api_v1_auth_and_model_mismatch(api_client):
 
     create = client.post(
         "/api/v1/games",
-        headers=_auth_headers(key_a),
+        headers=auth_headers(key_a),
         json={"opponent": LOW_OPPONENT, "agent_color": "white"},
     )
     game_id = create.json()["game_id"]
 
-    denied = client.get(f"/api/v1/games/{game_id}/status", headers=_auth_headers(key_b))
+    denied = client.get(f"/api/v1/games/{game_id}/status", headers=auth_headers(key_b))
     assert denied.status_code == 401
 
     missing = client.get(f"/api/v1/games/{game_id}/status")
@@ -176,7 +125,7 @@ def test_api_v1_auth_and_model_mismatch(api_client):
 
     unknown = client.get(
         "/api/v1/games/missing-game/status",
-        headers=_auth_headers(key_a),
+        headers=auth_headers(key_a),
     )
     assert unknown.status_code == 404
 
@@ -190,12 +139,12 @@ def test_api_v1_board_text_fallback_is_live_and_authenticated(api_client):
 
     create = client.post(
         "/api/v1/games",
-        headers=_auth_headers(api_key),
+        headers=auth_headers(api_key),
         json={"opponent": LOW_OPPONENT, "agent_color": "white"},
     )
     game_id = create.json()["game_id"]
 
-    board = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(api_key))
+    board = client.get(f"/api/v1/games/{game_id}/board.txt", headers=auth_headers(api_key))
     assert board.status_code == 200
     assert board.headers["content-type"].startswith("text/plain")
     assert board.headers["cache-control"] == "no-store"
@@ -204,12 +153,12 @@ def test_api_v1_board_text_fallback_is_live_and_authenticated(api_client):
     assert "fen" not in board.text.lower()
     assert "legal" not in board.text.lower()
 
-    denied = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(other_key))
+    denied = client.get(f"/api/v1/games/{game_id}/board.txt", headers=auth_headers(other_key))
     assert denied.status_code == 401
 
-    moved = client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=_auth_headers(api_key))
+    moved = client.post(f"/api/v1/games/{game_id}/move/e2e4", headers=auth_headers(api_key))
     assert moved.status_code == 200
-    updated = client.get(f"/api/v1/games/{game_id}/board.txt", headers=_auth_headers(api_key))
+    updated = client.get(f"/api/v1/games/{game_id}/board.txt", headers=auth_headers(api_key))
     assert "4 . . . . P . . ." in updated.text
 
 
@@ -220,7 +169,7 @@ def test_api_v1_status_includes_play_rating(api_client):
 
     create = client.post(
         "/api/v1/games",
-        headers=_auth_headers(api_key),
+        headers=auth_headers(api_key),
         json={"opponent": LOW_OPPONENT, "agent_color": "white"},
     )
     game_id = create.json()["game_id"]
@@ -241,7 +190,7 @@ def test_api_v1_status_includes_play_rating(api_client):
     )
     gm.save_state(game_id, state)
 
-    status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth_headers(api_key))
+    status = client.get(f"/api/v1/games/{game_id}/status", headers=auth_headers(api_key))
     assert status.status_code == 200
     data = status.json()
     assert data["ok"] is True
@@ -249,4 +198,4 @@ def test_api_v1_status_includes_play_rating(api_client):
     assert data["black_play_rating"] == 800.0
     assert data["agent_play_rating"] == 1200.0
     assert data["white_accuracy"] == 90.0
-    _assert_no_leaks(data)
+    assert_game_api_no_leaks(data)

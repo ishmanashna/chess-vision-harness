@@ -26,17 +26,19 @@ def test_opponent_ladder_cli_lists_catalog_ids():
 def test_calibration_html_phase2_slim():
     html = render_calibration_html()
     assert "Quality samples" in html
-    assert "Play rating" in html
+    assert "Performance" in html
+    assert "Play rating" not in html
     assert "A Q" not in html
     assert "B Acc" not in html
     assert "function fmtEstDelta" not in html
     assert "function fmtEstimatorHoldout" not in html
     assert "No champion set" not in html
     assert 'colspan="7"' in html
-    assert "Play rating" in html
+    assert "Performance" in html
+    assert "Play rating" not in html
     assert "Estimated Elo" not in html
     assert "function fmtPlayRating" in html
     assert "function parFieldId" in html
     assert 'name="${esc(parId)}"' in html
-    assert "running" not in html
     assert " live</span>" in html
+    assert "refreshLive" in html

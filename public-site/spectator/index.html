@@ -53,7 +53,8 @@
       <section class="offline-panel" aria-labelledby="active-heading" data-games-list data-game-status="in_progress" data-spec-panel="active">
         <h3 id="active-heading" class="visually-hidden">Active games</h3>
         <div data-games-live data-requires-origin hidden>
-          <table class="leaderboard-table games-table" data-games-table aria-label="Active games">
+          <div class="table-scroll-wrap">
+          <table class="leaderboard-table games-table" data-games-table data-list-kind="active" aria-label="Active games">
             <colgroup>
               <col class="col-game"/><col class="col-mode"/><col class="col-side"/><col class="col-elo"/>
               <col class="col-side"/><col class="col-elo"/><col class="col-quality"/><col class="col-est-elo"/>
@@ -77,6 +78,7 @@
               <tr><td colspan="10" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
+          </div>
           <p class="snapshot-meta" data-games-meta hidden></p>
         </div>
       </section>
@@ -84,7 +86,8 @@
       <section class="offline-panel" aria-labelledby="completed-heading" data-games-list data-game-status="finished" data-spec-panel="completed" hidden>
         <h3 id="completed-heading" class="visually-hidden">Completed games</h3>
         <div data-games-live data-requires-origin hidden>
-          <table class="leaderboard-table games-table" data-games-table aria-label="Completed games">
+          <div class="table-scroll-wrap">
+          <table class="leaderboard-table games-table" data-games-table data-list-kind="completed" aria-label="Completed games">
             <colgroup>
               <col class="col-game"/><col class="col-mode"/><col class="col-side"/><col class="col-elo"/>
               <col class="col-side"/><col class="col-elo"/><col class="col-quality"/><col class="col-est-elo"/>
@@ -108,6 +111,7 @@
               <tr><td colspan="10" class="empty-state">Loading…</td></tr>
             </tbody>
           </table>
+          </div>
           <p class="snapshot-meta" data-games-meta hidden></p>
         </div>
       </section>
@@ -121,10 +125,11 @@
 
       <section class="offline-panel" aria-labelledby="puzzles-heading" data-attempts-list data-attempts-kind="puzzles" data-spec-panel="puzzles" hidden>
         <h3 id="puzzles-heading" class="visually-hidden">Puzzle attempts</h3>
+        <div class="table-scroll-wrap">
         <table class="leaderboard-table games-table" data-attempts-table aria-label="Puzzle attempts">
           <colgroup>
             <col class="col-game"/><col class="col-side"/><col class="col-result"/><col class="col-result"/>
-            <col class="col-quality"/><col class="col-quality"/><col class="col-updated"/>
+            <col class="col-quality"/><col class="col-quality"/><col class="col-quality"/><col class="col-updated"/>
           </colgroup>
           <thead>
             <tr>
@@ -133,18 +138,21 @@
               <th scope="col" data-sort="status">Status</th>
               <th scope="col" data-sort="result">Result</th>
               <th scope="col" data-sort="puzzle_rating">Rating</th>
-              <th scope="col" data-sort="moves">Moves</th>
+              <th scope="col" data-sort="moves" title="Moves the agent played in this attempt">Moves (puzzle)</th>
+              <th scope="col" data-sort="puzzles" title="Agent's cumulative finished puzzle attempts">Puzzles</th>
               <th scope="col" data-sort="startedMs">Started</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+            <tr><td colspan="8" class="empty-state">Loading…</td></tr>
           </tbody>
         </table>
+        </div>
       </section>
 
       <section class="offline-panel" aria-labelledby="identify-heading" data-attempts-list data-attempts-kind="identify" data-spec-panel="identify" hidden>
         <h3 id="identify-heading" class="visually-hidden">Board-identification attempts</h3>
+        <div class="table-scroll-wrap">
         <table class="leaderboard-table games-table" data-attempts-table aria-label="Board-identification attempts">
           <colgroup>
             <col class="col-game"/><col class="col-side"/><col class="col-result"/><col class="col-result"/>
@@ -165,6 +173,7 @@
             <tr><td colspan="7" class="empty-state">Loading…</td></tr>
           </tbody>
         </table>
+        </div>
       </section>
     </main>
 

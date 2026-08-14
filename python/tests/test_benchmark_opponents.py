@@ -1,12 +1,15 @@
 """Smoke test for opponent speed benchmark script."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "benchmark_opponents.py"
+
+pytestmark = pytest.mark.slow
 
 
 def test_benchmark_random_opponent_smoke():

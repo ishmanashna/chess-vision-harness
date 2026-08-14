@@ -12,7 +12,7 @@ from chess_harness.quality_finish import (
     run_provisional_game_quality,
     schedule_provisional_game_quality,
 )
-from chess_harness.spectator_game_page import render_game_view_page
+from chess_harness.spectator_game_page import load_game_view_shell
 
 
 def _stub_quality(white_acc: float = 88.5, black_acc: float = 91.2) -> GameQuality:
@@ -43,12 +43,18 @@ def _write_pgn(gm: GameManager, game_id: str) -> None:
 def test_meta_grid_dd_wraps_words_not_chars():
     from pathlib import Path
 
-    html = render_game_view_page("wrap-test")
-    assert "minmax(5.5rem,42%)" in html
-    assert "minmax(5rem,1fr)" in html
-    assert "overflow-wrap:break-word" in html
-    assert "word-break:normal" in html
-    assert "min-width:0" in html
+    html = load_game_view_shell()
+    watch_css = (
+        Path(__file__).resolve().parents[2]
+        / "public-site"
+        / "css"
+        / "watch.css"
+    ).read_text(encoding="utf-8")
+    assert "minmax(5.5rem, 42%)" in watch_css
+    assert "minmax(5rem, 1fr)" in watch_css
+    assert "overflow-wrap: break-word" in watch_css
+    assert "word-break: normal" in watch_css
+    assert "min-width: 0" in watch_css
     assert "No ELO change recorded yet." not in html
     js = (Path(__file__).resolve().parents[2] / "public-site" / "js" / "spectator-game.js").read_text(
         encoding="utf-8"
@@ -59,7 +65,7 @@ def test_meta_grid_dd_wraps_words_not_chars():
 def test_spectator_quality_visible_before_game_over():
     from pathlib import Path
 
-    html = render_game_view_page("mid-quality")
+    html = load_game_view_shell()
     assert "Performance" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html

@@ -14,7 +14,7 @@ from conftest import FIXTURES, LOW_OPPONENT
 from chess_harness.game_manager import GameManager
 from chess_harness.move_rows import fen_at_ply
 from chess_harness.spectator import app
-from chess_harness.spectator_game_page import render_game_view_page
+from chess_harness.spectator_game_page import load_game_view_shell
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_JS = REPO_ROOT / "public-site" / "js"
@@ -155,7 +155,8 @@ def test_spectator_game_js_data_ply_and_scrub():
 
 
 def test_spectator_page_selected_ply_css():
-    html = render_game_view_page("game-phase7")
-    assert ".move-row .w.on,.move-row .b.on" in html
-    assert "cursor:pointer" in html
+    html = load_game_view_shell()
+    watch_css = (REPO_ROOT / "public-site" / "css" / "watch.css").read_text(encoding="utf-8")
+    assert ".move-row .w.on" in watch_css
+    assert "cursor: pointer" in watch_css
     assert 'type="module" src="/js/spectator-game.js"' in html

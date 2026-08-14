@@ -2,58 +2,22 @@
 
 from __future__ import annotations
 
-import shutil
-from typing import Any
-
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import FIXTURES
+from harness_client import configure_spectator_harness, make_test_client, teardown_spectator_harness
+from leak_guards import assert_game_api_no_leaks
 
 from chess_harness.game_manager import GameManager
 from chess_harness.game_types import GAME_TYPE_AGENT_VS_AGENT
-from chess_harness.spectator import app
-
-_FORBIDDEN_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen"})
-
-
-def _assert_no_leaks(obj: Any) -> None:
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            assert key not in _FORBIDDEN_KEYS
-            _assert_no_leaks(value)
-    elif isinstance(obj, list):
-        for item in obj:
-            _assert_no_leaks(item)
 
 
 @pytest.fixture
 def avaa_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-
-    import chess_harness.api_limits as api_limits
-    import chess_harness.spectator as spec
-
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
+    harness_dir = configure_spectator_harness(tmp_path / "harness", monkeypatch)
+    client = make_test_client()
     yield client, harness_dir
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._game_service = None
-    spec._controller = None
-    if spec._engine is not None:
-        spec._engine.quit()
-        spec._engine = None
-    if hasattr(spec._get_controller(), "opponent_mgr"):
-        spec._get_controller().opponent_mgr.release()
+    teardown_spectator_harness()
 
 
 def _auth(api_key: str) -> dict[str, str]:
@@ -86,7 +50,7 @@ def _create_avaa(
     assert data["ok"] is True
     assert data.get("agent_color") == "WHITE"
     assert data.get("your_turn") is True
-    _assert_no_leaks(data)
+    assert_game_api_no_leaks(data)
     return data["game_id"]
 
 
@@ -134,7 +98,7 @@ def test_avaa_turn_and_board_access(avaa_client):
     assert move.status_code == 200
     move_data = move.json()
     assert move_data["your_turn"] is False
-    _assert_no_leaks(move_data)
+    assert_game_api_no_leaks(move_data)
 
     white_status = client.get(f"/api/v1/games/{game_id}/status", headers=_auth(white_key))
     assert white_status.status_code == 200
@@ -181,7 +145,7 @@ def test_avaa_few_plies_no_engine(avaa_client):
             headers=_auth(key),
         )
         assert resp.status_code == 200, resp.text
-        _assert_no_leaks(resp.json())
+        assert_game_api_no_leaks(resp.json())
 
     state = GameManager(str(harness_dir)).load_state(game_id)
     assert state is not None

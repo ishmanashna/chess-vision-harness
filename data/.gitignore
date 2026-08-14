@@ -1,0 +1,4 @@
+# Runtime scored-game archive — backup via scripts/backup_harness.py, not git.
+finished_games.sqlite
+*.sqlite
+!*.gitkeep

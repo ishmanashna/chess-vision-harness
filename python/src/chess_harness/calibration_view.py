@@ -11,9 +11,9 @@ from .opponents import Opponent, OpponentCatalog, get_catalog
 from .paths import project_root
 
 def _continuous_mgr():
-    from .continuous_calibration import get_continuous_calibration
+    from .continuous_calibration import resolve_calibration_manager
 
-    return get_continuous_calibration()
+    return resolve_calibration_manager()
 
 
 def _results_root() -> Path:
@@ -184,6 +184,53 @@ def enrich_rating_table_activity(
     return enriched
 
 
+def get_calibration_status_live() -> Dict[str, Any]:
+    """Lightweight poll payload — live activity only (no rating table or quality maps)."""
+    from .calibration_worker_ipc import calibration_in_process
+    from .continuous_calibration import (
+        PARALLEL_CONFIRM_ABOVE,
+        fleet_parallel_confirm_above,
+        fleet_parallel_hard_cap,
+        parallel_hard_cap,
+    )
+
+    mgr = _continuous_mgr()
+    running = mgr.running_engines()
+    cont = mgr.status_payload()
+    payload: Dict[str, Any] = {
+        "mode": "continuous" if running else "idle",
+        "active": bool(running),
+        "continuous_engines": sorted(running),
+        "parallel_by_engine": cont.get("parallel_by_engine", {}),
+        "skipped_games": cont.get("skipped_games", 0),
+        "workers": len(running),
+        "in_progress": sum(cont.get("in_flight_by_engine", {}).values()),
+        "in_flight_by_engine": cont.get("in_flight_by_engine", {}),
+        "recent_games": cont.get("recent_games", [])[-30:],
+        "updated_at": cont.get("updated_at"),
+        "process_pool_workers": cont.get("process_pool_workers"),
+        "pairing_mode": cont.get("pairing_mode"),
+        "fixed_opponent_id": cont.get("fixed_opponent_id"),
+        "pairing_locked": bool(running),
+        "parallel_hard_cap": parallel_hard_cap(),
+        "parallel_confirm_above": PARALLEL_CONFIRM_ABOVE,
+        "fleet_parallel_in_use": cont.get("fleet_parallel_in_use", 0),
+        "fleet_parallel_hard_cap": cont.get("fleet_parallel_hard_cap", fleet_parallel_hard_cap()),
+        "fleet_parallel_confirm_above": cont.get(
+            "fleet_parallel_confirm_above", fleet_parallel_confirm_above()
+        ),
+        "calibratable_engines": cont.get("calibratable_engines", []),
+    }
+    if not calibration_in_process():
+        from .calibration_supervisor import calibration_worker_error, calibration_worker_healthy
+
+        payload["calibration_worker_ok"] = calibration_worker_healthy()
+        worker_err = calibration_worker_error()
+        if worker_err:
+            payload["calibration_worker_error"] = worker_err
+    return payload
+
+
 def get_calibration_status() -> Dict[str, Any]:
     global _STATUS_CACHE
     now = time.monotonic()
@@ -286,6 +333,9 @@ def get_calibration_status() -> Dict[str, Any]:
         "fixed_opponent_id": cont.get("fixed_opponent_id"),
         "pairing_opponents": cont.get("pairing_opponents", []),
         "calibratable_engines": cont.get("calibratable_engines", []),
+        "pairing_locked": bool(running),
+        "parallel_hard_cap": cont.get("parallel_hard_cap"),
+        "parallel_confirm_above": cont.get("parallel_confirm_above"),
         "play_rating": {
             "sample_count": play_rating["sample_count"],
             "min_samples": play_rating["min_samples"],

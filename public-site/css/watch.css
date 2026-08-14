@@ -1,0 +1,676 @@
+/**
+ * Shared watch layout: /g/, /p/, /i/ (and play board sizing patterns).
+ * Three-column grid above 1280px; stacked below so the board dominates at 1024–1280.
+ */
+
+.watch-layout,
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) max-content minmax(220px, 300px);
+  gap: 12px;
+  align-items: start;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.watch-layout .col h2,
+.layout .col h2 {
+  margin: 0 0 12px;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.watch-info-col,
+.info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.watch-info-card,
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.watch-info-card h2,
+.info-card h2 {
+  margin: 0 0 10px;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.watch-meta-grid,
+.meta-grid {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 42%) minmax(5rem, 1fr);
+  gap: 6px 12px;
+  font-size: 0.86em;
+  line-height: 1.45;
+}
+
+.watch-meta-grid dt,
+.meta-grid dt {
+  color: var(--faint);
+  margin: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  min-width: 0;
+}
+
+.watch-meta-grid dd,
+.meta-grid dd {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
+  word-break: normal;
+  min-width: 0;
+}
+
+.watch-meta-grid > [hidden],
+.meta-grid > [hidden] {
+  display: none !important;
+}
+
+.watch-board-col,
+.board-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.watch-board-stack,
+.board-stack {
+  display: inline-flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 1px 4px var(--shadow, rgba(0, 0, 0, 0.06));
+}
+
+.watch-board-label,
+.board-label {
+  padding: 11px 16px;
+  text-align: center;
+  font-size: 0.93em;
+  font-weight: 600;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.watch-board-label.black,
+.board-label.black {
+  border-bottom: 1px solid var(--border);
+}
+
+.watch-board-label.white,
+.board-label.white {
+  border-top: 1px solid var(--border);
+}
+
+.watch-board-label .sub,
+.board-label .sub {
+  display: block;
+  font-size: 0.76em;
+  font-weight: 400;
+  color: var(--faint);
+  margin-top: 3px;
+}
+
+.watch-board-row,
+.board-row {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Side columns ~280+220+24+18(eval) ≈ 542; use 560 so board keeps room above 1280px */
+.watch-board-wrap,
+.spec-board-wrap,
+.puzzle-board-wrap {
+  display: block;
+  background: var(--surface);
+  width: min(600px, calc(100vh - 220px), calc(100vw - 560px));
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.watch-board-wrap .cm-chessboard,
+.spec-board-wrap .cm-chessboard,
+.spec-board-wrap .spec-board,
+.puzzle-board-wrap .cm-chessboard,
+.puzzle-board-wrap .puzzle-board {
+  width: 100%;
+  height: 100%;
+}
+
+.watch-moves-col,
+.moves-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 140px);
+}
+
+.watch-moves-col .panel,
+.moves-col .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.watch-moves-col .panel h2,
+.moves-col .panel h2 {
+  padding: 14px 16px 0;
+  margin: 0;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.watch-moves-scroll,
+.moves-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 12px 14px;
+}
+
+.watch-move-row,
+.move-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 1fr;
+  gap: 8px;
+  padding: 7px 4px;
+  font-size: 0.88em;
+  border-bottom: 1px solid var(--row);
+}
+
+.watch-move-row:last-child,
+.move-row:last-child {
+  border-bottom: none;
+}
+
+.watch-move-row .mn,
+.move-row .mn {
+  color: var(--faint);
+  text-align: right;
+  font-size: 0.82em;
+}
+
+.watch-move-row .w,
+.watch-move-row .b,
+.move-row .w,
+.move-row .b {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 2px 4px;
+  min-height: 1.2em;
+}
+
+.watch-move-row .w:empty,
+.watch-move-row .b:empty,
+.move-row .w:empty,
+.move-row .b:empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.watch-move-row .w.on,
+.watch-move-row .b.on,
+.move-row .w.on,
+.move-row .b.on {
+  font-weight: 700;
+  background: var(--row);
+}
+
+.watch-move-row .w.is-wrong,
+.move-row .w.is-wrong {
+  font-weight: 700;
+  color: var(--danger, #c0392b);
+}
+
+.watch-chain-list,
+.chain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.86em;
+}
+
+.watch-chain-list li,
+.chain-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--row);
+}
+
+.watch-chain-list li:last-child,
+.chain-list li:last-child {
+  border-bottom: none;
+}
+
+.watch-chain-list a,
+.chain-list a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.watch-chain-list a:hover,
+.chain-list a:hover {
+  text-decoration: underline;
+}
+
+.watch-chain-list .chain-you,
+.chain-list .chain-you {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.watch-follow-banner,
+.follow-banner {
+  display: none;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent, #6b8afd);
+  border-radius: 6px;
+  font-size: 0.84em;
+  color: var(--accent, #6b8afd);
+}
+
+.watch-poll-error {
+  display: none;
+  margin: 0 auto 14px;
+  padding: 10px 14px;
+  max-width: 960px;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  color: var(--warn);
+  background: var(--banner-offline-bg);
+  border: 1px solid var(--banner-offline-border);
+  text-align: center;
+}
+
+.watch-poll-error.is-visible {
+  display: block;
+}
+
+/* Identify review: answer overlay stacks on the board when columns stack */
+.watch-answer-wrap,
+.answer-img-wrap {
+  margin-top: 14px;
+  display: none;
+}
+
+.watch-answer-wrap img,
+.answer-img-wrap img {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.watch-answer-wrap .cap,
+.answer-img-wrap .cap {
+  padding: 8px 2px 0;
+  font-size: 0.78em;
+  color: var(--faint);
+  text-align: center;
+}
+
+.watch-results-table,
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84em;
+  margin-top: 8px;
+}
+
+.watch-results-table th,
+.watch-results-table td,
+.results-table th,
+.results-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.watch-results-table th,
+.results-table th {
+  color: var(--faint);
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.watch-results-table .badge,
+.results-table .badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 0.74em;
+}
+
+.badge.exact {
+  background: rgba(0, 180, 0, 0.14);
+  color: #2e7d32;
+}
+
+.badge.missing,
+.badge.extra,
+.badge.wrong_color,
+.badge.wrong_type {
+  background: rgba(220, 40, 40, 0.12);
+  color: #c0392b;
+}
+
+/* Stack before the board would shrink in a squeezed 3-column band (1024–1280). */
+@media (max-width: 1280px) {
+  .watch-layout,
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .watch-board-col,
+  .board-col {
+    order: -1;
+  }
+
+  .watch-board-wrap,
+  .spec-board-wrap,
+  .puzzle-board-wrap {
+    width: min(100%, 560px);
+    max-width: 560px;
+  }
+
+  .watch-moves-col,
+  .moves-col {
+    max-height: 360px;
+  }
+
+  .watch-answer-wrap.is-review,
+  .answer-img-wrap.is-review {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    margin: 0;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    pointer-events: none;
+  }
+
+  .watch-answer-wrap.is-review img,
+  .answer-img-wrap.is-review img {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+
+  .watch-answer-wrap.is-review .cap,
+  .answer-img-wrap.is-review .cap {
+    flex-shrink: 0;
+    padding-top: 6px;
+  }
+
+  .watch-board-stack,
+  .board-stack {
+    position: relative;
+    width: min(100%, 560px);
+  }
+}
+
+/* /g/ game spectator shell (static Pages; was inline in Python template) */
+.game-view .info-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.game-view .info-col-head:has(#info-panel-toggle[hidden]) {
+  display: none;
+}
+
+.game-view .info-panel-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.game-view .info-panel-toggle:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.game-view .info-panel-toggle[hidden] {
+  display: none;
+}
+
+.game-view .info-panel-slot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-view .info-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.game-view .info-stack.is-covered {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.game-view .spec-chat-panel[hidden] {
+  display: none !important;
+}
+
+.game-view .spec-chat-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.game-view .spec-chat-panel h2 {
+  margin: 0;
+  padding: 14px 16px 10px;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.game-view .spec-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.game-view .spec-chat-log:empty::before {
+  content: "No messages yet.";
+  color: var(--faint);
+  font-size: 0.84rem;
+}
+
+.game-view .spec-chat-msg {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.game-view .spec-chat-who {
+  font-weight: 600;
+  margin-right: 0.35em;
+}
+
+.game-view .spec-chat-msg.is-human .spec-chat-who {
+  color: var(--ok);
+}
+
+.game-view .spec-chat-msg.is-agent .spec-chat-who {
+  color: var(--accent, #6b8afd);
+}
+
+.game-view .spec-chat-who::after {
+  content: ":";
+  font-weight: 600;
+}
+
+.game-view .spec-chat-text {
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.game-view .quality-pending {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.game-view #state-result {
+  font-weight: 700;
+}
+
+.game-view .export-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--row);
+  font-size: 0.84em;
+}
+
+.game-view .export-link,
+.game-view .export-links a {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.game-view .export-link:hover,
+.game-view .export-links a:hover {
+  opacity: 0.85;
+}
+
+.game-view .export-sep {
+  color: var(--faint);
+  user-select: none;
+}
+
+.game-view .export-hint {
+  font-size: 0.9em;
+  color: var(--faint);
+  min-height: 1.2em;
+}
+
+.game-view .eval-col-v {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: 0;
+}
+
+.game-view .eval-track-v {
+  width: 18px;
+  background: var(--surface);
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  flex: 1;
+  min-height: 120px;
+  margin: 0;
+}
+
+.game-view .eval-black {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--text);
+  transition: height 0.5s ease;
+}
+
+.puzzle-view #state-result,
+.identify-view #state-result {
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .watch-board-wrap,
+  .spec-board-wrap,
+  .puzzle-board-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .watch-board-stack,
+  .board-stack {
+    width: 100%;
+  }
+}

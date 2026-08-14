@@ -115,6 +115,24 @@ def test_manager_release_quits_all_pooled_adapters():
             eng.quit.assert_called()
 
 
+def test_manager_trim_keeps_most_recent_adapter():
+    from chess_harness.engine import OpponentEngineManager
+    from chess_harness.opponents import get_catalog
+
+    with patch("chess_harness.engine.chess.engine.SimpleEngine.popen_uci") as popen:
+        engines = [MagicMock(), MagicMock()]
+        popen.side_effect = engines
+        catalog = get_catalog()
+        mgr = OpponentEngineManager()
+        mgr.get_adapter(catalog.get("stockfish-handicap:noise10"))
+        mgr.get_adapter(catalog.get("inverse-sf:worst-d10"))
+        assert mgr.live_adapter_count() == 2
+        mgr.trim(1)
+        assert mgr.live_adapter_count() == 1
+        engines[0].quit.assert_called()
+        mgr.release()
+
+
 def test_stockfish_pool_reuses_subprocess():
     from chess_harness.engine import OpponentEngineManager
     from chess_harness.opponents import get_catalog

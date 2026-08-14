@@ -3,54 +3,19 @@
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
 
-import pytest
-from fastapi.testclient import TestClient
-
-from conftest import FIXTURES, LOW_OPPONENT
+from conftest import LOW_OPPONENT
 
 from chess_harness.game_manager import GameManager
 from chess_harness.game_service import GameService
 from chess_harness.game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT
 from chess_harness.limits import HarnessLimits
 from chess_harness.models import ModelRegistry
-from chess_harness.spectator import _enrich_list_game, app
+from chess_harness.spectator import _enrich_list_game
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_SITE = REPO_ROOT / "public-site"
-
-
-@pytest.fixture
-def list_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-
-    import chess_harness.api_limits as api_limits
-    import chess_harness.spectator as spec
-
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
-    yield client, harness_dir
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._game_service = None
-    spec._controller = None
-    if spec._engine is not None:
-        spec._engine.quit()
-        spec._engine = None
-    try:
-        spec._get_controller().opponent_mgr.release()
-    except Exception:
-        pass
 
 
 def test_enrich_list_game_defaults_game_type():
@@ -285,6 +250,9 @@ def test_spectator_attempts_tabs_wired(list_client):
     assert 'data-attempts-table' in html
     assert "/js/attempts-list.js" in html
     assert 'data-sort="puzzle_rating"' in html
+    assert 'data-sort="puzzles"' in html
+    assert "Moves (puzzle)" in html
+    assert 'colspan="8"' in html
     assert 'data-sort="accuracy"' in html
     assert 'data-sort="full"' in html
     assert "themes" not in html.lower()
@@ -299,6 +267,8 @@ def test_spectator_attempts_tabs_wired(list_client):
     lists_js = (PUBLIC_SITE / "js" / "attempts-list.js").read_text(encoding="utf-8")
     assert "/api/v1/puzzles/public/attempts" in lists_js
     assert "/api/v1/identify/public/attempts" in lists_js
+    assert "/api/leaderboard/puzzles/live" in lists_js
     assert 'WATCH_PREFIX = { puzzles: "/p/", identify: "/i/" }' in lists_js
+    assert "PUZZLE_COLSPAN = 8" in lists_js
     assert "CVH.refreshAttemptsLists" in lists_js
     assert "empty-state" in lists_js

@@ -121,6 +121,21 @@ def main(argv: list[str] | None = None) -> None:
     elif args[0] == "rebuild-elo":
         commands.cmd_rebuild_elo()
 
+    elif args[0] in ("calibration-worker", "calibrate-worker"):
+        host = "127.0.0.1"
+        port = None
+        i = 1
+        while i < len(args):
+            if args[i] == "--host" and i + 1 < len(args):
+                host = args[i + 1]
+                i += 2
+            elif args[i] == "--port" and i + 1 < len(args):
+                port = int(args[i + 1])
+                i += 2
+            else:
+                i += 1
+        commands.cmd_calibration_worker(host=host, port=port)
+
     elif args[0] == "serve":
         if len(args) > 1 and args[1] == "stop":
             port = 8765

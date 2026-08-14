@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/g/:id", "destination": "/g/index.html" },
+    { "source": "/p/:id", "destination": "/p/index.html" },
+    { "source": "/i/:id", "destination": "/i/index.html" },
+    { "source": "/play/:id", "destination": "/play/index.html" }
+  ]
+}

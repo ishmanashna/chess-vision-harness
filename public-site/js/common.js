@@ -603,6 +603,37 @@
     return s;
   }
 
+  /** Shared height sync for /g/, /p/, /i/ watch layouts. */
+  function syncWatchHeights(options) {
+    options = options || {};
+    var wrap = document.getElementById(options.boardWrapId || "board-wrap");
+    var track = document.getElementById(options.evalTrackId || "eval-track");
+    var movesCol = document.getElementById(options.movesColId || "moves-col");
+    var infoCol = document.querySelector(options.infoColSelector || ".info-col");
+    var stack = document.querySelector(options.stackSelector || ".board-stack");
+    if (wrap && track && wrap.offsetHeight) {
+      track.style.height = wrap.offsetHeight + "px";
+    }
+    var ref = (stack && stack.offsetHeight) ? stack : wrap;
+    if (ref && ref.offsetHeight) {
+      var h = ref.offsetHeight + "px";
+      if (movesCol) movesCol.style.maxHeight = h;
+      if (infoCol) infoCol.style.height = h;
+    }
+  }
+
+  function showWatchPollError(message) {
+    var el = document.getElementById("poll-error");
+    if (!el) return;
+    if (message) {
+      el.textContent = message;
+      el.classList.add("is-visible");
+    } else {
+      el.textContent = "";
+      el.classList.remove("is-visible");
+    }
+  }
+
   window.CVH = window.CVH || {};
   window.CVH.applyHealthUi = applyHealthUi;
   window.CVH.mountLeaderboardTable = mountLeaderboardTable;
@@ -615,6 +646,8 @@
   window.CVH.isProvisional = isProvisional;
   window.CVH.nameWithoutElo = nameWithoutElo;
   window.CVH.abbreviateListName = abbreviateListName;
+  window.CVH.syncWatchHeights = syncWatchHeights;
+  window.CVH.showWatchPollError = showWatchPollError;
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();

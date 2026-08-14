@@ -170,6 +170,32 @@ def resolve_finished_games_db() -> Path:
     )
 
 
+def resolve_calibration_worker_dir() -> Path:
+    """Runtime dir for calibration worker IPC (status file, pid marker)."""
+    return resolve_base_dir() / "calibration_worker"
+
+
+def default_calibration_worker_port() -> int:
+    raw = os.getenv("CHESS_HARNESS_CALIBRATION_WORKER_PORT", "8766")
+    try:
+        return max(1024, min(65535, int(raw)))
+    except ValueError:
+        return 8766
+
+
+def resolve_publish_snapshots_dir() -> Path:
+    """Runtime leaderboard snapshot dir (never committed).
+
+    ``chess-harness serve`` writes debounced snapshots here after rated finishes
+    and calibration ticks. Intentional Sleeping publish uses
+    ``chess-harness snapshot-leaderboard`` → ``public-site/data/*.json``.
+    """
+    return _resolve_env_path(
+        "CHESS_HARNESS_PUBLISH_DIR",
+        resolve_base_dir() / "publish",
+    )
+
+
 def ensure_models_file() -> Path:
     """Create runtime models.json from config example if missing."""
     path = resolve_models_file()

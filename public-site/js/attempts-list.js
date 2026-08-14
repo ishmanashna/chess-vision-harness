@@ -19,6 +19,9 @@
 
   var WATCH_PREFIX = { puzzles: "/p/", identify: "/i/" };
 
+  var PUZZLE_COLSPAN = 8;
+  var IDENTIFY_COLSPAN = 7;
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, "&amp;")
@@ -68,7 +71,29 @@
     return "No board-identification attempts yet — agents start them via the Board identification flow on the Create Game page.";
   }
 
-  function normalizeAttempt(row, kind) {
+  function colspanFor(kind) {
+    return kind === "puzzles" ? PUZZLE_COLSPAN : IDENTIFY_COLSPAN;
+  }
+
+  function fetchPuzzleTotalsByAgent() {
+    return fetch("/api/leaderboard/puzzles/live")
+      .then(function (res) {
+        return res.ok ? res.json() : null;
+      })
+      .catch(function () {
+        return null;
+      })
+      .then(function (data) {
+        var map = {};
+        ((data && data.agents) || []).forEach(function (agent) {
+          var key = agent.name || agent.id;
+          if (key) map[key] = agent.attempts != null ? agent.attempts : 0;
+        });
+        return map;
+      });
+  }
+
+  function normalizeAttempt(row, kind, puzzleTotals) {
     var startedMs = row.started_at ? Date.parse(row.started_at) || 0 : 0;
     var common = {
       attempt_id: row.attempt_id || "",
@@ -84,6 +109,8 @@
       common.puzzle_rating =
         row.puzzle_rating != null ? String(row.puzzle_rating) : "—";
       common.moves = row.moves_played != null ? String(row.moves_played) : "—";
+      var total = puzzleTotals && puzzleTotals[row.agent_name];
+      common.puzzles = total != null ? String(total) : "—";
     } else {
       common.accuracy = fmtAccuracy(row.accuracy);
       common.full =
@@ -114,8 +141,15 @@
   }
 
   function renderRows(rows, kind) {
+    var colspan = colspanFor(kind);
     if (!rows.length) {
-      return '<tr><td colspan="8" class="empty-state">' + escapeHtml(emptyText(kind)) + "</td></tr>";
+      return (
+        '<tr><td colspan="' +
+        colspan +
+        '" class="empty-state">' +
+        escapeHtml(emptyText(kind)) +
+        "</td></tr>"
+      );
     }
     return rows
       .map(function (row) {
@@ -162,10 +196,12 @@
     function paint() {
       if (!tbody) return;
       tbody.innerHTML = renderRows(
-        ts ? ts.sortRows(cache, sortKey, sortDir, {
-          numericKeys: NUMERIC_SORT_KEYS,
-          tieKey: "attempt_id",
-        }) : cache,
+        ts
+          ? ts.sortRows(cache, sortKey, sortDir, {
+              numericKeys: NUMERIC_SORT_KEYS,
+              tieKey: "attempt_id",
+            })
+          : cache,
         kind
       );
       if (ts) ts.paintHeaders(table, sortKey, sortDir);
@@ -193,21 +229,28 @@
 
     root.refreshAttempts = function () {
       if (!tbody) return;
-      fetch(ENDPOINTS[kind])
-        .then(function (res) {
-          if (!res.ok) throw new Error("Could not load attempts");
-          return res.json();
-        })
-        .then(function (data) {
+      var attemptsReq = fetch(ENDPOINTS[kind]).then(function (res) {
+        if (!res.ok) throw new Error("Could not load attempts");
+        return res.json();
+      });
+      var totalsReq =
+        kind === "puzzles" ? fetchPuzzleTotalsByAgent() : Promise.resolve(null);
+
+      Promise.all([attemptsReq, totalsReq])
+        .then(function (parts) {
+          var data = parts[0];
+          var puzzleTotals = parts[1];
           cache = (Array.isArray(data.attempts) ? data.attempts : []).map(function (row) {
-            return normalizeAttempt(row, kind);
+            return normalizeAttempt(row, kind, puzzleTotals);
           });
           paint();
         })
         .catch(function () {
           cache = [];
           tbody.innerHTML =
-            '<tr><td colspan="8" class="empty-state">Could not load attempts — is the server online?</td></tr>';
+            '<tr><td colspan="' +
+            colspanFor(kind) +
+            '" class="empty-state">Could not load attempts — is the server online?</td></tr>';
         });
     };
   }

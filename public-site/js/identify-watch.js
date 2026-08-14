@@ -39,6 +39,18 @@ function escHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function syncHeights() {
+  if (window.CVH && typeof window.CVH.syncWatchHeights === "function") {
+    window.CVH.syncWatchHeights();
+  }
+}
+
+function showPollError(message) {
+  if (window.CVH && typeof window.CVH.showWatchPollError === "function") {
+    window.CVH.showWatchPollError(message);
+  }
+}
+
 function statusLabel(s) {
   if (s.status === "finished") {
     return s.result === "correct" ? "Identified" : "Mismatched";
@@ -117,26 +129,38 @@ async function main() {
 
   function renderAgentMetrics(state) {
     if (!window.CVH) return;
-    fetch("/api/leaderboard/identify/live")
-      .then((res) => (res.ok ? res.json() : null))
+    const modelId = state.model_id || null;
+    const rate = document.getElementById("state-agent-rate");
+    const full = document.getElementById("state-agent-full");
+    const attempts = document.getElementById("state-attempts");
+
+    function applyIdentifyAgent(agent) {
+      if (agent) {
+        if (rate) rate.textContent = fmtAccuracy(agent.mean_accuracy);
+        if (full) full.textContent = fmtAccuracy(agent.full_position_rate);
+        if (attempts) attempts.textContent =
+          String(agent.attempts != null ? agent.attempts : "—");
+      } else {
+        if (rate) rate.textContent = "—";
+        if (full) full.textContent = "—";
+        if (attempts) attempts.textContent = "—";
+      }
+    }
+
+    function loadAgents(url) {
+      return fetch(url).then((res) => (res.ok ? res.json() : null));
+    }
+
+    loadAgents("/api/leaderboard/identify/live")
+      .catch(() => loadAgents("/data/identify_leaderboard.json"))
       .then((data) => {
         const agents = (data && data.agents) || [];
-        const agent = agents.find((a) => a.name === state.agent_name);
-        const rate = document.getElementById("state-agent-rate");
-        const full = document.getElementById("state-agent-full");
-        const attempts = document.getElementById("state-attempts");
-        if (agent) {
-          if (rate) rate.textContent = fmtAccuracy(agent.mean_accuracy);
-          if (full) full.textContent = fmtAccuracy(agent.full_position_rate);
-          if (attempts) attempts.textContent =
-            String(agent.attempts != null ? agent.attempts : "—");
-        } else {
-          if (rate) rate.textContent = "—";
-          if (full) full.textContent = "—";
-          if (attempts) attempts.textContent = "—";
-        }
+        const agent = modelId
+          ? agents.find((a) => a.id === modelId)
+          : agents.find((a) => a.name === state.agent_name);
+        applyIdentifyAgent(agent);
       })
-      .catch(() => {});
+      .catch(() => applyIdentifyAgent(null));
   }
 
   function replyRows(replay) {
@@ -193,6 +217,7 @@ async function main() {
     const wrap = document.getElementById("answer-wrap");
     if (wrap) {
       wrap.style.display = "block";
+      wrap.classList.add("is-review");
       const img = document.getElementById("answer-img");
       if (img) {
         img.src = "/i/" + encodeURIComponent(ATTEMPT_ID) + "/answer.png?" + Date.now();
@@ -315,7 +340,10 @@ async function main() {
       banner.textContent = "";
     }
     const wrap = document.getElementById("answer-wrap");
-    if (wrap) wrap.style.display = "none";
+    if (wrap) {
+      wrap.style.display = "none";
+      wrap.classList.remove("is-review");
+    }
     const mv = document.getElementById("mv");
     if (mv) {
       mv.innerHTML =
@@ -365,18 +393,21 @@ async function main() {
       } else {
         startChainTracking(state);
       }
+      syncHeights();
+      showPollError("");
     } catch (e) {
-      /* ignore */
+      showPollError("Could not refresh identification state — is the server online?");
     }
   }
 
-  window.addEventListener("resize", () => {
+  window.addEventListener("resize", syncHeights);
+  if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
     if (wrap) {
-      const movesCol = document.getElementById("moves-col");
-      if (movesCol) movesCol.style.maxHeight = wrap.offsetHeight + "px";
+      const ro = new ResizeObserver(() => syncHeights());
+      ro.observe(wrap);
     }
-  });
+  }
 
   pollTimer = setInterval(poll, POLL_MS);
   poll();

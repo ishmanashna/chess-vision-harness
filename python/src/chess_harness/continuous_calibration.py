@@ -1,4 +1,4 @@
-"""Per-engine continuous calibration tied to the spectator process lifetime."""
+"""Per-engine continuous calibration (local manager in worker process)."""
 
 from __future__ import annotations
 
@@ -39,6 +39,88 @@ MATCH_SIGMA_ELO = 400.0
 MAX_PARALLEL_GAMES = 100
 SAVE_DEBOUNCE_SEC = 1.0
 PROCESS_POOL_WORKERS = max(1, min(os.cpu_count() or 4, MAX_PARALLEL_GAMES))
+# Operator safety: confirm above soft cap; hard cap prevents melting the PC.
+PARALLEL_CONFIRM_ABOVE = max(2, min(4, os.cpu_count() or 4))
+
+
+def parallel_hard_cap() -> int:
+    """Per-engine parallel hard ceiling (well below MAX_PARALLEL_GAMES)."""
+    return max(1, min(MAX_PARALLEL_GAMES, (os.cpu_count() or 4) * 2, 16))
+
+
+def fleet_parallel_hard_cap() -> int:
+    """Max total parallel calibration loops across all engines (= process pool budget)."""
+    return PROCESS_POOL_WORKERS
+
+
+def fleet_parallel_confirm_above() -> int:
+    """Fleet parallel slots above this need confirm=1 before starting more loops."""
+    return max(2, min(fleet_parallel_hard_cap(), PARALLEL_CONFIRM_ABOVE * 2))
+
+
+def fleet_parallel_in_use(mgr: "ContinuousCalibrationManager") -> int:
+    fn = getattr(mgr, "fleet_parallel_in_use", None)
+    if callable(fn):
+        return int(fn())
+    return sum(mgr._parallel.values())
+
+
+def assess_fleet_parallel(
+    mgr: "ContinuousCalibrationManager",
+    additional: int,
+    *,
+    confirm: bool,
+) -> Optional[str]:
+    """Return an error message when a start would exceed the fleet parallel budget."""
+    current = fleet_parallel_in_use(mgr)
+    projected = current + int(additional)
+    hard = fleet_parallel_hard_cap()
+    if projected > hard:
+        return (
+            f"fleet parallel would exceed cap ({hard}); "
+            f"projected {projected} (running {current} + {additional} new)"
+        )
+    soft = fleet_parallel_confirm_above()
+    if projected > soft and not confirm:
+        return f"fleet parallel>{soft} requires confirm=1"
+    return None
+
+
+def assess_parallel_start(parallel: int, *, confirm: bool) -> Optional[str]:
+    """Return an error message when parallel start must be blocked."""
+    capped = clamp_parallel(parallel)
+    hard = parallel_hard_cap()
+    if capped > hard:
+        return f"parallel exceeds hard cap ({hard})"
+    if not confirm and capped > PARALLEL_CONFIRM_ABOVE:
+        return f"parallel>{PARALLEL_CONFIRM_ABOVE} requires confirm=1"
+    return None
+
+
+def assess_start_all(
+    mgr: "ContinuousCalibrationManager",
+    parallel: int,
+    *,
+    confirm: bool,
+) -> Optional[str]:
+    """Return an error message when start-all must be blocked."""
+    err = assess_parallel_start(parallel, confirm=confirm)
+    if err:
+        return err
+    if not confirm:
+        return "start-all requires confirm=1"
+    pending = [
+        eid
+        for eid in list_calibratable_engine_ids(pairing_mode=mgr.pairing_mode())
+        if not mgr.is_running(eid)
+    ]
+    if not pending:
+        return "No calibratable engines to start for the current pairing mode"
+    capped = clamp_parallel(parallel)
+    err = assess_fleet_parallel(mgr, len(pending) * capped, confirm=confirm)
+    if err:
+        return err
+    return None
 
 PAIRING_MODES = ("floaters", "random", "anchors", "anchors-self", "fixed")
 DEFAULT_PAIRING_MODE = "floaters"
@@ -379,6 +461,9 @@ class ContinuousCalibrationManager:
     def is_running(self, engine_id: str) -> bool:
         return engine_id in self._active_engines
 
+    def fleet_parallel_in_use(self) -> int:
+        return sum(self._parallel.values())
+
     def running_engines(self) -> Set[str]:
         return set(self._active_engines)
 
@@ -395,7 +480,7 @@ class ContinuousCalibrationManager:
         if not can_continuously_calibrate(engine_id, pairing_mode=self._pairing_mode):
             raise ValueError(f"Cannot continuously calibrate engine: {engine_id}")
         if self.is_running(engine_id):
-            return
+            raise RuntimeError(f"Continuous calibration already running for {engine_id}")
         workers = clamp_parallel(parallel)
         self._ensure_executor()
         self._active_engines.add(engine_id)
@@ -600,11 +685,17 @@ class ContinuousCalibrationManager:
             "continuous_engines": sorted(running),
             "parallel_by_engine": dict(self._parallel),
             "process_pool_workers": PROCESS_POOL_WORKERS,
+            "parallel_hard_cap": parallel_hard_cap(),
+            "parallel_confirm_above": PARALLEL_CONFIRM_ABOVE,
+            "fleet_parallel_in_use": self.fleet_parallel_in_use(),
+            "fleet_parallel_hard_cap": fleet_parallel_hard_cap(),
+            "fleet_parallel_confirm_above": fleet_parallel_confirm_above(),
             "skipped_games": self._skipped_games,
             "in_flight_by_engine": dict(self._in_flight),
             "recent_games": list(self._recent_games),
             "rating_table": self._ladder.rating_table(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
+            "pairing_locked": bool(running),
         }
 
     def enrich_rating_rows(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -639,10 +730,26 @@ class ContinuousCalibrationManager:
 
 
 _manager: Optional[ContinuousCalibrationManager] = None
+_remote_manager: Optional[Any] = None
 
 
 def get_continuous_calibration() -> ContinuousCalibrationManager:
+    """Return the local calibration manager (worker process or in-process serve/tests)."""
     global _manager
     if _manager is None:
         _manager = ContinuousCalibrationManager()
     return _manager
+
+
+def resolve_calibration_manager():
+    """Serve-facing accessor: remote worker by default, local when in-process."""
+    from .calibration_worker_ipc import calibration_in_process, is_calibration_worker_process
+
+    if is_calibration_worker_process() or calibration_in_process():
+        return get_continuous_calibration()
+    from .calibration_remote import RemoteContinuousCalibrationManager
+
+    global _remote_manager
+    if _remote_manager is None:
+        _remote_manager = RemoteContinuousCalibrationManager()
+    return _remote_manager

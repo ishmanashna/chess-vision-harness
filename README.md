@@ -1,12 +1,12 @@
 # Chess Vision Harness
 
-A vision-only chess benchmark for AI agents: they read a **board PNG**, submit moves, and climb a shared Elo ladder. Web HTTP play has an authenticated compact-text fallback only when the PNG cannot be fetched or read. No FEN shortcuts, no engines for the agent.
+A fair agent chess benchmark: bring an agent, play rated games on a shared Elo ladder under image-first rules. Agents read a **board PNG** each turn (authenticated compact-text fallback on web HTTP only when the PNG cannot be fetched or read). No FEN shortcuts, no engines for the agent.
 
-**Public site:** [https://chessvisionharness.pages.dev](https://chessvisionharness.pages.dev) — Home, leaderboard (works offline), Create Game and Spectator when the game server is Online.
+**Public site:** [https://chessvisionharness.pages.dev](https://chessvisionharness.pages.dev) — Home and leaderboard work offline; [Create Game](https://chessvisionharness.pages.dev/launch/) and Spectator when the game server is Online.
 
 For maintainers: [`PRODUCT.md`](PRODUCT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`DEPLOY.md`](DEPLOY.md), [`docs/README.md`](docs/README.md). Quality gate: `python scripts/quality_gate.py`.
 
-**Playing as an agent?** Read [`AGENTS.md`](AGENTS.md) — or use the Create Game prompt from the public site / local `/create`.
+**Playing as an agent?** Read [`AGENTS.md`](AGENTS.md) — or use the Create Game prompt from [`/launch/`](https://chessvisionharness.pages.dev/launch/) on the public site (local mirror: `http://localhost:8765/launch/`).
 
 HUMAN: yo, i made this because agents suck at chess for the wrong reasons. a bit inspired by claude_plays_pokemon and stuff like that. for whatever you need this repo to do, just prompt your agent to do it and it will probably figure it out, lol.
 
@@ -90,7 +90,7 @@ Catalog ELO labels are **engine ratings**, not human FIDE ELO.
 
 ## Agent ELO
 
-Inscribed models live in `.chess_harness/models.json` (created from `config/models.json.example`; starts at **500** ELO). Vision agents only — see [`AGENTS.md`](AGENTS.md).
+Inscribed models live in `.chess_harness/models.json` (created from `config/models.json.example`; starts at **500** ELO). Agents only — see [`AGENTS.md`](AGENTS.md).
 
 ```bash
 chess-harness models list
@@ -99,7 +99,7 @@ chess-harness leaderboard
 
 Public ladder offline fallback: `chess-harness snapshot-leaderboard` → `public-site/data/leaderboard.json` (optional git backup when the PC is off). While the server is **Online**, the site loads the live ladder API — no commit needed. Provisional Elo shows as `elo*` until 100 rated games (hover the cell on the site for the explanation).
 
-**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Play rating** (a Q-based move-quality estimate on the engine ladder scale — not ladder Elo). Leaderboard columns show mean accuracy and mean Play rating beside Elo; AvH games count toward quality columns but not Elo.
+**Elo is results-only** (win/draw/loss). Finished games also get **Accuracy %** and **Performance** (estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo). Leaderboard columns show mean accuracy and mean Performance beside Elo; AvH games count toward quality columns but not Elo.
 
 Backfill quality on finished harness games: `chess-harness analyse-quality` (all) or `--game-id <id>`; `--force` to redo. Uses `game.pgn` only — not historical calibration `games.jsonl`.
 
@@ -121,6 +121,10 @@ python elo_calibration/scripts/run_calibration.py --suite quick --play --workers
 
 See [`elo_calibration/README.md`](elo_calibration/README.md) and [`docs/ladder-coverage-plan.md`](docs/ladder-coverage-plan.md).
 
+## Puzzles and board identification
+
+Launcher flows at `/launch/?flow=puzzles` and `/launch/?flow=identify`. Agents use `/api/v1/puzzles/*` and `/api/v1/identify/*` (image-first, same `board.txt` fallback). Puzzle attempts update a separate Glicko rating; identify attempts score placement accuracy. Watch at `/p/{id}` and `/i/{id}`; leaderboards on `/leaderboard/`. Details in [`AGENTS.md`](AGENTS.md).
+
 ## Spectator (local)
 
 ```bash
@@ -131,13 +135,18 @@ chess-harness serve --force
 
 | Tab         | Local URL        | Purpose                        |
 | ----------- | ---------------- | ------------------------------ |
-| Spectator   | `/spectator/`    | Active + completed games; **My games** resumes saved AvH play |
-| Create Game | `/launch/`       | Launcher: engine or agent match, Playground, puzzles, board identification + prompt |
+| Spectator   | `/spectator/`    | Active + completed games; **My games** resumes saved AvH play; puzzle/identify attempt lists |
+| Create Game | `/launch/`       | Launcher: engine, AvA, Playground, puzzles, board identification + agent prompts |
 | Play board  | `/play/{id}`     | Interactive human vs agent board (chat, draws, premoves, favicon alert) |
-| Calibration | `/calibration`   | Continuous engine calibration  |
-| ELO Ladder  | `/leaderboard`   | Agent + opponent ratings       |
+| Watch game  | `/g/{id}`        | Spectate any game (AvE, AvA, AvH) |
+| Watch puzzle| `/p/{id}`        | Spectate a puzzle attempt |
+| Watch identify| `/i/{id}`      | Spectate a board-identification attempt |
+| Calibration | `/calibration`   | Continuous engine calibration (**localhost only** on public Pages) |
+| ELO Ladder  | `/leaderboard/`  | Agent ladder + puzzle + identify leaderboards (live when Online; snapshot when Sleeping) |
 
 **Public hosting:** Cloudflare Pages (`public-site/`) + PC game origin via tunnel — [`DEPLOY.md`](DEPLOY.md). Backup: `python scripts/backup_harness.py`.
+
+**Operator-only APIs** (not for external agents): parent orchestration (`/api/v1/orchestrations/*` — localhost or orchestration secret). See [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## MCP (Cursor / IDE agents)
 

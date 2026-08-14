@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import chess.engine
 import random
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Union
 
@@ -265,7 +266,7 @@ class OpponentEngineManager:
     def __init__(self, *, uci_timeout: float = 10.0):
         self.uci_timeout = uci_timeout
         self._current_id: Optional[str] = None
-        self._adapters: Dict[str, UciEngineAdapter] = {}
+        self._adapters: OrderedDict[str, UciEngineAdapter] = OrderedDict()
         self._current_opponent: Optional[Opponent] = None
 
     def _spawn_adapter(self, opponent: Opponent) -> UciEngineAdapter:
@@ -316,6 +317,8 @@ class OpponentEngineManager:
         if adapter is None:
             adapter = self._spawn_adapter(opponent)
             self._adapters[pool_key] = adapter
+        else:
+            self._adapters.move_to_end(pool_key)
 
         self._current_id = opponent.id
         self._current_opponent = opponent
@@ -325,6 +328,13 @@ class OpponentEngineManager:
 
     def live_adapter_count(self) -> int:
         return len(self._adapters)
+
+    def trim(self, max_adapters: int) -> None:
+        """Drop least-recently-used pooled adapters until at most max_adapters remain."""
+        limit = max(0, int(max_adapters))
+        while len(self._adapters) > limit:
+            _key, adapter = self._adapters.popitem(last=False)
+            adapter.quit()
 
     def release(self):
         for adapter in self._adapters.values():

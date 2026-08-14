@@ -6,7 +6,7 @@ import { createSpectatorBoard } from "./spectator-board.js";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
-  "Estimated strength from move accuracy — not ladder Elo.";
+  "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
 
 function gameIdFromPage() {
   const root = document.body;
@@ -34,6 +34,10 @@ function abbreviateName(value) {
 }
 
 function syncHeights() {
+  if (window.CVH && typeof window.CVH.syncWatchHeights === "function") {
+    window.CVH.syncWatchHeights();
+    return;
+  }
   const wrap = document.getElementById("board-wrap") || document.getElementById("board");
   const track = document.getElementById("eval-track");
   const movesCol = document.getElementById("moves-col");
@@ -49,9 +53,25 @@ function syncHeights() {
   }
 }
 
+function showPollError(message) {
+  if (window.CVH && typeof window.CVH.showWatchPollError === "function") {
+    window.CVH.showWatchPollError(message);
+  }
+}
+
+function wireGameShellChrome(gameId) {
+  document.title = gameId + " · Chess Vision Harness";
+  const dl = document.querySelector("[data-board-download]");
+  if (dl) {
+    dl.href = "/g/" + encodeURIComponent(gameId) + "/board.png";
+    dl.setAttribute("download", gameId + "-board.png");
+  }
+}
+
 async function main() {
   const GAME_ID = gameIdFromPage();
   if (!GAME_ID) return;
+  wireGameShellChrome(GAME_ID);
 
   const mount = document.getElementById("board");
   if (!mount) return;
@@ -420,6 +440,11 @@ async function main() {
     else setLabels(null, s);
   }
 
+  function evalFromState(s) {
+    if (!s || s.show_eval === false) return null;
+    return { ok: true, eval_ui: s.eval_ui, show_eval: s.show_eval };
+  }
+
   function fetchEvalForPly(ply, immediate) {
     const tipPly = board.getTipPly();
     const n = Math.max(0, Math.min(Number(ply) || 0, tipPly));
@@ -555,19 +580,20 @@ async function main() {
           await board.syncTip(m.start_fen, m.plies_detail || [], animate);
           selectedPly = board.getTipPly();
           renderMoves(m.move_rows || [], selectedPly);
-          await fetchEvalForPly(selectedPly, true);
+          applyEvalResponse(evalFromState(s), s);
         } else {
           // Revision-only refresh: keep scrub position.
           renderMoves(m.move_rows || [], selectedPly);
         }
       } else if (selectedPly >= board.getTipPly()) {
-        // At tip: refresh live eval without interrupting scrub elsewhere.
-        await fetchEvalForPly(selectedPly, true);
+        applyEvalResponse(evalFromState(s), s);
       }
-      const p = await (
-        await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/pgn")
-      ).json();
-      if (p.pgn) lastPgn = p.pgn;
+      if (s.game_over) {
+        const p = await (
+          await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/pgn")
+        ).json();
+        if (p.pgn) lastPgn = p.pgn;
+      }
       renderMeta(lastPgn, s);
       if (isAvhGame) await pollChat();
       syncHeights();
@@ -583,8 +609,9 @@ async function main() {
         clearInterval(pollTimer);
         pollTimer = null;
       }
+      showPollError("");
     } catch (e) {
-      /* ignore */
+      showPollError("Could not refresh game state — is the server online?");
     }
   }
 

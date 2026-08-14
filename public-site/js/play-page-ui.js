@@ -116,6 +116,27 @@ function updatePlayHeader(root, pos) {
   if (pos.game_over) el.classList.add("is-over");
   else if (!pos.agent_joined) el.classList.add("is-waiting");
   else if (pos.your_turn) el.classList.add("is-your-turn");
+  updateBoardRails(root, pos);
+}
+
+function updateBoardRails(root, pos) {
+  const blackLbl = root.querySelector("[data-play-black-label]");
+  const whiteLbl = root.querySelector("[data-play-white-label]");
+  if (!blackLbl || !whiteLbl) return;
+  const human = pos.human_nickname || "You";
+  const agent = pos.agent_display_name || "Agent";
+  const humanColor = normalizeColor(pos.human_color || "white");
+  if (humanColor === "white") {
+    whiteLbl.innerHTML =
+      escapeHtml(human) + '<span class="sub">You · white</span>';
+    blackLbl.innerHTML =
+      escapeHtml(agent) + '<span class="sub">Agent · black</span>';
+  } else {
+    blackLbl.innerHTML =
+      escapeHtml(human) + '<span class="sub">You · black</span>';
+    whiteLbl.innerHTML =
+      escapeHtml(agent) + '<span class="sub">Agent · white</span>';
+  }
 }
 
 export function updateMatchup(root, pos) {

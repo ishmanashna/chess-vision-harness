@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 
 import pytest
 
@@ -183,25 +182,16 @@ def test_avh_resign_dual_writes(finished_db, monkeypatch):
     assert get_finished_game(game_id, db_path=db_path) is not None
 
 
-def test_default_db_path_not_gitignored():
+def test_default_db_path_is_gitignored(monkeypatch):
+    monkeypatch.delenv("CHESS_HARNESS_FINISHED_DB", raising=False)
     rel = "data/finished_games.sqlite"
     root = project_root()
     assert resolve_finished_games_db() == (root / rel).resolve()
-    proc = subprocess.run(
-        ["git", "check-ignore", "-v", rel],
-        cwd=str(root),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    # Exit 1 = not ignored; exit 0 would print a matching rule.
-    assert proc.returncode == 1, proc.stdout + proc.stderr
-    for gi in root.rglob(".gitignore"):
-        text = gi.read_text(encoding="utf-8")
-        for line in text.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or stripped.startswith("!"):
-                continue
-            assert "finished_games.sqlite" not in stripped
-            if gi.parent == root / "data":
-                assert stripped not in ("*.sqlite", "data/", "*")
+    ignore_file = root / "data" / ".gitignore"
+    assert ignore_file.is_file()
+    rules = {
+        line.strip()
+        for line in ignore_file.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    assert "finished_games.sqlite" in rules

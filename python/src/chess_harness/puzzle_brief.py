@@ -17,7 +17,7 @@ def render_puzzle_brief(base_url: str, attempt_id: str, api_key: str) -> str:
     abandon_url = f"{base}/api/v1/puzzles/{attempt_id}/abandon"
 
     return f"""You are solving a chess puzzle in the Chess Vision Harness over HTTP.
-Vision-only benchmark — cheating invalidates the attempt.
+Fair agent chess benchmark with image-first position input. Cheating invalidates the attempt.
 
 Attempt ID: {attempt_id}
 API base: {base}

@@ -34,10 +34,13 @@
 
 .play-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(280px, 1fr) minmax(260px, 320px);
-  gap: 20px;
+  grid-template-columns: minmax(260px, 340px) max-content minmax(220px, 300px);
+  gap: 12px;
   align-items: start;
-  margin-bottom: 1.25rem;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 1.25rem;
 }
 
 .play-panel {
@@ -67,14 +70,13 @@
   line-height: 1.45;
 }
 
-/* Match board max size (520px): fixed so empty chat still fills the column. */
 .play-chat-panel {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 520px;
-  min-height: 520px;
-  max-height: 520px;
+  height: 560px;
+  min-height: 560px;
+  max-height: 560px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -170,15 +172,16 @@
   gap: 1rem;
 }
 
+.play-board-stack {
+  width: min(600px, calc(100vh - 220px), calc(100vw - 560px));
+}
+
 .play-board-wrap {
   position: relative;
-  width: min(100%, 520px);
+  width: 100%;
   aspect-ratio: 1;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
   overflow: hidden;
   background: var(--surface);
-  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .play-board-wrap.is-waiting-turn {
@@ -203,9 +206,9 @@
 }
 
 .play-moves-panel {
-  height: 520px;
-  min-height: 520px;
-  max-height: 520px;
+  height: 560px;
+  min-height: 560px;
+  max-height: 560px;
 }
 
 .play-moves-scroll {
@@ -241,7 +244,7 @@
 
 .play-clear-premove {
   align-self: flex-start;
-  max-width: 520px;
+  max-width: 560px;
   padding: 4px 10px;
   font-size: 0.82rem;
 }
@@ -257,7 +260,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
 }
 
 .play-actions .btn:disabled {
@@ -318,10 +321,11 @@
   font-size: 0.9em;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1280px) {
   .play-layout {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 20px;
+    width: 100%;
   }
 
   .play-chat-col {
@@ -336,14 +340,27 @@
     order: 2;
   }
 
-  .play-chat-panel,
-  .play-moves-panel {
-    height: 320px;
-    min-height: 320px;
-    max-height: 320px;
+  .play-board-stack {
+    width: min(100%, 560px);
+    max-width: 560px;
   }
 
-  .play-board-wrap {
+  .play-chat-panel,
+  .play-moves-panel {
+    height: 360px;
+    min-height: 360px;
+    max-height: 360px;
+  }
+
+  .play-clear-premove,
+  .play-actions {
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 640px) {
+  .play-board-stack {
     width: 100%;
+    max-width: 100%;
   }
 }

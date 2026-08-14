@@ -22,6 +22,13 @@ function gameIdFromPath() {
   return parts[parts.length - 1] || "";
 }
 
+function wirePlayShellChrome(gameId) {
+  const spectate = document.querySelector("[data-spectate-link]");
+  if (spectate && gameId) {
+    spectate.href = "/g/" + encodeURIComponent(gameId);
+  }
+}
+
 function canHumanMove(pos) {
   return (
     !pos.game_over &&
@@ -52,6 +59,7 @@ async function main() {
   if (!root || !mount) return;
 
   const gameId = gameIdFromPath();
+  wirePlayShellChrome(gameId);
   const token = readPlayToken(gameId);
   if (!token) {
     showError(root, "Missing play token. Open this page from Create Game.");

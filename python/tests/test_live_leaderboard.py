@@ -91,11 +91,12 @@ def test_client_health_requires_reachable_origin():
 
 
 def test_proxy_allows_live_leaderboard_path():
+    import json
     from pathlib import Path
 
-    path = Path(__file__).resolve().parents[2] / "public-site" / "functions" / "_proxy.js"
-    text = path.read_text(encoding="utf-8")
-    assert "/api/leaderboard/live" in text
+    contract_path = Path(__file__).resolve().parents[2] / "public-site" / "functions" / "proxy-routes.contract.json"
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert "/api/leaderboard/live" in contract["proxy_path_exact"]
 
 
 def test_load_live_leaderboard_matches_export(tmp_path, monkeypatch):

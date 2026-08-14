@@ -1,9 +1,9 @@
 # Plan 4: Browser human vs agent
 
-Status: **planned**  
-Last updated: 2026-07-18  
+Status: **implemented** (Playground — `/launch/?flow=playground`, `/play/{id}`)  
+Last updated: 2026-08-13  
 **Prerequisite:** [Plan 3](agent-vs-agent.md) complete  
-**Next plan:** — (last in current roadmap)
+**Next plan:** — (native LLM benchmark is separate; see [README](README.md))
 
 ---
 
@@ -15,33 +15,15 @@ Last product plan: depends on Plan 1’s public URL and on multi-principal / gam
 
 ---
 
-## Phases
+## Shipped (Playground)
 
-### Phase 0 — Game type (1–2 days)
+All planned phases below shipped as **Playground** (`/launch/?flow=playground`, `/play/{id}`):
 
-- [ ] `game_type: "human_vs_agent"`
-- [ ] Human moves via session cookie (operator/public play routes)
-- [ ] Agent turn via Plan 1 API
-
-### Phase 1 — Interactive board (3–4 days)
-
-- [ ] `/play/<game_id>` with click/drag moves
-- [ ] Server + client legal move validation
-- [ ] Human always at bottom
-- [ ] Extract templates from spectator only if needed for this page
-
-### Phase 2 — Guest access (1–2 days)
-
-- [ ] Nickname-only guest play
-- [ ] Rate limit per IP
-- [ ] Operator toggle public human play
-
-### Phase 3 — Agent integration (2–3 days)
-
-- [ ] Agent notified / polled after human move (same HTTP contract)
-- [ ] Timeout if agent idle
-- [ ] Spectator shows human vs agent clearly
-- [ ] Rating path excludes human games from agent ladder
+- [x] `game_type: "human_vs_agent"` — human moves via session cookie; agent turn via Plan 1 API
+- [x] `/play/{id}` interactive board (click/drag, server + client legal validation, human at bottom)
+- [x] Nickname guest play, per-IP rate limits, operator toggle for public human play
+- [x] Agent polls after human move (same HTTP contract); idle timeout; spectator AvH labeling; human games excluded from agent Elo ladder
+- [x] Chat, draw offers, resume from Spectator → My games
 
 ---
 

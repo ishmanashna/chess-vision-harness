@@ -68,7 +68,8 @@ def test_spectator_list_state_and_eval_human(human_client, monkeypatch):
     assert row.get("elo_change") in ("", None)
     card = row["active_card"]
     assert card["show_eval"] is True
-    assert card["eval_ui"] is not None
+    # List projection skips live Stockfish; eval comes from /state on the watch page.
+    assert card.get("eval_ui") is None
 
     state = client.get(f"/api/games/{game_id}/state")
     assert state.status_code == 200

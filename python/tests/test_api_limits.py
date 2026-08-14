@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 
 import pytest
@@ -10,7 +11,12 @@ from fastapi.testclient import TestClient
 
 from conftest import FIXTURES, LOW_OPPONENT
 
-from chess_harness.api_limits import ApiLimitEnforcer, AuthContext, client_ip
+from chess_harness.api_limits import (
+    ApiLimitEnforcer,
+    AuthContext,
+    client_ip,
+    reset_trusted_proxy_warning_for_tests,
+)
 from chess_harness.api_v1 import build_router
 from chess_harness.game_manager import GameManager
 from chess_harness.game_service import GameService
@@ -43,6 +49,69 @@ def test_client_ip_accepts_forwarded_header_from_trusted_proxy(monkeypatch):
     monkeypatch.setenv("CHESS_HARNESS_TRUSTED_PROXIES", "10.0.0.0/8")
     request = Request({"type": "http", "client": ("10.0.0.5", 1234), "headers": [(b"x-forwarded-for", b"1.2.3.4")]})
     assert client_ip(request) == "1.2.3.4"
+
+
+def test_client_ip_accepts_cf_connecting_ip_from_trusted_proxy(monkeypatch):
+    monkeypatch.setenv("CHESS_HARNESS_TRUSTED_PROXIES", "10.0.0.0/8")
+    request = Request(
+        {
+            "type": "http",
+            "client": ("10.0.0.5", 1234),
+            "headers": [(b"cf-connecting-ip", b"203.0.113.10")],
+        }
+    )
+    assert client_ip(request) == "203.0.113.10"
+
+
+def test_client_ip_prefers_forwarded_over_cf_from_trusted_proxy(monkeypatch):
+    monkeypatch.setenv("CHESS_HARNESS_TRUSTED_PROXIES", "10.0.0.0/8")
+    request = Request(
+        {
+            "type": "http",
+            "client": ("10.0.0.5", 1234),
+            "headers": [
+                (b"x-forwarded-for", b"1.2.3.4"),
+                (b"cf-connecting-ip", b"203.0.113.10"),
+            ],
+        }
+    )
+    assert client_ip(request) == "1.2.3.4"
+
+
+def test_client_ip_loopback_trusted_proxy_uses_forwarded_header(monkeypatch):
+    """Online deploy path: cloudflared peer on 127.0.0.1 with visitor X-Forwarded-For."""
+    monkeypatch.setenv("CHESS_HARNESS_TRUSTED_PROXIES", "127.0.0.0/8")
+    request = Request(
+        {
+            "type": "http",
+            "client": ("127.0.0.1", 54321),
+            "headers": [(b"x-forwarded-for", b"198.51.100.42")],
+        }
+    )
+    assert client_ip(request) == "198.51.100.42"
+
+
+def test_client_ip_warns_when_loopback_peer_has_forwarded_header_without_trusted_proxies(
+    monkeypatch, caplog
+):
+    monkeypatch.delenv("CHESS_HARNESS_TRUSTED_PROXIES", raising=False)
+    reset_trusted_proxy_warning_for_tests()
+    request = Request(
+        {
+            "type": "http",
+            "client": ("127.0.0.1", 8765),
+            "headers": [(b"x-forwarded-for", b"198.51.100.11")],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        assert client_ip(request) == "127.0.0.1"
+        assert client_ip(request) == "127.0.0.1"
+    warnings = [
+        r.message
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "CHESS_HARNESS_TRUSTED_PROXIES" in r.message
+    ]
+    assert len(warnings) == 1
 
 
 def test_sliding_window_retry_after():

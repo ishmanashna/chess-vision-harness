@@ -5,10 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from chess_harness.spectator_game_page import render_game_view_page
+from chess_harness.spectator_game_page import load_game_view_shell
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_JS = REPO_ROOT / "public-site" / "js"
+PUBLIC_CSS = REPO_ROOT / "public-site" / "css"
 
 
 def _abbrev_from_js_logic(value: str) -> str:
@@ -44,21 +45,25 @@ def _abbrev_from_js_logic(value: str) -> str:
 
 
 def test_spectator_game_page_phase6_layout_widths():
-    html = render_game_view_page("game-phase6")
-    assert "minmax(300px,400px)" in html
-    assert "minmax(240px,320px)" in html
-    assert "minmax(280px,360px)" not in html
-    assert "minmax(200px,280px)" not in html
-    assert "calc(100vw - 848px)" in html
-    assert "calc(100vw - 768px)" not in html
-    assert ".info-panel-slot{position:relative;flex:1" in html
+    html = load_game_view_shell()
+    watch_css = (PUBLIC_CSS / "watch.css").read_text(encoding="utf-8")
+    assert "/css/watch.css" in html
+    assert "minmax(280px, 360px)" in watch_css
+    assert "minmax(220px, 300px)" in watch_css
+    assert "calc(100vw - 560px)" in watch_css
+    assert "calc(100vw - 848px)" not in html
+    assert "calc(100vw - 848px)" not in watch_css
+    assert "calc(100vw - 768px)" not in watch_css
+    assert "watch-poll-error" in html
+    assert ".game-view .info-panel-slot" in watch_css
 
 
 def test_spectator_game_js_syncs_info_column_height():
     js = (PUBLIC_JS / "spectator-game.js").read_text(encoding="utf-8")
-    assert 'querySelector(".info-col")' in js
-    assert "infoCol.style.height" in js
-    assert "movesCol.style.maxHeight" in js
+    common_js = (PUBLIC_JS / "common.js").read_text(encoding="utf-8")
+    assert "syncWatchHeights" in common_js
+    assert 'querySelector(".info-col")' in common_js or 'infoColSelector' in common_js
+    assert "syncHeights" in js
     assert "abbreviateName" in js
     assert "CVH.abbreviateListName" in js
     # Applied in Game info, quality labels (via sideNames), and board chrome.
@@ -74,6 +79,7 @@ def test_common_js_exports_abbreviate_list_name():
     assert "function shortenEngineTag" in js
     assert "window.CVH.abbreviateListName = abbreviateListName" in js
     assert "window.CVH.nameWithoutElo = nameWithoutElo" in js
+    assert "window.CVH.syncWatchHeights = syncWatchHeights" in js
 
 
 def test_abbreviate_list_name_shortens_stockfish_tags():

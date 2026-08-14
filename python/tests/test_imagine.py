@@ -4,62 +4,19 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
 from pathlib import Path
-from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 
-from conftest import FIXTURES, LOW_OPPONENT
+from conftest import LOW_OPPONENT
+from harness_client import auth_headers
+from leak_guards import assert_imagine_no_leaks
 
 from chess_harness.game_manager import GameManager
-from chess_harness.spectator import app
-
-_FORBIDDEN_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen", "png_bytes"})
-
-
-def _assert_no_leaks(obj: Any) -> None:
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            assert key not in _FORBIDDEN_KEYS
-            _assert_no_leaks(value)
-    elif isinstance(obj, list):
-        for item in obj:
-            _assert_no_leaks(item)
-
-
-@pytest.fixture
-def api_client(tmp_path, monkeypatch):
-    harness_dir = tmp_path / "harness"
-    harness_dir.mkdir()
-    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
-
-    import chess_harness.api_limits as api_limits
-    import chess_harness.spectator as spec
-
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._base = str(harness_dir)
-    spec.game_manager = GameManager(str(harness_dir))
-    spec._controller = None
-    spec._game_service = None
-
-    client = TestClient(app)
-    yield client, harness_dir
-    api_limits.get_limit_enforcer().reset_counters()
-    spec._game_service = None
-    spec._controller = None
-    if spec._engine is not None:
-        spec._engine.quit()
-        spec._engine = None
-    if hasattr(spec._get_controller(), "opponent_mgr"):
-        spec._get_controller().opponent_mgr.release()
 
 
 def _auth(api_key: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {api_key}"}
+    return auth_headers(api_key)
 
 
 def _register(client: TestClient, model_id: str = "imagine-agent") -> str:
@@ -128,7 +85,7 @@ def test_imagine_illegal_mid_sequence(api_client):
     assert data["ok"] is False
     assert data.get("index") == 2
     assert "error" in data
-    _assert_no_leaks(data)
+    assert_imagine_no_leaks(data)
     # Soft errors only — no legal-move dump
     assert "legal moves" not in data["error"].lower()
 

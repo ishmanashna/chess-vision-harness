@@ -48,6 +48,22 @@ def test_backup_creates_archive(tmp_path, monkeypatch):
     games.mkdir(parents=True)
     (games / "state.json").write_text('{"game_id":"game-test-1"}\n', encoding="utf-8")
 
+    audit = harness / "audit"
+    audit.mkdir(parents=True)
+    (audit / "activity.jsonl").write_text('{"action":"create"}\n', encoding="utf-8")
+    puzzles = harness / "puzzles"
+    puzzles.mkdir()
+    (puzzles / "manifest.json").write_text('{"version":1}\n', encoding="utf-8")
+    (harness / "puzzle_attempts.json").write_text("{}\n", encoding="utf-8")
+    cal_root = tmp_path / "elo_calibration" / "results"
+    continuous = cal_root / "continuous"
+    continuous.mkdir(parents=True)
+    (continuous / "games.jsonl").write_text('{"game_index":1}\n', encoding="utf-8")
+    (continuous / "play_rating_samples.jsonl").write_text('{"engine_id":"e1"}\n', encoding="utf-8")
+    (continuous / "play_rating_map.json").write_text('{}\n', encoding="utf-8")
+    (cal_root / "accuracy_elo_map.json").write_text('{}\n', encoding="utf-8")
+    monkeypatch.setattr("backup_harness.CALIBRATION_ROOT", cal_root)
+
     monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness))
     archive = run_backup(
         output_dir=tmp_path / "backups",
@@ -62,6 +78,12 @@ def test_backup_creates_archive(tmp_path, monkeypatch):
     assert "harness/models.json" in names
     assert "harness/games/game-test-1/state.json" in names
     assert "data/finished_games.sqlite" in names
+    assert "harness/audit/activity.jsonl" in names
+    assert "harness/puzzles/manifest.json" in names
+    assert "harness/puzzle_attempts.json" in names
+    assert "calibration/continuous/games.jsonl" in names
+    assert "calibration/continuous/play_rating_samples.jsonl" in names
+    assert "calibration/accuracy_elo_map.json" in names
     manifest = _read_manifest(archive)
     assert manifest["game_dirs"] == 1
     assert manifest["finished_games_db"]["rows"] == 1

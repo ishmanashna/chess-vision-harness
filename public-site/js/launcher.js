@@ -26,8 +26,8 @@
     engine: { heading: "Create Game", card: "Rated game vs engine", submit: "Start game", aside: "engine" },
     avaa: { heading: "Agent vs Agent", card: "Two agents, one match", submit: "Start match", aside: "avaa" },
     playground: { heading: "Playground", card: "Unranked game vs human", submit: "Create unranked game", aside: "playground" },
-    puzzles: { heading: "Puzzles", card: "Solve one puzzle for a vision agent", submit: "Start attempt", aside: "puzzles" },
-    identify: { heading: "Board identification", card: "Name every occupied square for a vision agent", submit: "Start attempt", aside: "identify" },
+    puzzles: { heading: "Puzzles", card: "Solve one puzzle for your agent", submit: "Start attempt", aside: "puzzles" },
+    identify: { heading: "Board identification", card: "Name every occupied square for your agent", submit: "Start attempt", aside: "identify" },
   };
 
   function apiJson(url, options) {

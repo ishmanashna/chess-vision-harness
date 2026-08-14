@@ -293,5 +293,6 @@ class CalibrationLadder:
         }
         if uci_moves:
             payload["uci_moves"] = list(uci_moves)
-        with path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(payload) + "\n")
+        from .jsonl_store import append_jsonl_line
+
+        append_jsonl_line(path, payload)

@@ -165,12 +165,12 @@ def test_play_page_html(human_client, monkeypatch):
     assert "data-draw-offer" in body
     assert "data-download-board" in body
     assert "favicon.ico" in body
-    assert f"/g/{game_id}" in body
+    assert "data-spectate-link" in body
     assert "common.js" in body
     assert "btn.addEventListener('click',function(){apply(current()" not in body
 
     missing = client.get("/play/not-a-game")
-    assert missing.status_code == 404
+    assert missing.status_code == 200
 
 
 def test_human_resign(human_client, monkeypatch):

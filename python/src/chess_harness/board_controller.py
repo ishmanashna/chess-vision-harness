@@ -27,6 +27,7 @@ from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
 from .quality_finish import schedule_game_quality, schedule_provisional_game_quality
 from .results import ResultsManager
+from .board_render_cache import board_png_is_fresh, note_board_rendered
 
 IDLE_TIMEOUT_SECONDS = 1800  # default; check_idle_games uses load_limits()
 MAX_IMAGINE_PLIES = 12
@@ -304,6 +305,9 @@ class BoardController:
             bottom_color="white",
             check_square=board.king(board.turn) if board.is_check() else None,
         )
+        game_id = state.get("game_id")
+        if game_id:
+            note_board_rendered(str(game_id), state)
 
     @staticmethod
     def avaa_display_names(state: Dict[str, Any]) -> tuple[str, str]:
@@ -848,19 +852,24 @@ class BoardController:
         }
 
     def refresh_board_image(self, game_id: str) -> bool:
-        """Re-render board PNG (e.g. after renderer defaults change)."""
+        """Re-render board PNG when stale (skip when cache key matches on-disk render)."""
         state = self.game_manager.load_state(game_id)
         if not state:
             return False
+        board_path = self.game_manager.get_board_path(game_id)
+        if board_png_is_fresh(game_id, state, board_path):
+            return True
         board = chess.Board(state["board_fen"])
         try:
             if is_avaa_state(state):
                 from .avaa_render import render_avaa_boards
 
                 render_avaa_boards(self, self.game_manager, board, game_id, state)
+                note_board_rendered(game_id, state)
             else:
-                board_path = self.game_manager.get_board_path(game_id)
-                self._render_state_board(board, board_path, state)
+                self._render_state_board(
+                    board, board_path, {**state, "game_id": game_id}
+                )
             return True
         except Exception:
             return False

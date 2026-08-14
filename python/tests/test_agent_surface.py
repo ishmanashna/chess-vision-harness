@@ -1,34 +1,12 @@
 """Agent-facing API redaction tests."""
 
 import json
-import os
-import sys
 
 import chess
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-os.environ.setdefault(
-    "STOCKFISH_PATH",
-    os.path.join(
-        os.path.dirname(__file__), "..", "bin", "stockfish-windows-x86-64.exe"
-    ),
-)
-
-from chess_harness.board_controller import BoardController
-from chess_harness.engine import StockfishAdapter
-from chess_harness.game_manager import GameManager
 from chess_harness.spectator import app
-
-
-@pytest.fixture
-def ctrl(tmp_path):
-    gm = GameManager(base_dir=str(tmp_path / "chess_harness"))
-    e = StockfishAdapter()
-    c = BoardController(gm, e)
-    yield c
-    e.quit()
 
 
 def test_status_no_fen_or_last_move_in_progress(ctrl):
@@ -93,6 +71,8 @@ def test_spectator_state_no_fen(ctrl, monkeypatch):
     assert "moves" not in data
     assert "move_rows" not in data
     assert data.get("game_id") == "surf5"
+    assert "board_path" not in data
+    assert data.get("board_url") == "/g/surf5/board.png"
 
 
 def test_debug_param_ignored_without_env(ctrl, monkeypatch):

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .models import AGENT_START_ELO, ModelRegistry
-from .paths import project_root, resolve_base_dir
+from .paths import project_root, resolve_base_dir, resolve_publish_snapshots_dir
 from .puzzle_leaderboard import (
     build_identify_leaderboard,
     build_puzzle_leaderboard,
@@ -26,11 +26,29 @@ _last_snapshot_refresh_mono = 0.0
 
 
 def default_output_path() -> Path:
-    return project_root() / "public-site" / "data" / "leaderboard.json"
+    """Runtime snapshot path used by serve (not the git Sleeping fallback)."""
+    return resolve_publish_snapshots_dir() / "leaderboard.json"
 
 
 def default_puzzle_leaderboard_path() -> Path:
+    return resolve_publish_snapshots_dir() / "puzzles_leaderboard.json"
+
+
+def default_identify_leaderboard_path() -> Path:
+    return resolve_publish_snapshots_dir() / "identify_leaderboard.json"
+
+
+def git_publish_leaderboard_path() -> Path:
+    """Committed Sleeping fallback on Pages (`/data/leaderboard.json`)."""
+    return project_root() / "public-site" / "data" / "leaderboard.json"
+
+
+def git_publish_puzzle_leaderboard_path() -> Path:
     return project_root() / "public-site" / "data" / "puzzles_leaderboard.json"
+
+
+def git_publish_identify_leaderboard_path() -> Path:
+    return project_root() / "public-site" / "data" / "identify_leaderboard.json"
 
 
 def is_provisional(games: int) -> bool:
@@ -236,15 +254,16 @@ def export_public_snapshots(
     *,
     output_path: Optional[Path | str] = None,
     puzzle_path: Optional[Path | str] = None,
+    identify_path: Optional[Path | str] = None,
     base_dir: Optional[str] = None,
     registry: Optional[ModelRegistry] = None,
+    inject_inline: bool = False,
 ) -> Dict[str, Path]:
-    """Write all public-site leaderboard snapshots (ladder, puzzles).
+    """Write leaderboard snapshots (ladder, puzzles, identify).
 
-    This is the single publish path for the public site offline fallback:
-    ``leaderboard.json`` (agents merged with puzzle and board-identification
-    stats) plus ``puzzles_leaderboard.json`` for the puzzle-content view on
-    the leaderboard page. Returns the written paths keyed by snapshot.
+    Default targets are the runtime publish dir under ``CHESS_HARNESS_DIR``
+    (serve debounced refresh). Use ``export_git_publish_snapshots`` or pass
+    explicit ``public-site/data`` paths for intentional Sleeping publish.
     """
     ladder_path = export_leaderboard_snapshot(
         Path(output_path) if output_path else None,
@@ -257,9 +276,42 @@ def export_public_snapshots(
         json.dumps(load_live_puzzle_leaderboard(registry=registry), indent=2) + "\n",
         encoding="utf-8",
     )
-    snapshot_json = ladder_path.read_text(encoding="utf-8").strip()
-    _inject_inline_snapshot(snapshot_json)
-    return {"leaderboard": ladder_path, "puzzles": puzzle_out}
+    if identify_path:
+        identify_out = Path(identify_path)
+    elif puzzle_path:
+        identify_out = Path(puzzle_path).parent / "identify_leaderboard.json"
+    elif output_path:
+        identify_out = Path(output_path).parent / "identify_leaderboard.json"
+    else:
+        identify_out = default_identify_leaderboard_path()
+    identify_out.parent.mkdir(parents=True, exist_ok=True)
+    identify_out.write_text(
+        json.dumps(load_live_identify_leaderboard(registry=registry), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    if inject_inline:
+        snapshot_json = ladder_path.read_text(encoding="utf-8").strip()
+        _inject_inline_snapshot(snapshot_json)
+    return {"leaderboard": ladder_path, "puzzles": puzzle_out, "identify": identify_out}
+
+
+def export_git_publish_snapshots(
+    *,
+    output_path: Optional[Path | str] = None,
+    base_dir: Optional[str] = None,
+    registry: Optional[ModelRegistry] = None,
+) -> Dict[str, Path]:
+    """Write Sleeping fallbacks to ``public-site/data/*.json`` and inline HTML."""
+    ladder = Path(output_path) if output_path else git_publish_leaderboard_path()
+    puzzle_parent = ladder.parent
+    return export_public_snapshots(
+        output_path=ladder,
+        puzzle_path=puzzle_parent / "puzzles_leaderboard.json",
+        identify_path=puzzle_parent / "identify_leaderboard.json",
+        base_dir=base_dir,
+        registry=registry,
+        inject_inline=True,
+    )
 
 
 def request_public_snapshots_refresh() -> None:

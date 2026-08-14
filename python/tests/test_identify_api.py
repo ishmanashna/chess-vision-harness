@@ -23,31 +23,7 @@ from chess_harness.child_credentials import ChildCredentialStore
 from chess_harness.game_manager import GameManager
 from chess_harness.puzzle_import import PuzzleImporter
 
-_LEAK_KEYS = frozenset(
-    {
-        "pieces",
-        "correct_pieces",
-        "submitted_pieces",
-        "per_square",
-        "corpus_fen",
-        "puzzle_id",
-        "puzzle_rating",
-        "first_wrong_move",
-        "failure_reason",
-        "board_fen",
-        "solution_moves",
-    }
-)
-
-
-def _assert_no_leak(obj: Any) -> None:
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            assert key not in _LEAK_KEYS, f"leaked identify key: {key}"
-            _assert_no_leak(value)
-    elif isinstance(obj, list):
-        for item in obj:
-            _assert_no_leak(item)
+from leak_guards import assert_identify_no_leak
 
 
 def _row(
@@ -176,7 +152,7 @@ def test_start_safe_payload_and_flow(identify_client):
     assert "indefinitely" in brief
     assert "accuracy" in brief
     assert "/api/v1/identify/start" in brief
-    _assert_no_leak(start)
+    assert_identify_no_leak(start)
 
     board = client.get(start["board_url"], headers=_auth(key))
     assert board.status_code == 200
@@ -395,7 +371,7 @@ def test_observer_secrecy_live_and_replay_gate(identify_client):
     attempt_id = active["attempt_id"]
 
     state = client.get(f"/api/v1/identify/public/{attempt_id}").json()
-    _assert_no_leak(state)
+    assert_identify_no_leak(state)
     assert state["status"] == "active"
     assert state["result"] is None
     assert state["submitted_count"] == 0
@@ -415,7 +391,7 @@ def test_observer_secrecy_live_and_replay_gate(identify_client):
     assert resp.status_code == 200
 
     state2 = client.get(f"/api/v1/identify/public/{attempt_id}").json()
-    _assert_no_leak(state2)
+    assert_identify_no_leak(state2)
     assert state2["status"] == "finished"
     assert state2["result"] == "failed"
     assert state2["accuracy"] is not None
@@ -446,7 +422,6 @@ def test_watch_pages_browse_and_media(identify_client):
     page = client.get(f"/i/{attempt_id}")
     assert page.status_code == 200
     assert page.headers["content-type"].startswith("text/html")
-    assert f'data-attempt-id="{attempt_id}"' in page.text
     assert "/js/identify-watch.js" in page.text
     assert "pieces" not in page.text.lower()
     assert 'id="moves-col"' in page.text, "watch page uses the 3-column spectator layout"
@@ -462,7 +437,7 @@ def test_watch_pages_browse_and_media(identify_client):
     assert text.status_code == 200
     assert "side_to_move:" in text.text
 
-    assert client.get("/i/does-not-exist").status_code == 404
+    assert client.get("/i/does-not-exist").status_code == 200
     assert client.get("/i/does-not-exist/board.png").status_code == 404
 
     # Browse: active finished listed, abandoned excluded, and leak-free.
@@ -484,7 +459,7 @@ def test_watch_pages_browse_and_media(identify_client):
     assert attempt_id in ids
     assert gone["attempt_id"] not in ids, "abandoned attempts are not listed"
     for row in rows:
-        _assert_no_leak(row)
+        assert_identify_no_leak(row)
         assert row["watch_url"].startswith("/i/")
 
     finished_row = next(r for r in rows if r["attempt_id"] == attempt_id)
@@ -520,7 +495,7 @@ def test_public_identify_chain_by_key(identify_client):
     assert ids == [second, first], "chain is newest first"
     for row in chain:
         assert row["key"] == chain_key
-        _assert_no_leak(row)
+        assert_identify_no_leak(row)
 
     foreign = client.get(
         "/api/v1/identify/public/attempts", params={"by_key": "0" * 16}
@@ -610,3 +585,35 @@ def test_identify_has_no_move_route(identify_client):
         f"/api/v1/identify/{attempt_id}/move/e2e4", headers=_auth(key)
     )
     assert move.status_code == 404
+
+
+def test_prune_idle_active_abandons_stale_attempt(tmp_path):
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    from chess_harness.identify_attempt import IdentifyAttemptStore
+
+    path = tmp_path / "identify.json"
+    stale = (datetime.now(timezone.utc) - timedelta(seconds=4000)).isoformat()
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "attempts": {
+                    "bi-stale": {
+                        "attempt_id": "bi-stale",
+                        "status": "active",
+                        "updated_at": stale,
+                        "started_at": stale,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = IdentifyAttemptStore(path)
+    abandoned = store.prune_idle_active(1800.0)
+    assert abandoned == ["bi-stale"]
+    record = store.get("bi-stale")
+    assert record is not None
+    assert record["status"] == "abandoned"

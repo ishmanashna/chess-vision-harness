@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="referrer" content="no-referrer"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Play chess against an agent on Chess Vision Harness Playground."/>
+  <title>Play · Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+  <link rel="stylesheet" href="/css/watch.css"/>
+  <link rel="stylesheet" href="/css/play.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/promotion-dialog/promotion-dialog.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+        </div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Sleeping</span>
+          </span>
+        </div>
+      </div>
+    </header>
+    <main class="play-main" data-play-root>
+      <header class="play-header">
+        <p class="play-header-line" data-play-header-line aria-live="polite">Loading…</p>
+      </header>
+      <p class="play-error" data-play-error role="alert"></p>
+      <div class="play-layout">
+        <aside class="play-chat-col" aria-label="Chat">
+          <div class="play-chat-panel" data-play-chat>
+            <div class="play-chat-log" data-chat-log role="log" aria-live="polite"></div>
+            <form class="play-chat-form" data-chat-form>
+              <textarea
+                class="play-chat-input"
+                data-chat-input
+                rows="1"
+                maxlength="500"
+                placeholder="Message…"
+                aria-label="Chat message"
+                spellcheck="false"
+                autocomplete="off"
+              ></textarea>
+              <button type="submit" class="btn btn-secondary play-chat-send" data-chat-send>Send</button>
+            </form>
+          </div>
+        </aside>
+        <div class="play-center-col">
+          <div class="play-board-stack board-stack">
+            <div class="board-label black" data-play-black-label>Black</div>
+            <div class="play-board-wrap" data-board-wrap>
+              <div id="play-board" class="play-board"></div>
+            </div>
+            <div class="board-label white" data-play-white-label>White</div>
+          </div>
+          <button type="button" class="btn btn-secondary play-clear-premove" data-clear-premove hidden>Cancel premoves</button>
+          <div class="play-actions">
+            <button type="button" class="btn btn-secondary" data-resign>Resign</button>
+            <button type="button" class="btn btn-secondary" data-draw-offer>Offer draw</button>
+            <button type="button" class="btn btn-secondary" data-draw-accept hidden>Accept draw</button>
+            <button type="button" class="btn btn-secondary" data-draw-decline hidden>Decline draw</button>
+          </div>
+        </div>
+        <aside class="play-moves-col" aria-label="Move list">
+          <div class="play-panel play-moves-panel">
+            <h2 class="play-panel-title">Moves</h2>
+            <div class="play-moves-scroll" data-play-moves>
+              <p class="play-placeholder">No moves yet.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+      <p class="play-links">
+        <a href="#" data-spectate-link>Spectate this game</a>
+        · <a href="/launch/?flow=playground">Create another Playground game</a>
+        <span class="play-download-slot" data-download-slot hidden>
+          · <button type="button" class="export-link" data-download-board>Download position</button>
+        </span>
+      </p>
+    </main>
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js"></script>
+  <script src="/js/human-games-registry.js"></script>
+  <script type="module" src="/js/play-page.js"></script>
+</body>
+</html>

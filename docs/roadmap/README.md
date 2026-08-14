@@ -13,7 +13,7 @@ North star: [`future-work-roadmap.md`](future-work-roadmap.md).
 | **1** | [Public agent API + Create Game](public-agent-api.md) | **done** | ~3–4 weeks |
 | **3** | [Agent vs agent (lobby)](agent-vs-agent.md) | **implemented** | ~3–4 weeks |
 | **2** | [Native LLM benchmark](native-llm-benchmark.md) | planned (after AvaA) | ~2 weeks |
-| **4** | [Human vs agent (browser)](human-vs-agent.md) | planned | ~2 weeks |
+| **4** | [Human vs agent (browser)](human-vs-agent.md) | **implemented** (Playground) | ~2 weeks |
 
 **Order note:** Agent vs agent does **not** require the native LLM client. AvaA uses copy-paste HTTP briefs like Create Game. Plan 2 is optional automation on the same API and comes after AvaA unless priorities change again.
 
@@ -29,15 +29,15 @@ North star: [`future-work-roadmap.md`](future-work-roadmap.md).
 ## Order (current)
 
 ```
-Plan 0 → Plan 1 → Agent vs agent → Native LLM benchmark → Human vs agent
+Plan 0 → Plan 1 → Agent vs agent → Human vs agent (Playground) → Native LLM benchmark
 ```
 
 **Plan 0** — thin precursor (paths, lifecycle, `GameService`, `/health`).
 
 **Plan 1** — public HTTP play + Create Game + deploy (**done**).
 
-**Agent vs agent** — lobby tab, dual-principal `/api/v1`, poll/wait loop, shared ladder Elo (**next**).
+**Agent vs agent** — lobby / direct match, dual-principal `/api/v1`, poll/wait loop, shared ladder Elo (**done**).
 
-**Native LLM benchmark** — harness-owned provider client for batch suites (after AvaA).
+**Human vs agent** — Playground launcher flow, `/play/{id}` board, chat/draws (**done**).
 
-**Human vs agent** — browser play on the same API.
+**Native LLM benchmark** — harness-owned provider client for batch suites (**next** among numbered plans).

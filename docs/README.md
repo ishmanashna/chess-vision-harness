@@ -4,7 +4,7 @@
 |-----|----------|---------|
 | [`README.md`](../README.md) | Everyone | Install, quick start, CLI, public site link |
 | [`DEPLOY.md`](../DEPLOY.md) | Operators | Public hosting (Pages + game origin), backup, TLS |
-| [`AGENTS.md`](../AGENTS.md) | Vision LLM agents | Game contract (paste into prompts) |
+| [`AGENTS.md`](../AGENTS.md) | Agent builders | Game contract (paste into prompts) |
 | [`PRODUCT.md`](../PRODUCT.md) | Maintainers / agents | Product (non-technical) |
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Maintainers / agents | System architecture + coding conventions |
 | [`docs/roadmap/`](roadmap/README.md) | Maintainers | **Product roadmap** — Plan 0–4 (serial) |

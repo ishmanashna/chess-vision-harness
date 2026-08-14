@@ -1,0 +1,28 @@
+{
+  "proxy_path_prefixes": [
+    "/api/v1/",
+    "/api/games",
+    "/api/play"
+  ],
+  "proxy_path_exact": [
+    "/api/v1",
+    "/api/contact",
+    "/api/contact/",
+    "/api/leaderboard/live",
+    "/api/leaderboard/puzzles/live",
+    "/api/leaderboard/identify/live"
+  ],
+  "watch_asset_path_prefixes": [
+    "/g/",
+    "/p/",
+    "/i/"
+  ],
+  "calibration_path_prefixes": [
+    "/calibration/",
+    "/api/calibration/"
+  ],
+  "calibration_path_exact": [
+    "/calibration",
+    "/api/calibration"
+  ]
+}

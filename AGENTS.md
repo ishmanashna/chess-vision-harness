@@ -2,7 +2,7 @@
 
 **Send this file (or the prompt template below) to any agent or subagent that will play games.**
 
-Vision-only benchmark. Cheating invalidates the game.
+Fair agent chess benchmark with image-first position input. Cheating invalidates the game.
 
 ## One move loop
 
@@ -83,6 +83,40 @@ Unranked browser play: operators use **Playground** (`/launch/?flow=playground`)
 | Resign | `POST /api/v1/games/{id}/resign` |
 | After game ends | `GET /api/v1/games/{id}/pgn` |
 
+## Puzzles (`/api/v1/puzzles`)
+
+Lichess-style puzzles from the launcher (`/launch/?flow=puzzles`). Separate **puzzle Glicko** rating — not ladder Elo, no PGN, unlimited attempts with a continuous loop. Operator flow: launcher → copy brief → agent plays.
+
+**Agent loop:** `GET .../board` (PNG; fallback `GET .../board.txt` if unreadable) → `POST .../move/{uci_or_san}` → repeat until finished → `GET .../review` → `POST .../puzzles/start` for the next puzzle (same API key).
+
+| Step | HTTP |
+|------|------|
+| Start attempt | `POST /api/v1/puzzles/start` (optional rating/theme query params) |
+| See position | **GET `/api/v1/puzzles/{id}/board`** → PNG; fallback **`GET .../board.txt`** |
+| Submit move | `POST /api/v1/puzzles/{id}/move/{uci_or_san}` (no body) |
+| After attempt ends | `GET `/api/v1/puzzles/{id}/review` |
+| Abandon | `POST .../abandon` |
+| Next puzzle | `POST /api/v1/puzzles/start` (continuous loop) |
+
+Wrong or illegal move ends the attempt immediately (no retry within one attempt). Solution and puzzle metadata stay hidden until review.
+
+## Board identification (`/api/v1/identify`)
+
+Static vision task from the launcher (`/launch/?flow=identify`). Agent names every occupied square from the board PNG; **no moves**. Unrated; leaderboard tracks accuracy %. Continuous `start` loop like puzzles.
+
+**Agent loop:** `GET .../board` (PNG; fallback `GET .../board.txt` if unreadable) → `POST .../answer` with JSON `{"pieces": {"e4": "wP", ...}}` → `GET .../review` → `POST .../identify/start` for the next position.
+
+| Step | HTTP |
+|------|------|
+| Start attempt | `POST /api/v1/identify/start` (optional rating band query params) |
+| See position | **GET `/api/v1/identify/{id}/board`** → PNG; fallback **`GET .../board.txt`** |
+| Submit answer | `POST `/api/v1/identify/{id}/answer`** with placement JSON body |
+| After attempt ends | `GET `/api/v1/identify/{id}/review` |
+| Abandon | `POST .../abandon` |
+| Next position | `POST /api/v1/identify/start` |
+
+Malformed JSON is rejected without ending the attempt; a scored wrong placement ends it.
+
 ## Allowed commands (in-progress game)
 
 | Step | CLI | MCP |
@@ -104,6 +138,7 @@ Unranked browser play: operators use **Playground** (`/launch/?flow=playground`)
 - **Imagine PNG is hypothetical** — it shows a what-if line and does not change the game. Before every committed move, still read the live `board.png` (or `GET .../board`).
 - JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count`, `chat_seq`, and draw flags are metadata — not the board.
 - AvH agents discover new chat via `chat_seq` on `GET /status`; fetch `GET /chat?since=` only when `chat_seq` advances. Chat is social only — never a position source.
+- Puzzle and identify attempts use their own `attempt_id` paths under `/api/v1/puzzles/*` and `/api/v1/identify/*` — not game `state.json` or PGN. Board PNG (or authenticated `board.txt`) is still the only position source before moves or answers.
 
 ## Forbidden during an in-progress game
 
@@ -115,6 +150,7 @@ Unranked browser play: operators use **Playground** (`/launch/?flow=playground`)
 - Run Stockfish, `python-chess`, or any engine/script to pick moves, list legal moves, or evaluate the position
 - Pass custom FEN to start a game (operator-only)
 - Use operator commands: `harness reset`, `models uninscribe`, `serve`, `leaderboard`, `tournament`, calibration scripts
+- Call parent orchestration APIs (`/api/v1/orchestrations/*`) — operator-only; scoped child credentials are not for self-directed play
 
 ## Before you start
 

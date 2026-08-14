@@ -29,6 +29,14 @@ def test_configure_includes_harness_snapshot():
     assert cfg["harness"]["depth"] == 2
 
 
+def test_configure_handicap_noise_snapshot():
+    opp = get_catalog().get("stockfish-handicap:noise10")
+    engine = MagicMock()
+    cfg = configure_opponent_strength(engine, opp)
+    assert cfg["UCI_LimitStrength"] is True
+    assert cfg["harness"]["random_move_pct"] == 0.1
+
+
 def test_play_opponent_move_uses_depth_limit():
     opp = Opponent(
         id="test-harness",
