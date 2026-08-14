@@ -98,7 +98,8 @@ def contract():
 
 def test_proxy_js_exports_watch_shell_helpers():
     text = PROXY_JS_PATH.read_text(encoding="utf-8")
-    assert 'from "./proxy-routes.contract.json" with { type: "json" }' in text
+    assert 'from "./proxy-routes.contract.json"' in text
+    assert "with { type:" not in text
     assert "buildProxyRequestHeaders" in text
     assert "isWatchShellHtml" in text
     assert "shouldProxyToOrigin" in text
