@@ -3,7 +3,8 @@
  * GAME_ORIGIN must be set in the Cloudflare Pages dashboard (no trailing slash).
  */
 
-import contract from "./proxy-routes.contract.json" with { type: "json" };
+// Plain JSON import — Wrangler 3 / Pages bundler rejects import attributes (`with { type: "json" }`).
+import contract from "./proxy-routes.contract.json";
 
 const PROXY_TIMEOUT_MS = 25000;
 
