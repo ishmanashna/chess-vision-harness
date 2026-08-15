@@ -14,8 +14,10 @@ function gameIdFromPage() {
   if (fromData) return fromData;
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
   const idx = parts.indexOf("g");
-  if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
-  return parts[parts.length - 1] || "";
+  const id = idx >= 0 ? parts[idx + 1] : "";
+  // Bare /g/ must not be treated as id "g" (Pages once redirected /g/{id} → /g/).
+  if (!id || id === "index.html") return "";
+  return id;
 }
 
 function escHtml(s) {

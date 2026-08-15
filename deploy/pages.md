@@ -57,6 +57,8 @@ Then open `http://localhost:3000` (or the port `serve` prints). `public-site/ser
 
 **Watch/play with live data locally:** run `chess-harness serve` on the PC (default `http://127.0.0.1:8765`). It serves the same static shells from `public-site/{g,p,i,play}/index.html` and proxies board images plus `/api/*` from the origin. Pages production uses the same shells; only asset subpaths (`/g/{id}/board.png`, etc.) hit `GAME_ORIGIN`.
 
+**Pages watch shells:** middleware must return the shell HTML at `/g/{id}` (etc.) with status 200. Cloudflare maps `/g/index.html` → 308 `/g/`; if that redirect is forwarded to the browser, the id is stripped and the page stays empty (no moves/pieces). `fetchWatchShellHtml` in `functions/_watch_shell.js` follows that redirect server-side.
+
 Opening `index.html` directly in a browser (`file://`) will not load `/data/leaderboard.json` or `/api/edge-health` — use a local static server instead.
 
 ## Leaderboard (live vs offline)

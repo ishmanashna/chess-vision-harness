@@ -19,7 +19,10 @@ const POLL_WAIT_MS = 2500;
 
 function gameIdFromPath() {
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
-  return parts[parts.length - 1] || "";
+  const idx = parts.indexOf("play");
+  const id = idx >= 0 ? parts[idx + 1] : parts[parts.length - 1] || "";
+  if (!id || id === "index.html" || id === "play") return "";
+  return id;
 }
 
 function wirePlayShellChrome(gameId) {

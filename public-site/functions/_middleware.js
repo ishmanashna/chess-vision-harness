@@ -6,6 +6,7 @@ import {
   shouldProxyToOrigin,
   watchShellAssetPath,
 } from "./_proxy.js";
+import { fetchWatchShellHtml } from "./_watch_shell.js";
 
 /**
  * @param {URL} url
@@ -73,8 +74,8 @@ export async function onRequest(context) {
   if (isWatchShellHtml(pathname)) {
     const asset = watchShellAssetPath(pathname);
     if (asset && env.ASSETS) {
-      const shellUrl = new URL(asset, request.url);
-      return env.ASSETS.fetch(new Request(shellUrl, request));
+      // Do not return ASSETS redirects: /g/index.html → /g/ strips the game id.
+      return fetchWatchShellHtml(env.ASSETS, request, asset);
     }
     return next();
   }

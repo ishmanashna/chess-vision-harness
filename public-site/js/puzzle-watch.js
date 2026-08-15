@@ -26,8 +26,9 @@ function attemptIdFromPage() {
   if (fromData) return fromData;
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
   const idx = parts.indexOf("p");
-  if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
-  return parts[parts.length - 1] || "";
+  const id = idx >= 0 ? parts[idx + 1] : "";
+  if (!id || id === "index.html") return "";
+  return id;
 }
 
 function escHtml(s) {

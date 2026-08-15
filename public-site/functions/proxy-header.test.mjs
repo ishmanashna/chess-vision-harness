@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildProxyRequestHeaders, clientIpFromRequest } from "./_proxy.js";
+import { fetchWatchShellHtml } from "./_watch_shell.js";
 
 test("clientIpFromRequest prefers CF-Connecting-IP", () => {
   const request = new Request("https://chessvisionharness.pages.dev/api/v1/games", {
@@ -38,4 +39,39 @@ test("buildProxyRequestHeaders forwards visitor IP and strips spoofable headers"
   assert.equal(headers.get("x-real-ip"), null);
   assert.equal(headers.get("host"), null);
   assert.equal(headers.get("authorization"), "Bearer test-key");
+});
+
+test("fetchWatchShellHtml follows ASSETS index redirect without leaking it", async () => {
+  const calls = [];
+  const assets = {
+    async fetch(request) {
+      const url = new URL(request.url);
+      calls.push({ url: url.pathname, redirect: request.redirect });
+      if (url.pathname === "/g/index.html") {
+        return new Response(null, {
+          status: 308,
+          headers: { Location: "/g/" },
+        });
+      }
+      if (url.pathname === "/g/" || url.pathname === "/g") {
+        return new Response("<!doctype html><title>shell</title>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        });
+      }
+      return new Response("missing", { status: 404 });
+    },
+  };
+  const request = new Request(
+    "https://chessvisionharness.pages.dev/g/game-abc123"
+  );
+  const res = await fetchWatchShellHtml(assets, request, "/g/index.html");
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(await res.text(), "<!doctype html><title>shell</title>");
+  assert.deepEqual(
+    calls.map((c) => c.url),
+    ["/g/index.html", "/g/"]
+  );
+  assert.equal(calls[0].redirect, "manual");
 });

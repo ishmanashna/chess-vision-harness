@@ -98,12 +98,38 @@ def contract():
 
 def test_proxy_js_exports_watch_shell_helpers():
     text = PROXY_JS_PATH.read_text(encoding="utf-8")
-    assert 'from "./proxy-routes.contract.json"' in text
-    assert "with { type:" not in text
+    assert 'from "./proxy-routes.contract.js"' in text
     assert "buildProxyRequestHeaders" in text
     assert "isWatchShellHtml" in text
     assert "shouldProxyToOrigin" in text
+    assert "fetchWatchShellHtml" in (
+        REPO_ROOT / "public-site" / "functions" / "_watch_shell.js"
+    ).read_text(encoding="utf-8")
+    assert "fetchWatchShellHtml" in (
+        REPO_ROOT / "public-site" / "functions" / "_middleware.js"
+    ).read_text(encoding="utf-8")
 
+
+def test_proxy_contract_js_matches_json():
+    data = _load_contract()
+    js_path = CONTRACT_PATH.with_suffix(".js")
+    assert js_path.is_file()
+    if shutil.which("node") is None:
+        pytest.skip("node not installed")
+    result = subprocess.run(
+        [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import c from './proxy-routes.contract.js'; process.stdout.write(JSON.stringify(c))",
+        ],
+        cwd=js_path.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout) == data
 
 @pytest.mark.parametrize(
     "pathname",
