@@ -51,10 +51,9 @@ def _agent_names(
 ) -> Dict[str, str]:
     """Display names from the model registry; fall back to the model id."""
     names: Dict[str, str] = {mid: mid for mid in model_ids if mid}
-    if registry is None:
-        return names
+    reg = registry if registry is not None else ModelRegistry()
     try:
-        for model in registry.list_models():
+        for model in reg.list_models():
             mid = str(model.get("id") or "")
             if mid:
                 names[mid] = str(model.get("name") or mid)

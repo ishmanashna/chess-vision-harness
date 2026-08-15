@@ -53,6 +53,7 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
         "started_at": record.get("started_at"),
         "updated_at": record.get("updated_at"),
         "finished_at": record.get("finished_at") if finished else None,
+        "watch_url": f"/i/{record['attempt_id']}",
     }
     if finished:
         score = record.get("score") or {}

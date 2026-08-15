@@ -213,14 +213,14 @@ def load_live_puzzle_leaderboard(
     *, registry: Optional[ModelRegistry] = None
 ) -> Dict[str, Any]:
     """Public-site puzzle leaderboard JSON from current harness state."""
-    return build_puzzle_leaderboard(registry=registry)
+    return build_puzzle_leaderboard(registry=registry or ModelRegistry())
 
 
 def load_live_identify_leaderboard(
     *, registry: Optional[ModelRegistry] = None
 ) -> Dict[str, Any]:
     """Public-site board-identification leaderboard JSON from current state."""
-    return build_identify_leaderboard(registry=registry)
+    return build_identify_leaderboard(registry=registry or ModelRegistry())
 
 
 def _inject_inline_snapshot(snapshot_json: str) -> None:

@@ -147,6 +147,7 @@ def test_public_state_active_is_secret_safe(observer_client):
     assert state["opponent_moves"] == []
     assert "themes" not in state, "themes are never user-facing"
     assert state["key"], "attempt chain key is published"
+    assert state["watch_url"] == f"/p/{attempt_id}"
     assert " b " in state["fen"], "live board fen must reflect the visible position"
 
     # pz-c's solution is a single agent move: after it the attempt is finished.

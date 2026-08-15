@@ -375,6 +375,7 @@ def test_observer_secrecy_live_and_replay_gate(identify_client):
     assert state["status"] == "active"
     assert state["result"] is None
     assert state["submitted_count"] == 0
+    assert state["watch_url"] == f"/i/{attempt_id}"
     assert "accuracy" not in state
     assert "difficulty" not in state
 

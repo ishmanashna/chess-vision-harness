@@ -105,6 +105,8 @@ After a successful deploy with that secret, `/api/edge-health` reports online wh
 
 **Named tunnel vs Quick Tunnel:** a Windows `cloudflared` service for a named tunnel (e.g. `chess-harness-pc`) with **no public hostname** does **not** make Pages Online. Only a URL in `GAME_ORIGIN` that currently reaches `{origin}/health` counts — typically a live Quick Tunnel `*.trycloudflare.com` hostname until you add a domain route. Verify from the game PC: [`verify-online.ps1`](verify-online.ps1).
 
+**Scripted API clients:** Cloudflare may return **403** for empty or `Python-urllib/*` User-Agents on the Pages host. Use curl/browsers (normal UA) or set e.g. `User-Agent: ChessVisionHarness-Agent/1.0`. Local `http://127.0.0.1:8765` is unaffected. See `AGENTS.md` (Remote HTTP).
+
 **What it does when set:**
 
 - `GET /api/edge-health` on Pages probes `{GAME_ORIGIN}/health` (~10s timeout). The status chip shows **Online** when the probe succeeds.
