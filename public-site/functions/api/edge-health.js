@@ -1,15 +1,17 @@
 import { normalizeOrigin } from "../_proxy.js";
 
-const HEALTH_TIMEOUT_MS = 10000;
+/** Keep probes snappy — slow tunnels should fail fast, not block navigation. */
+const HEALTH_TIMEOUT_MS = 3000;
+/** Edge CDN cache for successful Online answers (seconds). Offline stays uncached. */
+const ONLINE_CACHE_S_MAXAGE = 12;
 
 /**
  * GET /api/edge-health — probes GAME_ORIGIN/health with a short timeout.
  */
 export async function onRequest({ env }) {
   const origin = normalizeOrigin(env.GAME_ORIGIN);
-  const headers = {
+  const baseHeaders = {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
   };
 
   if (!origin) {
@@ -20,7 +22,12 @@ export async function onRequest({ env }) {
         origin: false,
         message: "GAME_ORIGIN is not configured on this Pages project.",
       },
-      { headers }
+      {
+        headers: {
+          ...baseHeaders,
+          "cache-control": "no-store",
+        },
+      }
     );
   }
 
@@ -32,6 +39,8 @@ export async function onRequest({ env }) {
       method: "GET",
       headers: { accept: "application/json" },
       signal: controller.signal,
+      // Don't reuse a stale origin /health from CF cache for this probe.
+      cf: { cacheTtl: 0, cacheEverything: false },
     });
 
     if (!res.ok) {
@@ -52,7 +61,13 @@ export async function onRequest({ env }) {
         origin: true,
         message: "Game server is reachable.",
       },
-      { headers }
+      {
+        headers: {
+          ...baseHeaders,
+          // Short edge cache so tab navigations reuse the last Online without a full tunnel hop.
+          "cache-control": `public, max-age=0, s-maxage=${ONLINE_CACHE_S_MAXAGE}`,
+        },
+      }
     );
   } catch (_err) {
     return Response.json(
@@ -62,7 +77,12 @@ export async function onRequest({ env }) {
         origin: true,
         message: "Game server is unreachable.",
       },
-      { headers }
+      {
+        headers: {
+          ...baseHeaders,
+          "cache-control": "no-store",
+        },
+      }
     );
   } finally {
     clearTimeout(timer);

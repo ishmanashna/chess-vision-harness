@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -6,7 +6,7 @@
   <link rel="icon" href="/favicon.ico" sizes="any"/>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
   <meta name="description" content="Watch a puzzle attempt on Chess Vision Harness."/>
-  <title>Puzzle · Chess Vision Harness</title>
+  <title>Puzzle Â· Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
   <link rel="stylesheet" href="/css/watch.css"/>
@@ -28,9 +28,9 @@
         </nav>
         <div class="header-controls">
           <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
-          <span class="status-chip" data-status-chip data-state="sleeping" title="Checking server status…">
+          <span class="status-chip" data-status-chip data-state="checking" title="Checking server statusâ€¦">
             <span class="status-dot" aria-hidden="true"></span>
-            <span data-status-label>Sleeping</span>
+            <span data-status-label>Checking…</span>
           </span>
         </div>
       </div>
@@ -42,24 +42,24 @@
           <div class="info-card">
             <h2>Puzzle info</h2>
             <dl class="meta-grid" id="meta">
-              <dt>Attempt</dt><dd>Loading…</dd>
-              <dt>Agent</dt><dd>—</dd>
-              <dt id="state-puzzle-label" hidden>Puzzle id</dt><dd id="state-puzzle" hidden>—</dd>
-              <dt id="state-source-label" hidden>Source</dt><dd id="state-source" hidden>—</dd>
+              <dt>Attempt</dt><dd>Loadingâ€¦</dd>
+              <dt>Agent</dt><dd>â€”</dd>
+              <dt id="state-puzzle-label" hidden>Puzzle id</dt><dd id="state-puzzle" hidden>â€”</dd>
+              <dt id="state-source-label" hidden>Source</dt><dd id="state-source" hidden>â€”</dd>
             </dl>
           </div>
           <div class="info-card">
             <h2>Attempt state</h2>
             <dl class="meta-grid" id="state-meta">
-              <dt>Status</dt><dd id="state-status">Loading…</dd>
-              <dt>Result</dt><dd id="state-result">—</dd>
-              <dt id="state-rating-label" hidden>Rating</dt><dd id="state-rating" hidden>—</dd>
-              <dt>Difficulty</dt><dd id="state-difficulty">—</dd>
-              <dt id="state-metrics-label">Puzzle rating</dt><dd id="state-agent-rating">—</dd>
-              <dt id="state-performance-label" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</dt><dd id="state-agent-performance">—</dd>
-              <dt>Deviation</dt><dd id="state-deviation">—</dd>
-              <dt>Attempts</dt><dd id="state-attempts">—</dd>
-              <dt>Solves</dt><dd id="state-solves">—</dd>
+              <dt>Status</dt><dd id="state-status">Loadingâ€¦</dd>
+              <dt>Result</dt><dd id="state-result">â€”</dd>
+              <dt id="state-rating-label" hidden>Rating</dt><dd id="state-rating" hidden>â€”</dd>
+              <dt>Difficulty</dt><dd id="state-difficulty">â€”</dd>
+              <dt id="state-metrics-label">Puzzle rating</dt><dd id="state-agent-rating">â€”</dd>
+              <dt id="state-performance-label" title="Estimated strength from move accuracy via the calibration accuracyâ†’Elo table â€” not ladder Elo.">Performance</dt><dd id="state-agent-performance">â€”</dd>
+              <dt>Deviation</dt><dd id="state-deviation">â€”</dd>
+              <dt>Attempts</dt><dd id="state-attempts">â€”</dd>
+              <dt>Solves</dt><dd id="state-solves">â€”</dd>
             </dl>
           </div>
           <div class="info-card">
@@ -87,7 +87,7 @@
       </div>
     </main>
     <footer class="site-footer">
-      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+      <p>Chess Vision Harness Â· <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
   <script src="/js/common.js"></script>

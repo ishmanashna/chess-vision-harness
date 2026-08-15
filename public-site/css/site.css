@@ -267,6 +267,13 @@ main {
   border-color: var(--form-ok-border);
 }
 
+.status-chip[data-state="checking"] {
+  background: var(--chip-sleep-bg);
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+  opacity: 0.9;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;

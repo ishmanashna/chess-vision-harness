@@ -2,6 +2,9 @@
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
+  var HEALTH_STORAGE_KEY = "cvh-edge-health-v1";
+  /** Optimistic Online paint if last probe was within this window (ms). */
+  var HEALTH_FRESH_MS = 90000;
   var LIVE_LEADERBOARD_URL = "/api/leaderboard/live";
   var SNAPSHOT_LEADERBOARD_URL = "/data/leaderboard.json";
   var THEME_KEY = "chess-harness-theme";
@@ -13,6 +16,7 @@
   var HOME_SORT_KEY = "cvh-home-ladder-sort";
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
+  var healthInflight = null;
   var liveLeaderboardListeners = [];
   var latestLiveLeaderboard = null;
 
@@ -501,21 +505,77 @@
       chip.dataset.state = state;
       var label = chip.querySelector("[data-status-label]");
       if (label) {
-        label.textContent = state === "online" ? "Online" : "Sleeping";
+        label.textContent =
+          state === "online"
+            ? "Online"
+            : state === "checking"
+              ? "Checking…"
+              : "Sleeping";
       }
       chip.title =
         detail ||
         (state === "online"
           ? "Game server online"
-          : "Game server offline — leaderboard uses the last snapshot");
+          : state === "checking"
+            ? "Checking whether the game server is reachable…"
+            : "Game server offline — leaderboard uses the last snapshot");
     });
   }
 
-  function checkEdgeHealth() {
-    if (healthCache) {
-      return Promise.resolve(healthCache);
+  function applyHealthVisibility(online) {
+    document.querySelectorAll("[data-requires-origin]").forEach(function (el) {
+      el.hidden = !online;
+    });
+    document.querySelectorAll("[data-offline-only]").forEach(function (el) {
+      el.hidden = online;
+    });
+  }
+
+  function paintHealth(health) {
+    var online = !!(health && health.online);
+    setStatusChip(
+      online ? "online" : "sleeping",
+      online
+        ? "Game server online — Create Game and live boards available"
+        : "Game server offline — leaderboard uses the last snapshot"
+    );
+    applyHealthVisibility(online);
+  }
+
+  function readStoredHealth() {
+    try {
+      var raw = sessionStorage.getItem(HEALTH_STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.ts !== "number") return null;
+      if (Date.now() - parsed.ts > HEALTH_FRESH_MS) return null;
+      return {
+        online: !!parsed.online,
+        raw: parsed.raw || null,
+        fromStorage: true,
+      };
+    } catch (_err) {
+      return null;
     }
-    return fetch(HEALTH_URL, { cache: "no-cache" })
+  }
+
+  function writeStoredHealth(health) {
+    try {
+      sessionStorage.setItem(
+        HEALTH_STORAGE_KEY,
+        JSON.stringify({
+          online: !!(health && health.online),
+          raw: health && health.raw ? health.raw : null,
+          ts: Date.now(),
+        })
+      );
+    } catch (_err) {
+      /* private mode / quota — ignore */
+    }
+  }
+
+  function fetchEdgeHealthNetwork() {
+    return fetch(HEALTH_URL, { cache: "default" })
       .then(function (res) {
         if (!res.ok) throw new Error("health unavailable");
         return res.json();
@@ -524,30 +584,53 @@
         var online =
           data && (data.status === "online" || data.online === true);
         healthCache = { online: online, raw: data };
+        writeStoredHealth(healthCache);
         return healthCache;
       })
       .catch(function () {
         healthCache = { online: false, raw: null };
+        // Do not stamp sessionStorage offline on fetch/timeout blips — keep last good Online for the next tab.
         return healthCache;
       });
   }
 
+  function checkEdgeHealth(options) {
+    options = options || {};
+    if (!options.force && healthCache) {
+      return Promise.resolve(healthCache);
+    }
+    if (!options.force && healthInflight) {
+      return healthInflight;
+    }
+    healthInflight = fetchEdgeHealthNetwork().then(
+      function (health) {
+        healthInflight = null;
+        return health;
+      },
+      function (err) {
+        healthInflight = null;
+        throw err;
+      }
+    );
+    return healthInflight;
+  }
+
   function applyHealthUi(options) {
     options = options || {};
-    return checkEdgeHealth().then(function (health) {
-      var online = health.online;
+    var stored = readStoredHealth();
+    if (stored) {
+      healthCache = { online: stored.online, raw: stored.raw };
+      paintHealth(stored);
+      if (options.onHealth) options.onHealth(stored);
+    } else {
       setStatusChip(
-        online ? "online" : "sleeping",
-        online
-          ? "Game server online — Create Game and live boards available"
-          : "Game server offline — leaderboard uses the last snapshot"
+        "checking",
+        "Checking whether the game server is reachable…"
       );
-      document.querySelectorAll("[data-requires-origin]").forEach(function (el) {
-        el.hidden = !online;
-      });
-      document.querySelectorAll("[data-offline-only]").forEach(function (el) {
-        el.hidden = online;
-      });
+    }
+    // Always refresh in the background (or foreground when no optimistic paint).
+    return checkEdgeHealth({ force: true }).then(function (health) {
+      paintHealth(health);
       if (options.onHealth) options.onHealth(health);
       return health;
     });
