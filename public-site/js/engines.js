@@ -171,19 +171,21 @@
             });
           };
 
-    // Snapshot first (fast static asset), then upgrade in place when live rows arrive.
-    var latest = window.CVH.getLatestLiveLeaderboard
-      ? window.CVH.getLatestLiveLeaderboard()
-      : null;
+    // Live hook first so snapshot failures never skip registration.
+    if (window.CVH && typeof window.CVH.onLiveLeaderboard === "function") {
+      window.CVH.onLiveLeaderboard(paintOpponents);
+    }
+
+    var latest =
+      window.CVH && typeof window.CVH.getLatestLiveLeaderboard === "function"
+        ? window.CVH.getLatestLiveLeaderboard()
+        : null;
     if (latest && latest.live) {
       paintOpponents(latest);
     } else {
       snapshotLb()
         .then(paintOpponents)
         .catch(paintError);
-    }
-    if (window.CVH && typeof window.CVH.onLiveLeaderboard === "function") {
-      window.CVH.onLiveLeaderboard(paintOpponents);
     }
   }
 

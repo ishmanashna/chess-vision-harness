@@ -165,6 +165,8 @@ def test_public_state_active_is_secret_safe(observer_client):
     assert state2["submitted_moves"] == ["e5"], "SAN labels are public once played"
     assert state2["opponent_moves"] == ["Nf3"], "the finishing puzzle reply was played"
     assert state2["fen"] != before
+    summary = state2.get("agent_summary")
+    assert summary and summary["attempts"] == 1 and summary["solves"] == 1
 
     # A multi-move puzzle stays active after a correct move, still leak-free.
     start2 = _start(client, key, rating_min=1400, rating_max=1600)
@@ -283,6 +285,8 @@ def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
     assert rv["result"] == "failed"
     assert rv["failure_reason"] == "wrong_move"
     assert rv["first_wrong_move"] == "a7a6"
+    assert rv["solution_agent_moves"]
+    assert rv["solution_opponent_moves"] is not None
     assert rv["submitted_moves"] == ["a7a6"], "wrong move is now recorded"
 
     state = _public_state(client, attempt_id)
@@ -308,11 +312,12 @@ def test_public_browse_lists_without_secrets(observer_client):
     ids = {row["attempt_id"] for row in rows}
     assert active["attempt_id"] in ids
     assert won["attempt_id"] in ids
-    assert gone["attempt_id"] not in ids, "abandoned attempts are not listed"
+    assert gone["attempt_id"] in ids, "abandoned attempts are listed for chain honesty"
 
     for row in rows:
         assert_puzzle_no_leak(row)
         assert row["watch_url"].startswith("/p/")
+        assert row["model_id"]
         assert row["result"] in (None, "correct", "failed")
         assert row["key"], "attempt chain key travels on discovery rows"
 

@@ -250,6 +250,47 @@
   color: var(--danger, #c0392b);
 }
 
+.move-row.move-header {
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.move-row.move-header .w,
+.move-row.move-header .b {
+  cursor: default;
+  pointer-events: none;
+}
+
+.move-row.move-static .w,
+.move-row.move-static .b {
+  cursor: default;
+  pointer-events: none;
+}
+
+.moves-subhead {
+  margin: 14px 0 6px;
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.moves-subhead:first-child {
+  margin-top: 0;
+}
+
+.meta-sub {
+  font-size: 0.88em;
+  color: var(--faint);
+  font-weight: 400;
+}
+
 .watch-chain-list,
 .chain-list {
   list-style: none;
@@ -656,8 +697,8 @@
   transition: height 0.5s ease;
 }
 
-.puzzle-view #state-result,
-.identify-view #state-result {
+.puzzle-view #state-outcome,
+.identify-view #state-outcome {
   font-weight: 700;
 }
 

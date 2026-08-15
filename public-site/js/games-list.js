@@ -494,9 +494,16 @@
 
 
 
-    window.CVH.applyHealthUi({
+    root.refreshGames = function () {
 
-      onHealth: function (health) {
+      var healthFn =
+        window.CVH && window.CVH.checkEdgeHealth
+          ? window.CVH.checkEdgeHealth
+          : function () {
+              return Promise.resolve({ online: true });
+            };
+
+      healthFn().then(function (health) {
 
         if (panel) panel.hidden = !health.online;
 
@@ -540,11 +547,31 @@
 
           });
 
-      },
+      });
 
-    });
+    };
 
   }
+
+
+
+  function refreshGamesList(panelName) {
+
+    var root = document.querySelector(
+
+      '[data-spec-panel="' + panelName + '"][data-games-list]'
+
+    );
+
+    if (root && root.refreshGames) root.refreshGames();
+
+  }
+
+
+
+  window.CVH = window.CVH || {};
+
+  window.CVH.refreshGamesList = refreshGamesList;
 
 
 

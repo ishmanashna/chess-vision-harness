@@ -412,6 +412,7 @@ def test_start_brief_covers_perpetual_loop(puzzle_api_client):
     assert "indefinitely" in brief
     assert "rating delta" in brief
     assert "/api/v1/puzzles/start" in brief
+    assert "30 minutes" in brief
 
 
 def test_attempts_never_write_results_jsonl(puzzle_api_client):
@@ -443,3 +444,92 @@ def test_attempts_never_write_results_jsonl(puzzle_api_client):
 
     assert not results_path.exists(), "puzzle attempts must never write results.jsonl"
     assert (harness_dir / "puzzle_attempts.json").exists()
+
+
+def test_prune_idle_active_abandons_stale_puzzle_attempt(tmp_path):
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    from chess_harness.puzzle_attempt import PuzzleAttemptStore
+
+    path = tmp_path / "puzzles.json"
+    stale = (datetime.now(timezone.utc) - timedelta(seconds=4000)).isoformat()
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "attempts": {
+                    "pz-stale": {
+                        "attempt_id": "pz-stale",
+                        "status": "active",
+                        "updated_at": stale,
+                        "started_at": stale,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = PuzzleAttemptStore(path)
+    abandoned = store.prune_idle_active(1800.0)
+    assert abandoned == ["pz-stale"]
+    record = store.get("pz-stale")
+    assert record is not None
+    assert record["status"] == "abandoned"
+
+
+def _stale_puzzle_attempt(harness_dir, attempt_id: str) -> None:
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    path = harness_dir / "puzzle_attempts.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    stale = (datetime.now(timezone.utc) - timedelta(seconds=4000)).isoformat()
+    record = data["attempts"][attempt_id]
+    record["updated_at"] = stale
+    record["started_at"] = stale
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_puzzle_board_abandons_idle_attempt_on_read(puzzle_api_client):
+    client, harness_dir = puzzle_api_client
+    key = _register(client, "idle-puzzle-agent")
+    start = _start(client, key)
+    attempt_id = start["attempt_id"]
+
+    _stale_puzzle_attempt(harness_dir, attempt_id)
+
+    board = client.get(start["board_url"], headers=_auth(key))
+    assert board.status_code == 200
+
+    from chess_harness.puzzle_attempt import PuzzleAttemptStore
+
+    record = PuzzleAttemptStore().get(attempt_id)
+    assert record is not None
+    assert record["status"] == "abandoned"
+
+    review = client.get(start["review_url"], headers=_auth(key))
+    assert review.status_code == 200
+    assert review.json()["status"] == "abandoned"
+
+
+def test_puzzle_idle_abandon_frees_concurrency_slot(puzzle_api_client, monkeypatch):
+    import chess_harness.api_limits as api_limits
+    from chess_harness.limits import HarnessLimits
+
+    client, harness_dir = puzzle_api_client
+    key = _register(client, "idle-cap-agent")
+
+    monkeypatch.setattr(
+        api_limits.get_limit_enforcer(),
+        "_limits",
+        HarnessLimits(max_puzzle_attempts_per_key=1),
+    )
+
+    start = _start(client, key)
+    _stale_puzzle_attempt(harness_dir, start["attempt_id"])
+    client.get(start["board_url"], headers=_auth(key))
+
+    second = client.post("/api/v1/puzzles/start", headers=_auth(key))
+    assert second.status_code == 200
+    assert second.json()["status"] == "active"

@@ -28,8 +28,19 @@
     if (next === "mygames" && window.CVH && window.CVH.refreshHumanGamesLists) {
       window.CVH.refreshHumanGamesLists();
     }
-    if ((next === "puzzles" || next === "identify") && window.CVH && window.CVH.refreshAttemptsLists) {
-      window.CVH.refreshAttemptsLists();
+    if (
+      (next === "active" || next === "completed") &&
+      window.CVH &&
+      window.CVH.refreshGamesList
+    ) {
+      window.CVH.refreshGamesList(next);
+    }
+    if (
+      (next === "puzzles" || next === "identify") &&
+      window.CVH &&
+      window.CVH.refreshAttemptsList
+    ) {
+      window.CVH.refreshAttemptsList(next);
     }
   }
 

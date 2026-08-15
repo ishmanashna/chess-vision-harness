@@ -915,12 +915,15 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
                 <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
                 <th scope="col" data-sort="games" title="Finished games with a real result (rated, AvH, and unrated same-model AvA). Idle timeouts (*) excluded.">Games</th>
                 <th scope="col" data-sort="puzzle_rating" title="Glicko-2 puzzle rating from finished attempts — separate from game Elo, never affects it.">PUZZLES</th>
+                <th scope="col" data-sort="puzzle_attempts" title="Finished puzzle attempts for this agent.">Pz att</th>
+                <th scope="col" data-sort="puzzle_solves" title="Puzzle attempts solved correctly.">Pz sol</th>
+                <th scope="col" data-sort="identify_attempts" title="Finished board-identification attempts for this agent.">Id att</th>
                 <th scope="col" data-sort="identify_mean_accuracy" title="Average exact-piece placement across finished board-identification attempts.">% pieces</th>
                 <th scope="col" data-sort="identify_full_position_rate" title="Share of finished board-identification attempts with every piece placed exactly.">% boards</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="9" class="empty-state">Loading snapshot…</td></tr>
+              <tr><td colspan="12" class="empty-state">Loading snapshot…</td></tr>
             </tbody>
           </table>
           <p class="snapshot-meta" data-snapshot-meta></p>

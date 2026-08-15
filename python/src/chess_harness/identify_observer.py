@@ -16,6 +16,7 @@ import chess
 from PIL import Image, ImageDraw
 
 from .models import ModelRegistry
+from .puzzle_leaderboard import identify_agent_summary
 from .render_pillow import ChessBoardRenderer
 
 __all__ = [
@@ -69,6 +70,11 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
             "full_position": score.get("full_position"),
         }
         state["difficulty"] = record.get("puzzle_rating")
+    model_id = str(record.get("model_id") or "")
+    if model_id:
+        summary = identify_agent_summary(model_id)
+        if summary:
+            state["agent_summary"] = summary
     return state
 
 
@@ -129,6 +135,7 @@ def public_attempt_row(record: Dict[str, Any]) -> Dict[str, Any]:
     row: Dict[str, Any] = {
         "attempt_id": record["attempt_id"],
         "key": record.get("key_fingerprint"),
+        "model_id": record.get("model_id"),
         "agent_name": _agent_name(record),
         "status": record.get("status"),
         "result": record.get("result") if finished else None,

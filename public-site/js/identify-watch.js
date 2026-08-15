@@ -1,12 +1,7 @@
 /**
  * Public board-identification watch/replay page (/i/{id}).
  * Mirrors the game spectator layout: info column, board column, review column.
- * Live state polls the observer-safe API and renders the visible board; after
- * submission the placement review unlocks — the answer board overlay (green =
- * exact, red = mismatch) and the per-square table (submitted vs expected).
- * The info column shows the agent's current board-identification metrics at
- * all times and the attempt chain (same pseudonymous key); when the agent
- * starts the next attempt the page auto-follows to it.
+ * Navigation to other attempts is via the chain links or URL only.
  */
 
 import {
@@ -19,7 +14,6 @@ const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 const POLL_MS = 3000;
 const CHAIN_POLL_MS = 15000;
-const FOLLOW_DELAY_MS = 5000;
 
 function attemptIdFromPage() {
   const root = document.body;
@@ -52,6 +46,18 @@ function showPollError(message) {
   }
 }
 
+function httpErrorMessage(status, kind) {
+  if (status === 404) {
+    return kind === "replay"
+      ? "Replay is not available for this attempt."
+      : "This identification attempt was not found.";
+  }
+  if (status === 502 || status === 503) {
+    return "Game server is offline — try again when the operator is online.";
+  }
+  return "Could not load identification " + (kind || "data") + " (HTTP " + status + ").";
+}
+
 function statusLabel(s) {
   if (s.status === "finished") {
     return s.result === "correct" ? "Identified" : "Mismatched";
@@ -71,9 +77,19 @@ function fmtYesNo(v) {
 }
 
 async function main() {
-  let ATTEMPT_ID = attemptIdFromPage();
+  const ATTEMPT_ID = attemptIdFromPage();
   const mount = document.getElementById("board");
-  if (!ATTEMPT_ID || !mount) return;
+
+  if (!ATTEMPT_ID) {
+    showPollError("No identification attempt id in this URL.");
+    const outcomeEl = document.getElementById("state-outcome");
+    if (outcomeEl) outcomeEl.textContent = "—";
+    return;
+  }
+  if (!mount) {
+    showPollError("Board could not be initialized.");
+    return;
+  }
 
   const board = new Chessboard(mount, {
     position: undefined,
@@ -91,10 +107,8 @@ async function main() {
   let replay = null;
   let pollTimer = null;
   let chainTimer = null;
-  let followTimer = null;
   let agentKey = null;
   let agentName = null;
-  let currentStartedAt = null;
 
   function setPosition(fen, animate) {
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
@@ -112,14 +126,12 @@ async function main() {
         escHtml(state.agent_name) +
         "</dd>";
     }
-    const statusEl = document.getElementById("state-status");
-    const resultEl = document.getElementById("state-result");
+    const outcomeEl = document.getElementById("state-outcome");
     const accEl = document.getElementById("state-accuracy");
     const fullEl = document.getElementById("state-full-position");
     const diffEl = document.getElementById("state-difficulty");
     const subEl = document.getElementById("state-submitted");
-    if (statusEl) statusEl.textContent = statusLabel(state);
-    if (resultEl) resultEl.textContent = state.result || "—";
+    if (outcomeEl) outcomeEl.textContent = statusLabel(state);
     if (accEl) accEl.textContent = fmtAccuracy(state.accuracy);
     if (fullEl) fullEl.textContent = fmtYesNo(state.full_position);
     if (diffEl) {
@@ -129,8 +141,6 @@ async function main() {
   }
 
   function renderAgentMetrics(state) {
-    if (!window.CVH) return;
-    const modelId = state.model_id || null;
     const rate = document.getElementById("state-agent-rate");
     const full = document.getElementById("state-agent-full");
     const attempts = document.getElementById("state-attempts");
@@ -139,8 +149,11 @@ async function main() {
       if (agent) {
         if (rate) rate.textContent = fmtAccuracy(agent.mean_accuracy);
         if (full) full.textContent = fmtAccuracy(agent.full_position_rate);
-        if (attempts) attempts.textContent =
-          String(agent.attempts != null ? agent.attempts : "—");
+        if (attempts) {
+          attempts.textContent = String(
+            agent.attempts != null ? agent.attempts : "—"
+          );
+        }
       } else {
         if (rate) rate.textContent = "—";
         if (full) full.textContent = "—";
@@ -148,12 +161,19 @@ async function main() {
       }
     }
 
-    function loadAgents(url) {
-      return fetch(url).then((res) => (res.ok ? res.json() : null));
+    if (state.agent_summary) {
+      applyIdentifyAgent(state.agent_summary);
+      return;
     }
 
-    loadAgents("/api/leaderboard/identify/live")
-      .catch(() => loadAgents("/data/identify_leaderboard.json"))
+    const modelId = state.model_id || null;
+    const fetchCached =
+      window.CVH && typeof window.CVH.fetchSpecialtyLeaderboard === "function"
+        ? window.CVH.fetchSpecialtyLeaderboard("identify")
+        : fetch("/api/leaderboard/identify/live").then((res) =>
+            res.ok ? res.json() : null
+          );
+    fetchCached
       .then((data) => {
         const agents = (data && data.agents) || [];
         const agent = modelId
@@ -231,22 +251,33 @@ async function main() {
       const r = await fetch(
         "/api/v1/identify/public/" + encodeURIComponent(ATTEMPT_ID) + "/replay"
       );
-      if (!r.ok) return;
+      if (!r.ok) {
+        showPollError(httpErrorMessage(r.status, "replay"));
+        return;
+      }
       replay = await r.json();
       renderReplay();
+      showPollError("");
     } catch (e) {
-      /* ignore */
+      showPollError("Could not load identification replay — is the server online?");
     }
   }
 
-  function renderChain(rows) {
+  function renderChain(rows, opts) {
     const list = document.getElementById("chain");
     const empty = document.getElementById("chain-empty");
     if (!list || !empty) return;
+    if (opts && opts.error) {
+      list.hidden = true;
+      empty.hidden = false;
+      empty.textContent = opts.error;
+      return;
+    }
     const all = (rows || []).slice();
     if (!all.length) {
       list.hidden = true;
       empty.hidden = false;
+      empty.textContent = "No attempts in this chain yet.";
       return;
     }
     empty.hidden = true;
@@ -287,84 +318,29 @@ async function main() {
       const r = await fetch(
         "/api/v1/identify/public/attempts?" + keyParam + "&limit=50"
       );
-      if (!r.ok) return;
+      if (!r.ok) {
+        const msg =
+          r.status === 502 || r.status === 503
+            ? "Could not load attempt chain — is the server online?"
+            : "Could not load attempt chain.";
+        renderChain([], { error: msg });
+        return;
+      }
       const rows = (await r.json()).attempts || [];
       renderChain(rows);
-      if (!currentStartedAt) return;
-      const newer = rows
-        .filter(
-          (row) =>
-            row.attempt_id !== ATTEMPT_ID &&
-            String(row.started_at || "") > String(currentStartedAt)
-        )
-        .sort((a, b) =>
-          String(b.started_at).localeCompare(String(a.started_at))
-        );
-      if (newer.length && !followTimer) {
-        const banner = document.getElementById("follow-banner");
-        if (banner) {
-          banner.textContent =
-            "Agent started the next identification — following in " +
-            Math.round(FOLLOW_DELAY_MS / 1000) +
-            "s…";
-          banner.style.display = "block";
-        }
-        followTimer = setTimeout(
-          () => followTo(newer[0].attempt_id),
-          FOLLOW_DELAY_MS
-        );
-      }
     } catch (e) {
-      /* ignore */
+      renderChain([], {
+        error: "Could not load attempt chain — is the server online?",
+      });
     }
   }
 
   function startChainTracking(state) {
     agentKey = state.key || agentKey;
     agentName = state.agent_name || agentName;
-    currentStartedAt = state.started_at || currentStartedAt;
     if ((!agentKey && !agentName) || chainTimer) return;
     chainTimer = setInterval(refreshChain, CHAIN_POLL_MS);
     refreshChain();
-  }
-
-  function resetWatch() {
-    lastFen = null;
-    replay = null;
-    if (followTimer) {
-      clearTimeout(followTimer);
-      followTimer = null;
-    }
-    const banner = document.getElementById("follow-banner");
-    if (banner) {
-      banner.style.display = "none";
-      banner.textContent = "";
-    }
-    const wrap = document.getElementById("answer-wrap");
-    if (wrap) {
-      wrap.style.display = "none";
-      wrap.classList.remove("is-review");
-    }
-    const mv = document.getElementById("mv");
-    if (mv) {
-      mv.innerHTML =
-        '<p style="color:var(--faint);margin:0">' +
-        "Per-square review unlocks after the attempt ends." +
-        "</p>";
-    }
-    renderMeta({ attempt_id: ATTEMPT_ID, agent_name: "—", status: "active", result: null });
-  }
-
-  function followTo(nextId) {
-    followTimer = null;
-    window.history.replaceState({}, "", "/i/" + encodeURIComponent(nextId));
-    ATTEMPT_ID = nextId;
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    resetWatch();
-    poll();
   }
 
   function stopPolling() {
@@ -379,7 +355,15 @@ async function main() {
       const r = await fetch(
         "/api/v1/identify/public/" + encodeURIComponent(ATTEMPT_ID)
       );
-      if (!r.ok) return;
+      if (!r.ok) {
+        showPollError(httpErrorMessage(r.status, "state"));
+        const outcomeEl = document.getElementById("state-outcome");
+        if (outcomeEl && outcomeEl.textContent === "Loading…") {
+          outcomeEl.textContent = "—";
+        }
+        if (r.status === 404) stopPolling();
+        return;
+      }
       const state = await r.json();
       renderMeta(state);
       renderAgentMetrics(state);

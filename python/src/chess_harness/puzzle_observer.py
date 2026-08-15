@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import chess
 
 from .models import ModelRegistry
+from .puzzle_leaderboard import puzzle_agent_summary
 from .puzzle_store import PuzzleStore
 from .render_pillow import ChessBoardRenderer
 
@@ -75,7 +76,8 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
     agent_moves, opponent_moves = san_moves(
         record.get("start_fen", record.get("board_fen")), submitted, opponent
     )
-    return {
+    model_id = str(record.get("model_id") or "")
+    state: Dict[str, Any] = {
         "ok": True,
         "attempt_id": record["attempt_id"],
         "key": record.get("key_fingerprint"),
@@ -93,6 +95,11 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
         "finished_at": record.get("finished_at") if finished else None,
         "watch_url": f"/p/{record['attempt_id']}",
     }
+    if model_id:
+        summary = puzzle_agent_summary(model_id)
+        if summary:
+            state["agent_summary"] = summary
+    return state
 
 
 def _build_plies(
@@ -117,11 +124,21 @@ def _build_plies(
     return plies
 
 
+def _split_agent_opponent_uci(moves: List[str]) -> tuple[List[str], List[str]]:
+    agent = [moves[i] for i in range(0, len(moves), 2)]
+    opponent = [moves[i] for i in range(1, len(moves), 2)]
+    return agent, opponent
+
+
 def replay_payload(record: Dict[str, Any]) -> Dict[str, Any]:
     """Full replay; only call after the attempt finished."""
     puzzle = _puzzle(record)
     submitted = list(record.get("submitted_moves") or [])
     opponent = list(record.get("opponent_moves") or [])
+    start_fen = record.get("start_fen", record.get("board_fen"))
+    solution_uci = list(record.get("solution_moves") or [])
+    sol_agent_uci, sol_opp_uci = _split_agent_opponent_uci(solution_uci)
+    sol_agent_san, sol_opp_san = san_moves(start_fen, sol_agent_uci, sol_opp_uci)
     return {
         "ok": True,
         "attempt_id": record["attempt_id"],
@@ -132,13 +149,11 @@ def replay_payload(record: Dict[str, Any]) -> Dict[str, Any]:
         "first_wrong_move": record.get("first_wrong_move"),
         "submitted_moves": submitted,
         "opponent_moves": opponent,
-        "solution_moves": list(record.get("solution_moves") or []),
-        "start_fen": record.get("start_fen", record.get("board_fen")),
-        "plies": _build_plies(
-            record.get("start_fen", record.get("board_fen")),
-            submitted,
-            opponent,
-        ),
+        "solution_moves": solution_uci,
+        "solution_agent_moves": sol_agent_san,
+        "solution_opponent_moves": sol_opp_san,
+        "start_fen": start_fen,
+        "plies": _build_plies(start_fen, submitted, opponent),
         "source_link": puzzle.get("game_url") or "",
         "puzzle_rating": int(record.get("puzzle_rating") or 0),
         "rating_before": record.get("rating_before"),
@@ -161,6 +176,7 @@ def public_attempt_row(record: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "attempt_id": record["attempt_id"],
         "key": record.get("key_fingerprint"),
+        "model_id": record.get("model_id"),
         "agent_name": _agent_name(record),
         "status": record.get("status"),
         "result": record.get("result") if finished else None,

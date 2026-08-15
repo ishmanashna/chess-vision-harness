@@ -39,6 +39,8 @@ POST {base}/api/v1/identify/start  (no body, same auth header)
 - If start returns 404, the pool is exhausted — stop the loop.
 - After each attempt, report your accuracy from the review together with the
   result (correct or failed).
+- Idle timeout: 30 minutes without submitting an answer auto-abandons the
+  attempt (no rating), same limit as ladder games.
 
 ## Task — identify ONLY. No moves.
 

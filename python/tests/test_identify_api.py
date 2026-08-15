@@ -441,7 +441,7 @@ def test_watch_pages_browse_and_media(identify_client):
     assert client.get("/i/does-not-exist").status_code == 200
     assert client.get("/i/does-not-exist/board.png").status_code == 404
 
-    # Browse: active finished listed, abandoned excluded, and leak-free.
+    # Browse: active finished listed, abandoned included for chain honesty, leak-free.
     record = _store_record(harness_dir, attempt_id)
     finished = client.post(
         f"/api/v1/identify/{attempt_id}/answer",
@@ -458,10 +458,11 @@ def test_watch_pages_browse_and_media(identify_client):
     rows = resp.json()["attempts"]
     ids = {row["attempt_id"] for row in rows}
     assert attempt_id in ids
-    assert gone["attempt_id"] not in ids, "abandoned attempts are not listed"
+    assert gone["attempt_id"] in ids, "abandoned attempts are listed for chain honesty"
     for row in rows:
         assert_identify_no_leak(row)
         assert row["watch_url"].startswith("/i/")
+        assert row["model_id"]
 
     finished_row = next(r for r in rows if r["attempt_id"] == attempt_id)
     assert finished_row["status"] == "finished"
@@ -618,3 +619,37 @@ def test_prune_idle_active_abandons_stale_attempt(tmp_path):
     record = store.get("bi-stale")
     assert record is not None
     assert record["status"] == "abandoned"
+
+
+def _stale_identify_attempt(harness_dir, attempt_id: str) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    path = harness_dir / "identify_attempts.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    stale = (datetime.now(timezone.utc) - timedelta(seconds=4000)).isoformat()
+    record = data["attempts"][attempt_id]
+    record["updated_at"] = stale
+    record["started_at"] = stale
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_identify_board_abandons_idle_attempt_on_read(identify_client):
+    from chess_harness.identify_attempt import IdentifyAttemptStore
+
+    client, harness_dir = identify_client
+    key = _register(client, "idle-identify-agent")
+    start = _start(client, key)
+    attempt_id = start["attempt_id"]
+
+    _stale_identify_attempt(harness_dir, attempt_id)
+
+    board = client.get(start["board_url"], headers=_auth(key))
+    assert board.status_code == 200
+
+    record = IdentifyAttemptStore().get(attempt_id)
+    assert record is not None
+    assert record["status"] == "abandoned"
+
+    review = client.get(start["review_url"], headers=_auth(key))
+    assert review.status_code == 200
+    assert review.json()["status"] == "abandoned"

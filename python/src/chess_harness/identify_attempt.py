@@ -172,6 +172,43 @@ class IdentifyAttemptStore:
                 self._save(data)
         return abandoned
 
+    def abandon_if_idle(self, attempt_id: str, idle_sec: float) -> Optional[Dict[str, Any]]:
+        """Abandon one active attempt when idle past ``idle_sec``; returns current record."""
+        if idle_sec <= 0:
+            record = self.get(attempt_id)
+            return dict(record) if record else None
+
+        now = datetime.now(timezone.utc).timestamp()
+        abandoned = False
+
+        def _maybe_abandon(record: Dict[str, Any]) -> None:
+            nonlocal abandoned
+            if record.get("status") != "active":
+                return
+            stamp = record.get("updated_at") or record.get("started_at")
+            if not stamp:
+                return
+            try:
+                age = now - datetime.fromisoformat(stamp).timestamp()
+            except ValueError:
+                return
+            if age < idle_sec:
+                return
+            record["status"] = "abandoned"
+            record["finished_at"] = _now()
+            record["updated_at"] = record["finished_at"]
+            abandoned = True
+
+        with self._lock:
+            data = self._load()
+            record = data["attempts"].get(attempt_id)
+            if record is None:
+                return None
+            _maybe_abandon(record)
+            if abandoned:
+                self._save(data)
+            return dict(record)
+
     def recent_puzzle_ids(
         self, key_fingerprint: str, window_sec: float
     ) -> set[str]:

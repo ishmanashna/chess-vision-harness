@@ -530,6 +530,10 @@ def render_calibration_html(*, loopback: bool = True) -> str:
     async function refreshLive(){{
       try{{
         const r=await fetch('/api/calibration/status/live');
+        if(!r.ok){{
+          showCalError('Live status unavailable ('+r.status+' '+r.statusText+').');
+          return;
+        }}
         const d=await r.json();
         applyLiveStatus(d);
       }}catch(e){{
@@ -537,13 +541,19 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       }}
     }}
     async function refreshFull(){{
+      const prEl=document.getElementById('play-rating-summary');
       try{{
         const r=await fetch('/api/calibration/status');
+        if(!r.ok){{
+          const msg='Calibration status unavailable ('+r.status+' '+r.statusText+').';
+          showCalError(msg);
+          if(prEl)prEl.textContent=msg;
+          return;
+        }}
         const d=await r.json();
         applyLiveStatus(d);
         const pr=d.play_rating||{{}};
         const prm=d.play_rating_map||{{}};
-        const prEl=document.getElementById('play-rating-summary');
         if(prEl){{
           const n=pr.sample_count||0;
           const need=pr.min_samples||30;
@@ -608,7 +618,11 @@ def render_calibration_html(*, loopback: bool = True) -> str:
         }}).join('');
         rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>'
           +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
-      }}catch(e){{}}
+      }}catch(e){{
+        const msg='Calibration status failed: '+(e&&e.message?e.message:'unknown error');
+        showCalError(msg);
+        if(prEl)prEl.textContent=msg;
+      }}
     }}
     refreshFull();
     refreshLive();

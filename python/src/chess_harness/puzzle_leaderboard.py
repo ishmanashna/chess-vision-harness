@@ -25,7 +25,12 @@ from .puzzle_attempt import PuzzleAttemptStore
 from .puzzle_ratings import PuzzleRatingStore
 from .puzzle_store import PuzzleStore
 
-__all__ = ["build_puzzle_leaderboard", "build_identify_leaderboard"]
+__all__ = [
+    "build_puzzle_leaderboard",
+    "build_identify_leaderboard",
+    "puzzle_agent_summary",
+    "identify_agent_summary",
+]
 
 DATA_VERSION = 1
 
@@ -171,6 +176,41 @@ def build_puzzle_leaderboard(
     }
 
 
+def puzzle_agent_summary(
+    model_id: str,
+    *,
+    ratings: Optional[PuzzleRatingStore] = None,
+    attempts: Optional[PuzzleAttemptStore] = None,
+    registry: Optional[ModelRegistry] = None,
+) -> Optional[Dict[str, Any]]:
+    """Per-agent puzzle metrics for public watch state (no full leaderboard build)."""
+    model_id = str(model_id or "")
+    if not model_id:
+        return None
+    rating_store = ratings or PuzzleRatingStore()
+    attempt_store = attempts or PuzzleAttemptStore()
+    rating = (rating_store.snapshot().get("agents", {}) or {}).get(model_id) or {}
+    stats = {"attempts": 0, "solves": 0}
+    for record in _finished(attempt_store.list_records()):
+        if str(record.get("model_id") or "") != model_id:
+            continue
+        stats["attempts"] += 1
+        if record.get("result") == "correct":
+            stats["solves"] += 1
+    if not rating and stats["attempts"] == 0:
+        return None
+    names = _agent_names({model_id}, registry)
+    return {
+        "id": model_id,
+        "name": names.get(model_id, model_id),
+        "rating": rating.get("rating"),
+        "deviation": rating.get("deviation"),
+        "attempts": stats["attempts"],
+        "solves": stats["solves"],
+        "solve_rate": _row_rate(stats["solves"], stats["attempts"]),
+    }
+
+
 def build_identify_leaderboard(
     *,
     attempts: Optional[IdentifyAttemptStore] = None,
@@ -220,4 +260,41 @@ def build_identify_leaderboard(
         "version": DATA_VERSION,
         "generated_at": _now(),
         "agents": agents,
+    }
+
+
+def identify_agent_summary(
+    model_id: str,
+    *,
+    attempts: Optional[IdentifyAttemptStore] = None,
+    registry: Optional[ModelRegistry] = None,
+) -> Optional[Dict[str, Any]]:
+    """Per-agent identify metrics for public watch state (no full leaderboard build)."""
+    model_id = str(model_id or "")
+    if not model_id:
+        return None
+    store = attempts or IdentifyAttemptStore()
+    entry = {"attempts": 0, "acc_sum": 0.0, "full": 0}
+    for record in store.list_records():
+        if record.get("status") != "finished":
+            continue
+        if str(record.get("model_id") or "") != model_id:
+            continue
+        score = record.get("score")
+        if not isinstance(score, dict) or score.get("accuracy") is None:
+            continue
+        entry["attempts"] += 1
+        entry["acc_sum"] += float(score["accuracy"])
+        if score.get("full_position"):
+            entry["full"] += 1
+    if entry["attempts"] == 0:
+        return None
+    names = _agent_names({model_id}, registry)
+    attempts = entry["attempts"]
+    return {
+        "id": model_id,
+        "name": names.get(model_id, model_id),
+        "attempts": attempts,
+        "mean_accuracy": round(entry["acc_sum"] / attempts, 4),
+        "full_position_rate": round(entry["full"] / attempts, 4),
     }

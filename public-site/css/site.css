@@ -749,9 +749,9 @@ p {
   max-width: 48rem;
 }
 
-/* Puzzles / board-identification launcher wrapper: inline tabs on top,
-   create-layout grid body below (do NOT reuse .leaderboard-layout, which is a
-   two-column grid that pushes the tabs into their own column). */
+/* Launcher: create-layout two-column grid (main + aside). Game mode lives inside
+   the create card (do NOT reuse .leaderboard-layout, which is a two-column grid
+   that misaligns controls outside the card). */
 .launcher-layout {
   max-width: 64rem;
   margin: 0 auto;

@@ -2,6 +2,7 @@
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
+  var FETCH_TIMEOUT_MS = 12000;
   var HEALTH_STORAGE_KEY = "cvh-edge-health-v1";
   /** Optimistic Online paint if last probe was within this window (ms). */
   var HEALTH_FRESH_MS = 90000;
@@ -135,6 +136,9 @@
     "mean_play_rating",
     "games",
     "puzzle_rating",
+    "puzzle_attempts",
+    "puzzle_solves",
+    "identify_attempts",
     "identify_mean_accuracy",
     "identify_full_position_rate",
   ];
@@ -149,6 +153,9 @@
       games: Number(agent.games) || 0,
       provisional: agent.provisional,
       puzzle_rating: agent.puzzle_rating,
+      puzzle_attempts: Number(agent.puzzle_attempts) || 0,
+      puzzle_solves: Number(agent.puzzle_solves) || 0,
+      identify_attempts: Number(agent.identify_attempts) || 0,
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
       _raw: agent,
@@ -182,11 +189,29 @@
     return data;
   }
 
+  function fetchWithTimeout(url, options, timeoutMs) {
+    options = options || {};
+    var ms = typeof timeoutMs === "number" ? timeoutMs : FETCH_TIMEOUT_MS;
+    var controller = new AbortController();
+    var timer = setTimeout(function () {
+      controller.abort();
+    }, ms);
+    var fetchOptions = Object.assign({}, options, { signal: controller.signal });
+    return fetch(url, fetchOptions).then(
+      function (res) {
+        clearTimeout(timer);
+        return res;
+      },
+      function (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    );
+  }
+
   function fetchLeaderboardSnapshot() {
     if (window.CVH_INLINE_SNAPSHOT) {
-      var inline = window.CVH_INLINE_SNAPSHOT;
-      window.CVH_INLINE_SNAPSHOT = null;
-      return Promise.resolve(inline);
+      return Promise.resolve(window.CVH_INLINE_SNAPSHOT);
     }
     return fetchWithTimeout(SNAPSHOT_LEADERBOARD_URL, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(function (res) {
       if (!res.ok) throw new Error("leaderboard snapshot fetch failed");
@@ -240,6 +265,51 @@
     return latestLiveLeaderboard;
   }
 
+  var SPECIALTY_CACHE_TTL_MS = 60000;
+  var specialtyLeaderboardCache = { puzzles: null, identify: null };
+
+  function fetchSpecialtyLeaderboard(kind) {
+    var now = Date.now();
+    var hit = specialtyLeaderboardCache[kind];
+    if (hit && now - hit.ts < SPECIALTY_CACHE_TTL_MS) {
+      return Promise.resolve(hit.data);
+    }
+    var liveUrl =
+      kind === "puzzles"
+        ? "/api/leaderboard/puzzles/live"
+        : "/api/leaderboard/identify/live";
+    var snapUrl =
+      kind === "puzzles"
+        ? "/data/puzzles_leaderboard.json"
+        : "/data/identify_leaderboard.json";
+    return checkEdgeHealth().then(function (health) {
+      if (!health.online) {
+        return fetchWithTimeout(snapUrl, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(
+          function (res) {
+            if (!res.ok) throw new Error("specialty snapshot fetch failed");
+            return res.json();
+          }
+        );
+      }
+      return fetch(liveUrl, { cache: "no-cache" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("specialty live fetch failed");
+          return res.json();
+        })
+        .catch(function () {
+          return fetchWithTimeout(snapUrl, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(
+            function (res) {
+              if (!res.ok) throw new Error("specialty snapshot fetch failed");
+              return res.json();
+            }
+          );
+        });
+    }).then(function (data) {
+      specialtyLeaderboardCache[kind] = { ts: Date.now(), data: data };
+      return data;
+    });
+  }
+
   function formatQualityMean(value, suffix) {
     if (value == null || value === "") return "—";
     var n = Number(value);
@@ -259,9 +329,15 @@
 
   function leaderboardColCount(fullColumns, showModelId, unified) {
     var n = fullColumns ? 6 : 4;
-    if (unified) n += 4;
+    if (unified) n += 6;
     if (showModelId) n += 1;
     return n;
+  }
+
+  function formatCount(value) {
+    if (value == null || value === "") return "—";
+    var n = Number(value);
+    return isNaN(n) ? "—" : String(n);
   }
 
   function renderLeaderboardRows(agents, limit, fullColumns, showModelId, unified, sortKey, sortDir) {
@@ -304,6 +380,21 @@
             escapeHtml("Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it.") +
             '">' +
             escapeHtml(row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)) +
+            "</td>" +
+            "<td title=\"" +
+            escapeHtml("Finished puzzle attempts for this agent.") +
+            '">' +
+            escapeHtml(formatCount(row.puzzle_attempts)) +
+            "</td>" +
+            "<td title=\"" +
+            escapeHtml("Puzzle attempts solved correctly.") +
+            '">' +
+            escapeHtml(formatCount(row.puzzle_solves)) +
+            "</td>" +
+            "<td title=\"" +
+            escapeHtml("Finished board-identification attempts for this agent.") +
+            '">' +
+            escapeHtml(formatCount(row.identify_attempts)) +
             "</td>" +
             "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
@@ -719,11 +810,13 @@
 
   window.CVH = window.CVH || {};
   window.CVH.applyHealthUi = applyHealthUi;
+  window.CVH.checkEdgeHealth = checkEdgeHealth;
   window.CVH.mountLeaderboardTable = mountLeaderboardTable;
   window.CVH.fetchLeaderboard = fetchLeaderboard;
   window.CVH.fetchLeaderboardSnapshot = fetchLeaderboardSnapshot;
   window.CVH.onLiveLeaderboard = onLiveLeaderboard;
   window.CVH.getLatestLiveLeaderboard = getLatestLiveLeaderboard;
+  window.CVH.fetchSpecialtyLeaderboard = fetchSpecialtyLeaderboard;
   window.CVH.formatElo = formatElo;
   window.CVH.formatQualityMean = formatQualityMean;
   window.CVH.isProvisional = isProvisional;

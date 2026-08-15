@@ -262,13 +262,13 @@ def test_spectator_attempts_tabs_wired(list_client):
     assert 'name === "identify"' in tabs_js
     assert "tab=puzzles" in tabs_js
     assert "tab=identify" in tabs_js
-    assert "refreshAttemptsLists" in tabs_js
+    assert "refreshAttemptsList" in tabs_js
 
     lists_js = (PUBLIC_SITE / "js" / "attempts-list.js").read_text(encoding="utf-8")
     assert "/api/v1/puzzles/public/attempts" in lists_js
     assert "/api/v1/identify/public/attempts" in lists_js
-    assert "/api/leaderboard/puzzles/live" in lists_js
+    assert "fetchSpecialtyLeaderboard" in lists_js
     assert 'WATCH_PREFIX = { puzzles: "/p/", identify: "/i/" }' in lists_js
     assert "PUZZLE_COLSPAN = 8" in lists_js
-    assert "CVH.refreshAttemptsLists" in lists_js
+    assert "CVH.refreshAttemptsList" in lists_js
     assert "empty-state" in lists_js

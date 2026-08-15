@@ -3,24 +3,36 @@
  * Each table is fed by the public attempts APIs
  * (/api/v1/puzzles/public/attempts, /api/v1/identify/public/attempts),
  * newest first with sortable, linkable rows. Lists refresh on tab activation
- * via window.CVH.refreshAttemptsLists (wired in spectator-tabs.js).
+ * via window.CVH.refreshAttemptsList (wired in spectator-tabs.js).
  */
 
 (function () {
   "use strict";
 
   var SORT_KEY_PREFIX = "cvh-attempts-sort-";
-  var NUMERIC_SORT_KEYS = ["puzzle_rating", "accuracy", "moves", "puzzles", "startedMs"];
+  var NUMERIC_SORT_KEYS = [
+    "puzzle_rating",
+    "accuracy",
+    "moves",
+    "puzzles",
+    "attempts",
+    "startedMs",
+  ];
 
   var ENDPOINTS = {
     puzzles: "/api/v1/puzzles/public/attempts?limit=100",
     identify: "/api/v1/identify/public/attempts?limit=100",
   };
 
+  var TOTALS_KIND = {
+    puzzles: "puzzles",
+    identify: "identify",
+  };
+
   var WATCH_PREFIX = { puzzles: "/p/", identify: "/i/" };
 
   var PUZZLE_COLSPAN = 8;
-  var IDENTIFY_COLSPAN = 7;
+  var IDENTIFY_COLSPAN = 8;
 
   function escapeHtml(value) {
     return String(value)
@@ -75,42 +87,49 @@
     return kind === "puzzles" ? PUZZLE_COLSPAN : IDENTIFY_COLSPAN;
   }
 
-  function fetchPuzzleTotalsByAgent() {
-    return fetch("/api/leaderboard/puzzles/live")
-      .then(function (res) {
-        return res.ok ? res.json() : null;
-      })
-      .catch(function () {
-        return null;
-      })
-      .then(function (data) {
-        var map = {};
-        ((data && data.agents) || []).forEach(function (agent) {
-          var key = agent.name || agent.id;
-          if (key) map[key] = agent.attempts != null ? agent.attempts : 0;
+  function fetchAttemptTotalsByModel(kind) {
+    var cacheKind = TOTALS_KIND[kind];
+    if (!cacheKind) return Promise.resolve({});
+    if (window.CVH && typeof window.CVH.fetchSpecialtyLeaderboard === "function") {
+      return window.CVH.fetchSpecialtyLeaderboard(cacheKind)
+        .then(function (data) {
+          var map = {};
+          ((data && data.agents) || []).forEach(function (agent) {
+            var key = agent.id;
+            if (key) map[key] = agent.attempts != null ? agent.attempts : 0;
+          });
+          return map;
+        })
+        .catch(function () {
+          return {};
         });
-        return map;
-      });
+    }
+    return Promise.resolve({});
   }
 
-  function normalizeAttempt(row, kind, puzzleTotals) {
+  function normalizeAttempt(row, kind, totalsByModel) {
     var startedMs = row.started_at ? Date.parse(row.started_at) || 0 : 0;
+    var modelId = row.model_id || "";
+    var total =
+      totalsByModel && modelId && totalsByModel[modelId] != null
+        ? totalsByModel[modelId]
+        : null;
     var common = {
       attempt_id: row.attempt_id || "",
+      model_id: modelId,
       agent_name: row.agent_name || "—",
       status: statusLabel(row, kind),
       statusRaw: row.status || "—",
       result: row.status === "active" ? "—" : row.result || "—",
       startedMs: startedMs,
       started: formatWhen(row.started_at),
-      puzzles: 0,
+      attempts: total != null ? String(total) : "—",
+      puzzles: total != null ? String(total) : "—",
     };
     if (kind === "puzzles") {
       common.puzzle_rating =
         row.puzzle_rating != null ? String(row.puzzle_rating) : "—";
       common.moves = row.moves_played != null ? String(row.moves_played) : "—";
-      var total = puzzleTotals && puzzleTotals[row.agent_name];
-      common.puzzles = total != null ? String(total) : "—";
     } else {
       common.accuracy = fmtAccuracy(row.accuracy);
       common.full =
@@ -136,6 +155,8 @@
       escapeHtml(row.accuracy) +
       "</td><td>" +
       escapeHtml(row.full) +
+      "</td><td>" +
+      escapeHtml(row.attempts) +
       "</td>"
     );
   }
@@ -233,15 +254,14 @@
         if (!res.ok) throw new Error("Could not load attempts");
         return res.json();
       });
-      var totalsReq =
-        kind === "puzzles" ? fetchPuzzleTotalsByAgent() : Promise.resolve(null);
+      var totalsReq = fetchAttemptTotalsByModel(kind);
 
       Promise.all([attemptsReq, totalsReq])
         .then(function (parts) {
           var data = parts[0];
-          var puzzleTotals = parts[1];
+          var totalsByModel = parts[1];
           cache = (Array.isArray(data.attempts) ? data.attempts : []).map(function (row) {
-            return normalizeAttempt(row, kind, puzzleTotals);
+            return normalizeAttempt(row, kind, totalsByModel);
           });
           paint();
         })
@@ -255,14 +275,15 @@
     };
   }
 
-  function refreshAll() {
+  function refreshAttemptsList(kind) {
     document.querySelectorAll("[data-attempts-list]").forEach(function (root) {
-      if (root.refreshAttempts) root.refreshAttempts();
+      var k = root.getAttribute("data-attempts-kind") || "puzzles";
+      if (k === kind && root.refreshAttempts) root.refreshAttempts();
     });
   }
 
   window.CVH = window.CVH || {};
-  window.CVH.refreshAttemptsLists = refreshAll;
+  window.CVH.refreshAttemptsList = refreshAttemptsList;
 
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-attempts-list]").forEach(mountAttemptsList);

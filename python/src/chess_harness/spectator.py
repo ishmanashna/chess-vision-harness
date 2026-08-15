@@ -210,6 +210,9 @@ async def _lifespan(_app: FastAPI):
 
                 idle_sec = float(load_limits().idle_timeout_sec)
                 await asyncio.to_thread(
+                    PuzzleAttemptStore().prune_idle_active, idle_sec
+                )
+                await asyncio.to_thread(
                     IdentifyAttemptStore().prune_idle_active, idle_sec
                 )
             except Exception:
@@ -301,70 +304,75 @@ _live_cache_lock = threading.Lock()
 _live_cache: Dict[str, tuple[float, JSONResponse]] = {}
 
 
-def _live_cached_json(kind: str, build, max_age: int = 5) -> JSONResponse:
-    """Short-TTL cache for the live leaderboard endpoints.
-
-    The leaderboard builders re-read whole JSONL files on every call; a short
-    TTL (5s) cuts most rebuilds without making the public ladder stale.
-    """
+async def _live_cached_json_async(kind: str, build, max_age: int = 5) -> JSONResponse:
+    """Short-TTL cache; runs the builder off the event loop."""
     now = time.monotonic()
     with _live_cache_lock:
         hit = _live_cache.get(kind)
         if hit and now - hit[0] < LIVE_CACHE_TTL_SEC:
             return hit[1]
-    data = build()
+    data = await asyncio.to_thread(build)
     resp = JSONResponse(data, headers={"cache-control": f"public, max-age={max_age}"})
     with _live_cache_lock:
-        _live_cache[kind] = (now, resp)
+        _live_cache[kind] = (time.monotonic(), resp)
     return resp
 
 
-def _live_leaderboard_json() -> JSONResponse:
-    return _live_cached_json("agents", lambda: load_live_leaderboard(base_dir=_base))
+async def _live_leaderboard_json() -> JSONResponse:
+    now = time.monotonic()
+    with _live_cache_lock:
+        hit = _live_cache.get("agents")
+        if hit and now - hit[0] < LIVE_CACHE_TTL_SEC:
+            return hit[1]
+    data = await asyncio.to_thread(load_live_leaderboard, base_dir=_base)
+    resp = JSONResponse(data, headers={"cache-control": "public, max-age=5"})
+    with _live_cache_lock:
+        _live_cache["agents"] = (time.monotonic(), resp)
+    return resp
 
 
 @app.get("/api/leaderboard/live")
 async def live_leaderboard_api():
     """Live public ladder (agents + calibrated engines); same shape as snapshot JSON."""
-    return _live_leaderboard_json()
+    return await _live_leaderboard_json()
 
 
 @app.get("/data/leaderboard.json")
 async def live_leaderboard_data_file():
     """Serve live ladder at the static snapshot path while the origin is up."""
-    return _live_leaderboard_json()
+    return await _live_leaderboard_json()
 
 
-def _live_puzzle_leaderboard_json() -> JSONResponse:
-    return _live_cached_json("puzzles", load_live_puzzle_leaderboard)
+async def _live_puzzle_leaderboard_json() -> JSONResponse:
+    return await _live_cached_json_async("puzzles", load_live_puzzle_leaderboard)
 
 
 @app.get("/api/leaderboard/puzzles/live")
 async def live_puzzle_leaderboard_api():
     """Live puzzle leaderboard (agents + puzzle content view)."""
-    return _live_puzzle_leaderboard_json()
+    return await _live_puzzle_leaderboard_json()
 
 
 @app.get("/data/puzzles_leaderboard.json")
 async def live_puzzle_data_file():
     """Serve live puzzle leaderboard at the static snapshot path while up."""
-    return _live_puzzle_leaderboard_json()
+    return await _live_puzzle_leaderboard_json()
 
 
-def _live_identify_leaderboard_json() -> JSONResponse:
-    return _live_cached_json("identify", load_live_identify_leaderboard)
+async def _live_identify_leaderboard_json() -> JSONResponse:
+    return await _live_cached_json_async("identify", load_live_identify_leaderboard)
 
 
 @app.get("/api/leaderboard/identify/live")
 async def live_identify_leaderboard_api():
     """Live board-identification leaderboard (agent metrics per watch page)."""
-    return _live_identify_leaderboard_json()
+    return await _live_identify_leaderboard_json()
 
 
 @app.get("/data/identify_leaderboard.json")
 async def live_identify_data_file():
     """Serve live identify leaderboard at the static snapshot path while up."""
-    return _live_identify_leaderboard_json()
+    return await _live_identify_leaderboard_json()
 
 
 if (_public_site / "data").is_dir():
@@ -1081,7 +1089,11 @@ async def get_board_image(game_id: str):
 
 
 def _public_attempt(attempt_id: str):
-    record = PuzzleAttemptStore().get(attempt_id)
+    from .limits import load_limits
+
+    record = PuzzleAttemptStore().abandon_if_idle(
+        attempt_id, float(load_limits().idle_timeout_sec)
+    )
     if record is None:
         raise HTTPException(404, "Attempt not found")
     return record
@@ -1122,7 +1134,7 @@ async def public_puzzle_attempts(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """Observer-scoped discovery: active + finished attempts, newest first.
+    """Observer-scoped discovery: active, finished, and abandoned attempts, newest first.
 
     ``by_key`` narrows the list to one pseudonymous attempt chain; it is
     rate-limited per client (and caps the page size) so a key cannot be used
@@ -1140,10 +1152,14 @@ async def public_puzzle_attempts(
     elif by_agent:
         records = [r for r in records if _agent_name(r) == by_agent]
         limit = min(limit, 50)
-    if status in ("active", "finished"):
+    if status in ("active", "finished", "abandoned"):
         records = [r for r in records if r.get("status") == status]
     else:
-        records = [r for r in records if r.get("status") in ("active", "finished")]
+        records = [
+            r
+            for r in records
+            if r.get("status") in ("active", "finished", "abandoned")
+        ]
     records.sort(key=lambda r: r.get("started_at") or "", reverse=True)
     total = len(records)
     rows = [public_attempt_row(r) for r in records[offset : offset + limit]]
@@ -1167,7 +1183,11 @@ async def public_puzzle_replay(attempt_id: str):
 
 
 def _public_identify(attempt_id: str):
-    record = IdentifyAttemptStore().get(attempt_id)
+    from .limits import load_limits
+
+    record = IdentifyAttemptStore().abandon_if_idle(
+        attempt_id, float(load_limits().idle_timeout_sec)
+    )
     if record is None:
         raise HTTPException(404, "Attempt not found")
     return record
@@ -1223,7 +1243,7 @@ async def public_identify_attempts(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """Observer-scoped discovery: active + finished identification attempts.
+    """Observer-scoped discovery: active, finished, and abandoned identification attempts.
 
     ``by_key`` narrows the list to one pseudonymous attempt chain; it is
     rate-limited per client (and caps the page size) so a key cannot be used
@@ -1241,10 +1261,14 @@ async def public_identify_attempts(
     elif by_agent:
         records = [r for r in records if identify_agent_name(r) == by_agent]
         limit = min(limit, 50)
-    if status in ("active", "finished"):
+    if status in ("active", "finished", "abandoned"):
         records = [r for r in records if r.get("status") == status]
     else:
-        records = [r for r in records if r.get("status") in ("active", "finished")]
+        records = [
+            r
+            for r in records
+            if r.get("status") in ("active", "finished", "abandoned")
+        ]
     records.sort(key=lambda r: r.get("started_at") or "", reverse=True)
     total = len(records)
     rows = [identify_public_row(r) for r in records[offset : offset + limit]]

@@ -51,22 +51,18 @@
           <div class="info-card">
             <h2>Attempt state</h2>
             <dl class="meta-grid" id="state-meta">
-              <dt>Status</dt><dd id="state-status">Loading…</dd>
-              <dt>Result</dt><dd id="state-result">—</dd>
-              <dt id="state-rating-label" hidden>Rating</dt><dd id="state-rating" hidden>—</dd>
+              <dt>Outcome</dt><dd id="state-outcome">Loading…</dd>
+              <dt id="state-rating-label" hidden>Rating change</dt><dd id="state-rating" hidden>—</dd>
               <dt>Difficulty</dt><dd id="state-difficulty">—</dd>
-              <dt id="state-metrics-label">Puzzle rating</dt><dd id="state-agent-rating">—</dd>
-              <dt id="state-performance-label" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</dt><dd id="state-agent-performance">—</dd>
-              <dt>Deviation</dt><dd id="state-deviation">—</dd>
+              <dt>Agent puzzle rating</dt><dd id="state-agent-rating"><span id="state-agent-rating-value">—</span><span id="state-deviation-sub" class="meta-sub"></span></dd>
               <dt>Attempts</dt><dd id="state-attempts">—</dd>
               <dt>Solves</dt><dd id="state-solves">—</dd>
             </dl>
           </div>
           <div class="info-card">
             <h2>Attempt chain</h2>
-            <p class="chain-empty" id="chain-empty" style="margin:0;font-size:.84em;color:var(--faint)">No previous attempts for this agent yet.</p>
+            <p class="chain-empty" id="chain-empty" style="margin:0;font-size:.84em;color:var(--faint)">No attempts in this chain yet.</p>
             <ul class="chain-list" id="chain" hidden></ul>
-            <div class="follow-banner" id="follow-banner"></div>
           </div>
         </aside>
         <div class="col board-col" id="board-col">

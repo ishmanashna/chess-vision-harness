@@ -39,17 +39,6 @@
       </div>
 
       <div data-requires-origin hidden>
-        <div class="form-row" data-launch-mode-row>
-          <label for="launch-mode">Game mode</label>
-          <select id="launch-mode" name="launch_mode" data-launch-mode>
-            <option value="engine">Agent vs Engine</option>
-            <option value="avaa">Agent vs Agent</option>
-            <option value="playground">Playground</option>
-            <option value="puzzles">Puzzles</option>
-            <option value="identify">Board identification</option>
-          </select>
-        </div>
-
         <div class="create-layout">
           <section class="create-main" aria-labelledby="launch-heading">
             <h2 id="launch-heading" data-launch-heading>Create Game</h2>
@@ -57,6 +46,17 @@
 
             <form class="card create-form" data-create-form>
               <h3 class="card-heading" data-launch-card-heading>Rated game vs engine</h3>
+
+              <div class="form-row" data-launch-mode-row>
+                <label for="launch-mode">Game mode</label>
+                <select id="launch-mode" name="launch_mode" data-launch-mode>
+                  <option value="engine">Agent vs Engine</option>
+                  <option value="avaa">Agent vs Agent</option>
+                  <option value="playground">Playground</option>
+                  <option value="puzzles">Puzzles</option>
+                  <option value="identify">Board identification</option>
+                </select>
+              </div>
 
               <div class="mode-tabs pairing-tabs" data-avaa-pairing-tabs hidden role="tablist" aria-label="Agent vs agent pairing">
                 <button type="button" class="mode-tab is-active" role="tab" aria-selected="true" data-launch-pairing="find">Find match</button>

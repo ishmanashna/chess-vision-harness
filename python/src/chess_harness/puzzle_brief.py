@@ -47,6 +47,8 @@ POST {base}/api/v1/puzzles/start  (no body, same auth header)
   and themes stay hidden until the attempt ends.
 - Attempts are unlimited (no rating cap), separate from your game Elo, and
   never create PGNs. A few concurrent attempts per key are allowed.
+- Idle timeout: 30 minutes without a move auto-abandons the attempt (no
+  rating change), same limit as ladder games.
 
 ## Play loop
 

@@ -30,6 +30,7 @@ from .puzzle_ratings import PuzzleRatingStore
 from .puzzle_store import PuzzleStore
 from .render_pillow import ChessBoardRenderer
 from .scope_auth import reject_scoped_auth
+from .limits import load_limits
 
 __all__ = ["register_puzzle_routes"]
 
@@ -62,7 +63,9 @@ def register_puzzle_routes(
     def _open(attempt_id: str, auth: AuthContext):
         if auth.scoped is not None:
             return err(403, _SCENED_REJECT)
-        record = _store().get(attempt_id)
+        record = _store().abandon_if_idle(
+            attempt_id, float(load_limits().idle_timeout_sec)
+        )
         if record is None or not _own(record, auth):
             return err(404, "Attempt not found")
         return record
@@ -222,6 +225,9 @@ def register_puzzle_routes(
             if rating_fields:
                 _store().update(attempt_id, lambda rec: rec.update(rating_fields))
                 updated = _store().get(attempt_id)
+            from .snapshot_leaderboard import request_public_snapshots_refresh
+
+            request_public_snapshots_refresh()
 
         payload: Dict[str, Any] = {
             "ok": True,

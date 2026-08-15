@@ -24,6 +24,7 @@ from .board_text import format_board_text
 from .identify_attempt import IdentifyAttemptStore
 from .identify_scoring import build_placement, submit_answer, validate_pieces_answer
 from .identify_brief import render_identify_brief
+from .limits import load_limits
 from .puzzle_attempt import session_exclude_sec
 from .puzzle_store import PuzzleStore
 from .render_pillow import ChessBoardRenderer
@@ -60,7 +61,9 @@ def register_identify_routes(
     def _open(attempt_id: str, auth: AuthContext):
         if auth.scoped is not None:
             return err(403, _SCENED_REJECT)
-        record = _store().get(attempt_id)
+        record = _store().abandon_if_idle(
+            attempt_id, float(load_limits().idle_timeout_sec)
+        )
         if record is None or not _own(record, auth):
             return err(404, "Attempt not found")
         return record
@@ -189,6 +192,11 @@ def register_identify_routes(
         if not outcome.get("ok"):
             return err(409, outcome.get("message", "Attempt is not active"))
 
+        if updated["status"] != "active":
+            from .snapshot_leaderboard import request_public_snapshots_refresh
+
+            request_public_snapshots_refresh()
+
         payload: Dict[str, Any] = {
             "ok": True,
             "attempt_id": attempt_id,
@@ -216,6 +224,10 @@ def register_identify_routes(
 
         updated = _store().update(attempt_id, _abandon)
         assert updated is not None
+        if updated["status"] == "abandoned":
+            from .snapshot_leaderboard import request_public_snapshots_refresh
+
+            request_public_snapshots_refresh()
         return {
             "ok": True,
             "attempt_id": attempt_id,
