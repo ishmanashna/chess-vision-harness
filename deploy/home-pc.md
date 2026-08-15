@@ -34,8 +34,16 @@ A named tunnel connector can be Healthy while Pages stays **Sleeping** — there
 
 ### Two success criteria (separate)
 
-1. **Harness (reboot durability)** — After reboot, NSSM brings `chess-harness serve` back; `http://127.0.0.1:8765/health` is green within a few minutes. Install: [`install-harness-nssm.ps1`](install-harness-nssm.ps1).
-2. **Public Online (operator present)** — Quick Tunnel gives a fresh `*.trycloudflare.com` URL; you copy it into GitHub secret `GAME_ORIGIN`, redeploy Pages, and confirm edge-health. Target **under ~15 minutes** with the operator at the PC. **Not** zero-touch across reboots — Quick Tunnel URLs change when the tunnel restarts.
+1. **Harness (reboot durability)** — After reboot / logon, `chess-harness serve` comes back; `http://127.0.0.1:8765/health` is green within a few minutes.
+   - **Preferred (admin):** [`install-harness-nssm.ps1`](install-harness-nssm.ps1) with [`tools/nssm.exe`](tools/nssm.exe).
+   - **No admin (this PC):** [`install-harness-logon-task.ps1`](install-harness-logon-task.ps1) — Startup folder + HKCU Run.
+2. **Public Online (operator present)** — Run **one script** after you want the public site live:
+
+```powershell
+.\deploy\go-online.ps1
+```
+
+That starts/reuses a Quick Tunnel, sets GitHub `GAME_ORIGIN`, redeploys Pages, and runs [`verify-online.ps1`](verify-online.ps1). Target **under ~15 minutes**. **Not** zero-touch across reboots — Quick Tunnel URLs change when the tunnel restarts.
 
 ---
 
@@ -216,6 +224,24 @@ Manual steps and Task Scheduler alternative remain below if you prefer not to us
 `nssm stop ChessHarness` / `nssm restart ChessHarness` for maintenance.
 
 **After reboot:** wait a few minutes, then `curl http://127.0.0.1:8765/health`. That confirms harness durability only — not Public Online.
+
+### Harness — logon auto-start (no admin)
+
+If NSSM / service install is blocked (`Acceso denegado`), use:
+
+```powershell
+.\deploy\install-harness-logon-task.ps1
+```
+
+Registers HKCU Run + a Startup folder `.cmd` that runs `python -m chess_harness serve --force` with `TRUSTED_PROXIES` set. Starts after **user logon** (not before login screen).
+
+### Public Online — one script
+
+```powershell
+.\deploy\go-online.ps1
+```
+
+Use after reboot (or whenever Pages shows Sleeping) once the harness is healthy.
 
 ### Harness — manual NSSM (reference)
 
