@@ -12,6 +12,8 @@ import {
 import {
   Markers,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
+import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
+import { createBoardAnnotations } from "./board-annotations.js";
 
 const IDENTIFY_EXACT_MARKER = {
   class: "identify-marker-exact",
@@ -161,8 +163,11 @@ async function main() {
         class: Markers,
         props: { autoMarkers: null },
       },
+      { class: Arrows },
     ],
   });
+
+  const annotations = createBoardAnnotations(board);
 
   let lastFen = null;
   let replay = null;
@@ -172,6 +177,7 @@ async function main() {
   let agentName = null;
 
   function setPosition(fen, animate) {
+    annotations.clearAnnotations();
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
     lastFen = fen;
     return board.setPosition(fen, doAnimate);

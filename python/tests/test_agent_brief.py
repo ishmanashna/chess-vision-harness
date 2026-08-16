@@ -27,8 +27,8 @@ def test_render_agent_brief_contains_play_loop():
     assert "game-1-2345" in brief
     assert "Authorization: Bearer secret-key-abc" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/board" in brief
-    assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/board.txt" in brief
-    assert "only if the PNG cannot be fetched or read" in brief
+    assert "board.txt" in brief
+    assert "Prefer the PNG" in brief
     assert "eight compact rows" in brief
     assert "White=uppercase" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/status" in brief
@@ -81,7 +81,7 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/status" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/board" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/board.txt" in brief
-    assert "only if the PNG cannot be fetched or read" in brief
+    assert "Prefer the PNG" in brief
     assert "eight compact rows" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
@@ -110,7 +110,7 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "unranked" in brief.lower()
     assert "http://127.0.0.1:8765/api/v1/games/game-human-1/status" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-human-1/board.txt" in brief
-    assert "only if the PNG cannot be fetched or read" in brief
+    assert "Prefer the PNG" in brief
     assert "eight compact rows" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief

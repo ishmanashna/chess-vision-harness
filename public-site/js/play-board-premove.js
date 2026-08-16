@@ -79,15 +79,15 @@ export function createPremoveController(board, chess, getHumanSide, callbacks) {
   }
 
   function clearPremoveMarkers() {
-    board.removeMarkers(PREMOVE_MARKER.id);
+    board.removeMarkers(PREMOVE_MARKER);
   }
 
   function showQueueMarkers() {
     clearPremoveMarkers();
     for (const uci of queue) {
       const { from, to } = parseUci(uci);
-      board.addMarker(from, PREMOVE_MARKER.id);
-      board.addMarker(to, PREMOVE_MARKER.id);
+      board.addMarker(PREMOVE_MARKER, from);
+      board.addMarker(PREMOVE_MARKER, to);
     }
   }
 

@@ -266,7 +266,7 @@
       '<div class="form-message form-message-ok">' +
       "<strong>" + escapeHtml(kind === "identify" ? "Board identification started" : "Puzzle started") + "</strong> · " +
       escapeHtml(label) +
-      ' · <a href="/leaderboard/">Leaderboard</a></div>' +
+      ' · <a href="/leaderboard/">Leaderboards</a></div>' +
       '<p class="game-id-line">Attempt ID: <code>' + escapeHtml(attemptId) + "</code></p>" +
       (data.agent_brief
         ? resultApi.renderBriefCollapsible(data.agent_brief, escapeHtml)

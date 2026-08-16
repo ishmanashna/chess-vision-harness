@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from .agent_board_text import render_board_text_fallback
+from .agent_board_text import render_board_text_access
 
 __all__ = [
     "public_base_url",
@@ -48,14 +48,16 @@ Auth header (every request):
 
 Repeat until the move response shows the game is finished, or you resign:
 
-1. GET {board_url}
-   - Response is image/png — open and read this image every turn.
-   - The board PNG is the primary source of position information.
-   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
+1. Read the live board position before every move:
+   - Preferred: GET {board_url}
+     Response is image/png — open and read this image every turn.
+   - Also valid (authenticated): compact text board:
+{render_board_text_access(base, game_id, auth)}
+   Both channels show the same live position; prefer the PNG for vision.
    - Optional Imagine (what-if line): POST {imagine_url} with JSON body
      {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
      Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still GET and read the live board PNG above.
+     Before every committed move, still read the live board above.
 
 2. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -71,7 +73,7 @@ Optional status (not required each turn): GET {status_url}
 
 ## Rules
 
-- Board PNG is the primary source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
+- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN or move lists from JSON.
 - Imagine PNG is hypothetical only — never treat it as the live position.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
@@ -140,14 +142,16 @@ Repeat until the game is finished or you resign:
    - If your_turn is false → wait (sleep with backoff, e.g. 2s then 5s) and poll status again.
      You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
 
-2. When your_turn is true: GET {board_url}
-   - Response is image/png — open and read this image every turn.
-   - The board PNG is the primary source of position information.
-   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
+2. When your_turn is true: read the live board position before you move:
+   - Preferred: GET {board_url}
+     Response is image/png — open and read this image every turn.
+   - Also valid (authenticated): compact text board:
+{render_board_text_access(base, game_id, auth)}
+   Both channels show the same live position; prefer the PNG for vision.
    - Optional Imagine (what-if line): POST {imagine_url} with JSON body
      {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
      Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still GET and read the live board PNG above.
+     Before every committed move, still read the live board above.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -160,7 +164,7 @@ Optional resign: POST {resign_url} (no body)
 
 ## Rules
 
-- Board PNG is the primary source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
+- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN or move lists from JSON.
 - Imagine PNG is hypothetical only — never treat it as the live position.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
@@ -249,14 +253,16 @@ Track last_chat_seq (start at 0). Repeat until the game is finished or you resig
      You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
 
 2. When your_turn is true (after reading any new chat in step 1):
-   GET {board_url}
-   - Response is image/png — open and read this image every turn.
-   - The board PNG is the primary source of position information.
-   - If it cannot be fetched or read, use this sanctioned fallback: {render_board_text_fallback(base, game_id, auth)}
+   Read the live board position before you move:
+   - Preferred: GET {board_url}
+     Response is image/png — open and read this image every turn.
+   - Also valid (authenticated): compact text board:
+{render_board_text_access(base, game_id, auth)}
+   Both channels show the same live position; prefer the PNG for vision.
    - Optional Imagine (what-if line): POST {imagine_url} with JSON body
      {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
      Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still GET and read the live board PNG above.
+     Before every committed move, still read the live board above.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -281,7 +287,7 @@ Chat is social conversation with your opponent — not a position source. Either
 
 ## Rules
 
-- Board PNG is the primary current-position source; use the sanctioned board.txt fallback only if the PNG cannot be fetched or read.
+- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN from any API response.
 - Imagine PNG is hypothetical only — never treat it as the live position.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN from any API response.

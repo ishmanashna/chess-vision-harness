@@ -102,13 +102,18 @@ async function main() {
     chatPanelMode = mode === "chat" ? "chat" : "info";
     const stack = document.getElementById("info-stack");
     const chatPanel = document.getElementById("spec-chat-panel");
-    const toggle = document.getElementById("info-panel-toggle");
+    const toggleInfo = document.getElementById("info-panel-toggle");
+    const toggleChat = document.getElementById("info-panel-toggle-chat");
     if (stack) stack.classList.toggle("is-covered", chatPanelMode === "chat");
     if (chatPanel) chatPanel.hidden = chatPanelMode !== "chat";
-    if (toggle) {
-      toggle.hidden = !isAvhGame;
-      toggle.textContent =
-        chatPanelMode === "chat" ? "Show game" : "Show chat";
+    // Keep a visible control outside the covered info stack so chat is not a dead end.
+    if (toggleInfo) {
+      toggleInfo.hidden = !isAvhGame || chatPanelMode === "chat";
+      toggleInfo.textContent = "Show chat";
+    }
+    if (toggleChat) {
+      toggleChat.hidden = !isAvhGame || chatPanelMode !== "chat";
+      toggleChat.textContent = "Show game";
     }
   }
 
@@ -153,14 +158,9 @@ async function main() {
   function syncAvhChatUi(s) {
     const wasAvh = isAvhGame;
     isAvhGame = s.game_type === "human_vs_agent";
-    const toggle = document.getElementById("info-panel-toggle");
-    if (toggle) toggle.hidden = !isAvhGame;
     if (!isAvhGame && chatPanelMode === "chat") setInfoPanelMode("info");
     else if (isAvhGame && !wasAvh) setInfoPanelMode(chatPanelMode);
-    else if (toggle) {
-      toggle.textContent =
-        chatPanelMode === "chat" ? "Show game" : "Show chat";
-    }
+    else setInfoPanelMode(chatPanelMode);
   }
 
   function formatAccuracy(v) {
@@ -234,19 +234,18 @@ async function main() {
       el.hidden = !show;
     });
     if (!show) return;
-    const { whiteName, blackName } = sideNamesFromState(s, tags);
     const wAccLbl = document.getElementById("state-acc-white-label");
     const bAccLbl = document.getElementById("state-acc-black-label");
     const wPrLbl = document.getElementById("state-pr-white-label");
     const bPrLbl = document.getElementById("state-pr-black-label");
-    if (wAccLbl) wAccLbl.textContent = whiteName + " accuracy";
-    if (bAccLbl) bAccLbl.textContent = blackName + " accuracy";
+    if (wAccLbl) wAccLbl.textContent = "White accuracy";
+    if (bAccLbl) bAccLbl.textContent = "Black accuracy";
     if (wPrLbl) {
-      wPrLbl.textContent = whiteName + " Performance";
+      wPrLbl.textContent = "White Performance";
       wPrLbl.title = PLAY_RATING_TIP;
     }
     if (bPrLbl) {
-      bPrLbl.textContent = blackName + " Performance";
+      bPrLbl.textContent = "Black Performance";
       bPrLbl.title = PLAY_RATING_TIP;
     }
     const accWhite = document.getElementById("state-acc-white");
@@ -409,25 +408,59 @@ async function main() {
     }
     whiteName = abbreviateName(whiteName);
     blackName = abbreviateName(blackName);
+    const gameId = s.game_id || tags.GameId || GAME_ID;
+    const dateLabel = formatSpectatorDate(s, tags);
     const rows = [
-      ["Game ID", s.game_id || tags.GameId || GAME_ID],
+      ["Game ID", gameId, "game-id"],
       ["Event", tags.Event],
-      ["Date", tags.Date],
+      ["Date", dateLabel],
       ["White", playerLine(whiteName, whiteElo)],
       ["Black", playerLine(blackName, blackElo)],
     ];
     if (s.game_type === "agent_vs_agent")
       rows.splice(1, 0, ["Type", "Agent vs agent"]);
     if (s.game_type === "human_vs_agent")
-      rows.splice(1, 0, ["Type", "Agent vs human (unranked)"]);
+      rows.splice(1, 0, ["Type", "Agent vs Human"]);
     dl.innerHTML = rows
       .filter((r) => r[1] != null && r[1] !== "")
-      .map(
-        (r) =>
-          "<dt>" + escHtml(r[0]) + "</dt><dd>" + escHtml(r[1]) + "</dd>"
-      )
+      .map((r) => {
+        const kind = r[2];
+        let dd;
+        if (kind === "game-id") {
+          dd =
+            '<dd class="meta-game-id"><code title="' +
+            escHtml(r[1]) +
+            '">' +
+            escHtml(r[1]) +
+            "</code></dd>";
+        } else {
+          dd = "<dd>" + escHtml(r[1]) + "</dd>";
+        }
+        return "<dt>" + escHtml(r[0]) + "</dt>" + dd;
+      })
       .join("");
     renderQualityMetrics(s, tags);
+  }
+
+  function formatSpectatorDate(s, tags) {
+    const raw = s && s.last_activity;
+    if (raw) {
+      const ms = Date.parse(raw);
+      if (Number.isFinite(ms)) {
+        try {
+          return new Intl.DateTimeFormat(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(new Date(ms));
+        } catch (_) {
+          return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+        }
+      }
+    }
+    return tags.Date || "";
   }
 
   function applyEvalResponse(e, s) {
@@ -567,12 +600,13 @@ async function main() {
   };
 
   const panelToggle = document.getElementById("info-panel-toggle");
-  if (panelToggle) {
-    panelToggle.onclick = () => {
-      setInfoPanelMode(chatPanelMode === "chat" ? "info" : "chat");
-      if (chatPanelMode === "chat") pollChat();
-    };
+  const panelToggleChat = document.getElementById("info-panel-toggle-chat");
+  function onPanelToggle() {
+    setInfoPanelMode(chatPanelMode === "chat" ? "info" : "chat");
+    if (chatPanelMode === "chat") pollChat();
   }
+  if (panelToggle) panelToggle.onclick = onPanelToggle;
+  if (panelToggleChat) panelToggleChat.onclick = onPanelToggle;
 
   async function poll() {
     try {
@@ -582,28 +616,52 @@ async function main() {
       lastState = s;
       syncAvhChatUi(s);
       const rev = s.revision || "";
-      const plies = s.move_count != null ? s.move_count : 0;
+      const stateMoveCount =
+        s.move_count != null && s.move_count !== ""
+          ? Number(s.move_count)
+          : null;
+      const plies =
+        stateMoveCount != null && Number.isFinite(stateMoveCount)
+          ? stateMoveCount
+          : 0;
       const moveIncreased = plies > lastMoveCount;
       const firstLoad = lastMoveRows === null;
-      if (firstLoad || rev !== lastRevision || plies !== lastMoveCount) {
-        const animate = lastMoveCount > 0 && moveIncreased;
+
+      const m = await (
+        await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/moves")
+      ).json();
+      const pliesDetail = Array.isArray(m.plies_detail) ? m.plies_detail : [];
+      const movesPlyCount = pliesDetail.length;
+      const effectiveMoveCount =
+        stateMoveCount != null && Number.isFinite(stateMoveCount)
+          ? stateMoveCount
+          : movesPlyCount;
+      const metaChanged =
+        firstLoad ||
+        rev !== lastRevision ||
+        effectiveMoveCount !== lastMoveCount;
+      const needsBoardSync =
+        firstLoad ||
+        moveIncreased ||
+        movesPlyCount !== board.getTipPly();
+      const animate = !firstLoad && moveIncreased && lastMoveCount > 0;
+
+      if (metaChanged) {
         lastRevision = rev;
-        lastMoveCount = plies;
-        const m = await (
-          await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/moves")
-        ).json();
-        // Product rule: every move_count increase snaps scrub view to tip.
-        if (moveIncreased || firstLoad) {
-          await board.syncTip(m.start_fen, m.plies_detail || [], animate);
-          selectedPly = board.getTipPly();
-          renderMoves(m.move_rows || [], selectedPly);
-          applyEvalResponse(evalFromState(s), s);
-        } else {
-          // Revision-only refresh: keep scrub position.
-          renderMoves(m.move_rows || [], selectedPly);
-        }
-      } else if (selectedPly >= board.getTipPly()) {
+        lastMoveCount = effectiveMoveCount;
+      }
+
+      if (needsBoardSync) {
+        await board.syncTip(m.start_fen, pliesDetail, animate);
+        selectedPly = board.getTipPly();
+        renderMoves(m.move_rows || [], selectedPly);
         applyEvalResponse(evalFromState(s), s);
+        syncHeights();
+      } else {
+        renderMoves(m.move_rows || [], selectedPly);
+        if (selectedPly >= board.getTipPly()) {
+          applyEvalResponse(evalFromState(s), s);
+        }
       }
       if (s.game_over) {
         const p = await (

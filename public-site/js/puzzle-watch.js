@@ -10,6 +10,11 @@ import {
   COLOR,
   BORDER_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/Chessboard.js";
+import {
+  Markers,
+} from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
+import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
+import { createBoardAnnotations } from "./board-annotations.js";
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
@@ -263,7 +268,16 @@ async function main() {
       pieces: { file: "pieces/staunty.svg" },
       animationDuration: 150,
     },
+    extensions: [
+      {
+        class: Markers,
+        props: { autoMarkers: null },
+      },
+      { class: Arrows },
+    ],
   });
+
+  const annotations = createBoardAnnotations(board);
 
   let lastFen = null;
   let replay = null;
@@ -275,6 +289,7 @@ async function main() {
   let finished = false;
 
   function setPosition(fen, animate) {
+    annotations.clearAnnotations();
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
     lastFen = fen;
     return board.setPosition(fen, doAnimate);

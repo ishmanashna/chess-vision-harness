@@ -276,6 +276,9 @@ def test_leaderboard_page_is_unified_no_tabs():
                    "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\"",
                    'data-sort="puzzle_solve_ratio"'):
         assert needle in text, needle
+    assert ">Eyesight</th>" not in text
+    assert ">Strength</th>" not in text
+    assert ">Performance</th>" in text
     assert "Pz att" not in text
     assert "Pz sol" not in text
     assert "Id att" not in text

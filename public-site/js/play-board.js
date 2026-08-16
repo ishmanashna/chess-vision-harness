@@ -12,6 +12,7 @@ import {
   Markers,
   MARKER_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
+import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
 import {
   PromotionDialog,
   PROMOTION_DIALOG_RESULT_TYPE,
@@ -20,6 +21,8 @@ import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/ches
 import { uciFromSquares } from "./play-api.js";
 import { createPremoveController, PREMOVE_MARKER } from "./play-board-premove.js";
 import { exportBoardPngBlob } from "./play-export.js";
+import { createBoardAnnotations } from "./board-annotations.js";
+import { paintLastMoveMarkers } from "./board-last-move.js";
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
@@ -37,6 +40,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
   let pendingUci = null;
   let promoDialogOpen = false;
   let humanSide = humanColor === "black" ? COLOR.black : COLOR.white;
+  let lastMoveUci = null;
 
   let activeInputMode = INPUT_MODE.none;
   let desiredMove = false;
@@ -55,8 +59,12 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
     extensions: [
       {
         class: Markers,
-        props: { autoMarkers: MARKER_TYPE.frame, customMarkers: [PREMOVE_MARKER] },
+        props: {
+          autoMarkers: MARKER_TYPE.square,
+          customMarkers: [PREMOVE_MARKER],
+        },
       },
+      { class: Arrows },
       { class: PromotionDialog },
     ],
   });
@@ -69,6 +77,15 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
       if (typeof onPremoveChange === "function") onPremoveChange(uci);
     },
   });
+
+  const annotations = createBoardAnnotations(board, {
+    isInteractionBlocked: () =>
+      promoDialogOpen || premove.isPromoDialogOpen() || !!premove.peek(),
+  });
+
+  function paintLastMove() {
+    paintLastMoveMarkers(board, lastMoveUci);
+  }
 
   function syncLegalUci(list) {
     legalUci = Array.isArray(list) ? list.slice() : [];
@@ -186,11 +203,16 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
     return applyDesiredInputState();
   }
 
-  function setPosition(fen, animate) {
+  function setPosition(fen, animate, nextLastMoveUci) {
     chess.load(fen);
     pendingUci = null;
-    // Ghost (if any) is layered on server truth without chess.load of the virtual FEN.
-    return premove.syncDisplay(!!animate);
+    if (nextLastMoveUci !== undefined) {
+      lastMoveUci = nextLastMoveUci || null;
+    }
+    annotations.clearAnnotations();
+    return premove.syncDisplay(!!animate).then(() => {
+      paintLastMove();
+    });
   }
 
   function finishLocalMove(from, to, promotion) {
@@ -205,6 +227,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
     const uci = uciFromSquares(from, to, promotion);
     if (!isServerLegal(from, to, promotion)) return null;
     pendingUci = uci;
+    lastMoveUci = uci;
     return uci;
   }
 
@@ -237,7 +260,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
       const uci = finishLocalMove(from, to, event.promotion || undefined);
       if (uci) {
         event.chessboard.state.moveInputProcess.then(() => {
-          premove.syncDisplay(true);
+          premove.syncDisplay(true).then(() => paintLastMove());
         });
         return true;
       }
@@ -254,7 +277,10 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
             const piece = result.piece.charAt(1).toLowerCase();
             const ok = finishLocalMove(from, to, piece);
             if (ok) {
-              premove.syncDisplay(true).then(() => submitPending());
+              premove.syncDisplay(true).then(() => {
+                paintLastMove();
+                submitPending();
+              });
             } else {
               premove.syncDisplay(false);
               resumeInput();

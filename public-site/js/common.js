@@ -50,7 +50,7 @@
     if (link) link.classList.add("active");
   }
 
-  /** Localhost only: show Calibration after Leaderboard (never on Pages). */
+  /** Localhost only: show Calibration after Leaderboards (never on Pages). */
   function isLoopbackHost() {
     var host = window.location.hostname;
     return (
@@ -340,8 +340,8 @@
     return (n * 100).toFixed(1) + "%";
   }
 
-  function leaderboardColCount(fullColumns, showModelId, unified) {
-    var n = fullColumns ? 6 : 4;
+  function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
+    var n = fullColumns ? (homeBenchmark ? 7 : 6) : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
     return n;
@@ -381,11 +381,20 @@
     return f + "/" + a;
   }
 
-  function renderLeaderboardRows(agents, limit, fullColumns, showModelId, unified, sortKey, sortDir) {
+  function renderLeaderboardRows(
+    agents,
+    limit,
+    fullColumns,
+    showModelId,
+    unified,
+    homeBenchmark,
+    sortKey,
+    sortDir
+  ) {
     var rows = (Array.isArray(agents) ? agents : []).map(normalizeAgentRow);
     var sorted = sortAgentRows(rows, sortKey, sortDir);
     var slice = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
-    var colCount = leaderboardColCount(fullColumns, showModelId, unified);
+    var colCount = leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark);
     if (!slice.length) {
       return (
         '<tr><td colspan="' +
@@ -414,6 +423,27 @@
             escapeHtml(PERFORMANCE_TIP) +
             '">' +
             escapeHtml(formatQualityMean(agent.mean_play_rating)) +
+            "</td>"
+          : "";
+        var gamesCell = homeBenchmark
+          ? ""
+          : "<td>" + games + "</td>";
+        var homeBenchmarkCells = homeBenchmark
+          ? '<td title="' +
+            escapeHtml(
+              "Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it."
+            ) +
+            '">' +
+            escapeHtml(
+              row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)
+            ) +
+            "</td>" +
+            "<td title=\"" +
+            escapeHtml(
+              "Average exact-piece placement across finished board-identification attempts."
+            ) +
+            '">' +
+            escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
             "</td>"
           : "";
         var unifiedCells = unified
@@ -459,9 +489,8 @@
           "</td>" +
           accCell +
           playCell +
-          "<td>" +
-          games +
-          "</td>" +
+          gamesCell +
+          homeBenchmarkCells +
           unifiedCells +
           modelCell +
           "</tr>"
@@ -505,6 +534,9 @@
     var unified =
       options.unified === true ||
       container.hasAttribute("data-show-unified-stats");
+    var homeBenchmark =
+      options.homeBenchmark === true ||
+      container.hasAttribute("data-show-home-benchmark");
     var table = container.querySelector("table");
     var tbody = container.querySelector("tbody");
     var ts = window.CVH && window.CVH.tableSort;
@@ -529,6 +561,7 @@
         fullColumns,
         showModelId,
         unified,
+        homeBenchmark,
         sortKey,
         sortDir
       );
@@ -566,7 +599,7 @@
       } else {
         meta.textContent = when
           ? "Snapshot from " + when + "."
-          : "Leaderboard snapshot.";
+          : "Leaderboards snapshot.";
       }
     }
 
@@ -630,11 +663,11 @@
       })
       .catch(function () {
         if (tbody) {
-          var colCount = leaderboardColCount(fullColumns, showModelId, unified);
+          var colCount = leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark);
           tbody.innerHTML =
             '<tr><td colspan="' +
             colCount +
-            '" class="empty-state">Could not load leaderboard snapshot.</td></tr>';
+            '" class="empty-state">Could not load benchmark snapshot.</td></tr>';
         }
       });
   }

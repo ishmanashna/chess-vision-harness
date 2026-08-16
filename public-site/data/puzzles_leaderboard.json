@@ -1,10 +1,19 @@
 {
   "version": 1,
-  "generated_at": "2026-08-13T14:40:37.000Z",
+  "generated_at": "2026-08-16T18:49:22.000Z",
   "agents": [
     {
+      "id": "composer-2.5",
+      "name": "Composer 2.5",
+      "rating": 894.3,
+      "deviation": 181.7,
+      "attempts": 4,
+      "solves": 1,
+      "solve_rate": 0.25
+    },
+    {
       "id": "mimo-v2.5",
-      "name": "mimo-v2.5",
+      "name": "MiMo V2.5",
       "rating": 885.2,
       "deviation": 231.4,
       "attempts": 2,
@@ -13,6 +22,18 @@
     }
   ],
   "puzzles": [
+    {
+      "id": "005jJ",
+      "rating": 1215.0,
+      "deviation": 82.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 70,
+      "nb_plays": 37,
+      "source": "https://lichess.org/wt6Q2xGb#19",
+      "watch_url": "/p/pz-2Qw1Dw0y1oRH8soE6MvU7g"
+    },
     {
       "id": "00Gvr",
       "rating": 1149.0,
@@ -26,6 +47,18 @@
       "watch_url": "/p/pz-l0XY0qtt8cBUXHJ0hzObHA"
     },
     {
+      "id": "00Ydr",
+      "rating": 1075.0,
+      "deviation": 90.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 80,
+      "nb_plays": 38,
+      "source": "https://lichess.org/3hQsr2bX/black#42",
+      "watch_url": "/p/pz-F7Sj4Z5LhrpQ9EL4XIsIBw"
+    },
+    {
       "id": "00Ru6",
       "rating": 974.0,
       "deviation": 84.0,
@@ -36,6 +69,30 @@
       "nb_plays": 72,
       "source": "https://lichess.org/SA1K2pZD/black#68",
       "watch_url": "/p/pz-lVOyr7Ep29i0403RxziTqQ"
+    },
+    {
+      "id": "00dzT",
+      "rating": 881.0,
+      "deviation": 79.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 100,
+      "nb_plays": 484,
+      "source": "https://lichess.org/Kxd5ijdt#51",
+      "watch_url": "/p/pz-FXUaa9DtGUPH9vvslNa1nw"
+    },
+    {
+      "id": "00Enl",
+      "rating": 831.0,
+      "deviation": 77.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 87,
+      "nb_plays": 157,
+      "source": "https://lichess.org/2XZ7QI0F#53",
+      "watch_url": "/p/pz-uqqudiLbedWCtpPkYBFIYw"
     }
   ]
 }

@@ -19,26 +19,34 @@ def _read_public(rel: str) -> str:
 def test_leaderboard_performance_labels(create_client):
     client, _ = create_client
     html = client.get("/leaderboard/").text
-    assert "Performance" in html
+    assert ">Performance</th>" in html
+    assert ">% pieces</th>" in html or ">% pieces<" in html or '>% pieces</th>' in html
+    assert ">Strength</th>" not in html
+    assert ">Eyesight</th>" not in html
     assert "Play rating" not in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "Rebuild that table on the local Calibration page" not in html
     assert 'script src="/js/engines.js"' not in html
     assert 'title="Estimated strength from move accuracy' in html
-    assert 'class="leaderboard-layout"' in html
+    assert "leaderboard-layout-stack" in html
     assert 'class="leaderboard-copy"' in html
     assert 'class="leaderboard-tables"' in html
-    # Copy (Agents intro + How ratings) precedes tables column.
-    assert html.index("leaderboard-copy") < html.index("leaderboard-tables")
-    assert html.index("How ratings work") < html.index("data-engines-leaderboard")
-    assert html.index('id="ladder-heading"') < html.index("leaderboard-tables")
+    # Single column: giant table first, explanatory copy below.
+    assert html.index("leaderboard-tables") < html.index("leaderboard-copy")
+    assert html.index("data-engines-leaderboard") < html.index("How ratings work")
+    assert "Leaderboards" in html
+    assert 'id="agents-table-heading"' in html
 
 
 def test_home_mini_ladder_full_columns(create_client):
     client, _ = create_client
     html = client.get("/").text
-    assert "Performance" in html
+    # Flavor Benchmark labels only on Home — not a fork of Leaderboards naming.
+    assert ">Strength</th>" in html
+    assert ">Eyesight</th>" in html
+    assert ">% pieces</th>" not in html
+    assert ">Performance</th>" not in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "data-leaderboard-full" in html
@@ -50,8 +58,13 @@ def test_home_mini_ladder_full_columns(create_client):
     assert 'title="Results-only ladder Elo' in html
     assert "Model id" not in html
     assert "data-show-model-id" not in html
-    assert 'colspan="6"' in html
-    assert "Finished games with a real result" in html
+    assert 'colspan="7"' in html
+    assert 'data-sort="puzzle_rating"' in html
+    assert 'data-sort="identify_mean_accuracy"' in html
+    assert "data-show-home-benchmark" in html
+    assert 'data-sort="games"' not in html
+    assert ">Benchmark</h2>" in html
+    assert "flavor snapshot" in html
 
 
 def test_leaderboard_keeps_scored_games_copy(create_client):

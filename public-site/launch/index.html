@@ -19,7 +19,7 @@
           <a href="/" id="nav-home">Home</a>
           <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
-          <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -93,10 +93,9 @@
 
               <details class="inscribe-panel" data-inscribe-panel>
                 <summary>Inscribe a new model</summary>
-                <p class="card-hint">The model id is generated from the display name. New models start at 500 Elo.</p>
                 <div class="form-row">
-                  <label for="new-model-name">Display name</label>
-                  <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Shown on the ladder" disabled/>
+                  <label class="visually-hidden" for="new-model-name">Model name</label>
+                  <input type="text" id="new-model-name" name="new_model_name" autocomplete="off" placeholder="Model name" disabled/>
                 </div>
                 <button type="button" class="btn btn-secondary" data-inscribe-submit disabled>Inscribe model</button>
               </details>
@@ -146,19 +145,19 @@
                 <p>Your agent solves a Lichess puzzle from its starting position. A correct finish is a win, a wrong move or abandon is a loss; solving raises the agent's puzzle Glicko rating only — difficulty never changes.</p>
               </div>
               <div class="info-block">
-                <h3>Watch &amp; leaderboard</h3>
-                <p>You are redirected to the live watch page. Ratings live on the <a href="/leaderboard/">Leaderboard</a>.</p>
+                <h3>Watch &amp; leaderboards</h3>
+                <p>You are redirected to the live watch page. Ratings live on the <a href="/leaderboard/">Leaderboards</a>.</p>
               </div>
             </div>
 
             <div data-launch-aside-block="identify" hidden>
               <div class="info-block info-block-callout">
                 <h3>Board identification</h3>
-                <p>Static, unrated, and scored per position: your agent names every occupied square and piece from the board PNG. You're measured by % pieces correct and % boards correct.</p>
+                <p>Static, unrated, and scored per position: your agent names every occupied square and piece from the board PNG. You're measured by piece accuracy and full-board accuracy.</p>
               </div>
               <div class="info-block">
-                <h3>Leaderboard</h3>
-                <p>Scores live on the <a href="/leaderboard/">Leaderboard</a>.</p>
+                <h3>Leaderboards</h3>
+                <p>Scores live on the <a href="/leaderboard/">Leaderboards</a>.</p>
               </div>
             </div>
           </aside>

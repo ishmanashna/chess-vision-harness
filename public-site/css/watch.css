@@ -137,13 +137,19 @@
   align-items: stretch;
 }
 
-/* Side columns ~280+220+24+18(eval) ≈ 542; use 560 so board keeps room above 1280px */
+/* Side columns ~280+220+24+18(eval) ≈ 542; use 560 so board keeps room above 1280px.
+   Floor each calc() term so min() never picks a zero/negative width (blank board). */
 .watch-board-wrap,
 .spec-board-wrap,
 .puzzle-board-wrap {
   display: block;
   background: var(--surface);
-  width: min(600px, calc(100vh - 220px), calc(100vw - 560px));
+  width: min(
+    600px,
+    max(240px, calc(100vh - 220px)),
+    max(240px, calc(100vw - 560px))
+  );
+  min-width: 240px;
   aspect-ratio: 1;
   position: relative;
   overflow: hidden;
@@ -453,39 +459,6 @@
 }
 
 /* /g/ game spectator shell (static Pages; was inline in Python template) */
-.game-view .info-col-head {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  min-height: 1.5rem;
-  flex-shrink: 0;
-}
-
-.game-view .info-col-head:has(#info-panel-toggle[hidden]) {
-  display: none;
-}
-
-.game-view .info-panel-toggle {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.game-view .info-panel-toggle:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.game-view .info-panel-toggle[hidden] {
-  display: none;
-}
 
 .game-view .info-panel-slot {
   position: relative;
@@ -627,6 +600,85 @@
   font-size: 0.9em;
   color: var(--faint);
   min-height: 1.2em;
+}
+
+.game-view .info-panel-toggle[hidden] {
+  display: none !important;
+}
+
+.game-view .info-col-footer {
+  flex-shrink: 0;
+  margin-top: 8px;
+  min-height: 1.2rem;
+}
+
+.game-view .spec-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.game-view .spec-chat-head h2 {
+  margin: 0;
+}
+
+.game-view .meta-game-id {
+  min-width: 0;
+}
+
+.game-view .meta-game-id code {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82em;
+}
+
+/* Last-move square highlights + user annotations (theme-aware) */
+:root,
+[data-theme="light"] {
+  --last-move-from-fill: rgba(205, 210, 55, 0.58);
+  --last-move-to-fill: rgba(155, 199, 0, 0.62);
+  --annotation-square-fill: rgba(20, 85, 220, 0.38);
+  --annotation-arrow-color: rgba(20, 85, 220, 0.72);
+}
+
+[data-theme="dark"] {
+  --last-move-from-fill: rgba(190, 195, 50, 0.48);
+  --last-move-to-fill: rgba(155, 199, 0, 0.52);
+  --annotation-square-fill: rgba(120, 170, 255, 0.34);
+  --annotation-arrow-color: rgba(120, 170, 255, 0.78);
+}
+
+.cm-chessboard .markers .marker.last-move-from {
+  fill: var(--last-move-from-fill);
+  opacity: 1;
+}
+
+.cm-chessboard .markers .marker.last-move-to {
+  fill: var(--last-move-to-fill);
+  opacity: 1;
+}
+
+.cm-chessboard .markers .marker.annotation-square {
+  fill: var(--annotation-square-fill);
+  opacity: 1;
+}
+
+.cm-chessboard .arrow-default .arrow-head,
+.cm-chessboard .arrow-default .arrow-line {
+  fill: var(--annotation-arrow-color);
+  stroke: var(--annotation-arrow-color);
+}
+
+.cm-chessboard .arrow-annotation-preview .arrow-head,
+.cm-chessboard .arrow-annotation-preview .arrow-line {
+  fill: var(--annotation-arrow-color);
+  stroke: var(--annotation-arrow-color);
+  opacity: 0.45;
 }
 
 .game-view .eval-col-v {

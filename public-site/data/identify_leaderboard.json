@@ -1,5 +1,14 @@
 {
   "version": 1,
-  "generated_at": "2026-08-13T14:06:26.000Z",
-  "agents": []
+  "generated_at": "2026-08-16T18:49:22.000Z",
+  "agents": [
+    {
+      "id": "composer-2.5",
+      "name": "Composer 2.5",
+      "attempts": 8,
+      "full": 3,
+      "mean_accuracy": 0.7902,
+      "full_position_rate": 0.375
+    }
+  ]
 }

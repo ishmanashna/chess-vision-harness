@@ -934,6 +934,24 @@ p {
   align-items: start;
 }
 
+.leaderboard-layout-stack {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 36px;
+}
+
+.leaderboard-layout-stack .leaderboard-tables {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.leaderboard-layout-stack .leaderboard-copy {
+  max-width: 72rem;
+}
+
+.leaderboard-layout-stack #agents-table-heading {
+  margin-top: 0;
+}
+
 .leaderboard-puzzle-content {
   grid-column: 1 / -1;
 }

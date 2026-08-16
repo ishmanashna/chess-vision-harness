@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/css/watch.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/arrows/arrows.css"/>
 </head>
 <body class="game-view">
   <div class="wrap">
@@ -24,7 +25,7 @@
           <a href="/" id="nav-home">Home</a>
           <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
           <a href="/spectator/" id="nav-spectator">Spectator</a>
-          <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
           <a href="/contact/" id="nav-contact">Contact</a>
         </nav>
         <div class="header-controls">
@@ -40,9 +41,6 @@
       <p class="watch-poll-error" id="poll-error" role="alert" aria-live="polite"></p>
       <div class="layout watch-layout">
         <aside class="col info-col">
-          <div class="info-col-head">
-            <button type="button" class="info-panel-toggle" id="info-panel-toggle" hidden>Show chat</button>
-          </div>
           <div class="info-panel-slot" id="info-panel-slot">
             <div class="info-stack" id="info-stack">
               <div class="info-card">
@@ -70,9 +68,15 @@
               </div>
             </div>
             <div class="spec-chat-panel" id="spec-chat-panel" hidden>
-              <h2>Chat</h2>
+              <div class="spec-chat-head">
+                <h2>Chat</h2>
+                <button type="button" class="export-link info-panel-toggle" id="info-panel-toggle-chat" hidden>Show game</button>
+              </div>
               <div class="spec-chat-log" id="spec-chat-log" role="log" aria-live="polite"></div>
             </div>
+          </div>
+          <div class="info-col-footer">
+            <button type="button" class="export-link info-panel-toggle" id="info-panel-toggle" hidden>Show chat</button>
           </div>
         </aside>
         <div class="col board-col" id="board-col">
@@ -102,6 +106,6 @@
     </footer>
   </div>
   <script src="/js/common.js?v=4"></script>
-  <script type="module" src="/js/spectator-game.js?v=4"></script>
+  <script type="module" src="/js/spectator-game.js?v=7"></script>
 </body>
 </html>

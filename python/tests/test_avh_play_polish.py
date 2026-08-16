@@ -140,7 +140,7 @@ def test_spectator_game_page_quality_metrics():
     assert "quality_at" in js
     assert "not ladder Elo" in html
     assert "white_accuracy" in js
-    assert "Performance" in html
+    assert "White Performance" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "const wAccLbl =" in js or "const wAccLbl=" in js
@@ -151,25 +151,37 @@ def test_spectator_game_page_quality_metrics():
     assert html.index("state-acc-white-label") < html.index("state-pr-white-label")
     assert html.index("state-pr-white-label") < html.index("state-acc-black-label")
     assert html.index("state-acc-black-label") < html.index("state-pr-black-label")
+    assert "info-panel-toggle-chat" in html
+    assert "Show game" in html
+    assert "meta-game-id" in js or "formatSpectatorDate" in js
+    assert "Agent vs Human" in js
+    assert "Agent vs human (unranked)" not in js
+    assert 'wAccLbl.textContent = "White accuracy"' in js
+    assert "whiteName + \" accuracy\"" not in js
+    assert 'wPrLbl.textContent = "White Performance"' in js
 
 
 def test_spectator_game_page_quality_analysing_pending():
     html = load_game_view_shell()
     js = (PUBLIC_SITE / "js" / "spectator-game.js").read_text(encoding="utf-8")
+    css = (PUBLIC_SITE / "css" / "watch.css").read_text(encoding="utf-8")
     assert "isQualityPending" in js
     assert "Analysing…" in js
-    assert "quality-pending" in html
+    assert "quality-pending" in js
+    assert "quality-pending" in css
     assert 's.result !== "*"' in js
     html = load_game_view_shell()
     assert 'id="info-panel-toggle"' in html
+    assert 'id="info-panel-toggle-chat"' in html
     assert 'id="spec-chat-panel"' in html
     assert 'id="spec-chat-log"' in html
     assert "/chat?since=" in js
     assert "Show chat" in html
+    assert "Show game" in html
     assert "setInfoPanelMode" in js
     assert "Spectating" not in html
     assert 'id="info-panel-title"' not in html
-    assert "is-covered" in html
+    assert "is-covered" in html or "is-covered" in js
     assert "info-panel-slot" in html
     assert "<h2>Game info</h2>" in html
     assert "<h2>Game state</h2>" in html

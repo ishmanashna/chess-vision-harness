@@ -704,7 +704,7 @@ PUBLIC_SITE_HEADER = """
         <a href="/" id="nav-home">Home</a>
         <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
         <a href="/spectator/" id="nav-spectator">Spectator</a>
-        <a href="/leaderboard/" id="nav-leaderboard">Leaderboard</a>
+        <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
         <a href="/contact/" id="nav-contact">Contact</a>
       </nav>
       <div class="header-controls">

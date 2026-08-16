@@ -10,19 +10,16 @@ import {
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/Chessboard.js";
 import {
   Markers,
-  MARKER_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
+import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
 import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js";
+import { createBoardAnnotations } from "./board-annotations.js";
+import { paintLastMoveMarkers } from "./board-last-move.js";
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-function squaresFromUci(uci) {
-  if (!uci || uci.length < 4) return null;
-  return { from: uci.slice(0, 2), to: uci.slice(2, 4) };
-}
 
 function fenAtPly(startFen, plies, ply) {
   const chess = new Chess(startFen || START_FEN);
@@ -55,6 +52,12 @@ function fenAtPly(startFen, plies, ply) {
   return chess.fen();
 }
 
+function lastMoveUciAtViewPly(plies, viewPly) {
+  if (viewPly <= 0) return null;
+  const ply = plies[viewPly - 1];
+  return ply && ply.uci ? ply.uci : null;
+}
+
 /**
  * @param {HTMLElement} mountEl
  * @returns {{
@@ -76,6 +79,7 @@ export function createSpectatorBoard(mountEl) {
     position: startFen,
     assetsUrl: BOARD_ASSETS,
     orientation: COLOR.white,
+    responsive: true,
     style: {
       borderType: BORDER_TYPE.none,
       showCoordinates: true,
@@ -87,26 +91,48 @@ export function createSpectatorBoard(mountEl) {
         class: Markers,
         props: { autoMarkers: null },
       },
+      { class: Arrows },
     ],
   });
 
-  function paintLastMoveMarkers() {
-    board.removeMarkers();
-    if (viewPly <= 0) return;
-    const ply = pliesDetail[viewPly - 1];
-    const sq = ply && squaresFromUci(ply.uci);
-    if (!sq) return;
-    board.addMarker(MARKER_TYPE.frame, sq.from);
-    board.addMarker(MARKER_TYPE.frame, sq.to);
+  const annotations = createBoardAnnotations(board);
+
+  function paintLastMoveForView() {
+    paintLastMoveMarkers(board, lastMoveUciAtViewPly(pliesDetail, viewPly));
+  }
+
+  /** cm-chessboard can mount at 0×0; nudge once layout has real dimensions. */
+  function refreshLayout() {
+    try {
+      if (board.view && typeof board.view.handleResize === "function") {
+        board.view.handleResize();
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function afterLayoutPaint() {
+    refreshLayout();
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        refreshLayout();
+        requestAnimationFrame(resolve);
+      });
+    });
   }
 
   function applyPosition(animate) {
+    annotations.clearAnnotations();
     const fen = fenAtPly(startFen, pliesDetail, viewPly);
     const doAnimate = !!animate && lastAppliedFen != null && fen !== lastAppliedFen;
     lastAppliedFen = fen;
-    return board.setPosition(fen, doAnimate).then(() => {
-      paintLastMoveMarkers();
-    });
+    return board
+      .setPosition(fen, doAnimate)
+      .then(() => {
+        paintLastMoveForView();
+      })
+      .then(() => afterLayoutPaint());
   }
 
   function syncTip(nextStartFen, nextPlies, animate) {
@@ -125,6 +151,7 @@ export function createSpectatorBoard(mountEl) {
   }
 
   function destroy() {
+    annotations.destroy();
     try {
       board.destroy();
     } catch (_) {

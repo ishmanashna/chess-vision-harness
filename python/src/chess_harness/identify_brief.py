@@ -67,13 +67,15 @@ Submit a JSON body listing ONLY occupied squares, each value a color letter
 
 ## Play loop
 
-1. GET {board_url}
-   - Response is image/png — open and read this image before answering.
-   - The board PNG is the primary source; it is always white at bottom with
-     absolute square labels (a1 is bottom-left). Your color does not flip it.
-   - If it cannot be fetched or read, use this sanctioned fallback only:
-     GET {board_text_url} (same board as eight compact rows; no FEN, no
-     machine-readable answer beyond the visible board).
+1. Read the board position before answering:
+   - Preferred: GET {board_url}
+     Response is image/png — open and read this image before answering.
+     The board is always white at bottom with absolute square labels (a1 is bottom-left).
+     Your color does not flip it.
+   - Also valid (authenticated): GET {board_text_url}
+     Same board as eight compact rows; no FEN and no machine-readable answer
+     beyond the visible board. Prefer the PNG for vision; text is always
+     allowed when authenticated.
 
 2. POST {answer_url} with the placement JSON above.
    - Submission is final: the attempt is scored immediately and ends.
@@ -88,6 +90,7 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 
 ## Rules
 
+- Read the position from the board PNG (preferred) or authenticated board.txt — both are valid.
 - The true placement and position difficulty are never exposed before you
   submit — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
@@ -95,8 +98,11 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 
 ## Examples
 
-# Board PNG
+# Board PNG (preferred)
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
+
+# Board text (authenticated; also valid)
+curl.exe -s -H "{auth}" "{board_text_url}"
 
 # Submit placement (final — no retry)
 curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"pieces\\": {{\\"e2\\": \\"wP\\", \\"e7\\": \\"bP\\"}}}}" "{answer_url}"

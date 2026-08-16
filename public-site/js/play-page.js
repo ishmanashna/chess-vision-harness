@@ -5,6 +5,7 @@
 import { createPlayApi, normalizeColor, readPlayToken } from "./play-api.js";
 import { createPlayBoard } from "./play-board.js";
 import { createPlayChat } from "./play-chat.js";
+import { lastUciFromMoveRows } from "./board-last-move.js";
 import { setupBoardDownload } from "./play-export.js";
 import { canPremove, tryFirePremove } from "./play-premove.js";
 import {
@@ -125,7 +126,8 @@ async function main() {
     }
     board.syncLegalUci(pos.legal_moves_uci);
     if (pos.fen && pos.fen !== lastFen) {
-      await board.setPosition(pos.fen, animate);
+      const lastUci = lastUciFromMoveRows(pos.move_rows, pos.move_count);
+      await board.setPosition(pos.fen, animate, lastUci);
       lastFen = pos.fen;
     }
 

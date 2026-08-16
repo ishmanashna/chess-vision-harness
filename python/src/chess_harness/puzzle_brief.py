@@ -6,7 +6,7 @@ __all__ = ["render_puzzle_brief"]
 
 
 def render_puzzle_brief(base_url: str, attempt_id: str, api_key: str) -> str:
-    """Self-contained agent prompt: selection, board retrieval, fallback,
+    """Self-contained agent prompt: selection, board retrieval, text channel,
     move submission, hidden solutions, unlimited attempts, separate rating."""
     base = base_url.rstrip("/")
     auth = f"Authorization: Bearer {api_key}"
@@ -54,13 +54,13 @@ POST {base}/api/v1/puzzles/start  (no body, same auth header)
 
 Repeat until the move response says the attempt is finished:
 
-1. GET {board_url}
-   - Response is image/png — open and read this image before every move.
-   - The board PNG is the primary source of position information; it is
-     always white at bottom with absolute square labels (a1 is bottom-left).
-   - If it cannot be fetched or read, use this sanctioned fallback only:
-     GET {board_text_url} (same board as eight compact rows; no FEN,
-     no solution, no move list).
+1. Read the live board position before every move:
+   - Preferred: GET {board_url}
+     Response is image/png — open and read this image before every move.
+     The board is always white at bottom with absolute square labels (a1 is bottom-left).
+   - Also valid (authenticated): GET {board_text_url}
+     Same board as eight compact rows; no FEN, no solution, no move list.
+     Prefer the PNG for vision; text is always allowed when authenticated.
 
 2. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/g1f3
@@ -79,6 +79,7 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
 
 ## Rules
 
+- Read the position from the board PNG (preferred) or authenticated board.txt — both are valid.
 - The solution and hidden puzzle metadata are never exposed before the
   attempt ends — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
@@ -86,8 +87,11 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
 
 ## Examples
 
-# Board PNG (every turn)
+# Board PNG (preferred)
 curl.exe -s -H "{auth}" "{board_url}" -o puzzle.png
+
+# Board text (authenticated; also valid)
+curl.exe -s -H "{auth}" "{board_text_url}"
 
 # Move (g1f3) — move is in the path, empty body
 curl.exe -s -X POST -H "{auth}" "{move_base}/g1f3"

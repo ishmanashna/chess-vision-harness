@@ -66,7 +66,7 @@ def test_spectator_quality_visible_before_game_over():
     from pathlib import Path
 
     html = load_game_view_shell()
-    assert "Performance" in html
+    assert "White Performance" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     js = (Path(__file__).resolve().parents[2] / "public-site" / "js" / "spectator-game.js").read_text(
