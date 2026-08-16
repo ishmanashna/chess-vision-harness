@@ -39,6 +39,8 @@ https://chessvisionharness.pages.dev     ← Cloudflare Pages (always on)
 
 Calibration (`/calibration*`) is blocked at the Pages edge. Run it only on the game PC at **`http://127.0.0.1:8765/calibration`** (direct localhost — not via tunnel/Pages). On loopback hostnames (`127.0.0.1`, `localhost`), the shared site nav inserts **Calibration** after Leaderboard with no status probe; on the deployed Pages host the tab never appears. Direct loopback Host (`127.0.0.1` / `localhost`) may POST without a secret. Via tunnel or any non-loopback Host, calibration **POST** endpoints require `CHESS_HARNESS_CALIBRATION_SECRET` (header `CHESS_HARNESS_CALIBRATION_SECRET` or query `calibration_secret`) or set `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION=1`. Do not rely on client IP behind Cloudflare Tunnel.
 
+**Calibration data layers:** **A** engine Elo from `elo_calibration/results/*/ratings.json`; **B** quality samples from `continuous/play_rating_samples.jsonl`; **C** accuracy→Elo map in `accuracy_elo_map.json`; **D** agent ladder in `$CHESS_HARNESS_DIR` (unchanged). Serve reads **A–C from disk** for `/api/calibration/status` even when the worker is stopped; live activity overlays from `.chess_harness/calibration_worker/status.json`. `merged_ratings.json` is **publish-only** (not runtime SSOT). Continuous start/stop POSTs still require the worker.
+
 ### Local serve vs Pages (intentional diffs)
 
 When you run `chess-harness serve`, the origin serves the same `public-site/` HTML/CSS/JS as Pages for `/`, `/launch/`, `/spectator/`, `/leaderboard/`, and `/contact/` (legacy `/create/`, `/human/`, `/puzzles/` 301 to their `/launch/?flow=` equivalents). Shared static assets (`/css`, `/js`, `/data`, favicons) are mounted on the origin too.
@@ -49,7 +51,7 @@ When you run `chess-harness serve`, the origin serves the same `public-site/` HT
 | Leaderboard | **Online:** live `/api/leaderboard/live` (proxied). **Sleeping:** `public-site/data/leaderboard.json` | Same live vs snapshot logic; origin also serves live data at `/api/leaderboard/live` and `/data/leaderboard.json` when up |
 | Google sign-in | OAuth via Pages Functions | Not available (cosmetic only; does not gate create) |
 | Agent brief base URL | `CHESS_HARNESS_PUBLIC_URL` (Pages hostname) | Defaults to `http://127.0.0.1:8765` unless you set `CHESS_HARNESS_PUBLIC_URL` |
-| Calibration UI | 404 (blocked at edge) | `/calibration` on localhost; toolbar has **Rebuild accuracy→Elo table** only (no snapshot/publish buttons) |
+| Calibration UI | 404 (blocked at edge) | `/calibration` on localhost; toolbar has **Rebuild accuracy map** only (no snapshot/publish buttons) |
 | Create Game | Static shell + `/api/v1/*` proxy when online | Same static shell; APIs served directly (no proxy hop) |
 
 Legacy Python card-grid home (`/?tab=active|done`) and form `POST /create` are removed — use `/spectator/` and `/api/v1` instead.
@@ -282,8 +284,8 @@ Classic single-host check: `curl https://your-host/health` and Create Game brief
 | `harness/puzzles/` | Imported puzzle dataset (`puzzles.json`, manifest) |
 | `harness/audit/activity.jsonl` | Create/inscribe audit log |
 | `data/finished_games.sqlite` | Permanent scored-game archive |
-| `calibration/merged_ratings.json`, `accuracy_elo_map.json` | Operator calibration snapshots (still git-tracked when intentionally committed) |
-| `calibration/continuous/*` | Live calibration (`ratings.json`, `games.jsonl`, `play_rating_samples.jsonl`, `play_rating_map.json`) |
+| `calibration/merged_ratings.json`, `accuracy_elo_map.json` | Operator publish snapshots (`merged_ratings.json` is not runtime SSOT — serve merges `*/ratings.json`) |
+| `calibration/continuous/*` | Live calibration (`ratings.json`, `games.jsonl`, `play_rating_samples.jsonl`) |
 | `calibration/<suite>/` | Batch suite outputs (`ratings.json`, `games.jsonl`) when present |
 
 ```bash

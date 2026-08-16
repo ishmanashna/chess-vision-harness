@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from chess_harness.calibration_view import (  # noqa: E402
     calibrated_elo_for,
+    enrich_rating_rows_from_snapshot,
     enrich_rating_table_activity,
     get_calibration_status,
     ladder_elo_for_opponent,
@@ -147,8 +148,8 @@ def test_get_calibration_status_idle(cal_results):
     assert harness["activity"] == "idle"
     assert "play_rating" in status
     assert status["play_rating"]["sample_count"] == 0
-    assert "play_rating_map" in status
-    assert status["play_rating_map"]["warm"] is False
+    assert "accuracy_map" in status
+    assert status["accuracy_map"]["warm"] is False
     assert harness.get("mean_accuracy") is None
     assert harness.get("accuracy_std") is None
     assert "champion" not in status["play_rating"]
@@ -221,10 +222,10 @@ def test_get_calibration_status_includes_play_rating_means(cal_results):
     assert row["quality_samples"] == 2
     assert row.get("accuracy_std") == 2.0
     assert status["play_rating"]["sample_count"] == 2
-    assert status["play_rating_map"]["warm"] is False
+    assert status["accuracy_map"]["warm"] is False
 
 
-def test_get_calibration_status_play_rating_map_warm(cal_results):
+def test_get_calibration_status_accuracy_map_warm(cal_results):
     from chess_harness.accuracy_elo_map import rebuild_accuracy_elo_map
 
     continuous = cal_results / "continuous"
@@ -281,8 +282,8 @@ def test_get_calibration_status_play_rating_map_warm(cal_results):
     assert row["mean_accuracy"] is not None
     assert row["quality_samples"] == 101
     assert row["play_rating"] is not None
-    assert status["play_rating_map"]["warm"] is True
-    assert status["play_rating_map"]["sample_count"] == 2
+    assert status["accuracy_map"]["warm"] is True
+    assert status["accuracy_map"]["sample_count"] == 2
     assert "elo_estimations" not in row
     assert "estimators" not in status["play_rating"]
 
@@ -295,6 +296,44 @@ def test_enrich_rating_table_activity_playing():
     )
     assert rows[0]["playing"] == 2
     assert rows[0]["activity"] == "playing"
+
+
+def test_enrich_rating_rows_from_snapshot_continuous():
+    rows = enrich_rating_rows_from_snapshot(
+        [{"id": "stockfish-handicap:noise22", "elo": 720, "games": 5, "anchor": False, "enabled": True}],
+        {
+            "pairing_mode": "floaters",
+            "continuous_engines": ["stockfish-handicap:noise22"],
+            "parallel_by_engine": {"stockfish-handicap:noise22": 3},
+            "in_flight_by_engine": {"stockfish-handicap:noise22": 2},
+        },
+    )
+    assert rows[0]["continuous"] is True
+    assert rows[0]["parallel"] == 3
+    assert rows[0]["playing"] == 2
+    assert rows[0]["activity"] == "playing"
+
+
+def test_get_calibration_status_without_worker_reads_disk(cal_results, monkeypatch):
+    monkeypatch.delenv("CHESS_HARNESS_CALIBRATION_IN_PROCESS", raising=False)
+    import chess_harness.continuous_calibration as cc
+
+    cc._remote_manager = None
+    monkeypatch.setattr(
+        "chess_harness.calibration_supervisor.calibration_worker_healthy",
+        lambda: False,
+    )
+    from chess_harness.calibration_view import invalidate_merge_cache
+
+    invalidate_merge_cache()
+    status = get_calibration_status()
+    assert status["calibration_worker_ok"] is False
+    assert status["active"] is False
+    assert status["workers"] == 0
+    assert any(r["id"] == "stockfish-handicap:noise10" for r in status["rating_table"])
+    assert "play_rating" in status
+    assert "accuracy_map" in status
+    assert "play_rating_map" not in status
 
 
 def test_recent_games_from_jsonl_skips_corrupt_lines(tmp_path):
@@ -327,7 +366,8 @@ def test_get_calibration_status_skips_corrupt_games_jsonl(cal_results):
     assert len(status["recent_games"]) == 2
     assert any(r["id"] == "stockfish-handicap:noise10" for r in status["rating_table"])
     assert "play_rating" in status
-    assert "play_rating_map" in status
+    assert "accuracy_map" in status
+    assert "play_rating_map" not in status
 
 
 def test_get_calibration_status_all_corrupt_games_jsonl_still_builds_ratings(cal_results):

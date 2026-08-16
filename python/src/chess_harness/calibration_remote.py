@@ -1,4 +1,9 @@
-"""HTTP facade for continuous calibration running in a worker process."""
+"""HTTP facade for continuous calibration running in a worker process.
+
+POST mutations (start/stop/pairing) proxy to the worker. Display status on serve reads
+the worker ``status.json`` snapshot and on-disk calibration files — not ``/status-payload``
+or enrich RPC on every GET.
+"""
 
 from __future__ import annotations
 
@@ -67,19 +72,6 @@ class RemoteContinuousCalibrationManager:
 
     def status_payload(self) -> Dict[str, Any]:
         return http_json("GET", "/status-payload", base_url=self._base_url, timeout=10.0)
-
-    def enrich_rating_rows(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        payload = http_json(
-            "POST",
-            "/enrich-rating-rows",
-            body={"rows": rows},
-            base_url=self._base_url,
-            timeout=30.0,
-        )
-        enriched = payload.get("rows")
-        if isinstance(enriched, list):
-            return enriched
-        return rows
 
     async def start(self, engine_id: str, *, parallel: int = 1) -> None:
         await self._call(

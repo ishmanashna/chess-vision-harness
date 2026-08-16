@@ -107,8 +107,19 @@
     return Promise.resolve({});
   }
 
+  function watchUrlHasId(url) {
+    if (!url) return false;
+    var trimmed = String(url).replace(/\/+$/, "");
+    if (!trimmed) return false;
+    var parts = trimmed.split("/").filter(Boolean);
+    var last = parts[parts.length - 1] || "";
+    if (!last) return false;
+    if (last === "p" || last === "i" || last === "index.html") return false;
+    return true;
+  }
+
   function watchHref(row, kind) {
-    if (row.watch_url) return row.watch_url;
+    if (watchUrlHasId(row.watch_url)) return row.watch_url;
     if (row.attempt_id) return WATCH_PREFIX[kind] + row.attempt_id;
     return "";
   }

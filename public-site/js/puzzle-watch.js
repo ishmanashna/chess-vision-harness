@@ -16,6 +16,20 @@ const BOARD_ASSETS =
 const POLL_MS = 3000;
 const CHAIN_POLL_MS = 15000;
 
+function watchHrefForRow(row, prefix) {
+  const url = row.watch_url;
+  if (url) {
+    const trimmed = String(url).replace(/\/+$/, "");
+    const parts = trimmed.split("/").filter(Boolean);
+    const last = parts[parts.length - 1] || "";
+    if (last && last !== "p" && last !== "i" && last !== "index.html") {
+      return url;
+    }
+  }
+  if (row.attempt_id) return prefix + row.attempt_id;
+  return "";
+}
+
 function attemptIdFromPage() {
   const root = document.body;
   const fromData = root && root.dataset ? root.dataset.attemptId : "";
@@ -560,9 +574,13 @@ async function main() {
         if (isYou) {
           return '<li class="chain-you">' + escHtml(label) + "</li>";
         }
+        const href = watchHrefForRow(row, "/p/");
+        if (!href) {
+          return "<li>" + escHtml(label) + "</li>";
+        }
         return (
           '<li><a href="' +
-          escHtml(row.watch_url || "/p/" + row.attempt_id) +
+          escHtml(href) +
           '">' +
           escHtml(label) +
           "</a></li>"

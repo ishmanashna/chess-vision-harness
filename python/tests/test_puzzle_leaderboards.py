@@ -104,6 +104,7 @@ def test_identify_leaderboard_stats(tmp_path):
         attempts=IdentifyAttemptStore(tmp_path / "identify.json"), registry=_registry(tmp_path))
     (row,) = board["agents"]
     assert row["id"] == "agent-a" and row["name"] == "Agent A" and row["attempts"] == 2
+    assert row["full"] == 1
     assert row["mean_accuracy"] == pytest.approx(0.75, abs=1e-4)
     assert row["full_position_rate"] == pytest.approx(0.5, abs=1e-4)
 

@@ -1049,8 +1049,8 @@ async def calibration_set_fixed_opponent(opponent: str = Query(...)):
     return {"ok": True, "fixed_opponent_id": opponent_id}
 
 
-@app.post("/api/calibration/rebuild-play-rating-map")
-async def calibration_rebuild_play_rating_map():
+@app.post("/api/calibration/rebuild-accuracy-map")
+async def calibration_rebuild_accuracy_map():
     from .accuracy_elo_map import rebuild_accuracy_elo_map
     from .results import ResultsManager
 
@@ -1074,7 +1074,7 @@ async def calibration_rebuild_play_rating_map():
 @app.get("/g/{game_id}", response_class=HTMLResponse)
 async def game_view(game_id: str):
     """Static shell from public-site/g/; game data via /api/games/*."""
-    return watch_shell_response("g")
+    return watch_shell_response("g", game_id)
 
 
 @app.get("/g/{game_id}/board.png")
@@ -1102,7 +1102,7 @@ def _public_attempt(attempt_id: str):
 @app.get("/p/{attempt_id}", response_class=HTMLResponse)
 async def puzzle_watch_page(attempt_id: str):
     """Static shell from public-site/p/; attempt data via public puzzle API."""
-    return watch_shell_response("p")
+    return watch_shell_response("p", attempt_id)
 
 
 @app.get("/p/{attempt_id}/board.png")
@@ -1196,7 +1196,7 @@ def _public_identify(attempt_id: str):
 @app.get("/i/{attempt_id}", response_class=HTMLResponse)
 async def identify_watch_page(attempt_id: str):
     """Static shell from public-site/i/; attempt data via public identify API."""
-    return watch_shell_response("i")
+    return watch_shell_response("i", attempt_id)
 
 
 @app.get("/i/{attempt_id}/board.png")

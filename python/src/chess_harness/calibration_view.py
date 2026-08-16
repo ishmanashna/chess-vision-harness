@@ -1,4 +1,21 @@
-"""Read calibration ELO for spectator ladder and live session API."""
+"""Spectator calibration read path: engine Elo, quality samples, and accuracy map.
+
+Calibration layers (never folded into agent ladder Elo):
+
+- **A** Calibrated engine Elo — ``elo_calibration/results/*/ratings.json`` via
+  :func:`merge_calibration_ratings` (continuous ``ratings.json`` included).
+- **B** Quality samples — ``continuous/play_rating_samples.jsonl`` (aggregates via
+  precomputed summary when present).
+- **C** Accuracy→Elo map — ``accuracy_elo_map.json`` (Performance column).
+- **D** Agent ladder — ``CHESS_HARNESS_DIR`` models/results (unchanged; see ladder APIs).
+
+Serve builds layers A–C from disk on every full status GET. Live activity (continuous
+engines, in-flight counts, recent games) overlays from the worker ``status.json`` snapshot
+or the in-process manager during tests — not per-request enrich HTTP to the worker.
+
+``merged_ratings.json`` is publish-only (written for exports/commits); runtime reads merge
+suite files directly and never treat the merged file as SSOT.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +29,6 @@ logger = logging.getLogger(__name__)
 
 from .opponents import Opponent, OpponentCatalog, get_catalog
 from .paths import project_root
-
-def _continuous_mgr():
-    from .continuous_calibration import resolve_calibration_manager
-
-    return resolve_calibration_manager()
 
 
 def _results_root() -> Path:
@@ -208,102 +220,125 @@ def enrich_rating_table_activity(
     return enriched
 
 
-def get_calibration_status_live() -> Dict[str, Any]:
-    """Lightweight poll payload — live activity only (no rating table or quality maps)."""
-    from .calibration_worker_ipc import calibration_in_process
-    from .continuous_calibration import (
-        PARALLEL_CONFIRM_ABOVE,
-        fleet_parallel_confirm_above,
-        fleet_parallel_hard_cap,
-        parallel_hard_cap,
-    )
+def enrich_rating_rows_from_snapshot(
+    rows: List[Dict[str, Any]],
+    snapshot: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Pure enrich: continuous / activity flags from a worker status snapshot."""
+    pairing_mode = str(snapshot.get("pairing_mode") or "floaters")
+    running = set(snapshot.get("continuous_engines") or [])
+    in_flight = snapshot.get("in_flight_by_engine") or {}
+    parallel_by = snapshot.get("parallel_by_engine") or {}
+    enriched: List[Dict[str, Any]] = []
+    for row in rows:
+        copy = dict(row)
+        if copy.get("anchor") and pairing_mode != "anchors-self":
+            copy["continuous"] = False
+            copy["can_calibrate"] = False
+            copy["playing"] = 0
+            copy["activity"] = "anchor"
+            enriched.append(copy)
+            continue
+        eid = copy["id"]
+        copy["can_calibrate"] = bool(copy.get("enabled", True))
+        copy["continuous"] = eid in running
+        copy["parallel"] = int(parallel_by.get(eid, 1))
+        playing = int(in_flight.get(eid, 0))
+        copy["playing"] = playing
+        if playing > 0:
+            copy["activity"] = "playing"
+        elif copy["continuous"]:
+            copy["activity"] = "continuous"
+        elif not copy.get("enabled", True):
+            copy["activity"] = "disabled"
+        else:
+            copy["activity"] = "idle"
+        enriched.append(copy)
+    return enriched
 
-    mgr = _continuous_mgr()
-    running = mgr.running_engines()
-    cont = mgr.status_payload()
-    payload: Dict[str, Any] = {
+
+def _read_live_snapshot() -> Dict[str, Any]:
+    from .calibration_worker_ipc import calibration_in_process, read_worker_status_snapshot
+    from .continuous_calibration import get_continuous_calibration
+
+    if calibration_in_process():
+        return get_continuous_calibration().status_payload()
+    return read_worker_status_snapshot()
+
+
+def _live_status_overlay(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    running = set(snapshot.get("continuous_engines") or [])
+    in_flight = snapshot.get("in_flight_by_engine") or {}
+    recent = list(snapshot.get("recent_games") or [])
+    overlay: Dict[str, Any] = {
         "mode": "continuous" if running else "idle",
         "active": bool(running),
         "continuous_engines": sorted(running),
-        "parallel_by_engine": cont.get("parallel_by_engine", {}),
-        "skipped_games": cont.get("skipped_games", 0),
+        "parallel_by_engine": dict(snapshot.get("parallel_by_engine") or {}),
+        "skipped_games": int(snapshot.get("skipped_games") or 0),
         "workers": len(running),
-        "in_progress": sum(cont.get("in_flight_by_engine", {}).values()),
-        "in_flight_by_engine": cont.get("in_flight_by_engine", {}),
-        "recent_games": cont.get("recent_games", [])[-30:],
-        "updated_at": cont.get("updated_at"),
-        "process_pool_workers": cont.get("process_pool_workers"),
-        "pairing_mode": cont.get("pairing_mode"),
-        "fixed_opponent_id": cont.get("fixed_opponent_id"),
+        "in_progress": sum(int(v) for v in in_flight.values()),
+        "in_flight_by_engine": dict(in_flight),
+        "updated_at": snapshot.get("updated_at"),
+        "process_pool_workers": snapshot.get("process_pool_workers"),
+        "pairing_mode": snapshot.get("pairing_mode"),
+        "fixed_opponent_id": snapshot.get("fixed_opponent_id"),
+        "pairing_opponents": snapshot.get("pairing_opponents") or [],
+        "calibratable_engines": snapshot.get("calibratable_engines") or [],
         "pairing_locked": bool(running),
-        "parallel_hard_cap": parallel_hard_cap(),
-        "parallel_confirm_above": PARALLEL_CONFIRM_ABOVE,
-        "fleet_parallel_in_use": cont.get("fleet_parallel_in_use", 0),
-        "fleet_parallel_hard_cap": cont.get("fleet_parallel_hard_cap", fleet_parallel_hard_cap()),
-        "fleet_parallel_confirm_above": cont.get(
-            "fleet_parallel_confirm_above", fleet_parallel_confirm_above()
-        ),
-        "calibratable_engines": cont.get("calibratable_engines", []),
+        "parallel_hard_cap": snapshot.get("parallel_hard_cap"),
+        "parallel_confirm_above": snapshot.get("parallel_confirm_above"),
+        "fleet_parallel_in_use": snapshot.get("fleet_parallel_in_use", 0),
+        "fleet_parallel_hard_cap": snapshot.get("fleet_parallel_hard_cap"),
+        "fleet_parallel_confirm_above": snapshot.get("fleet_parallel_confirm_above"),
+        "suite": "continuous" if running else None,
     }
-    if not calibration_in_process():
-        from .calibration_supervisor import calibration_worker_error, calibration_worker_healthy
-
-        payload["calibration_worker_ok"] = calibration_worker_healthy()
-        worker_err = calibration_worker_error()
-        if worker_err:
-            payload["calibration_worker_error"] = worker_err
-    return payload
+    if recent:
+        overlay["recent_games"] = recent[-30:]
+    return overlay
 
 
-def get_calibration_status() -> Dict[str, Any]:
-    global _STATUS_CACHE
-    now = time.monotonic()
-    mgr = _continuous_mgr()
-    running = mgr.running_engines()
-    if _STATUS_CACHE is not None:
-        cached_at, cached = _STATUS_CACHE
-        if now - cached_at < STATUS_CACHE_TTL_SEC:
-            cont = mgr.status_payload()
-            return {
-                **cached,
-                "mode": "continuous" if running else "idle",
-                "active": bool(running),
-                "continuous_engines": sorted(running),
-                "parallel_by_engine": cont.get("parallel_by_engine", {}),
-                "skipped_games": cont.get("skipped_games", 0),
-                "workers": len(running),
-                "in_progress": sum(cont.get("in_flight_by_engine", {}).values()),
-                "in_flight_by_engine": cont.get("in_flight_by_engine", {}),
-                "recent_games": cont.get("recent_games", [])[-30:],
-                "updated_at": cont.get("updated_at"),
-                "process_pool_workers": cont.get("process_pool_workers"),
-                "pairing_mode": cont.get("pairing_mode"),
-                "fixed_opponent_id": cont.get("fixed_opponent_id"),
-            }
+def _attach_worker_health(payload: Dict[str, Any]) -> None:
+    from .calibration_worker_ipc import calibration_in_process
 
-    cont = mgr.status_payload()
+    if calibration_in_process():
+        return
+    from .calibration_supervisor import calibration_worker_error, calibration_worker_healthy
+
+    payload["calibration_worker_ok"] = calibration_worker_healthy()
+    worker_err = calibration_worker_error()
+    if worker_err:
+        payload["calibration_worker_error"] = worker_err
+
+
+def _recent_games_for_status(snapshot: Dict[str, Any]) -> List[Dict[str, Any]]:
+    recent: List[Dict[str, Any]] = list(snapshot.get("recent_games") or [])
+    if recent:
+        return recent
     root = _results_root()
+    games_path: Optional[Path] = None
+    latest_mtime = -1.0
+    for candidate in root.glob("*/games.jsonl"):
+        try:
+            mtime = candidate.stat().st_mtime
+        except OSError:
+            continue
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+            games_path = candidate
+    if games_path and games_path.exists():
+        recent.extend(_recent_games_from_jsonl(games_path))
+    return recent
+
+
+def _build_file_calibration_status(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    running = set(snapshot.get("continuous_engines") or [])
     merge_ttl = 0.5 if running else MERGE_CACHE_TTL_SEC
     calibration = merge_calibration_ratings(max_age_sec=merge_ttl)
     catalog = get_catalog()
 
-    recent: List[Dict[str, Any]] = list(cont.get("recent_games", []))
-    if not recent:
-        games_path: Optional[Path] = None
-        latest_mtime = -1.0
-        for candidate in root.glob("*/games.jsonl"):
-            try:
-                mtime = candidate.stat().st_mtime
-            except OSError:
-                continue
-            if mtime > latest_mtime:
-                latest_mtime = mtime
-                games_path = candidate
-        if games_path and games_path.exists():
-            recent.extend(_recent_games_from_jsonl(games_path))
-
     rating_table = build_ladder_rating_table(catalog, calibration)
-    rating_table = mgr.enrich_rating_rows(rating_table)
+    rating_table = enrich_rating_rows_from_snapshot(rating_table, snapshot)
 
     from .accuracy_elo_map import MIN_ENGINE_PAIRS, status_summary as accuracy_map_status
     from .play_rating import play_rating_status_summary
@@ -334,41 +369,68 @@ def get_calibration_status() -> Dict[str, Any]:
         row["quality_samples"] = int(info.get("sample_count") or 0)
         row["play_rating"] = info.get("mean_play_rating")
 
-    payload = {
-        "mode": "continuous" if running else "idle",
-        "active": bool(running),
-        "continuous_engines": sorted(running),
-        "parallel_by_engine": cont.get("parallel_by_engine", {}),
-        "skipped_games": cont.get("skipped_games", 0),
-        "suite": "continuous" if running else None,
-        "workers": len(running),
-        "process_pool_workers": cont.get("process_pool_workers"),
+    recent = _recent_games_for_status(snapshot)
+    return {
         "scheduled": 0,
         "completed": 0,
-        "in_progress": sum(cont.get("in_flight_by_engine", {}).values()),
-        "in_flight_by_engine": cont.get("in_flight_by_engine", {}),
         "rating_table": rating_table,
         "recent_games": recent[-30:],
-        "updated_at": cont.get("updated_at"),
-        "pairing_mode": cont.get("pairing_mode"),
-        "fixed_opponent_id": cont.get("fixed_opponent_id"),
-        "pairing_opponents": cont.get("pairing_opponents", []),
-        "calibratable_engines": cont.get("calibratable_engines", []),
-        "pairing_locked": bool(running),
-        "parallel_hard_cap": cont.get("parallel_hard_cap"),
-        "parallel_confirm_above": cont.get("parallel_confirm_above"),
         "play_rating": {
             "sample_count": play_rating["sample_count"],
             "min_samples": play_rating["min_samples"],
         },
-        "play_rating_map": {
+        "accuracy_map": {
             "sample_count": int(accuracy_map.get("engine_count") or 0),
             "min_samples": int(accuracy_map.get("min_engines") or MIN_ENGINE_PAIRS),
             "fitted_at": accuracy_map.get("fitted_at"),
             "warm": bool(accuracy_map.get("warm")),
         },
     }
-    _STATUS_CACHE = (now, payload)
+
+
+def get_calibration_status_live() -> Dict[str, Any]:
+    """Lightweight poll payload — live activity only (no rating table or quality maps)."""
+    from .continuous_calibration import (
+        PARALLEL_CONFIRM_ABOVE,
+        fleet_parallel_confirm_above,
+        fleet_parallel_hard_cap,
+        parallel_hard_cap,
+    )
+
+    snapshot = _read_live_snapshot()
+    payload: Dict[str, Any] = {
+        **_live_status_overlay(snapshot),
+        "parallel_hard_cap": snapshot.get("parallel_hard_cap") or parallel_hard_cap(),
+        "parallel_confirm_above": snapshot.get("parallel_confirm_above")
+        or PARALLEL_CONFIRM_ABOVE,
+        "fleet_parallel_in_use": snapshot.get("fleet_parallel_in_use", 0),
+        "fleet_parallel_hard_cap": snapshot.get("fleet_parallel_hard_cap")
+        or fleet_parallel_hard_cap(),
+        "fleet_parallel_confirm_above": snapshot.get(
+            "fleet_parallel_confirm_above", fleet_parallel_confirm_above()
+        ),
+    }
+    payload.setdefault("recent_games", [])
+    _attach_worker_health(payload)
+    return payload
+
+
+def get_calibration_status() -> Dict[str, Any]:
+    global _STATUS_CACHE
+    now = time.monotonic()
+    snapshot = _read_live_snapshot()
+
+    if _STATUS_CACHE is not None:
+        cached_at, cached = _STATUS_CACHE
+        if now - cached_at < STATUS_CACHE_TTL_SEC:
+            payload = {**cached, **_live_status_overlay(snapshot)}
+            _attach_worker_health(payload)
+            return payload
+
+    file_payload = _build_file_calibration_status(snapshot)
+    payload = {**file_payload, **_live_status_overlay(snapshot)}
+    _attach_worker_health(payload)
+    _STATUS_CACHE = (now, file_payload)
     return payload
 
 

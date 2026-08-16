@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildProxyRequestHeaders, clientIpFromRequest } from "./_proxy.js";
-import { fetchWatchShellHtml } from "./_watch_shell.js";
+import {
+  fetchWatchShellHtml,
+  injectShellEntityId,
+} from "./_watch_shell.js";
 
 test("clientIpFromRequest prefers CF-Connecting-IP", () => {
   const request = new Request("https://chessvisionharness.pages.dev/api/v1/games", {
@@ -89,10 +92,13 @@ test("fetchWatchShellHtml follows puzzle shell redirect without leaking it", asy
         });
       }
       if (url.pathname === "/p/" || url.pathname === "/p") {
-        return new Response("<!doctype html><title>puzzle shell</title>", {
-          status: 200,
-          headers: { "content-type": "text/html" },
-        });
+        return new Response(
+          "<!doctype html><body class=\"puzzle-view\"><title>puzzle shell</title></body>",
+          {
+            status: 200,
+            headers: { "content-type": "text/html" },
+          }
+        );
       }
       return new Response("missing", { status: 404 });
     },
@@ -103,10 +109,35 @@ test("fetchWatchShellHtml follows puzzle shell redirect without leaking it", asy
   const res = await fetchWatchShellHtml(assets, request, "/p/index.html");
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
-  assert.equal(await res.text(), "<!doctype html><title>puzzle shell</title>");
+  const body = await res.text();
+  assert.ok(body.includes("puzzle shell"));
+  assert.match(body, /data-attempt-id="pz-abc123def456"/);
   assert.deepEqual(
     calls.map((c) => c.url),
     ["/p/index.html", "/p/"]
   );
   assert.equal(calls[0].redirect, "manual");
+});
+
+test("fetchWatchShellHtml injects data-attempt-id from browser path", async () => {
+  const assets = {
+    async fetch() {
+      return new Response("<!doctype html><body class=\"puzzle-view\"></body>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      });
+    },
+  };
+  const request = new Request(
+    "https://chessvisionharness.pages.dev/i/id-xyz789"
+  );
+  const res = await fetchWatchShellHtml(assets, request, "/i/index.html");
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /data-attempt-id="id-xyz789"/);
+});
+
+test("injectShellEntityId adds data-game-id for game watch paths", () => {
+  const html = "<!doctype html><body></body>";
+  const out = injectShellEntityId(html, "/g/game-abc123");
+  assert.match(out, /data-game-id="game-abc123"/);
 });

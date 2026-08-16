@@ -245,6 +245,7 @@ def build_identify_leaderboard(
                 "id": model_id,
                 "name": names.get(model_id, model_id),
                 "attempts": attempts,
+                "full": entry["full"],
                 "mean_accuracy": round(entry["acc_sum"] / attempts, 4),
                 "full_position_rate": round(entry["full"] / attempts, 4),
             }

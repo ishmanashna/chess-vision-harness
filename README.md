@@ -77,7 +77,7 @@ Opponents can be **`enabled: false`** to remove them from agent pairing and cali
 | MinimalChess harness | `minimalchess-0.2:noise15`, `:noise30` | Backup rungs when SF noise overlaps |
 | Random mover | `random` | Calibrated floor (~60) |
 
-**Truth for floaters:** calibrated ELO in `elo_calibration/results/merged_ratings.json`, not catalog labels. Gap audit: `python scripts/audit_ladder_gaps.py`.
+**Truth for floaters:** calibrated ELO merged from `elo_calibration/results/*/ratings.json` at runtime (`merged_ratings.json` is publish-only), not catalog labels. Gap audit: `python scripts/audit_ladder_gaps.py`.
 
 Omit `--opponent` for an **ELO-weighted random** opponent matched to the agent's rating (eligible opponents only).
 
@@ -109,7 +109,7 @@ Engine-vs-engine games to measure opponent strength. No agents, no board images.
 
 - **Stockfish tiers** (`stockfish:N`) are fixed **anchors** at catalog UCI ELO.
 - **Floaters** (harnesses, `inverse_sf`, tiny engines, `random`) start at **500** and update after each game (sliding K: 64 / 48 / 24).
-- Results go to `elo_calibration/results/` (gitignored); best-known ratings merged into `merged_ratings.json`.
+- Results go to `elo_calibration/results/` (gitignored); serve merges `*/ratings.json` at runtime; `merged_ratings.json` is publish-only.
 
 **Spectator UI** (`/calibration`): global pairing mode (default **floaters**), Start all / Stop all, per-engine parallel games, live ratings. Disabled opponents are never paired.
 

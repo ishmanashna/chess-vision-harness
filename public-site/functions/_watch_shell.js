@@ -4,6 +4,52 @@
  */
 
 /**
+ * @param {string} pathname Browser request pathname (e.g. `/p/pz-abc`).
+ * @returns {{ attr: string, id: string } | null}
+ */
+export function shellEntityFromPath(pathname) {
+  const segments = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+  const kind = segments[0] || "";
+  const id = (segments[1] || "").trim();
+  if (!id || id === "index.html") {
+    return null;
+  }
+  if (kind === "p" || kind === "i") {
+    return { attr: "data-attempt-id", id };
+  }
+  if (kind === "g" || kind === "play") {
+    return { attr: "data-game-id", id };
+  }
+  return null;
+}
+
+/**
+ * Inject entity id onto the shell `<body>` so watch JS does not depend on the URL alone.
+ *
+ * @param {string} html
+ * @param {string} pathname
+ * @returns {string}
+ */
+export function injectShellEntityId(html, pathname) {
+  const entity = shellEntityFromPath(pathname);
+  if (!entity) {
+    return html;
+  }
+  const safe = entity.id
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return html.replace(/<body(\s[^>]*)?>/i, (match, attrs) => {
+    if (match.includes(entity.attr)) {
+      return match;
+    }
+    const a = attrs || "";
+    return `<body${a} ${entity.attr}="${safe}">`;
+  });
+}
+
+/**
  * Load watch/play shell HTML from Pages ASSETS without leaking Cloudflare's
  * directory-index redirect (`/g/index.html` -> 308 `/g/`) to the browser.
  * That redirect strips `/g/{id}` (and `/p|/i|/play`) and leaves an empty watch page.
@@ -43,7 +89,11 @@ export async function fetchWatchShellHtml(assets, request, assetPath) {
   if (!ct || ct.startsWith("text/html")) {
     headers.set("content-type", "text/html; charset=utf-8");
   }
-  return new Response(res.body, {
+  const html = injectShellEntityId(
+    await res.text(),
+    new URL(request.url).pathname
+  );
+  return new Response(html, {
     status: 200,
     statusText: "OK",
     headers,

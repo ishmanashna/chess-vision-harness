@@ -161,6 +161,7 @@ def build_snapshot(
                 "puzzle_attempts": int(pz.get("attempts") or 0),
                 "puzzle_solves": int(pz.get("solves") or 0),
                 "identify_attempts": int(iz.get("attempts") or 0),
+                "identify_full": int(iz.get("full") or 0),
                 "identify_mean_accuracy": iz.get("mean_accuracy"),
                 "identify_full_position_rate": iz.get("full_position_rate"),
             }

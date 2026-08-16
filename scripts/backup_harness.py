@@ -42,7 +42,6 @@ CONTINUOUS_FILES = (
     "ratings.json",
     "games.jsonl",
     "play_rating_samples.jsonl",
-    "play_rating_map.json",
 )
 
 

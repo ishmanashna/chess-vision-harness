@@ -14,6 +14,7 @@
   var PERFORMANCE_TIP =
     "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
   var ENGINES_JS_VERSION = "3";
+  var SITE_JS_VERSION = "4";
   var HOME_SORT_KEY = "cvh-home-ladder-sort";
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
@@ -140,6 +141,8 @@
     "puzzle_solves",
     "puzzle_solve_ratio",
     "identify_attempts",
+    "identify_full",
+    "identify_full_ratio",
     "identify_mean_accuracy",
     "identify_full_position_rate",
   ];
@@ -161,6 +164,11 @@
         agent.puzzle_attempts
       ),
       identify_attempts: Number(agent.identify_attempts) || 0,
+      identify_full: Number(agent.identify_full) || 0,
+      identify_full_ratio: identifyFullRatio(
+        agent.identify_full,
+        agent.identify_attempts
+      ),
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
       _raw: agent,
@@ -334,7 +342,7 @@
 
   function leaderboardColCount(fullColumns, showModelId, unified) {
     var n = fullColumns ? 6 : 4;
-    if (unified) n += 4;
+    if (unified) n += 5;
     if (showModelId) n += 1;
     return n;
   }
@@ -357,6 +365,20 @@
     var s = Number(solves) || 0;
     if (a <= 0) return "—";
     return s + "/" + a;
+  }
+
+  function identifyFullRatio(full, attempts) {
+    var a = Number(attempts) || 0;
+    var f = Number(full) || 0;
+    if (a <= 0) return null;
+    return f / a;
+  }
+
+  function formatIdentifyRatio(full, attempts) {
+    var a = Number(attempts) || 0;
+    var f = Number(full) || 0;
+    if (a <= 0) return "—";
+    return f + "/" + a;
   }
 
   function renderLeaderboardRows(agents, limit, fullColumns, showModelId, unified, sortKey, sortDir) {
@@ -404,6 +426,11 @@
             escapeHtml("Puzzle solves over finished attempts (e.g. 2/5). Sorted by solve rate.") +
             '">' +
             escapeHtml(formatPuzzleRatio(row.puzzle_solves, row.puzzle_attempts)) +
+            "</td>" +
+            "<td title=\"" +
+            escapeHtml("Full-position identifications over finished attempts (e.g. 1/4). Sorted by rate.") +
+            '">' +
+            escapeHtml(formatIdentifyRatio(row.identify_full, row.identify_attempts)) +
             "</td>" +
             "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
@@ -549,6 +576,14 @@
       updateLeaderboardMeta(data);
     }
 
+    function showLiveUpgradeError() {
+      if (!showMeta) return;
+      var meta = container.querySelector("[data-snapshot-meta]");
+      if (!meta) return;
+      meta.textContent =
+        "Live ladder update failed — puzzle and identify cells may be stale. Refresh or try again.";
+    }
+
     function upgradeToLive() {
       var controller = new AbortController();
       var timeout = setTimeout(function () {
@@ -571,6 +606,10 @@
             .then(function (data) {
               paintData(data);
               notifyLiveLeaderboard(data);
+            })
+            .catch(function () {
+              showLiveUpgradeError();
+              return null;
             });
         })
         .catch(function () {

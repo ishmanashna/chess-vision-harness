@@ -66,15 +66,6 @@ async def worker_status_payload():
     return get_continuous_calibration().status_payload()
 
 
-@worker_app.post("/enrich-rating-rows")
-async def worker_enrich_rating_rows(body: Dict[str, Any]):
-    rows = body.get("rows")
-    if not isinstance(rows, list):
-        raise HTTPException(400, "rows must be a list")
-    mgr = get_continuous_calibration()
-    return {"rows": mgr.enrich_rating_rows(rows)}
-
-
 @worker_app.post("/continuous/{engine_id}/start")
 async def worker_start(
     engine_id: str,

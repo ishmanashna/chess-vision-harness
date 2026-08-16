@@ -61,11 +61,12 @@ def test_leaderboard_keeps_scored_games_copy(create_client):
     assert "data-show-model-id" not in html
     assert "Finished games with a real result" in html
     assert "100 rated games" in html
-    # Agents table: 10 columns (6 ladder + 4 unified puzzle/identify stats).
-    assert 'colspan="10"' in html
+    # Agents table: 11 columns (6 ladder + 5 unified puzzle/identify stats).
+    assert 'colspan="11"' in html
     assert "Pz att" not in html
     assert "Pz sol" not in html
-    assert "Id att" not in html
+    assert 'data-sort="identify_full_ratio"' in html
+    assert '>Id</th>' in html
     assert 'data-sort="puzzle_solve_ratio"' in html
 
 

@@ -220,6 +220,55 @@ def test_play_rating_status_summary_stddev_and_reliability(tmp_path: Path):
     assert "reliability" not in warm
 
 
+def test_play_rating_status_summary_reads_precomputed_file(tmp_path: Path, monkeypatch):
+    root = tmp_path
+    for i in range(3):
+        append_play_rating_sample(
+            {
+                "engine_id": "engine-a",
+                "q": float(i),
+                "accuracy": 80.0 + i,
+                "calibration_elo_before": 600.0,
+            },
+            root=root,
+        )
+    first = play_rating_status_summary(root=root)
+    assert first["sample_count"] == 3
+
+    calls = {"n": 0}
+    original_load = __import__(
+        "chess_harness.play_rating", fromlist=["load_samples"]
+    ).load_samples
+
+    def counting_load(*args, **kwargs):
+        calls["n"] += 1
+        return original_load(*args, **kwargs)
+
+    monkeypatch.setattr("chess_harness.play_rating.load_samples", counting_load)
+    second = play_rating_status_summary(root=root)
+    assert second["sample_count"] == 3
+    assert calls["n"] == 0
+
+
+def test_append_play_rating_sample_schedules_summary_rebuild(tmp_path: Path):
+    root = tmp_path
+    append_play_rating_sample(
+        {
+            "engine_id": "engine-a",
+            "q": 1.0,
+            "accuracy": 85.0,
+            "calibration_elo_before": 650.0,
+        },
+        root=root,
+    )
+    time.sleep(2.5)
+    summary_path = root / "continuous" / "engine_quality_summary.json"
+    assert summary_path.exists()
+    data = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert data["sample_count"] == 1
+    assert data["engines"][0]["engine_id"] == "engine-a"
+
+
 def test_process_calibration_skips_ineligible(tmp_path: Path, monkeypatch):
     root = tmp_path / "results"
     moves = ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6"]

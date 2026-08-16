@@ -284,7 +284,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
     <div class="wrap">
     {PUBLIC_SITE_HEADER}
     <h2>Engine calibration</h2>
-    <p class="cal-lead">Results-only Elo for the ladder. Accuracy is mean move quality from continuous games. Performance maps move accuracy through the accuracy→Elo table — it is not ladder Elo. Rebuild the accuracy→Elo map after enough samples.</p>
+    <p class="cal-lead"><strong>Calibrated Elo</strong> (layer A) — engine-vs-engine results. <strong>Accuracy</strong> (layer B) — mean move quality from continuous samples. <strong>Performance</strong> (layer C) — accuracy mapped through the accuracy→Elo table; not Calibrated Elo. <strong>Agent ladder Elo</strong> on <a href="/leaderboard/">/leaderboard/</a> is separate (layer D).</p>
     {secret_panel}
     <div class="cal-toolbar">
       <label for="pairing-mode">Opponent pairing</label>
@@ -299,18 +299,18 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       <select id="fixed-opponent" disabled onchange="setFixedOpponent(this.value)"></select>
       <button type="button" class="cal-btn primary" id="start-all-btn" onclick="startAllEngines(this)">Start all (1 each)</button>
       <button type="button" class="cal-btn stop" id="stop-all-btn" onclick="stopAllEngines(this)">Stop all</button>
-      <button type="button" class="cal-btn" id="rebuild-play-rating-btn" onclick="rebuildPlayRatingMap(this)">Rebuild accuracy→Elo table</button>
+      <button type="button" class="cal-btn" id="rebuild-accuracy-map-btn" onclick="rebuildAccuracyMap(this)">Rebuild accuracy map</button>
     </div>
     <div id="cal-error" class="cal-error" role="alert"></div>
     <div id="status-meta" class="status-meta"></div>
-    <div class="cal-panel" id="play-rating-panel">
-      <h2>Quality samples &amp; accuracy→Elo map</h2>
-      <p id="play-rating-summary">Loading…</p>
+    <div class="cal-panel" id="quality-panel">
+      <h2>Quality samples &amp; accuracy map</h2>
+      <p id="quality-summary">Loading…</p>
     </div>
     <h2>Calibrated ratings</h2>
-    <p class="cal-legend">Elo = results only · Accuracy = mean move accuracy · Performance = accuracy→Elo map (not ladder Elo).</p>
+    <p class="cal-legend">Calibrated Elo = layer A · Accuracy = layer B · Performance = layer C (map, not Calibrated Elo).</p>
     <div class="cal-table-wrap">
-    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>
+    <table class="cal-table" id="rating-table"><tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th title="Layer B — mean move accuracy from quality samples.">Accuracy</th><th title="Layer C — Performance from the accuracy map; not Calibrated Elo or agent ladder Elo.">Performance</th><th>Activity</th><th></th></tr>
     <tr><td colspan="7" class="empty">No calibration data yet.</td></tr></table>
     </div>
     <h2>Recent games</h2>
@@ -349,7 +349,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       return e&&e.message?e.message:'unknown error';
     }}
     function ratingTableHeader(){{
-      return '<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>';
+      return '<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th title="Layer B — mean move accuracy from quality samples.">Accuracy</th><th title="Layer C — Performance from the accuracy map; not Calibrated Elo or agent ladder Elo.">Performance</th><th>Activity</th><th></th></tr>';
     }}
     function showCalibrationTableError(msg){{
       const rt=document.getElementById('rating-table');
@@ -473,18 +473,18 @@ def render_calibration_html(*, loopback: bool = True) -> str:
         refreshLive();
       }}
     }}
-    async function rebuildPlayRatingMap(btn){{
-      if(!window.confirm('Rebuild the accuracy→Elo table from collected quality samples? This may take a minute and updates Performance on the leaderboard.'))return;
+    async function rebuildAccuracyMap(btn){{
+      if(!window.confirm('Rebuild the accuracy map from collected quality samples? This may take a minute and updates Performance on the leaderboard.'))return;
       if(btn){{btn.disabled=true;btn.textContent='Rebuilding…';}}
       const meta=document.getElementById('status-meta');
-      if(meta)meta.textContent='Rebuilding accuracy→Elo table…';
+      if(meta)meta.textContent='Rebuilding accuracy map…';
       try{{
-        const r=await calPost('/api/calibration/rebuild-play-rating-map');
+        const r=await calPost('/api/calibration/rebuild-accuracy-map');
         const d=await r.json();
         const rows=d.rows_recomputed!=null?d.rows_recomputed:'?';
         if(meta)meta.textContent='Rebuild complete — '+rows+' finished-game Performance rows updated.';
       }}catch(e){{}}finally{{
-        if(btn){{btn.disabled=false;btn.textContent='Rebuild accuracy→Elo table';}}
+        if(btn){{btn.disabled=false;btn.textContent='Rebuild accuracy map';}}
         refreshFull();
         refreshLive();
       }}
@@ -546,7 +546,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
         const werr=d.calibration_worker_error||'calibration worker unreachable';
         const workerMsg='Calibration worker down: '+werr;
         showCalError(workerMsg);
-        const prEl=document.getElementById('play-rating-summary');
+        const prEl=document.getElementById('quality-summary');
         if(prEl&&prEl.textContent==='Loading…')prEl.textContent=workerMsg;
         const rt=document.getElementById('rating-table');
         if(rt&&rt.querySelector('td.empty')&&rt.textContent.indexOf('No calibration data yet.')>=0){{
@@ -573,7 +573,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       }}
     }}
     async function refreshFull(){{
-      const prEl=document.getElementById('play-rating-summary');
+      const prEl=document.getElementById('quality-summary');
       try{{
         const r=await fetchWithTimeout('/api/calibration/status',{{}},CAL_FETCH_TIMEOUT_MS);
         if(!r.ok){{
@@ -586,22 +586,22 @@ def render_calibration_html(*, loopback: bool = True) -> str:
         const d=await r.json();
         applyLiveStatus(d);
         const pr=d.play_rating||{{}};
-        const prm=d.play_rating_map||{{}};
+        const am=d.accuracy_map||{{}};
         if(prEl){{
           const n=pr.sample_count||0;
           const need=pr.min_samples||30;
           let lines=[];
           if(n>0){{
-            lines.push('Quality samples: '+n+(n<need?' / '+need+' collecting':' collected'));
+            lines.push('Layer B — quality samples: '+n+(n<need?' / '+need+' collecting':' collected'));
           }}else{{
-            lines.push('No quality samples yet. Eligible floaters (101+ Elo games) append samples after each continuous game.');
+            lines.push('Layer B — no quality samples yet. Eligible floaters (101+ Elo games) append samples after each continuous game.');
           }}
-          const sampleCount=prm.sample_count||0;
-          const minSamples=prm.min_samples||30;
-          if(prm.warm){{
-            lines.push('Accuracy→Elo map: warm — '+sampleCount+' engine pairs'+(prm.fitted_at?' · '+prm.fitted_at:''));
+          const sampleCount=am.sample_count||0;
+          const minSamples=am.min_samples||30;
+          if(am.warm){{
+            lines.push('Layer C — accuracy map warm — '+sampleCount+' engine pairs'+(am.fitted_at?' · '+am.fitted_at:''));
           }}else{{
-            lines.push('Accuracy→Elo map: need '+minSamples+' engine pairs (have '+sampleCount+').');
+            lines.push('Layer C — accuracy map needs '+minSamples+' engine pairs (have '+sampleCount+').');
           }}
           prEl.textContent=lines.join(' · ');
         }}
@@ -647,7 +647,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
               ctrl=`<div class="cal-controls">${{parInput}}<button type="button" class="cal-btn start" data-eid="${{esc(row.id)}}" onclick="setContinuous(this.getAttribute('data-eid'),true,this)">Start</button></div>`;
             }}
           }}
-          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Performance from move accuracy via the accuracy→Elo table; not ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
+          return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Layer B — mean accuracy from quality samples">${{acc}}</td><td title="Layer C — Performance from the accuracy map; not Calibrated Elo or agent ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
         if(rt){{
           rt.innerHTML=ratingTableHeader()

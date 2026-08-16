@@ -21,4 +21,4 @@ def register_play_routes(
     @app.get("/play/{game_id}", response_class=HTMLResponse)
     async def play_page(game_id: str):
         """Static shell from public-site/play/; play state via /api/play/*."""
-        return watch_shell_response("play")
+        return watch_shell_response("play", game_id)

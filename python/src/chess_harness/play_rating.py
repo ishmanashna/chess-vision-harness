@@ -12,11 +12,12 @@ from __future__ import annotations
 import json
 import os
 import statistics
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Sequence
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set
 
 import filelock
 
@@ -39,6 +40,16 @@ def samples_path(root: Optional[Path] = None) -> Path:
 
 def games_log_path(root: Optional[Path] = None) -> Path:
     return continuous_results_dir(root) / "games.jsonl"
+
+
+def engine_quality_summary_path(root: Optional[Path] = None) -> Path:
+    return continuous_results_dir(root) / "engine_quality_summary.json"
+
+
+_SUMMARY_DEBOUNCE_SEC = 2.0
+_summary_rebuild_timer: Optional[threading.Timer] = None
+_summary_rebuild_lock = threading.Lock()
+_pending_summary_roots: Set[str] = set()
 
 
 def continuous_fit_lock_path(root: Optional[Path] = None) -> Path:
@@ -138,8 +149,8 @@ def append_play_rating_sample(sample: Dict[str, Any], *, root: Optional[Path] = 
 
     path = samples_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with _play_rating_lock(path):
-        append_jsonl_line(path, sample)
+    append_jsonl_line(path, sample)
+    _schedule_engine_quality_summary_rebuild(root)
 
 
 def rewrite_play_rating_samples(
@@ -151,6 +162,7 @@ def rewrite_play_rating_samples(
     with _play_rating_lock(path):
         text = "".join(json.dumps(row) + "\n" for row in samples)
         path.write_text(text, encoding="utf-8")
+    rebuild_engine_quality_summary(root=root)
 
 
 def fit_map_knots(samples: List[Dict[str, Any]]) -> List[Dict[str, float]]:
@@ -219,29 +231,11 @@ def _population_stdev(values: Sequence[float]) -> Optional[float]:
     return statistics.pstdev(values)
 
 
-def play_rating_for_side(side: SideQuality, *, root: Optional[Path] = None) -> Optional[float]:
-    if side is None or side.accuracy is None:
-        return None
-    from .accuracy_elo_map import play_rating_from_accuracy
-
-    return play_rating_from_accuracy(side.accuracy, root=root)
-
-
-def play_rating_status_summary(
-    *,
-    root: Optional[Path] = None,
-    engine_elos: Optional[Dict[str, int]] = None,
+def _build_engine_quality_summary(
+    samples: Sequence[Dict[str, Any]], *, root: Optional[Path] = None
 ) -> Dict[str, Any]:
-    """
-    Lightweight operator summary for /calibration: per-engine mean accuracy and
-    per-sample play rating via the accuracy→Elo map (single pass). Does not
-    touch ladder Elo or map files.
-    """
-    del engine_elos  # reserved for API compat; not used on the slim status path
-
     from .accuracy_elo_map import play_rating_from_accuracy
 
-    samples = load_samples(root)
     buckets: Dict[str, List[float]] = {}
     for sample in samples:
         eid = sample.get("engine_id")
@@ -274,7 +268,83 @@ def play_rating_status_summary(
         "sample_count": len(samples),
         "min_samples": MIN_MAP_SAMPLES,
         "engines": engines,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def rebuild_engine_quality_summary(*, root: Optional[Path] = None) -> Dict[str, Any]:
+    """Scan play_rating_samples.jsonl and write continuous/engine_quality_summary.json."""
+    summary = _build_engine_quality_summary(load_samples(root), root=root)
+    path = engine_quality_summary_path(root)
+    with _play_rating_lock(path):
+        _atomic_write_json(path, summary)
+    return summary
+
+
+def _schedule_engine_quality_summary_rebuild(root: Optional[Path] = None) -> None:
+    global _summary_rebuild_timer
+    cal_root = (root or project_root() / "elo_calibration" / "results").resolve()
+    with _summary_rebuild_lock:
+        _pending_summary_roots.add(str(cal_root))
+        if _summary_rebuild_timer is not None:
+            _summary_rebuild_timer.cancel()
+
+        def _fire() -> None:
+            global _summary_rebuild_timer
+            with _summary_rebuild_lock:
+                roots = list(_pending_summary_roots)
+                _pending_summary_roots.clear()
+                _summary_rebuild_timer = None
+            for root_key in roots:
+                try:
+                    rebuild_engine_quality_summary(root=Path(root_key))
+                except Exception:
+                    pass
+
+        _summary_rebuild_timer = threading.Timer(_SUMMARY_DEBOUNCE_SEC, _fire)
+        _summary_rebuild_timer.daemon = True
+        _summary_rebuild_timer.start()
+
+
+def _load_engine_quality_summary(root: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    summary_path = engine_quality_summary_path(root)
+    data = _read_json_object(summary_path)
+    if data is None or not isinstance(data.get("engines"), list):
+        return None
+    samples_file = samples_path(root)
+    if samples_file.exists() and summary_path.exists():
+        try:
+            if samples_file.stat().st_mtime > summary_path.stat().st_mtime:
+                return None
+        except OSError:
+            return None
+    return data
+
+
+def play_rating_for_side(side: SideQuality, *, root: Optional[Path] = None) -> Optional[float]:
+    if side is None or side.accuracy is None:
+        return None
+    from .accuracy_elo_map import play_rating_from_accuracy
+
+    return play_rating_from_accuracy(side.accuracy, root=root)
+
+
+def play_rating_status_summary(
+    *,
+    root: Optional[Path] = None,
+    engine_elos: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
+    """
+    Lightweight operator summary for /calibration: per-engine mean accuracy and
+    per-sample play rating via the accuracy→Elo map. Reads precomputed
+    engine_quality_summary.json when fresh; rebuilds once when stale or missing.
+    """
+    del engine_elos  # reserved for API compat; not used on the slim status path
+
+    cached = _load_engine_quality_summary(root)
+    if cached is not None:
+        return cached
+    return rebuild_engine_quality_summary(root=root)
 
 
 def build_samples_for_calibration_game(

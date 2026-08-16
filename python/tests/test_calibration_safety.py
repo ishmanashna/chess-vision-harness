@@ -89,11 +89,22 @@ def test_get_calibration_status_live_is_lightweight():
     full = get_calibration_status()
     assert "rating_table" not in live
     assert "play_rating" not in live
-    assert "play_rating_map" not in live
+    assert "accuracy_map" not in live
     assert live["pairing_locked"] is False
     assert live["parallel_hard_cap"] == parallel_hard_cap()
     assert "fleet_parallel_hard_cap" in live
     assert "rating_table" in full
+
+
+def test_calibration_html_layer_labels():
+    html = render_calibration_html(loopback=True)
+    assert "layer A" in html
+    assert "layer B" in html
+    assert "layer C" in html
+    assert "agent ladder elo" in html.lower()
+    assert "elo_estimation" not in html.lower()
+    assert "rebuild-accuracy-map" in html
+    assert "rebuild-play-rating-map" not in html
 
 
 def test_calibration_secret_not_in_html_when_not_loopback(monkeypatch):

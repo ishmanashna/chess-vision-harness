@@ -390,7 +390,7 @@ def test_build_snapshot_merges_puzzle_and_identify_stats(tmp_path):
              "attempts": 1, "solves": 1, "solve_rate": 1.0},
         ],
         identify_agents=[
-            {"id": "agent-a", "name": "Agent A", "attempts": 4,
+            {"id": "agent-a", "name": "Agent A", "attempts": 4, "full": 2,
              "mean_accuracy": 0.75, "full_position_rate": 0.5},
         ],
     )
@@ -400,6 +400,7 @@ def test_build_snapshot_merges_puzzle_and_identify_stats(tmp_path):
     assert "puzzle_solve_rate" not in aa, "agent rows no longer carry a solve rate"
     assert aa["puzzle_attempts"] == 3 and aa["puzzle_solves"] == 2
     assert aa["identify_attempts"] == 4
+    assert aa["identify_full"] == 2
     assert aa["identify_mean_accuracy"] == pytest.approx(0.75)
     assert aa["identify_full_position_rate"] == pytest.approx(0.5)
     ab = by_id["agent-b"]

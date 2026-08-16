@@ -1,4 +1,10 @@
-"""Per-engine continuous calibration (local manager in worker process)."""
+"""Per-engine continuous calibration (local manager in worker process).
+
+Layer **A** (calibrated engine Elo) and **B** (quality samples) persist under
+``elo_calibration/results/continuous/``. This manager runs games and writes those
+files; serve reads them directly for display. Live activity is published to
+``.chess_harness/calibration_worker/status.json`` for serve to overlay without RPC.
+"""
 
 from __future__ import annotations
 
@@ -699,34 +705,9 @@ class ContinuousCalibrationManager:
         }
 
     def enrich_rating_rows(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        running = self.running_engines()
-        in_flight = self._in_flight
-        enriched: List[Dict[str, Any]] = []
-        for row in rows:
-            copy = dict(row)
-            if copy.get("anchor") and self._pairing_mode != "anchors-self":
-                copy["continuous"] = False
-                copy["can_calibrate"] = False
-                copy["playing"] = 0
-                copy["activity"] = "anchor"
-                enriched.append(copy)
-                continue
-            eid = copy["id"]
-            copy["can_calibrate"] = bool(copy.get("enabled", True))
-            copy["continuous"] = eid in running
-            copy["parallel"] = int(self._parallel.get(eid, 1))
-            playing = int(in_flight.get(eid, 0))
-            copy["playing"] = playing
-            if playing > 0:
-                copy["activity"] = "playing"
-            elif copy["continuous"]:
-                copy["activity"] = "continuous"
-            elif not copy.get("enabled", True):
-                copy["activity"] = "disabled"
-            else:
-                copy["activity"] = "idle"
-            enriched.append(copy)
-        return enriched
+        from .calibration_view import enrich_rating_rows_from_snapshot
+
+        return enrich_rating_rows_from_snapshot(rows, self.status_payload())
 
 
 _manager: Optional[ContinuousCalibrationManager] = None

@@ -60,7 +60,6 @@ def test_backup_creates_archive(tmp_path, monkeypatch):
     continuous.mkdir(parents=True)
     (continuous / "games.jsonl").write_text('{"game_index":1}\n', encoding="utf-8")
     (continuous / "play_rating_samples.jsonl").write_text('{"engine_id":"e1"}\n', encoding="utf-8")
-    (continuous / "play_rating_map.json").write_text('{}\n', encoding="utf-8")
     (cal_root / "accuracy_elo_map.json").write_text('{}\n', encoding="utf-8")
     monkeypatch.setattr("backup_harness.CALIBRATION_ROOT", cal_root)
 
