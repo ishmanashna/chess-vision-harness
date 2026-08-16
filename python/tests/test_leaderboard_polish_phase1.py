@@ -123,11 +123,20 @@ def test_calibration_html_performance_label():
 def test_prose_copy_is_plain_and_justified():
     import re
 
+    home = _read_public("index.html")
     leaderboard = _read_public("leaderboard/index.html")
     launch = _read_public("launch/index.html")
     css = _read_public("css/site.css")
+    # Status/callout chrome may use strong; body copy paragraphs must not.
+    about = home[home.index('class="about-copy"') : home.index("</section>", home.index('class="about-copy"'))]
+    assert "<strong>" not in about
+    rating = leaderboard[
+        leaderboard.index('class="rating-explain"') : leaderboard.index(
+            "</section>", leaderboard.index('class="rating-explain"')
+        )
+    ]
+    assert "<strong>" not in rating
     allowed_strong = {
-        "*",
         "Launcher unavailable",
         "Game server offline",
         "No live games while the server is offline",
@@ -142,7 +151,7 @@ def test_prose_copy_is_plain_and_justified():
         ".info-block p",
         ".engines-section > p",
     ):
-        block = css[css.index(selector):]
+        block = css[css.index(selector) :]
         assert "text-align: justify" in block.split("}")[0], selector
 
 
