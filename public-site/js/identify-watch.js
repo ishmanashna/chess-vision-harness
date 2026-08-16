@@ -9,6 +9,19 @@ import {
   COLOR,
   BORDER_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/Chessboard.js";
+import {
+  Markers,
+} from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
+
+const IDENTIFY_EXACT_MARKER = {
+  class: "identify-marker-exact",
+  slice: "markerSquare",
+};
+
+const IDENTIFY_MISMATCH_MARKER = {
+  class: "identify-marker-mismatch",
+  slice: "markerSquare",
+};
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
@@ -18,12 +31,40 @@ const CHAIN_POLL_MS = 15000;
 function attemptIdFromPage() {
   const root = document.body;
   const fromData = root && root.dataset ? root.dataset.attemptId : "";
-  if (fromData) return fromData;
+  if (fromData) {
+    let decoded = fromData;
+    try {
+      decoded = decodeURIComponent(fromData);
+    } catch (_e) {
+      /* keep raw */
+    }
+    decoded = decoded.trim();
+    if (decoded && decoded !== "index.html" && decoded !== "i") return decoded;
+  }
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
   const idx = parts.indexOf("i");
-  const id = idx >= 0 ? parts[idx + 1] : "";
-  if (!id || id === "index.html") return "";
+  if (idx < 0) return "";
+  let id = parts[idx + 1] || "";
+  if (!id) return "";
+  try {
+    id = decodeURIComponent(id);
+  } catch (_e) {
+    /* keep raw segment */
+  }
+  id = id.trim();
+  if (!id || id === "index.html" || id === "i") return "";
   return id;
+}
+
+function missingAttemptIdMessage() {
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path === "/i" || path === "/i/") {
+    return (
+      "No identification attempt id — the URL may have been stripped " +
+      "(check the link includes the full attempt id after /i/)."
+    );
+  }
+  return "No identification attempt id in this URL.";
 }
 
 function escHtml(s) {
@@ -81,7 +122,7 @@ async function main() {
   const mount = document.getElementById("board");
 
   if (!ATTEMPT_ID) {
-    showPollError("No identification attempt id in this URL.");
+    showPollError(missingAttemptIdMessage());
     const outcomeEl = document.getElementById("state-outcome");
     if (outcomeEl) outcomeEl.textContent = "—";
     return;
@@ -101,6 +142,12 @@ async function main() {
       pieces: { file: "pieces/staunty.svg" },
       animationDuration: 150,
     },
+    extensions: [
+      {
+        class: Markers,
+        props: { autoMarkers: null },
+      },
+    ],
   });
 
   let lastFen = null;
@@ -211,6 +258,15 @@ async function main() {
       }));
   }
 
+  function paintReviewMarkers(rows) {
+    board.removeMarkers();
+    rows.forEach((r) => {
+      const marker =
+        r.status === "exact" ? IDENTIFY_EXACT_MARKER : IDENTIFY_MISMATCH_MARKER;
+      board.addMarker(marker, r.square);
+    });
+  }
+
   function renderReplay() {
     const mv = document.getElementById("mv");
     if (!mv || !replay) return;
@@ -235,15 +291,10 @@ async function main() {
         )
         .join("") +
       "</tbody></table>";
-    const wrap = document.getElementById("answer-wrap");
-    if (wrap) {
-      wrap.style.display = "block";
-      wrap.classList.add("is-review");
-      const img = document.getElementById("answer-img");
-      if (img) {
-        img.src = "/i/" + encodeURIComponent(ATTEMPT_ID) + "/answer.png?" + Date.now();
-      }
-    }
+    paintReviewMarkers(rows);
+    const legend = document.getElementById("review-legend");
+    if (legend) legend.hidden = false;
+    syncHeights();
   }
 
   async function loadReplay() {

@@ -15,6 +15,7 @@ from chess_harness.calibration_view import (  # noqa: E402
     get_calibration_status,
     ladder_elo_for_opponent,
     merge_calibration_ratings,
+    _recent_games_from_jsonl,
 )
 from chess_harness.opponents import get_catalog  # noqa: E402
 
@@ -294,6 +295,51 @@ def test_enrich_rating_table_activity_playing():
     )
     assert rows[0]["playing"] == 2
     assert rows[0]["activity"] == "playing"
+
+
+def test_recent_games_from_jsonl_skips_corrupt_lines(tmp_path):
+    games = tmp_path / "games.jsonl"
+    games.write_text(
+        '{"game_index": 1, "white": "a", "black": "b", "result": "1-0"}\n'
+        "NOT VALID JSON\n"
+        '{"game_index": 2, "white": "c", "black": "d", "result": "0-1"}\n',
+        encoding="utf-8",
+    )
+    recent = _recent_games_from_jsonl(games)
+    assert len(recent) == 2
+    assert recent[0]["game_index"] == 1
+    assert recent[1]["game_index"] == 2
+
+
+def test_get_calibration_status_skips_corrupt_games_jsonl(cal_results):
+    continuous = cal_results / "continuous"
+    continuous.mkdir(parents=True)
+    (continuous / "games.jsonl").write_text(
+        '{"game_index": 1, "white": "a", "black": "b", "result": "1-0"}\n'
+        "corrupt tail line\n"
+        '{"game_index": 3, "white": "e", "black": "f", "result": "1/2-1/2"}\n',
+        encoding="utf-8",
+    )
+    from chess_harness.calibration_view import invalidate_merge_cache
+
+    invalidate_merge_cache()
+    status = get_calibration_status()
+    assert len(status["recent_games"]) == 2
+    assert any(r["id"] == "stockfish-handicap:noise10" for r in status["rating_table"])
+    assert "play_rating" in status
+    assert "play_rating_map" in status
+
+
+def test_get_calibration_status_all_corrupt_games_jsonl_still_builds_ratings(cal_results):
+    continuous = cal_results / "continuous"
+    continuous.mkdir(parents=True)
+    (continuous / "games.jsonl").write_text("garbage\n{broken json\n", encoding="utf-8")
+    from chess_harness.calibration_view import invalidate_merge_cache
+
+    invalidate_merge_cache()
+    status = get_calibration_status()
+    assert status["recent_games"] == []
+    assert any(r["id"] == "stockfish-handicap:noise10" for r in status["rating_table"])
 
 
 def test_get_calibration_status_live(cal_results):

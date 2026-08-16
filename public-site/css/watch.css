@@ -355,26 +355,21 @@
   display: block;
 }
 
-/* Identify review: answer overlay stacks on the board when columns stack */
-.watch-answer-wrap,
-.answer-img-wrap {
-  margin-top: 14px;
-  display: none;
-}
-
-.watch-answer-wrap img,
-.answer-img-wrap img {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-}
-
-.watch-answer-wrap .cap,
-.answer-img-wrap .cap {
-  padding: 8px 2px 0;
+.identify-review-legend {
+  margin: 0;
+  padding: 10px 16px 12px;
   font-size: 0.78em;
   color: var(--faint);
   text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.puzzle-board .identify-marker-exact {
+  fill: rgba(0, 180, 0, 0.35);
+}
+
+.puzzle-board .identify-marker-mismatch {
+  fill: rgba(255, 45, 45, 0.38);
 }
 
 .watch-results-table,
@@ -451,40 +446,8 @@
     max-height: 360px;
   }
 
-  .watch-answer-wrap.is-review,
-  .answer-img-wrap.is-review {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    margin: 0;
-    display: flex !important;
-    flex-direction: column;
-    justify-content: center;
-    padding: 8px;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    pointer-events: none;
-  }
-
-  .watch-answer-wrap.is-review img,
-  .answer-img-wrap.is-review img {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    height: auto;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
-  }
-
-  .watch-answer-wrap.is-review .cap,
-  .answer-img-wrap.is-review .cap {
-    flex-shrink: 0;
-    padding-top: 6px;
-  }
-
   .watch-board-stack,
   .board-stack {
-    position: relative;
     width: min(100%, 560px);
   }
 }

@@ -256,7 +256,7 @@ def test_illegal_move_fails_attempt(puzzle_api_client):
     data = move.json()
     assert data["status"] == "finished"
     assert data["result"] == "failed"
-    assert data["moves_played"] == 0
+    assert data["moves_played"] == 1
 
 
 def test_abandon_ends_attempt_without_review(puzzle_api_client):

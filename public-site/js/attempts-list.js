@@ -107,6 +107,12 @@
     return Promise.resolve({});
   }
 
+  function watchHref(row, kind) {
+    if (row.watch_url) return row.watch_url;
+    if (row.attempt_id) return WATCH_PREFIX[kind] + row.attempt_id;
+    return "";
+  }
+
   function normalizeAttempt(row, kind, totalsByModel) {
     var startedMs = row.started_at ? Date.parse(row.started_at) || 0 : 0;
     var modelId = row.model_id || "";
@@ -116,6 +122,7 @@
         : null;
     var common = {
       attempt_id: row.attempt_id || "",
+      watch_url: row.watch_url || "",
       model_id: modelId,
       agent_name: row.agent_name || "—",
       status: statusLabel(row, kind),
@@ -174,14 +181,19 @@
     }
     return rows
       .map(function (row) {
+        var href = watchHref(row, kind);
+        var idCell = row.attempt_id
+          ? href
+            ? '<td><a href="' +
+              escapeHtml(href) +
+              '"><code>' +
+              escapeHtml(row.attempt_id) +
+              "</code></a></td>"
+            : "<td><code>" + escapeHtml(row.attempt_id) + "</code></td>"
+          : "<td>—</td>";
         return (
           "<tr>" +
-          '<td><a href="' +
-          escapeHtml(WATCH_PREFIX[kind]) +
-          escapeHtml(row.attempt_id) +
-          '"><code>' +
-          escapeHtml(row.attempt_id) +
-          "</code></a></td>" +
+          idCell +
           "<td>" +
           escapeHtml(row.agent_name) +
           "</td>" +

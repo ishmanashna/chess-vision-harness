@@ -85,6 +85,30 @@ def parse_agent_move(board: chess.Board, raw: str) -> Optional[chess.Move]:
         return None
 
 
+def _append_attempted_move(
+    record: Dict[str, Any], board: chess.Board, raw_move: str
+) -> None:
+    """Record a terminal submission so moves_played and replay stay honest."""
+    raw = (raw_move or "").strip()
+    if not raw:
+        return
+    move = parse_agent_move(board, raw)
+    if move is not None:
+        record["submitted_moves"].append(move.uci())
+        return
+    try:
+        record["submitted_moves"].append(chess.Move.from_uci(raw).uci())
+        return
+    except ValueError:
+        pass
+    try:
+        record["submitted_moves"].append(board.parse_san(raw).uci())
+        return
+    except (chess.InvalidMoveError, chess.AmbiguousMoveError, chess.IllegalMoveError):
+        pass
+    record["submitted_moves"].append(raw)
+
+
 def apply_submission(record: Dict[str, Any], raw_move: str) -> Dict[str, Any]:
     """Advance (or fail) an attempt with one submitted move; mutates record.
 
@@ -100,11 +124,13 @@ def apply_submission(record: Dict[str, Any], raw_move: str) -> Dict[str, Any]:
     board = chess.Board(record["board_fen"])
     move = parse_agent_move(board, raw_move)
     if move is None:
+        _append_attempted_move(record, board, raw_move)
         return _fail(record, raw_move, "illegal_move")
 
     solution = record["solution_moves"]
     index = record["solution_index"]
     if index >= len(solution):
+        record["submitted_moves"].append(move.uci())
         return _fail(record, raw_move, "wrong_move")
 
     if move != chess.Move.from_uci(solution[index]):

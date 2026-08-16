@@ -19,12 +19,40 @@ const CHAIN_POLL_MS = 15000;
 function attemptIdFromPage() {
   const root = document.body;
   const fromData = root && root.dataset ? root.dataset.attemptId : "";
-  if (fromData) return fromData;
+  if (fromData) {
+    let decoded = fromData;
+    try {
+      decoded = decodeURIComponent(fromData);
+    } catch (_e) {
+      /* keep raw */
+    }
+    decoded = decoded.trim();
+    if (decoded && decoded !== "index.html" && decoded !== "p") return decoded;
+  }
   const parts = window.location.pathname.replace(/\/+$/, "").split("/");
   const idx = parts.indexOf("p");
-  const id = idx >= 0 ? parts[idx + 1] : "";
-  if (!id || id === "index.html") return "";
+  if (idx < 0) return "";
+  let id = parts[idx + 1] || "";
+  if (!id) return "";
+  try {
+    id = decodeURIComponent(id);
+  } catch (_e) {
+    /* keep raw segment */
+  }
+  id = id.trim();
+  if (!id || id === "index.html" || id === "p") return "";
   return id;
+}
+
+function missingAttemptIdMessage() {
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path === "/p" || path === "/p/") {
+    return (
+      "No puzzle attempt id — the URL may have been stripped " +
+      "(check the link includes the full attempt id after /p/)."
+    );
+  }
+  return "No puzzle attempt id in this URL.";
 }
 
 function escHtml(s) {
@@ -109,6 +137,23 @@ function moveRowsFromSan(submitted, opponent) {
   return rows;
 }
 
+function solutionRowsFromReplay(replay) {
+  const rows = moveRowsFromSan(
+    replay.solution_agent_moves || [],
+    replay.solution_opponent_moves || []
+  );
+  if (rows.length) return rows;
+  const uci = replay.solution_moves || [];
+  if (!uci.length) return rows;
+  const agent = [];
+  const opponent = [];
+  for (let i = 0; i < uci.length; i++) {
+    if (i % 2 === 0) agent.push(uci[i]);
+    else opponent.push(uci[i]);
+  }
+  return moveRowsFromSan(agent, opponent);
+}
+
 function moveHeaderHtml() {
   return (
     '<div class="move-row move-header">' +
@@ -184,7 +229,7 @@ async function main() {
   const mount = document.getElementById("board");
 
   if (!ATTEMPT_ID) {
-    showPollError("No puzzle attempt id in this URL.");
+    showPollError(missingAttemptIdMessage());
     const outcomeEl = document.getElementById("state-outcome");
     if (outcomeEl) outcomeEl.textContent = "—";
     return;
@@ -368,16 +413,20 @@ async function main() {
     const mv = document.getElementById("mv");
     if (!mv || !replay) return;
 
-    const playedRows = moveRowsFromPlies(replay.plies || []);
-    const solutionRows = moveRowsFromSan(
-      replay.solution_agent_moves || [],
-      replay.solution_opponent_moves || []
-    );
+    let playedRows = moveRowsFromPlies(replay.plies || []);
+    if (!playedRows.length && replay.first_wrong_move) {
+      playedRows = [{ num: 1, agent: replay.first_wrong_move, opponent: "" }];
+    }
+    const solutionRows = solutionRowsFromReplay(replay);
 
     let wrongSan = "";
-    if (replay.result === "failed" && playedRows.length) {
-      const lastRow = playedRows[playedRows.length - 1];
-      if (lastRow.agent) wrongSan = lastRow.agent;
+    if (replay.result === "failed") {
+      if (playedRows.length) {
+        const lastRow = playedRows[playedRows.length - 1];
+        if (lastRow.agent) wrongSan = lastRow.agent;
+      } else if (replay.first_wrong_move) {
+        wrongSan = replay.first_wrong_move;
+      }
     }
 
     let html = '<h3 class="moves-subhead">Played</h3>';
@@ -595,6 +644,16 @@ async function main() {
       } else if (state.status === "abandoned") {
         finished = true;
         stopPolling();
+        renderLiveMoves(state);
+        const mvAbandoned = document.getElementById("mv");
+        if (mvAbandoned) {
+          mvAbandoned.insertAdjacentHTML(
+            "beforeend",
+            '<p style="color:var(--faint);margin:.75rem 0 0;font-size:.9em">' +
+              "Replay (full Played and Solution) unlocks only when an attempt finishes normally." +
+              "</p>"
+          );
+        }
         startChainTracking(state);
       } else {
         startChainTracking(state);

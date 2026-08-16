@@ -486,6 +486,21 @@ async function main() {
     fetchEvalForPly(n, false);
   }
 
+  function syncMovesScroll(el, viewPly, tipPly) {
+    if (!el) return;
+    const atTip = viewPly >= tipPly;
+    const pinToBottom = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    if (atTip) {
+      pinToBottom();
+      requestAnimationFrame(pinToBottom);
+    } else {
+      const on = el.querySelector(".on");
+      if (on) on.scrollIntoView({ block: "center", inline: "nearest" });
+    }
+  }
+
   function renderMoves(rows, viewPly) {
     const el = document.getElementById("mv");
     lastMoveRows = rows;
@@ -495,6 +510,7 @@ async function main() {
       return;
     }
     const sel = viewPly != null ? viewPly : selectedPly;
+    const tipPly = board.getTipPly();
     el.innerHTML = rows
       .map((r) => {
         const wPly = r.num * 2 - 1;
@@ -532,8 +548,7 @@ async function main() {
         scrubToPly(ply, true);
       });
     });
-    const on = el.querySelector(".on");
-    if (on) on.scrollIntoView({ block: "nearest" });
+    syncMovesScroll(el, sel, tipPly);
   }
 
   function hint(msg) {
@@ -599,6 +614,10 @@ async function main() {
       renderMeta(lastPgn, s);
       if (isAvhGame) await pollChat();
       syncHeights();
+      if (selectedPly >= board.getTipPly()) {
+        const mvEl = document.getElementById("mv");
+        syncMovesScroll(mvEl, selectedPly, board.getTipPly());
+      }
       if (
         s.game_over &&
         !s.quality_at &&

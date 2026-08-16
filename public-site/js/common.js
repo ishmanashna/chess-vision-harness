@@ -138,6 +138,7 @@
     "puzzle_rating",
     "puzzle_attempts",
     "puzzle_solves",
+    "puzzle_solve_ratio",
     "identify_attempts",
     "identify_mean_accuracy",
     "identify_full_position_rate",
@@ -155,6 +156,10 @@
       puzzle_rating: agent.puzzle_rating,
       puzzle_attempts: Number(agent.puzzle_attempts) || 0,
       puzzle_solves: Number(agent.puzzle_solves) || 0,
+      puzzle_solve_ratio: puzzleSolveRatio(
+        agent.puzzle_solves,
+        agent.puzzle_attempts
+      ),
       identify_attempts: Number(agent.identify_attempts) || 0,
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
@@ -329,7 +334,7 @@
 
   function leaderboardColCount(fullColumns, showModelId, unified) {
     var n = fullColumns ? 6 : 4;
-    if (unified) n += 6;
+    if (unified) n += 4;
     if (showModelId) n += 1;
     return n;
   }
@@ -338,6 +343,20 @@
     if (value == null || value === "") return "—";
     var n = Number(value);
     return isNaN(n) ? "—" : String(n);
+  }
+
+  function puzzleSolveRatio(solves, attempts) {
+    var a = Number(attempts) || 0;
+    var s = Number(solves) || 0;
+    if (a <= 0) return null;
+    return s / a;
+  }
+
+  function formatPuzzleRatio(solves, attempts) {
+    var a = Number(attempts) || 0;
+    var s = Number(solves) || 0;
+    if (a <= 0) return "—";
+    return s + "/" + a;
   }
 
   function renderLeaderboardRows(agents, limit, fullColumns, showModelId, unified, sortKey, sortDir) {
@@ -382,19 +401,9 @@
             escapeHtml(row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)) +
             "</td>" +
             "<td title=\"" +
-            escapeHtml("Finished puzzle attempts for this agent.") +
+            escapeHtml("Puzzle solves over finished attempts (e.g. 2/5). Sorted by solve rate.") +
             '">' +
-            escapeHtml(formatCount(row.puzzle_attempts)) +
-            "</td>" +
-            "<td title=\"" +
-            escapeHtml("Puzzle attempts solved correctly.") +
-            '">' +
-            escapeHtml(formatCount(row.puzzle_solves)) +
-            "</td>" +
-            "<td title=\"" +
-            escapeHtml("Finished board-identification attempts for this agent.") +
-            '">' +
-            escapeHtml(formatCount(row.identify_attempts)) +
+            escapeHtml(formatPuzzleRatio(row.puzzle_solves, row.puzzle_attempts)) +
             "</td>" +
             "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +

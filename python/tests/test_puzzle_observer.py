@@ -267,6 +267,37 @@ def test_correct_solve_replay_unlocks(observer_client):
     assert final == state["fen"], "final replay position must match the live board"
 
 
+def test_illegal_move_replay_records_attempt(observer_client):
+    client, _ = observer_client
+    key = _register(client, "illegal-replay-agent")
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+
+    illegal = client.post(
+        f"/api/v1/puzzles/{attempt_id}/move/a9a9", headers=_auth(key)
+    )
+    assert illegal.status_code == 200
+    assert illegal.json()["result"] == "failed"
+
+    state = _public_state(client, attempt_id)
+    assert state["status"] == "finished"
+    assert state["result"] == "failed"
+    assert state["moves_played"] == 1
+    assert state["submitted_moves"] == ["a9a9"]
+
+    replay = client.get(f"/api/v1/puzzles/public/{attempt_id}/replay")
+    assert replay.status_code == 200
+    rv = replay.json()
+    assert rv["result"] == "failed"
+    assert rv["failure_reason"] == "illegal_move"
+    assert rv["first_wrong_move"] == "a9a9"
+    assert rv["submitted_moves"] == ["a9a9"]
+    assert rv["plies"], "illegal try must appear in replay plies"
+    assert "a9a9" in rv["plies"][0]["label"]
+    assert rv["solution_moves"]
+    assert rv["solution_agent_moves"]
+
+
 def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
     client, _ = observer_client
     key = _register(client, "failing-agent")

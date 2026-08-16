@@ -75,3 +75,38 @@ test("fetchWatchShellHtml follows ASSETS index redirect without leaking it", asy
   );
   assert.equal(calls[0].redirect, "manual");
 });
+
+test("fetchWatchShellHtml follows puzzle shell redirect without leaking it", async () => {
+  const calls = [];
+  const assets = {
+    async fetch(request) {
+      const url = new URL(request.url);
+      calls.push({ url: url.pathname, redirect: request.redirect });
+      if (url.pathname === "/p/index.html") {
+        return new Response(null, {
+          status: 308,
+          headers: { Location: "/p/" },
+        });
+      }
+      if (url.pathname === "/p/" || url.pathname === "/p") {
+        return new Response("<!doctype html><title>puzzle shell</title>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        });
+      }
+      return new Response("missing", { status: 404 });
+    },
+  };
+  const request = new Request(
+    "https://chessvisionharness.pages.dev/p/pz-abc123def456"
+  );
+  const res = await fetchWatchShellHtml(assets, request, "/p/index.html");
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(await res.text(), "<!doctype html><title>puzzle shell</title>");
+  assert.deepEqual(
+    calls.map((c) => c.url),
+    ["/p/index.html", "/p/"]
+  );
+  assert.equal(calls[0].redirect, "manual");
+});

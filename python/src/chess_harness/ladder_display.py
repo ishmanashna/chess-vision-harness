@@ -332,6 +332,30 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       return String(Math.round(Number(v)));
     }}
     let calState={{pairingLocked:false,confirmAbove:4,hardCap:16,fleetBudget:4,fleetConfirmAbove:4,fleetInUse:0,lastPairingMode:'floaters'}};
+    const CAL_FETCH_TIMEOUT_MS=12000;
+    function fetchWithTimeout(url,options,timeoutMs){{
+      options=options||{{}};
+      const ms=typeof timeoutMs==='number'?timeoutMs:CAL_FETCH_TIMEOUT_MS;
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),ms);
+      const fetchOptions=Object.assign({{}},options,{{signal:controller.signal}});
+      return fetch(url,fetchOptions).then(
+        res=>{{clearTimeout(timer);return res;}},
+        err=>{{clearTimeout(timer);throw err;}}
+      );
+    }}
+    function calFetchErrorMessage(e){{
+      if(e&&e.name==='AbortError')return 'request timed out after '+CAL_FETCH_TIMEOUT_MS+'ms';
+      return e&&e.message?e.message:'unknown error';
+    }}
+    function ratingTableHeader(){{
+      return '<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>';
+    }}
+    function showCalibrationTableError(msg){{
+      const rt=document.getElementById('rating-table');
+      if(!rt)return;
+      rt.innerHTML=ratingTableHeader()+'<tr><td colspan="7" class="empty">'+esc(msg)+'</td></tr>';
+    }}
     function showCalError(msg){{
       const el=document.getElementById('cal-error');
       if(!el)return;
@@ -520,7 +544,14 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       if(calState.fleetBudget)meta+=(meta?' · ':'')+'fleet parallel '+calState.fleetInUse+'/'+calState.fleetBudget;
       if(d.calibration_worker_ok===false){{
         const werr=d.calibration_worker_error||'calibration worker unreachable';
-        showCalError('Calibration worker down: '+werr);
+        const workerMsg='Calibration worker down: '+werr;
+        showCalError(workerMsg);
+        const prEl=document.getElementById('play-rating-summary');
+        if(prEl&&prEl.textContent==='Loading…')prEl.textContent=workerMsg;
+        const rt=document.getElementById('rating-table');
+        if(rt&&rt.querySelector('td.empty')&&rt.textContent.indexOf('No calibration data yet.')>=0){{
+          showCalibrationTableError(workerMsg);
+        }}
       }}
       if(d.skipped_games)meta+=(meta?' · ':'')+d.skipped_games+' games skipped (timeout)';
       const metaEl=document.getElementById('status-meta');
@@ -529,25 +560,27 @@ def render_calibration_html(*, loopback: bool = True) -> str:
     }}
     async function refreshLive(){{
       try{{
-        const r=await fetch('/api/calibration/status/live');
+        const r=await fetchWithTimeout('/api/calibration/status/live',{{}},CAL_FETCH_TIMEOUT_MS);
         if(!r.ok){{
-          showCalError('Live status unavailable ('+r.status+' '+r.statusText+').');
+          const msg='Live status unavailable ('+r.status+' '+r.statusText+').';
+          showCalError(msg);
           return;
         }}
         const d=await r.json();
         applyLiveStatus(d);
       }}catch(e){{
-        showCalError('Live status poll failed: '+(e&&e.message?e.message:'unknown error'));
+        showCalError('Live status poll failed: '+calFetchErrorMessage(e));
       }}
     }}
     async function refreshFull(){{
       const prEl=document.getElementById('play-rating-summary');
       try{{
-        const r=await fetch('/api/calibration/status');
+        const r=await fetchWithTimeout('/api/calibration/status',{{}},CAL_FETCH_TIMEOUT_MS);
         if(!r.ok){{
           const msg='Calibration status unavailable ('+r.status+' '+r.statusText+').';
           showCalError(msg);
           if(prEl)prEl.textContent=msg;
+          showCalibrationTableError(msg);
           return;
         }}
         const d=await r.json();
@@ -616,12 +649,15 @@ def render_calibration_html(*, loopback: bool = True) -> str:
           }}
           return `<tr><td><code>${{esc(row.id)}}</code></td><td>${{elo}}</td><td>${{row.games||0}}</td><td title="Mean accuracy from quality samples">${{acc}}</td><td title="Performance from move accuracy via the accuracy→Elo table; not ladder Elo">${{est}}</td><td>${{activity}}</td><td>${{ctrl}}</td></tr>`;
         }}).join('');
-        rt.innerHTML='<tr><th>ID</th><th>Calibrated Elo</th><th>Games</th><th>Accuracy</th><th title="Performance from move accuracy via the accuracy→Elo table — not ladder Elo.">Performance</th><th>Activity</th><th></th></tr>'
-          +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
+        if(rt){{
+          rt.innerHTML=ratingTableHeader()
+            +(rows||'<tr><td colspan="7" class="empty">No ratings yet.</td></tr>');
+        }}
       }}catch(e){{
-        const msg='Calibration status failed: '+(e&&e.message?e.message:'unknown error');
+        const msg='Calibration status failed: '+calFetchErrorMessage(e);
         showCalError(msg);
         if(prEl)prEl.textContent=msg;
+        showCalibrationTableError(msg);
       }}
     }}
     refreshFull();

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from .opponents import Opponent, OpponentCatalog, get_catalog
 from .paths import project_root
@@ -159,6 +162,27 @@ def build_ladder_rating_table(
     return rows
 
 
+def _recent_games_from_jsonl(games_path: Path, *, tail: int = 20) -> List[Dict[str, Any]]:
+    """Parse trailing games.jsonl rows; skip corrupt lines without failing status."""
+    try:
+        lines = games_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    recent: List[Dict[str, Any]] = []
+    skipped = 0
+    for line in lines[-tail:]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            recent.append(json.loads(stripped))
+        except json.JSONDecodeError:
+            skipped += 1
+    if skipped:
+        logger.debug("Skipped %d corrupt games.jsonl line(s) in %s", skipped, games_path)
+    return recent
+
+
 def enrich_rating_table_activity(
     rows: List[Dict[str, Any]],
     *,
@@ -276,10 +300,7 @@ def get_calibration_status() -> Dict[str, Any]:
                 latest_mtime = mtime
                 games_path = candidate
         if games_path and games_path.exists():
-            lines = games_path.read_text(encoding="utf-8").splitlines()
-            for line in lines[-20:]:
-                if line.strip():
-                    recent.append(json.loads(line))
+            recent.extend(_recent_games_from_jsonl(games_path))
 
     rating_table = build_ladder_rating_table(catalog, calibration)
     rating_table = mgr.enrich_rating_rows(rating_table)

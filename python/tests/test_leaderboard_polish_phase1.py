@@ -61,10 +61,12 @@ def test_leaderboard_keeps_scored_games_copy(create_client):
     assert "data-show-model-id" not in html
     assert "Finished games with a real result" in html
     assert "100 rated games" in html
-    # Agents + puzzle-content loading rows: 9 columns each after the
-    # solve-rate and Themes column removals (P5).
-    assert 'colspan="9"' in html
-    assert 'colspan="10"' not in html
+    # Agents table: 10 columns (6 ladder + 4 unified puzzle/identify stats).
+    assert 'colspan="10"' in html
+    assert "Pz att" not in html
+    assert "Pz sol" not in html
+    assert "Id att" not in html
+    assert 'data-sort="puzzle_solve_ratio"' in html
 
 
 def test_engines_js_renders_six_columns():

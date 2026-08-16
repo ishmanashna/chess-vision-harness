@@ -272,9 +272,13 @@ def test_leaderboard_page_is_unified_no_tabs():
     text = (ROOT / "public-site" / "leaderboard" / "index.html").read_text(encoding="utf-8")
     for needle in ('data-show-unified-stats', "PUZZLES", "% pieces",
                    "% boards", "data-engines-leaderboard",
-                   "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\""):
+                   "data-sort=\"puzzle_rating\"", "data-sort=\"identify_mean_accuracy\"",
+                   'data-sort="puzzle_solve_ratio"'):
         assert needle in text, needle
-    assert 'data-sort="puzzle_solve_rate"' not in text, "agent solve-rate column removed"
+    assert "Pz att" not in text
+    assert "Pz sol" not in text
+    assert "Id att" not in text
+    assert 'data-sort="puzzle_solve_rate"' not in text, "legacy solve-rate key removed"
     assert "<th scope=\"col\">Themes</th>" not in text, "theme column removed"
     assert "data-puzzle-content-leaderboard" not in text, "puzzle content section removed"
     assert "Solve rate" not in text, "puzzle content section removed"
@@ -288,6 +292,8 @@ def test_leaderboard_page_is_unified_no_tabs():
     common = (ROOT / "public-site" / "js" / "common.js").read_text(encoding="utf-8")
     assert "data-show-unified-stats" in common
     assert "puzzle_solve_rate" not in common
+    assert "puzzle_solve_ratio" in common
+    assert "formatPuzzleRatio" in common
     assert "identify_full_position_rate" in common
     css = (ROOT / "public-site" / "css" / "site.css").read_text(encoding="utf-8")
     assert ".leaderboard-table .elo" in css

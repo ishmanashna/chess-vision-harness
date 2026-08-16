@@ -44,13 +44,21 @@ def san_moves(
     agent_labels: List[str] = []
     opponent_labels: List[str] = []
     for index, uci in enumerate(submitted):
-        agent = chess.Move.from_uci(uci)
-        agent_labels.append(board.san(agent))
-        board.push(agent)
+        try:
+            agent = chess.Move.from_uci(uci)
+            agent_labels.append(board.san(agent))
+            board.push(agent)
+        except ValueError:
+            agent_labels.append(str(uci))
+            break
         if index < len(opponent):
-            reply = chess.Move.from_uci(opponent[index])
-            opponent_labels.append(board.san(reply))
-            board.push(reply)
+            try:
+                reply = chess.Move.from_uci(opponent[index])
+                opponent_labels.append(board.san(reply))
+                board.push(reply)
+            except ValueError:
+                opponent_labels.append(str(opponent[index]))
+                break
     return agent_labels, opponent_labels
 
 
@@ -112,15 +120,33 @@ def _build_plies(
     plies: List[Dict[str, Any]] = []
     count = len(submitted)
     for index in range(count):
-        agent = chess.Move.from_uci(submitted[index])
-        agent_label = f"{index + 1}. {board.san(agent)}"
-        board.push(agent)
-        plies.append({"fen": board.fen(), "label": agent_label})
+        try:
+            agent = chess.Move.from_uci(submitted[index])
+            agent_label = f"{index + 1}. {board.san(agent)}"
+            board.push(agent)
+            plies.append({"fen": board.fen(), "label": agent_label})
+        except ValueError:
+            plies.append(
+                {
+                    "fen": board.fen(),
+                    "label": f"{index + 1}. {submitted[index]}",
+                }
+            )
+            break
         if index < len(opponent):
-            reply = chess.Move.from_uci(opponent[index])
-            reply_label = f"{index + 1}... {board.san(reply)}"
-            board.push(reply)
-            plies.append({"fen": board.fen(), "label": reply_label})
+            try:
+                reply = chess.Move.from_uci(opponent[index])
+                reply_label = f"{index + 1}... {board.san(reply)}"
+                board.push(reply)
+                plies.append({"fen": board.fen(), "label": reply_label})
+            except ValueError:
+                plies.append(
+                    {
+                        "fen": board.fen(),
+                        "label": f"{index + 1}... {opponent[index]}",
+                    }
+                )
+                break
     return plies
 
 
