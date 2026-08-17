@@ -159,4 +159,4 @@ def test_spectator_page_selected_ply_css():
     watch_css = (REPO_ROOT / "public-site" / "css" / "watch.css").read_text(encoding="utf-8")
     assert ".move-row .w.on" in watch_css
     assert "cursor: pointer" in watch_css
-    assert 'type="module" src="/js/spectator-game.js"' in html
+    assert 'type="module" src="/js/spectator-game.js' in html

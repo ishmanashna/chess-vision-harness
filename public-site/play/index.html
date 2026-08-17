@@ -10,8 +10,8 @@
   <title>Play · Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
-  <link rel="stylesheet" href="/css/watch.css"/>
-  <link rel="stylesheet" href="/css/play.css"/>
+  <link rel="stylesheet" href="/css/watch.css?v=9"/>
+  <link rel="stylesheet" href="/css/play.css?v=9"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/arrows/arrows.css"/>
@@ -41,9 +41,6 @@
       </div>
     </header>
     <main class="play-main" data-play-root>
-      <header class="play-header">
-        <p class="play-header-line" data-play-header-line aria-live="polite">Loading…</p>
-      </header>
       <p class="play-error" data-play-error role="alert"></p>
       <div class="play-layout">
         <aside class="play-chat-col" aria-label="Chat">
@@ -66,12 +63,13 @@
         </aside>
         <div class="play-center-col">
           <div class="play-board-stack board-stack">
-            <div class="board-label black" data-play-black-label>Black</div>
+            <div class="board-label" data-play-far-label>Black</div>
             <div class="play-board-wrap" data-board-wrap>
               <div id="play-board" class="play-board"></div>
             </div>
-            <div class="board-label white" data-play-white-label>White</div>
+            <div class="board-label" data-play-near-label>White</div>
           </div>
+          <p class="play-status" data-play-status aria-live="polite">Loading…</p>
           <button type="button" class="btn btn-secondary play-clear-premove" data-clear-premove hidden>Cancel premoves</button>
           <div class="play-actions">
             <button type="button" class="btn btn-secondary" data-resign>Resign</button>
@@ -101,8 +99,8 @@
       <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
-  <script src="/js/common.js?v=4"></script>
+  <script src="/js/common.js?v=8"></script>
   <script src="/js/human-games-registry.js"></script>
-  <script type="module" src="/js/play-page.js?v=4"></script>
+  <script type="module" src="/js/play-page.js?v=9"></script>
 </body>
 </html>

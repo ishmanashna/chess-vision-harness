@@ -102,27 +102,6 @@ class ChessHarnessMCP:
                 },
             ),
             Tool(
-                name="chess_imagine_board",
-                description=(
-                    "Apply a hypothetical move sequence from the current position and return "
-                    "a PNG of the resulting board. Does not change game state or idle timers. "
-                    "The Imagine PNG is not the live board — still read board.png before each "
-                    "real move. Cap is 12 plies. Moves are UCI or SAN."
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "game_id": {"type": "string"},
-                        "moves": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Hypothetical plies from the current position (max 12)",
-                        },
-                    },
-                    "required": ["game_id", "moves"],
-                },
-            ),
-            Tool(
                 name="chess_make_move",
                 description="Submit a move chosen from the board image (UCI e2e4 or SAN Nf3).",
                 inputSchema={

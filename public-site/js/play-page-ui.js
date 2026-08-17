@@ -5,6 +5,7 @@
 import { normalizeColor } from "./play-api.js";
 import { canPremove } from "./play-premove.js";
 import { syncDownloadButton } from "./play-export.js";
+import { pinScrollToBottom } from "./moves-scroll.js";
 
 const FAVICON_DEFAULT = "/favicon.svg";
 const FAVICON_ALERT = "/favicon-alert.svg";
@@ -23,7 +24,7 @@ export function gameOverStatus(pos) {
   }
   const summary = formatResult(pos.result);
   if (pos.end_reason_label && pos.end_reason !== "inactivity") {
-    return `${summary} — ${pos.end_reason_label}`;
+    return `${summary}, ${pos.end_reason_label}`;
   }
   return summary;
 }
@@ -41,7 +42,7 @@ export function applyStatusUi(root, pos) {
   const drawAcceptBtn = root.querySelector("[data-draw-accept]");
   const drawDeclineBtn = root.querySelector("[data-draw-decline]");
   const boardWrap = root.querySelector("[data-board-wrap]");
-  updatePlayHeader(root, pos);
+  updatePlayStatus(root, pos);
 
   if (resignBtn) resignBtn.disabled = !!pos.game_over;
   if (drawOfferBtn) {
@@ -92,55 +93,47 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-function buildMatchupHtml(pos) {
-  const human = pos.human_nickname || "You";
-  const agent = pos.agent_display_name || "Agent";
-  const elo = formatAgentElo(pos);
-  const agentLabel = elo ? `${agent} (${elo})` : agent;
-  const colorPart = pos.human_color
-    ? ` · you play ${escapeHtml(normalizeColor(pos.human_color))}`
-    : "";
-  return (
-    `<strong>${escapeHtml(human)}</strong> vs <strong>${escapeHtml(agentLabel)}</strong>` +
-    colorPart
-  );
-}
-
-function updatePlayHeader(root, pos) {
-  const el = root.querySelector("[data-play-header-line]");
-  if (!el) return;
-  const status = statusText(pos);
-  el.innerHTML =
-    `${buildMatchupHtml(pos)} · <span class="play-header-status">${escapeHtml(status)}</span>`;
-  el.classList.remove("is-your-turn", "is-waiting", "is-over");
-  if (pos.game_over) el.classList.add("is-over");
-  else if (!pos.agent_joined) el.classList.add("is-waiting");
-  else if (pos.your_turn) el.classList.add("is-your-turn");
+function updatePlayStatus(root, pos) {
+  const el = root.querySelector("[data-play-status]");
+  if (el) {
+    const status = statusText(pos);
+    el.textContent = status;
+    el.classList.remove("is-your-turn", "is-waiting", "is-over");
+    if (pos.game_over) el.classList.add("is-over");
+    else if (!pos.agent_joined) el.classList.add("is-waiting");
+    else if (pos.your_turn) el.classList.add("is-your-turn");
+  }
   updateBoardRails(root, pos);
 }
 
 function updateBoardRails(root, pos) {
-  const blackLbl = root.querySelector("[data-play-black-label]");
-  const whiteLbl = root.querySelector("[data-play-white-label]");
-  if (!blackLbl || !whiteLbl) return;
+  const nearLbl = root.querySelector("[data-play-near-label]");
+  const farLbl = root.querySelector("[data-play-far-label]");
+  if (!nearLbl || !farLbl) return;
   const human = pos.human_nickname || "You";
   const agent = pos.agent_display_name || "Agent";
+  const elo = formatAgentElo(pos);
+  const agentName = elo ? `${agent} (${elo})` : agent;
   const humanColor = normalizeColor(pos.human_color || "white");
-  if (humanColor === "white") {
-    whiteLbl.innerHTML =
-      escapeHtml(human) + '<span class="sub">You · white</span>';
-    blackLbl.innerHTML =
-      escapeHtml(agent) + '<span class="sub">Agent · black</span>';
-  } else {
-    blackLbl.innerHTML =
-      escapeHtml(human) + '<span class="sub">You · black</span>';
-    whiteLbl.innerHTML =
-      escapeHtml(agent) + '<span class="sub">Agent · white</span>';
-  }
+  const agentColor = humanColor === "white" ? "black" : "white";
+  nearLbl.classList.remove("white", "black");
+  farLbl.classList.remove("white", "black");
+  nearLbl.classList.add(humanColor);
+  farLbl.classList.add(agentColor);
+  nearLbl.innerHTML =
+    escapeHtml(human) +
+    '<span class="sub">You · ' +
+    escapeHtml(humanColor) +
+    "</span>";
+  farLbl.innerHTML =
+    escapeHtml(agentName) +
+    '<span class="sub">Agent · ' +
+    escapeHtml(agentColor) +
+    "</span>";
 }
 
 export function updateMatchup(root, pos) {
-  updatePlayHeader(root, pos);
+  updatePlayStatus(root, pos);
 }
 
 export function renderMoveList(root, pos, lastRenderedCount) {
@@ -168,8 +161,7 @@ export function renderMoveList(root, pos, lastRenderedCount) {
       );
     })
     .join("");
-  const on = el.querySelector(".on");
-  if (on) on.scrollIntoView({ block: "nearest" });
+  pinScrollToBottom(el);
   return plies;
 }
 

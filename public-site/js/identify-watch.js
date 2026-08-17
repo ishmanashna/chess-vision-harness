@@ -279,7 +279,8 @@ async function main() {
   }
 
   function paintReviewMarkers(rows) {
-    board.removeMarkers();
+    board.removeMarkers(IDENTIFY_EXACT_MARKER);
+    board.removeMarkers(IDENTIFY_MISMATCH_MARKER);
     rows.forEach((r) => {
       const marker =
         r.status === "exact" ? IDENTIFY_EXACT_MARKER : IDENTIFY_MISMATCH_MARKER;

@@ -606,12 +606,7 @@
   display: none !important;
 }
 
-.game-view .info-col-footer {
-  flex-shrink: 0;
-  margin-top: 8px;
-  min-height: 1.2rem;
-}
-
+.game-view .info-card-head,
 .game-view .spec-chat-head {
   display: flex;
   align-items: center;
@@ -620,8 +615,17 @@
   margin-bottom: 8px;
 }
 
+.game-view .info-card-head h2,
 .game-view .spec-chat-head h2 {
   margin: 0;
+}
+
+.game-view .info-card-head .info-panel-toggle,
+.game-view .spec-chat-head .info-panel-toggle {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.86rem;
+  font-weight: 500;
 }
 
 .game-view .meta-game-id {
@@ -631,26 +635,26 @@
 .game-view .meta-game-id code {
   display: block;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.82em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  font-size: 1em;
 }
 
 /* Last-move square highlights + user annotations (theme-aware) */
 :root,
 [data-theme="light"] {
-  --last-move-from-fill: rgba(205, 210, 55, 0.58);
-  --last-move-to-fill: rgba(155, 199, 0, 0.62);
-  --annotation-square-fill: rgba(20, 85, 220, 0.38);
-  --annotation-arrow-color: rgba(20, 85, 220, 0.72);
+  --last-move-from-fill: rgba(212, 176, 70, 0.38);
+  --last-move-to-fill: rgba(212, 176, 70, 0.58);
+  --annotation-square-fill: rgba(15, 118, 110, 0.32);
+  --annotation-arrow-color: rgba(13, 107, 99, 0.88);
 }
 
 [data-theme="dark"] {
-  --last-move-from-fill: rgba(190, 195, 50, 0.48);
-  --last-move-to-fill: rgba(155, 199, 0, 0.52);
-  --annotation-square-fill: rgba(120, 170, 255, 0.34);
-  --annotation-arrow-color: rgba(120, 170, 255, 0.78);
+  --last-move-from-fill: rgba(212, 176, 70, 0.32);
+  --last-move-to-fill: rgba(212, 176, 70, 0.5);
+  --annotation-square-fill: rgba(45, 180, 160, 0.34);
+  --annotation-arrow-color: rgba(52, 199, 176, 0.86);
 }
 
 .cm-chessboard .markers .marker.last-move-from {
@@ -668,17 +672,17 @@
   opacity: 1;
 }
 
-.cm-chessboard .arrow-default .arrow-head,
-.cm-chessboard .arrow-default .arrow-line {
-  fill: var(--annotation-arrow-color);
-  stroke: var(--annotation-arrow-color);
+.cm-chessboard .arrow-annotation-shaft .arrow-head {
+  display: none;
 }
 
-.cm-chessboard .arrow-annotation-preview .arrow-head,
-.cm-chessboard .arrow-annotation-preview .arrow-line {
-  fill: var(--annotation-arrow-color);
-  stroke: var(--annotation-arrow-color);
-  opacity: 0.45;
+.cm-chessboard .arrow-default .arrow-line,
+.cm-chessboard .arrow-annotation-shaft .arrow-line {
+  stroke-width: 7;
+}
+
+.cm-chessboard .arrow-annotation-shaft .arrow-head {
+  display: none;
 }
 
 .game-view .eval-col-v {

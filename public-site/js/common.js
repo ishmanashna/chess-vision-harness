@@ -12,7 +12,7 @@
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
   var PERFORMANCE_TIP =
-    "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
+    "Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.";
   var ENGINES_JS_VERSION = "3";
   var SITE_JS_VERSION = "4";
   var HOME_SORT_KEY = "cvh-home-ladder-sort";

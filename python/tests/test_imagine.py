@@ -190,37 +190,8 @@ def test_cmd_imagine_temp_outside_game_dir(api_client, monkeypatch):
     path.unlink(missing_ok=True)
 
 
-def test_mcp_imagine_board_tool(api_client, monkeypatch):
-    import asyncio
-    import base64
-
-    client, harness_dir = api_client
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    api_key = _register(client, "imagine-mcp")
-    game_id = _create_ave(client, api_key)
-
-    from chess_harness.game_service import GameService
+def test_mcp_does_not_advertise_imagine_board_tool():
     from chess_harness.tools_mcp import ChessHarnessMCP
 
-    mcp = ChessHarnessMCP()
-    mcp.game_manager = GameManager(str(harness_dir))
-    mcp.game_service = GameService(mcp.game_manager)
-
-    tools = {t.name: t for t in mcp.get_tools()}
-    assert "chess_imagine_board" in tools
-
-    async def run():
-        return await mcp.handle_tool_call(
-            "chess_imagine_board",
-            {"game_id": game_id, "moves": ["e2e4"]},
-        )
-
-    result = asyncio.run(run())
-    texts = [c for c in result if c.type == "text"]
-    data = json.loads(texts[0].text)
-    assert data["ok"] is True
-    assert data["hypothetical"] is True
-    images = [c for c in result if c.type == "image"]
-    assert images
-    assert base64.b64decode(images[0].data)[:8] == b"\x89PNG\r\n\x1a\n"
-    Path(data["imagine_path"]).unlink(missing_ok=True)
+    tools = {t.name: t for t in ChessHarnessMCP().get_tools()}
+    assert "chess_imagine_board" not in tools

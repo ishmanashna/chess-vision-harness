@@ -85,9 +85,8 @@ export function createPremoveController(board, chess, getHumanSide, callbacks) {
   function showQueueMarkers() {
     clearPremoveMarkers();
     for (const uci of queue) {
-      const { from, to } = parseUci(uci);
+      const { from } = parseUci(uci);
       board.addMarker(PREMOVE_MARKER, from);
-      board.addMarker(PREMOVE_MARKER, to);
     }
   }
 
@@ -127,13 +126,22 @@ export function createPremoveController(board, chess, getHumanSide, callbacks) {
     if (!uci) return false;
     queue.push(uci);
     notifyPremoveChange();
-    const defer = opts && opts.deferDisplay;
-    if (defer) {
-      queueMicrotask(() => syncDisplay(false));
-    } else {
-      syncDisplay(false);
+    if (!(opts && opts.skipDisplay)) {
+      syncDisplay(!!(opts && opts.animate));
     }
     return true;
+  }
+
+  function afterDragCleanup(event, fn) {
+    const proc =
+      event.chessboard &&
+      event.chessboard.state &&
+      event.chessboard.state.moveInputProcess;
+    if (proc && typeof proc.then === "function") {
+      proc.then(fn);
+      return;
+    }
+    fn();
   }
 
   function peek() {
@@ -185,9 +193,10 @@ export function createPremoveController(board, chess, getHumanSide, callbacks) {
       const from = event.squareFrom;
       const to = event.squareTo;
 
-      // Enqueue and snap the piece back (return false). Ghost refresh via
-      // syncDisplay shows the virtual position without chess.load.
-      if (enqueue(from, to, event.promotion || undefined, { deferDisplay: true })) {
+      // Enqueue but do not commit as a real widget move (return false).
+      // Wait for drag-sprite teardown, then animate the ghost FEN.
+      if (enqueue(from, to, event.promotion || undefined, { skipDisplay: true })) {
+        afterDragCleanup(event, () => syncDisplay(true));
         return false;
       }
 
@@ -202,7 +211,9 @@ export function createPremoveController(board, chess, getHumanSide, callbacks) {
           promoDialogOpen = false;
           if (result.type === PROMOTION_DIALOG_RESULT_TYPE.pieceSelected) {
             const piece = result.piece.charAt(1).toLowerCase();
-            enqueue(from, to, piece);
+            if (enqueue(from, to, piece, { skipDisplay: true })) {
+              afterDragCleanup(event, () => syncDisplay(true));
+            }
           }
           if (onPromoDialogClosed) onPromoDialogClosed();
         });

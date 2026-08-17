@@ -10,7 +10,6 @@ import {
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/Chessboard.js";
 import {
   Markers,
-  MARKER_TYPE,
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
 import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
 import {
@@ -60,7 +59,7 @@ export function createPlayBoard(mountEl, humanColor, onSubmitMove, onPremoveChan
       {
         class: Markers,
         props: {
-          autoMarkers: MARKER_TYPE.square,
+          autoMarkers: null,
           customMarkers: [PREMOVE_MARKER],
         },
       },

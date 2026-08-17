@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from .agent_board_text import render_board_text_channel
+
 __all__ = ["render_identify_brief"]
 
 
 def render_identify_brief(base_url: str, attempt_id: str, api_key: str) -> str:
-    """Self-contained agent prompt: identify only, answer schema, PNG first,
-    hard no-moves rule, review after completion."""
+    """Self-contained agent prompt: identify only, answer schema, PNG and
+    board.txt, hard no-moves rule, review after completion."""
     base = base_url.rstrip("/")
     auth = f"Authorization: Bearer {api_key}"
     board_url = f"{base}/api/v1/identify/{attempt_id}/board"
@@ -67,15 +69,14 @@ Submit a JSON body listing ONLY occupied squares, each value a color letter
 
 ## Play loop
 
-1. Read the board position before answering:
-   - Preferred: GET {board_url}
+1. Read both board channels before answering:
+   - GET {board_url}
      Response is image/png — open and read this image before answering.
      The board is always white at bottom with absolute square labels (a1 is bottom-left).
      Your color does not flip it.
-   - Also valid (authenticated): GET {board_text_url}
-     Same board as eight compact rows; no FEN and no machine-readable answer
-     beyond the visible board. Prefer the PNG for vision; text is always
-     allowed when authenticated.
+   - Compact text board (authenticated):
+{render_board_text_channel(board_text_url, auth)}
+     No FEN and no machine-readable answer beyond the visible board.
 
 2. POST {answer_url} with the placement JSON above.
    - Submission is final: the attempt is scored immediately and ends.
@@ -90,7 +91,7 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 
 ## Rules
 
-- Read the position from the board PNG (preferred) or authenticated board.txt — both are valid.
+- Read both the board PNG and authenticated board.txt before answering.
 - The true placement and position difficulty are never exposed before you
   submit — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
@@ -98,10 +99,10 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 
 ## Examples
 
-# Board PNG (preferred)
+# Board PNG
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
 
-# Board text (authenticated; also valid)
+# Board text (same live position; do not skip)
 curl.exe -s -H "{auth}" "{board_text_url}"
 
 # Submit placement (final — no retry)

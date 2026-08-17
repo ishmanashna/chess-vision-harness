@@ -25,7 +25,7 @@ def test_spectator_game_page_board_widget_markup():
     assert '<img id="board"' not in html
     assert "data-board-download" in html
     assert "Download board PNG" in html
-    assert 'type="module" src="/js/spectator-game.js"' in html
+    assert 'type="module" src="/js/spectator-game.js' in html
     assert f"cm-chessboard@{CM_CHESSBOARD_VERSION}" in html
     assert f"{CM_CDN}/assets/chessboard.css" in html
     assert "markers/markers.css" in html
@@ -39,7 +39,8 @@ def test_spectator_board_js_matches_playground_cdn():
     assert "BORDER_TYPE.none" in board_js
     assert "COLOR.white" in board_js
     assert "autoMarkers: null" in board_js
-    assert "MARKER_TYPE.frame" in board_js
+    assert "MARKER_TYPE.frame" not in board_js
+    assert "paintLastMoveMarkers" in board_js
     assert "setViewPly" in board_js
     assert "syncTip" in board_js
     play_board = (PUBLIC_JS / "play-board.js").read_text(encoding="utf-8")

@@ -152,6 +152,9 @@ def test_start_safe_payload_and_flow(identify_client):
     assert "indefinitely" in brief
     assert "accuracy" in brief
     assert "/api/v1/identify/start" in brief
+    assert "Do not skip board.txt" in brief
+    assert "confirm every occupied square" in brief
+    assert "Prefer the PNG" not in brief
     assert_identify_no_leak(start)
 
     board = client.get(start["board_url"], headers=_auth(key))

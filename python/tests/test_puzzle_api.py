@@ -413,6 +413,9 @@ def test_start_brief_covers_perpetual_loop(puzzle_api_client):
     assert "rating delta" in brief
     assert "/api/v1/puzzles/start" in brief
     assert "30 minutes" in brief
+    assert "Do not skip board.txt" in brief
+    assert "confirm every occupied square" in brief
+    assert "Prefer the PNG" not in brief
 
 
 def test_attempts_never_write_results_jsonl(puzzle_api_client):

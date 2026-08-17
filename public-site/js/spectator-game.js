@@ -3,10 +3,11 @@
  */
 
 import { createSpectatorBoard } from "./spectator-board.js";
+import { pinScrollToBottom } from "./moves-scroll.js";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
-  "Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.";
+  "Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.";
 
 function gameIdFromPage() {
   const root = document.body;
@@ -109,11 +110,11 @@ async function main() {
     // Keep a visible control outside the covered info stack so chat is not a dead end.
     if (toggleInfo) {
       toggleInfo.hidden = !isAvhGame || chatPanelMode === "chat";
-      toggleInfo.textContent = "Show chat";
+      toggleInfo.textContent = "Chat";
     }
     if (toggleChat) {
       toggleChat.hidden = !isAvhGame || chatPanelMode !== "chat";
-      toggleChat.textContent = "Show game";
+      toggleChat.textContent = "Game";
     }
   }
 
@@ -519,15 +520,16 @@ async function main() {
     fetchEvalForPly(n, false);
   }
 
+  function pinMovesIfAtTip() {
+    if (selectedPly < board.getTipPly()) return;
+    pinScrollToBottom(document.getElementById("mv"));
+  }
+
   function syncMovesScroll(el, viewPly, tipPly) {
     if (!el) return;
     const atTip = viewPly >= tipPly;
-    const pinToBottom = () => {
-      el.scrollTop = el.scrollHeight;
-    };
     if (atTip) {
-      pinToBottom();
-      requestAnimationFrame(pinToBottom);
+      pinScrollToBottom(el);
     } else {
       const on = el.querySelector(".on");
       if (on) on.scrollIntoView({ block: "center", inline: "nearest" });
@@ -599,6 +601,14 @@ async function main() {
     navigator.clipboard.writeText(lastPgn).then(() => hint("PGN copied"));
   };
 
+  const copyIdBtn = document.getElementById("copy-game-id");
+  if (copyIdBtn) {
+    copyIdBtn.onclick = () => {
+      if (!GAME_ID) return hint("No game ID");
+      navigator.clipboard.writeText(GAME_ID).then(() => hint("ID copied"));
+    };
+  }
+
   const panelToggle = document.getElementById("info-panel-toggle");
   const panelToggleChat = document.getElementById("info-panel-toggle-chat");
   function onPanelToggle() {
@@ -657,6 +667,7 @@ async function main() {
         renderMoves(m.move_rows || [], selectedPly);
         applyEvalResponse(evalFromState(s), s);
         syncHeights();
+        pinMovesIfAtTip();
       } else {
         renderMoves(m.move_rows || [], selectedPly);
         if (selectedPly >= board.getTipPly()) {
@@ -672,10 +683,7 @@ async function main() {
       renderMeta(lastPgn, s);
       if (isAvhGame) await pollChat();
       syncHeights();
-      if (selectedPly >= board.getTipPly()) {
-        const mvEl = document.getElementById("mv");
-        syncMovesScroll(mvEl, selectedPly, board.getTipPly());
-      }
+      pinMovesIfAtTip();
       if (
         s.game_over &&
         !s.quality_at &&
@@ -694,12 +702,18 @@ async function main() {
     }
   }
 
-  window.addEventListener("resize", syncHeights);
+  window.addEventListener("resize", () => {
+    syncHeights();
+    pinMovesIfAtTip();
+  });
   // ResizeObserver keeps eval bar aligned when cm-chessboard finishes layout.
   if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
     if (wrap) {
-      const ro = new ResizeObserver(() => syncHeights());
+      const ro = new ResizeObserver(() => {
+        syncHeights();
+        pinMovesIfAtTip();
+      });
       ro.observe(wrap);
     }
   }

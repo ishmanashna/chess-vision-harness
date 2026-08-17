@@ -33,7 +33,6 @@ def render_agent_brief(base_url: str, game_id: str, api_key: str) -> str:
     pgn_url = f"{base}/api/v1/games/{game_id}/pgn"
     resign_url = f"{base}/api/v1/games/{game_id}/resign"
     status_url = f"{base}/api/v1/games/{game_id}/status"
-    imagine_url = f"{base}/api/v1/games/{game_id}/imagine"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP.
 Fair agent chess benchmark with image-first position input. Cheating invalidates the game.
@@ -48,16 +47,11 @@ Auth header (every request):
 
 Repeat until the move response shows the game is finished, or you resign:
 
-1. Read the live board position before every move:
-   - Preferred: GET {board_url}
+1. Read both live board channels before every move:
+   - GET {board_url}
      Response is image/png — open and read this image every turn.
-   - Also valid (authenticated): compact text board:
+   - Compact text board (authenticated):
 {render_board_text_access(base, game_id, auth)}
-   Both channels show the same live position; prefer the PNG for vision.
-   - Optional Imagine (what-if line): POST {imagine_url} with JSON body
-     {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
-     Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still read the live board above.
 
 2. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -73,8 +67,7 @@ Optional status (not required each turn): GET {status_url}
 
 ## Rules
 
-- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN or move lists from JSON.
-- Imagine PNG is hypothetical only — never treat it as the live position.
+- Read both the board PNG and authenticated board.txt before every move; never use FEN or move lists from JSON.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
@@ -88,11 +81,9 @@ GET {board_url}
 Header: {auth}
 Save the response as an image and read it.
 
-# Imagine a line (optional; hypothetical PNG — does not change the game)
-POST {imagine_url}
+# Board text (same live position; do not skip)
+GET {base}/api/v1/games/{game_id}/board.txt
 Header: {auth}
-Content-Type: application/json
-Body: {{"moves": ["e2e4", "e7e5", "g1f3"]}}
 
 # Move (e2e4) — move is in the path, empty body
 POST {move_base}/e2e4
@@ -100,7 +91,7 @@ Header: {auth}
 
 # Same with curl.exe (Windows-safe; no JSON)
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
-curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"moves\\":[\\"e2e4\\",\\"e7e5\\"]}}" "{imagine_url}" -o imagine.png
+curl.exe -s -H "{auth}" "{base}/api/v1/games/{game_id}/board.txt"
 curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """
 
@@ -120,7 +111,6 @@ def render_agent_brief_avaa(
     pgn_url = f"{base}/api/v1/games/{game_id}/pgn"
     resign_url = f"{base}/api/v1/games/{game_id}/resign"
     status_url = f"{base}/api/v1/games/{game_id}/status"
-    imagine_url = f"{base}/api/v1/games/{game_id}/imagine"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP (agent vs agent).
 Fair agent chess benchmark with image-first position input. Cheating invalidates the game.
@@ -140,18 +130,13 @@ Repeat until the game is finished or you resign:
 1. GET {status_url}
    - If game_over is true → GET {pgn_url} and stop.
    - If your_turn is false → wait (sleep with backoff, e.g. 2s then 5s) and poll status again.
-     You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
+     You may GET {board_url} or board.txt while waiting to look at the position; do not POST a move until your_turn is true.
 
-2. When your_turn is true: read the live board position before you move:
-   - Preferred: GET {board_url}
+2. When your_turn is true: read both live board channels before you move:
+   - GET {board_url}
      Response is image/png — open and read this image every turn.
-   - Also valid (authenticated): compact text board:
+   - Compact text board (authenticated):
 {render_board_text_access(base, game_id, auth)}
-   Both channels show the same live position; prefer the PNG for vision.
-   - Optional Imagine (what-if line): POST {imagine_url} with JSON body
-     {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
-     Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still read the live board above.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -164,8 +149,7 @@ Optional resign: POST {resign_url} (no body)
 
 ## Rules
 
-- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN or move lists from JSON.
-- Imagine PNG is hypothetical only — never treat it as the live position.
+- Read both the board PNG and authenticated board.txt before every move; never use FEN or move lists from JSON.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
@@ -184,11 +168,9 @@ GET {board_url}
 Header: {auth}
 Save the response as an image and read it.
 
-# Imagine a line (optional; hypothetical PNG — does not change the game)
-POST {imagine_url}
+# Board text (same live position; do not skip)
+GET {base}/api/v1/games/{game_id}/board.txt
 Header: {auth}
-Content-Type: application/json
-Body: {{"moves": ["e2e4", "e7e5", "g1f3"]}}
 
 # Move (e2e4) — move is in the path, empty body
 POST {move_base}/e2e4
@@ -197,7 +179,7 @@ Header: {auth}
 # Same with curl.exe (Windows-safe; no JSON)
 curl.exe -s -H "{auth}" "{status_url}"
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
-curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"moves\\":[\\"e2e4\\",\\"e7e5\\"]}}" "{imagine_url}" -o imagine.png
+curl.exe -s -H "{auth}" "{base}/api/v1/games/{game_id}/board.txt"
 curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """
 
@@ -221,10 +203,11 @@ def render_agent_brief_human(
     draw_accept_url = f"{base}/api/v1/games/{game_id}/draw/accept"
     draw_decline_url = f"{base}/api/v1/games/{game_id}/draw/decline"
     chat_url = f"{base}/api/v1/games/{game_id}/chat"
-    imagine_url = f"{base}/api/v1/games/{game_id}/imagine"
 
     return f"""You are playing chess in the Chess Vision Harness over HTTP (agent vs human).
 Fair agent chess benchmark with image-first position input. Cheating invalidates the game. This game is unranked (no Elo change).
+
+This is a long-running session. After this prompt is pasted once, keep executing the play loop yourself with your own HTTP tools until game_over is true. Do not wait for the operator to re-prompt you each move.
 
 Game ID: {game_id}
 You play: {color}
@@ -250,19 +233,14 @@ Track last_chat_seq (start at 0). Repeat until the game is finished or you resig
    - If your_turn is false:
      You may POST {chat_url} with short banter while waiting (e.g. "thinking", "nice move").
      Sleep with backoff (e.g. 2s then 5s) and go back to step 1.
-     You may GET {board_url} while waiting to look at the position; do not POST a move until your_turn is true.
+     You may GET {board_url} or board.txt while waiting to look at the position; do not POST a move until your_turn is true.
 
 2. When your_turn is true (after reading any new chat in step 1):
-   Read the live board position before you move:
-   - Preferred: GET {board_url}
+   Read both live board channels before you move:
+   - GET {board_url}
      Response is image/png — open and read this image every turn.
-   - Also valid (authenticated): compact text board:
+   - Compact text board (authenticated):
 {render_board_text_access(base, game_id, auth)}
-   Both channels show the same live position; prefer the PNG for vision.
-   - Optional Imagine (what-if line): POST {imagine_url} with JSON body
-     {{"moves": ["e2e4", "e7e5", ...]}} (UCI or SAN, including opponent replies).
-     Response is a hypothetical image/png — it does NOT change the game.
-     Before every committed move, still read the live board above.
 
 3. POST {move_base}/{{move}}
    - Put the move in the URL path (UCI or SAN). Example: .../move/e2e4
@@ -287,8 +265,7 @@ Chat is social conversation with your opponent — not a position source. Either
 
 ## Rules
 
-- Read the live position from the board PNG (preferred) or authenticated board.txt — both are valid; never use FEN from any API response.
-- Imagine PNG is hypothetical only — never treat it as the live position.
+- Read both the board PNG and authenticated board.txt before every move; never use FEN from any API response.
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN from any API response.
 - Poll status every iteration; fetch chat only when chat_seq advances; never move off-turn.
@@ -320,11 +297,9 @@ GET {board_url}
 Header: {auth}
 Save the response as an image and read it.
 
-# Imagine a line (optional; hypothetical PNG — does not change the game)
-POST {imagine_url}
+# Board text (same live position; do not skip)
+GET {base}/api/v1/games/{game_id}/board.txt
 Header: {auth}
-Content-Type: application/json
-Body: {{"moves": ["e2e4", "e7e5", "g1f3"]}}
 
 # Move (e2e4) — move is in the path, empty body
 POST {move_base}/e2e4
@@ -335,6 +310,6 @@ curl.exe -s -H "{auth}" "{status_url}"
 curl.exe -s -H "{auth}" "{chat_url}?since=0"
 curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"text\\":\\"thinking...\\"}}" "{chat_url}"
 curl.exe -s -H "{auth}" "{board_url}" -o board.png
-curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"moves\\":[\\"e2e4\\",\\"e7e5\\"]}}" "{imagine_url}" -o imagine.png
+curl.exe -s -H "{auth}" "{base}/api/v1/games/{game_id}/board.txt"
 curl.exe -s -X POST -H "{auth}" "{move_base}/e2e4"
 """

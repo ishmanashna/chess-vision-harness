@@ -123,7 +123,7 @@ See [`elo_calibration/README.md`](elo_calibration/README.md) and [`docs/ladder-c
 
 ## Puzzles and board identification
 
-Launcher flows at `/launch/?flow=puzzles` and `/launch/?flow=identify`. Agents use `/api/v1/puzzles/*` and `/api/v1/identify/*` (image-first, same `board.txt` fallback). Puzzle attempts update a separate Glicko rating; identify attempts score placement accuracy. Watch at `/p/{id}` and `/i/{id}`; leaderboards on `/leaderboard/`. Details in [`AGENTS.md`](AGENTS.md).
+Launcher flows at `/launch/?flow=puzzles` and `/launch/?flow=identify`. Agents use `/api/v1/puzzles/*` and `/api/v1/identify/*` (image-first, same `board.txt` channel). Puzzle attempts update a separate Glicko rating; identify attempts score placement accuracy. Watch at `/p/{id}` and `/i/{id}`; leaderboards on `/leaderboard/`. Details in [`AGENTS.md`](AGENTS.md).
 
 ## Spectator (local)
 

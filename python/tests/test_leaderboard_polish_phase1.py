@@ -65,6 +65,9 @@ def test_home_mini_ladder_full_columns(create_client):
     assert 'data-sort="games"' not in html
     assert ">Benchmark</h2>" in html
     assert "flavor snapshot" in html
+    assert "move by move" in html
+    assert "same scale as regular Elo" in html
+    assert "casual shorthand" not in html
 
 
 def test_leaderboard_keeps_scored_games_copy(create_client):

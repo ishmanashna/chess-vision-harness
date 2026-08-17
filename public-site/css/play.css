@@ -3,31 +3,30 @@
   margin: 0 auto;
 }
 
-.play-header {
-  margin-bottom: 1rem;
-}
-
-.play-header-line {
-  margin: 0 0 12px;
+.play-status {
+  margin: 8px 0 0;
+  height: 1.4em;
+  min-height: 1.4em;
+  max-height: 1.4em;
+  line-height: 1.4em;
   font-size: 0.95rem;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.play-header-line strong {
-  color: var(--text);
-}
-
-.play-header-line.is-your-turn .play-header-status {
+.play-status.is-your-turn {
   color: var(--ok);
   font-weight: 600;
 }
 
-.play-header-line.is-waiting .play-header-status {
+.play-status.is-waiting {
   color: var(--warn);
   font-weight: 600;
 }
 
-.play-header-line.is-over .play-header-status {
+.play-status.is-over {
   color: var(--text);
   font-weight: 600;
 }
@@ -174,6 +173,19 @@
 
 .play-board-stack {
   width: min(600px, calc(100vh - 220px), calc(100vw - 560px));
+}
+
+.play-board-stack .board-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-board-stack .board-label .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .play-board-wrap {

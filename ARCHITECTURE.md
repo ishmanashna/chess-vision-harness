@@ -114,7 +114,7 @@ Pages Functions proxy live API and watch/play paths to `GAME_ORIGIN`; block `/ca
 
 | Surface | Prefix | Notes |
 |---------|--------|-------|
-| Rated games | `/api/v1/games/*` | AvE, AvA, AvH; image-first board + optional `board.txt` |
+| Rated games | `/api/v1/games/*` | AvE, AvA, AvH; image-first board + `board.txt` |
 | Puzzles | `/api/v1/puzzles/*` | Separate rating; not ladder Elo |
 | Identify | `/api/v1/identify/*` | Static placement task; unrated |
 | Orchestration | `/api/v1/orchestrations/*` | **Operator-only** — localhost or `CHESS_HARNESS_ORCHESTRATION_SECRET` |

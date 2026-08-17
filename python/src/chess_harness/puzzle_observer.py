@@ -124,7 +124,13 @@ def _build_plies(
             agent = chess.Move.from_uci(submitted[index])
             agent_label = f"{index + 1}. {board.san(agent)}"
             board.push(agent)
-            plies.append({"fen": board.fen(), "label": agent_label})
+            plies.append(
+                {
+                    "fen": board.fen(),
+                    "label": agent_label,
+                    "uci": agent.uci(),
+                }
+            )
         except ValueError:
             plies.append(
                 {
@@ -138,7 +144,13 @@ def _build_plies(
                 reply = chess.Move.from_uci(opponent[index])
                 reply_label = f"{index + 1}... {board.san(reply)}"
                 board.push(reply)
-                plies.append({"fen": board.fen(), "label": reply_label})
+                plies.append(
+                    {
+                        "fen": board.fen(),
+                        "label": reply_label,
+                        "uci": reply.uci(),
+                    }
+                )
             except ValueError:
                 plies.append(
                     {

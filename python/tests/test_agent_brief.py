@@ -28,7 +28,12 @@ def test_render_agent_brief_contains_play_loop():
     assert "Authorization: Bearer secret-key-abc" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/board" in brief
     assert "board.txt" in brief
-    assert "Prefer the PNG" in brief
+    assert "Do not skip board.txt" in brief
+    assert "confirm every occupied square" in brief
+    assert "remembered opening" in brief
+    assert "Prefer the PNG" not in brief
+    assert "/imagine" not in brief
+    assert "hypothetical" not in brief.lower()
     assert "eight compact rows" in brief
     assert "White=uppercase" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/status" in brief
@@ -48,11 +53,11 @@ def test_render_agent_brief_engine_no_rare_off_turn_wording():
     brief = render_agent_brief("http://127.0.0.1:8765", "game-1-2345", "secret-key-abc")
     assert "rare" not in brief.lower()
     assert "30 minutes" in brief
-    assert "/imagine" in brief
-    assert "hypothetical" in brief.lower()
+    assert "/imagine" not in brief
+    assert "hypothetical" not in brief.lower()
 
 
-def test_render_agent_brief_avaa_has_imagine_and_idle_timeout():
+def test_render_agent_brief_avaa_has_idle_timeout():
     brief = render_agent_brief_avaa(
         "http://127.0.0.1:8765",
         "game-avaa-1",
@@ -61,8 +66,8 @@ def test_render_agent_brief_avaa_has_imagine_and_idle_timeout():
         "Opponent Model",
     )
     assert "30 minutes" in brief
-    assert "/imagine" in brief
-    assert "hypothetical" in brief.lower()
+    assert "/imagine" not in brief
+    assert "hypothetical" not in brief.lower()
 
 
 def test_render_agent_brief_avaa_contains_poll_loop():
@@ -81,7 +86,9 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/status" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/board" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-avaa-1/board.txt" in brief
-    assert "Prefer the PNG" in brief
+    assert "Do not skip board.txt" in brief
+    assert "confirm every occupied square" in brief
+    assert "Prefer the PNG" not in brief
     assert "eight compact rows" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
@@ -110,7 +117,9 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "unranked" in brief.lower()
     assert "http://127.0.0.1:8765/api/v1/games/game-human-1/status" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-human-1/board.txt" in brief
-    assert "Prefer the PNG" in brief
+    assert "Do not skip board.txt" in brief
+    assert "confirm every occupied square" in brief
+    assert "Prefer the PNG" not in brief
     assert "eight compact rows" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
@@ -130,7 +139,9 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "Optional chat" not in brief
     assert "/chat?since=" in brief
     assert '"text"' in brief
-    assert "/imagine" in brief
-    assert "hypothetical" in brief.lower()
-    assert '"moves"' in brief
+    assert "/imagine" not in brief
+    assert "hypothetical" not in brief.lower()
     assert "30 minutes" in brief
+    assert "re-prompt" in brief.lower()
+    assert "own HTTP tools" in brief
+    assert "long-running session" in brief.lower()

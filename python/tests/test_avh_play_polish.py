@@ -93,8 +93,11 @@ def test_play_page_single_header_chat_markup(human_client, monkeypatch):
     game_id = data["game_id"]
 
     html = client.get(f"/play/{game_id}").text
-    assert html.count('class="play-header"') == 1
-    assert "data-play-header-line" in html
+    assert "play-header" not in html
+    assert "data-play-header-line" not in html
+    assert "data-play-status" in html
+    assert "data-play-near-label" in html
+    assert "data-play-far-label" in html
     assert ">Play board<" not in html
     assert "30 minutes without a move" not in html
     assert "data-chat-form" in html
@@ -138,7 +141,7 @@ def test_spectator_game_page_quality_metrics():
     assert "renderQualityMetrics" in js
     assert "shouldKeepPolling" in js
     assert "quality_at" in js
-    assert "not ladder Elo" in html
+    assert "ladder Elo" in html
     assert "white_accuracy" in js
     assert "White Performance" in html
     assert "Estimated Elo" not in html
@@ -152,7 +155,7 @@ def test_spectator_game_page_quality_metrics():
     assert html.index("state-pr-white-label") < html.index("state-acc-black-label")
     assert html.index("state-acc-black-label") < html.index("state-pr-black-label")
     assert "info-panel-toggle-chat" in html
-    assert "Show game" in html
+    assert ">Game</button>" in html
     assert "meta-game-id" in js or "formatSpectatorDate" in js
     assert "Agent vs Human" in js
     assert "Agent vs human (unranked)" not in js
@@ -176,8 +179,8 @@ def test_spectator_game_page_quality_analysing_pending():
     assert 'id="spec-chat-panel"' in html
     assert 'id="spec-chat-log"' in html
     assert "/chat?since=" in js
-    assert "Show chat" in html
-    assert "Show game" in html
+    assert ">Chat</button>" in html
+    assert ">Game</button>" in html
     assert "setInfoPanelMode" in js
     assert "Spectating" not in html
     assert 'id="info-panel-title"' not in html

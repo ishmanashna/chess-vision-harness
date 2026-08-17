@@ -85,7 +85,7 @@
           "<td>" +
           escapeHtml(formatQualityMean(raw.mean_accuracy, "%")) +
           "</td>" +
-          '<td title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">' +
+          '<td title="Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.">' +
           escapeHtml(formatQualityMean(raw.mean_play_rating)) +
           "</td>" +
           "<td>" +

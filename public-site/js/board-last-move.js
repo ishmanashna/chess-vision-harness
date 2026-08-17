@@ -61,3 +61,23 @@ export function lastUciFromMoveRows(moveRows, plyCount) {
 
   return lastUci;
 }
+
+/** UCI of the single legal move that takes fromFen to toFen, if unique. */
+export function lastUciBetweenFens(fromFen, toFen) {
+  if (!fromFen || !toFen || fromFen === toFen) return null;
+  try {
+    const chess = new Chess(fromFen);
+    const moves = chess.moves({ verbose: true });
+    for (const m of moves) {
+      const played = chess.move(m);
+      if (!played) continue;
+      if (chess.fen() === toFen) {
+        return played.from + played.to + (played.promotion || "");
+      }
+      chess.undo();
+    }
+  } catch (_e) {
+    return null;
+  }
+  return null;
+}

@@ -230,7 +230,7 @@
       '<div class="form-message form-message-ok">Game created. Copy the agent prompt below.</div>' +
       '<p class="game-id-line">Game ID: <code>' + escapeHtml(game.game_id) + "</code></p>" +
       '<p class="human-wait-status is-waiting" data-human-wait-status aria-live="polite">' +
-      "<strong>Waiting for agent…</strong> Paste the brief into your agent. " +
+      "<strong>Waiting for agent…</strong> Paste the brief once. Your agent should keep polling, waiting, and moving with its own tools until the game ends. Do not re-prompt it. " +
       "You will be taken to the play board when the agent joins.</p>" +
       (resultApi && resultApi.renderBriefCollapsible
         ? resultApi.renderBriefCollapsible(game.agent_brief, escapeHtml)
@@ -341,7 +341,7 @@
     root.classList.toggle("create-online", online);
     var form = root.querySelector("[data-create-form]");
     if (form) form.hidden = !online;
-    [modelSelect, whiteSelect, blackSelect, newModelName, inscribeBtn].forEach(function (el) {
+    [modelSelect, whiteSelect, blackSelect, newModelName, inscribeBtn, nicknameEl].forEach(function (el) {
       if (el) el.disabled = !online;
     });
     if (submitBtn) submitBtn.disabled = !online;
@@ -499,6 +499,7 @@
             [modelSelect, whiteSelect, blackSelect].forEach(function (sel) {
               if (sel && sel.querySelector('option[value="' + id + '"]')) sel.value = id;
             });
+            if (nicknameEl) nicknameEl.disabled = false;
           })
           .catch(function (err) {
             setMessage(messageEl, "error", err.message || "Inscribe failed.");

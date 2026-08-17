@@ -15,6 +15,8 @@ import {
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
 import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
 import { createBoardAnnotations } from "./board-annotations.js";
+import { lastUciBetweenFens, paintLastMoveMarkers } from "./board-last-move.js";
+import { pinScrollToBottom } from "./moves-scroll.js";
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
@@ -238,8 +240,12 @@ function renderMoveRows(rows, options) {
         if (Number.isFinite(ply) && replay && replay.plies) goToStep(ply);
       });
     });
+  }
+  if (opts.liveFollow) {
+    pinScrollToBottom(mv);
+  } else if (interactive) {
     const active = mv.querySelector(".on");
-    if (active) active.scrollIntoView({ block: "nearest" });
+    if (active) active.scrollIntoView({ block: "center" });
   }
 }
 
@@ -288,11 +294,24 @@ async function main() {
   let agentName = null;
   let finished = false;
 
-  function setPosition(fen, animate) {
+  function setPosition(fen, animate, lastUci) {
     annotations.clearAnnotations();
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
+    const prevFen = lastFen;
     lastFen = fen;
-    return board.setPosition(fen, doAnimate);
+    return board.setPosition(fen, doAnimate).then(() => {
+      paintLastMoveMarkers(
+        board,
+        lastUci || lastUciBetweenFens(prevFen, fen)
+      );
+    });
+  }
+
+  function lastUciForScanPly(n) {
+    if (n < 0 || !replay || !replay.plies || !replay.plies[n]) return null;
+    if (replay.plies[n].uci) return replay.plies[n].uci;
+    const prevFen = n === 0 ? replay.start_fen : replay.plies[n - 1].fen;
+    return lastUciBetweenFens(prevFen, replay.plies[n].fen);
   }
 
   function turnLabel(fen) {
@@ -433,7 +452,7 @@ async function main() {
       mv.innerHTML = '<p style="color:var(--faint);margin:0">No moves yet.</p>';
       return;
     }
-    renderMoveRows(rows, { interactive: false });
+    renderMoveRows(rows, { interactive: false, liveFollow: true });
   }
 
   function renderFinishedMoves() {
@@ -521,8 +540,13 @@ async function main() {
         if (Number.isFinite(ply) && replay && replay.plies) goToStep(ply);
       });
     });
-    const active = mv.querySelector(".on");
-    if (active) active.scrollIntoView({ block: "nearest" });
+    const atTip =
+      replay && replay.plies && scanPly >= replay.plies.length - 1;
+    if (atTip) pinScrollToBottom(mv);
+    else {
+      const active = mv.querySelector(".on");
+      if (active) active.scrollIntoView({ block: "center" });
+    }
   }
 
   function goToStep(index) {
@@ -530,7 +554,11 @@ async function main() {
     const plies = replay.plies;
     const n = Math.max(-1, Math.min(index, plies.length - 1));
     scanPly = n;
-    setPosition(n < 0 ? replay.start_fen : plies[n].fen, true);
+    setPosition(
+      n < 0 ? replay.start_fen : plies[n].fen,
+      true,
+      lastUciForScanPly(n)
+    );
     turnLabel(n < 0 ? replay.start_fen : plies[n].fen);
     renderFinishedMoves();
   }
@@ -549,7 +577,11 @@ async function main() {
       replay = await r.json();
       scanPly = replay.plies ? replay.plies.length - 1 : -1;
       if (scanPly >= 0 && replay.plies.length) {
-        setPosition(replay.plies[scanPly].fen, true);
+        setPosition(
+          replay.plies[scanPly].fen,
+          true,
+          lastUciForScanPly(scanPly)
+        );
       }
       turnLabel(scanPly >= 0 ? replay.plies[scanPly].fen : replay.start_fen);
       renderFinishedMoves();
@@ -692,17 +724,23 @@ async function main() {
         startChainTracking(state);
       }
       syncHeights();
+      if (!finished) pinScrollToBottom(document.getElementById("mv"));
       showPollError("");
     } catch (e) {
       showPollError("Could not refresh puzzle state — is the server online?");
     }
   }
 
-  window.addEventListener("resize", syncHeights);
+  function onPuzzleLayout() {
+    syncHeights();
+    if (!finished) pinScrollToBottom(document.getElementById("mv"));
+  }
+
+  window.addEventListener("resize", onPuzzleLayout);
   if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
     if (wrap) {
-      const ro = new ResizeObserver(() => syncHeights());
+      const ro = new ResizeObserver(onPuzzleLayout);
       ro.observe(wrap);
     }
   }
