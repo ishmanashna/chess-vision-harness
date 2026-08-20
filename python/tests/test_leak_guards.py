@@ -21,14 +21,29 @@ def test_game_api_leak_guard_allows_safe_payload():
 
 def test_puzzle_leak_guard_nested():
     assert_puzzle_no_leak({"attempt_id": "p1", "status": "active"})
+    assert_puzzle_no_leak(
+        {
+            "attempt_id": "p1",
+            "status": "active",
+            "solution_moves": ["e2e4"],
+            "solution_agent_moves": ["e4"],
+        }
+    )
     try:
-        assert_puzzle_no_leak({"rows": [{"solution_moves": ["e2e4"]}]})
+        assert_puzzle_no_leak({"rows": [{"puzzle_id": "pz-1"}]})
         assert False, "expected assertion"
     except AssertionError as exc:
-        assert "solution_moves" in str(exc)
+        assert "puzzle_id" in str(exc)
 
 
 def test_identify_leak_guard_catches_answer_keys():
+    assert_identify_no_leak(
+        {
+            "attempt_id": "i1",
+            "status": "active",
+            "correct_pieces": {"e4": "wP"},
+        }
+    )
     try:
         assert_identify_no_leak({"pieces": {"e4": "wP"}})
         assert False, "expected assertion"

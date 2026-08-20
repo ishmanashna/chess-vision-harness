@@ -4,6 +4,7 @@ Spectator web interface for Chess Vision Harness.
 
 import asyncio
 import json
+import logging
 import re
 import threading
 import time
@@ -47,7 +48,7 @@ from .calibration_auth import require_calibration_auth
 from .contact_api import register_contact_routes
 from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, get_calibration_status_live, rebuild_merged_ratings_file
-from .public_site_shell import watch_shell_response
+from .public_site_shell import puzzle_set_preview_shell_response, watch_shell_response
 from .puzzle_observer import (
     _agent_name,
     observer_state,
@@ -56,7 +57,7 @@ from .puzzle_observer import (
     replay_payload,
 )
 from .puzzle_attempt import PuzzleAttemptStore
-from .board_text import format_board_text
+from .board_text import bottom_color_for_board, format_board_text
 from .identify_attempt import IdentifyAttemptStore
 from .identify_observer import (
     _agent_name as identify_agent_name,
@@ -250,6 +251,8 @@ async def _lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Chess Vision Harness Spectator", lifespan=_lifespan)
+
+_log = logging.getLogger(__name__)
 
 
 @app.middleware("http")
@@ -948,6 +951,75 @@ async def calibration_page(request: Request):
     return HTMLResponse(render_calibration_html(loopback=host_is_loopback(request)))
 
 
+# --- Localhost-only operator: imported puzzle set (Phase 8) ---
+
+
+@app.get("/puzzle-set", response_class=HTMLResponse)
+@app.get("/puzzle-set/", response_class=HTMLResponse)
+async def puzzle_set_page(request: Request):
+    from .calibration_auth import host_is_loopback
+
+    if not host_is_loopback(request):
+        raise HTTPException(status_code=404)
+    resp = _public_site_html("puzzle-set", "index.html")
+    if resp:
+        return resp
+    raise HTTPException(status_code=404)
+
+
+@app.get("/api/puzzle-set")
+async def puzzle_set_api(request: Request):
+    from .calibration_auth import host_is_loopback
+    from .puzzle_set import build_puzzle_set_payload
+
+    if not host_is_loopback(request):
+        raise HTTPException(status_code=403, detail="Puzzle set is only available on localhost")
+    return await asyncio.to_thread(build_puzzle_set_payload)
+
+
+@app.get("/api/puzzle-set/{puzzle_id}/preview")
+async def puzzle_set_preview_api(request: Request, puzzle_id: str):
+    from .calibration_auth import host_is_loopback
+    from .puzzle_set import build_puzzle_preview_payload
+
+    if not host_is_loopback(request):
+        raise HTTPException(
+            status_code=403, detail="Puzzle preview is only available on localhost"
+        )
+    payload = await asyncio.to_thread(build_puzzle_preview_payload, puzzle_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Puzzle not found")
+    return payload
+
+
+@app.get("/api/puzzle-set/{puzzle_id}/preview/board.png")
+async def puzzle_set_preview_board(request: Request, puzzle_id: str):
+    from .calibration_auth import host_is_loopback
+    from .puzzle_set import render_puzzle_preview_board_png
+
+    if not host_is_loopback(request):
+        raise HTTPException(
+            status_code=403, detail="Puzzle preview is only available on localhost"
+        )
+    png = await asyncio.to_thread(render_puzzle_preview_board_png, puzzle_id)
+    if png is None:
+        raise HTTPException(status_code=404, detail="Puzzle not found")
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/puzzle-set/{puzzle_id}", response_class=HTMLResponse)
+async def puzzle_set_preview_page(request: Request, puzzle_id: str):
+    from .calibration_auth import host_is_loopback
+
+    if not host_is_loopback(request):
+        raise HTTPException(status_code=404)
+    return puzzle_set_preview_shell_response(puzzle_id)
+
+
 @app.get("/api/calibration/status/live")
 async def calibration_status_live():
     return await asyncio.to_thread(get_calibration_status_live)
@@ -1120,7 +1192,9 @@ async def puzzle_watch_board_text(attempt_id: str):
     record = _public_attempt(attempt_id)
     board = chess.Board(record.get("board_fen", chess.STARTING_FEN))
     return PlainTextResponse(
-        content=format_board_text(board),
+        content=format_board_text(
+            board, bottom_color=bottom_color_for_board(board)
+        ),
         headers={"Cache-Control": "no-store"},
     )
 
@@ -1168,18 +1242,36 @@ async def public_puzzle_attempts(
 
 @app.get("/api/v1/puzzles/public/{attempt_id}")
 async def public_puzzle_state(attempt_id: str):
-    return observer_state(_public_attempt(attempt_id))
+    try:
+        return observer_state(_public_attempt(attempt_id))
+    except HTTPException:
+        raise
+    except Exception:
+        _log.exception("public puzzle state failed for %s", attempt_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "Could not load puzzle state"},
+        )
 
 
 @app.get("/api/v1/puzzles/public/{attempt_id}/replay")
 async def public_puzzle_replay(attempt_id: str):
     """Replay unlocks only after the attempt ends (no observer secrecy leak)."""
-    record = _public_attempt(attempt_id)
-    if record.get("status") == "active":
-        raise HTTPException(409, "Replay unlocks only after the attempt ends")
-    if record.get("status") != "finished":
-        raise HTTPException(404, "No replay for an abandoned attempt")
-    return replay_payload(record)
+    try:
+        record = _public_attempt(attempt_id)
+        if record.get("status") == "active":
+            raise HTTPException(409, "Replay unlocks only after the attempt ends")
+        if record.get("status") != "finished":
+            raise HTTPException(404, "No replay for an abandoned attempt")
+        return replay_payload(record)
+    except HTTPException:
+        raise
+    except Exception:
+        _log.exception("public puzzle replay failed for %s", attempt_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "Could not load puzzle replay"},
+        )
 
 
 def _public_identify(attempt_id: str):
@@ -1214,7 +1306,9 @@ async def identify_watch_board_text(attempt_id: str):
     record = _public_identify(attempt_id)
     board = chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
     return PlainTextResponse(
-        content=format_board_text(board),
+        content=format_board_text(
+            board, bottom_color=bottom_color_for_board(board)
+        ),
         headers={"Cache-Control": "no-store"},
     )
 
@@ -1277,18 +1371,36 @@ async def public_identify_attempts(
 
 @app.get("/api/v1/identify/public/{attempt_id}")
 async def public_identify_state(attempt_id: str):
-    return identify_observer_state(_public_identify(attempt_id))
+    try:
+        return identify_observer_state(_public_identify(attempt_id))
+    except HTTPException:
+        raise
+    except Exception:
+        _log.exception("public identify state failed for %s", attempt_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "Could not load identification state"},
+        )
 
 
 @app.get("/api/v1/identify/public/{attempt_id}/replay")
 async def public_identify_replay(attempt_id: str):
     """Replay unlocks only after the attempt ends (no observer secrecy leak)."""
-    record = _public_identify(attempt_id)
-    if record.get("status") == "active":
-        raise HTTPException(409, "Replay unlocks only after the attempt ends")
-    if record.get("status") != "finished":
-        raise HTTPException(404, "No replay for an abandoned attempt")
-    return identify_replay_payload(record)
+    try:
+        record = _public_identify(attempt_id)
+        if record.get("status") == "active":
+            raise HTTPException(409, "Replay unlocks only after the attempt ends")
+        if record.get("status") != "finished":
+            raise HTTPException(404, "No replay for an abandoned attempt")
+        return identify_replay_payload(record)
+    except HTTPException:
+        raise
+    except Exception:
+        _log.exception("public identify replay failed for %s", attempt_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "Could not load identification replay"},
+        )
 
 
 @app.get("/api/games")
@@ -1365,7 +1477,7 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
             else None
         )
         engine_elo = state.get("opponent_elo")
-        extra = {}
+        extra = {"agent_joined": bool(state.get("agent_joined", True))}
 
     if debug_state_enabled(debug):
         payload: Dict[str, Any] = {

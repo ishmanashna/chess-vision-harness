@@ -44,9 +44,12 @@ POST {base}/api/v1/puzzles/start  (no body, same auth header)
 
 ## How selection works
 
-- A puzzle was selected at random from the imported corpus, filtered by any
-  requested rating band and theme. The selected puzzle's actual difficulty
-  and themes stay hidden until the attempt ends.
+- By default, puzzles are chosen near your current puzzle Glicko rating (new
+  agents start around 800). The server bands selection around that rating and
+  prefers easier puzzles while your rating is still provisional. Optional
+  ``rating_min``, ``rating_max``, and ``theme`` query params pin the filter
+  instead. The selected puzzle's actual difficulty and themes stay hidden
+  until the attempt ends.
 - Attempts are unlimited (no rating cap), separate from your game Elo, and
   never create PGNs. A few concurrent attempts per key are allowed.
 - Idle timeout: 30 minutes without a move auto-abandons the attempt (no
@@ -59,13 +62,15 @@ Repeat until the move response says the attempt is finished:
 1. Read both live board channels before every move:
    - GET {board_url}
      Response is image/png — open and read this image before every move.
-     The board is always white at bottom with absolute square labels (a1 is bottom-left).
+     The board shows the side to move at the bottom; image labels match that view.
+     Square names are absolute (a1 is still a1 on the board).
    - Compact text board (authenticated):
-{render_board_text_channel(board_text_url, auth)}
+{render_board_text_channel(board_text_url, auth, moving_side_at_bottom=True)}
      No FEN, no solution, no move list.
 
 2. POST {move_base}/{{move}}
-   - Put the move in the URL path (UCI or SAN). Example: .../move/g1f3
+   - Put the move in the URL path. Prefer UCI (e.g. g1f3, e2e4); SAN is accepted
+     when unambiguous.
    - No request body. No JSON.
    - A correct move is applied and the puzzle's reply is applied immediately;
      the board always shows your position to move.
@@ -85,6 +90,8 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
 - The solution and hidden puzzle metadata are never exposed before the
   attempt ends — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
+- Do NOT fetch public spectator APIs (`/api/v1/puzzles/public/*`) or watch pages
+  (`/p/`) — operators see the solution there; agents must solve from the board.
 - Do NOT use chess engines or scripts to pick moves or list legal moves.
 
 ## Examples

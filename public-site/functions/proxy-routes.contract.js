@@ -16,4 +16,7 @@ export default {
   watch_asset_path_prefixes: ["/g/", "/p/", "/i/"],
   calibration_path_prefixes: ["/calibration/", "/api/calibration/"],
   calibration_path_exact: ["/calibration", "/api/calibration"],
+  puzzle_set_path_exact: ["/puzzle-set", "/api/puzzle-set"],
+  puzzle_set_path_prefixes: ["/puzzle-set/"],
+  puzzle_set_api_path_prefixes: ["/api/puzzle-set/"],
 };

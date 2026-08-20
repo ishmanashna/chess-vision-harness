@@ -731,6 +731,11 @@ def cmd_puzzles_stats() -> int:
     stats = store.stats()
     print(f"Puzzles: {stats['total']}")
     print(f"Average rating: {stats['average_rating']}")
+    if stats["total"]:
+        print(
+            f"Rating range: {stats['rating_min']} – {stats['rating_max']} "
+            f"(median {stats['rating_median']})"
+        )
     if stats["themes"]:
         print("Theme counts:")
         for theme, count in sorted(stats["themes"].items()):

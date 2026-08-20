@@ -116,8 +116,8 @@ def test_interpolate_map_linear():
         {"q": 100.0, "play_rating": 1500.0},
     ]
     assert interpolate_map(knots, 50.0) == pytest.approx(1000.0)
-    assert interpolate_map(knots, -10.0) == pytest.approx(500.0)
-    assert interpolate_map(knots, 200.0) == pytest.approx(1500.0)
+    assert interpolate_map(knots, -10.0) == pytest.approx(400.0)
+    assert interpolate_map(knots, 200.0) == pytest.approx(2500.0)
 
 
 def test_play_rating_cold_start(tmp_path: Path):

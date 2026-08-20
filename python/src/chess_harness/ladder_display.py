@@ -272,6 +272,16 @@ def render_calibration_html(*, loopback: bool = True) -> str:
     .cal-toolbar select{{font-size:.85em;padding:5px 8px;border:1px solid var(--input-border,var(--border));border-radius:4px;background:var(--input-bg,var(--surface));color:var(--text)}}
     .cal-btn.primary{{border-color:var(--link);background:var(--link);color:#fff}}
     .cal-legend{{font-size:.8em;color:var(--faint);margin:0 0 8px;max-width:none;text-align:justify}}
+    .cal-graph-panel{{max-width:920px}}
+    .cal-graph-caption{{margin:0 0 10px;color:var(--muted);font-size:.85rem}}
+    #accuracy-map-graph{{width:100%;max-width:920px;height:auto;display:block;border:1px solid var(--border);border-radius:8px;background:var(--surface)}}
+    #accuracy-map-graph .map-axis{{stroke:var(--border);stroke-width:1}}
+    #accuracy-map-graph .map-grid{{stroke:var(--row);stroke-width:1;stroke-dasharray:3 3}}
+    #accuracy-map-graph .map-knot-line{{fill:none;stroke:var(--link);stroke-width:2}}
+    #accuracy-map-graph .map-ext-line{{fill:none;stroke:var(--link);stroke-width:2;stroke-dasharray:6 4;opacity:.85}}
+    #accuracy-map-graph .map-pair{{fill:var(--text-secondary);opacity:.55}}
+    #accuracy-map-graph .map-knot{{fill:var(--link);stroke:var(--surface);stroke-width:1.5}}
+    #accuracy-map-graph .map-label{{fill:var(--faint);font-size:11px;font-family:system-ui,sans-serif}}
     .cal-table-wrap{{max-width:1100px;overflow-x:auto}}
     table.cal-table{{border-collapse:collapse;width:100%;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}}
     table.cal-table th,table.cal-table td{{border-bottom:1px solid var(--row);padding:10px 12px;text-align:left;font-size:.88em}}
@@ -307,6 +317,11 @@ def render_calibration_html(*, loopback: bool = True) -> str:
       <h2>Quality samples &amp; accuracy map</h2>
       <p id="quality-summary">Loading…</p>
     </div>
+    <div class="cal-panel cal-graph-panel" id="accuracy-map-graph-panel">
+      <h2>Accuracy → Performance map</h2>
+      <p class="cal-graph-caption">Performance is this map, not ladder Elo. Dots = engine pairs · solid = fitted knots · dashed = linear extension.</p>
+      <svg id="accuracy-map-graph" viewBox="0 0 920 420" role="img" aria-label="Accuracy to Performance map chart" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
     <h2>Calibrated ratings</h2>
     <p class="cal-legend">Calibrated Elo = layer A · Accuracy = layer B · Performance = layer C (map, not Calibrated Elo).</p>
     <div class="cal-table-wrap">
@@ -330,6 +345,99 @@ def render_calibration_html(*, loopback: bool = True) -> str:
     function fmtPlayRating(v){{
       if(v==null||v==='')return '—';
       return String(Math.round(Number(v)));
+    }}
+    function mapEloAtAccuracy(knots,acc){{
+      if(!knots||knots.length<2)return null;
+      const a=Number(acc);
+      const k0=knots[0],k1=knots[1],kn=knots[knots.length-1],kp=knots[knots.length-2];
+      if(a<Number(k0.accuracy)){{
+        const t=(a-Number(k0.accuracy))/(Number(k1.accuracy)-Number(k0.accuracy));
+        return Number(k0.elo)+t*(Number(k1.elo)-Number(k0.elo));
+      }}
+      if(a>Number(kn.accuracy)){{
+        const t=(a-Number(kp.accuracy))/(Number(kn.accuracy)-Number(kp.accuracy));
+        return Number(kp.elo)+t*(Number(kn.elo)-Number(kp.elo));
+      }}
+      for(let i=0;i<knots.length-1;i++){{
+        const q0=Number(knots[i].accuracy),r0=Number(knots[i].elo);
+        const q1=Number(knots[i+1].accuracy),r1=Number(knots[i+1].elo);
+        if(a>=q0&&a<=q1){{
+          if(q1===q0)return r0;
+          const t=(a-q0)/(q1-q0);
+          return r0+t*(r1-r0);
+        }}
+      }}
+      return Number(kn.elo);
+    }}
+    function renderAccuracyMapGraph(am){{
+      const svg=document.getElementById('accuracy-map-graph');
+      if(!svg)return;
+      const pairs=am.pairs||[];
+      const knots=am.knots||[];
+      if(!am.warm||knots.length<2||!pairs.length){{
+        svg.innerHTML='<text class="map-label" x="460" y="210" text-anchor="middle">Accuracy map not warm yet — rebuild after enough engine pairs.</text>';
+        return;
+      }}
+      const margin={{top:24,right:24,bottom:44,left:56}};
+      const width=920,height=420;
+      const plotW=width-margin.left-margin.right;
+      const plotH=height-margin.top-margin.bottom;
+      let xMin=Infinity,xMax=-Infinity,yMin=Infinity,yMax=-Infinity;
+      pairs.forEach(p=>{{
+        xMin=Math.min(xMin,Number(p.accuracy));
+        xMax=Math.max(xMax,Number(p.accuracy));
+        yMin=Math.min(yMin,Number(p.elo));
+        yMax=Math.max(yMax,Number(p.elo));
+      }});
+      knots.forEach(k=>{{
+        xMin=Math.min(xMin,Number(k.accuracy));
+        xMax=Math.max(xMax,Number(k.accuracy));
+        yMin=Math.min(yMin,Number(k.elo));
+        yMax=Math.max(yMax,Number(k.elo));
+      }});
+      const xPad=Math.max(4,(xMax-xMin)*0.08||4);
+      const yPad=Math.max(40,(yMax-yMin)*0.12||40);
+      xMin=Math.max(0,xMin-xPad);
+      xMax=Math.min(100,xMax+xPad);
+      yMin-=yPad;
+      yMax+=yPad;
+      if(xMax<=xMin){{xMax=xMin+1;}}
+      if(yMax<=yMin){{yMax=yMin+1;}}
+      const sx=a=>margin.left+((a-xMin)/(xMax-xMin))*plotW;
+      const sy=e=>margin.top+plotH-((e-yMin)/(yMax-yMin))*plotH;
+      const extLeft=Math.max(0,xMin);
+      const extRight=Math.min(100,xMax);
+      const parts=[];
+      parts.push('<rect x="0" y="0" width="'+width+'" height="'+height+'" fill="transparent"/>');
+      for(let i=0;i<=4;i++){{
+        const gx=xMin+(xMax-xMin)*i/4;
+        const gy=yMin+(yMax-yMin)*i/4;
+        parts.push('<line class="map-grid" x1="'+sx(gx)+'" y1="'+margin.top+'" x2="'+sx(gx)+'" y2="'+(margin.top+plotH)+'"/>');
+        parts.push('<line class="map-grid" x1="'+margin.left+'" y1="'+sy(gy)+'" x2="'+(margin.left+plotW)+'" y2="'+sy(gy)+'"/>');
+        parts.push('<text class="map-label" x="'+sx(gx)+'" y="'+(height-16)+'" text-anchor="middle">'+gx.toFixed(0)+'%</text>');
+        parts.push('<text class="map-label" x="'+(margin.left-8)+'" y="'+sy(gy)+'" text-anchor="end" dominant-baseline="middle">'+Math.round(gy)+'</text>');
+      }}
+      parts.push('<line class="map-axis" x1="'+margin.left+'" y1="'+margin.top+'" x2="'+margin.left+'" y2="'+(margin.top+plotH)+'"/>');
+      parts.push('<line class="map-axis" x1="'+margin.left+'" y1="'+(margin.top+plotH)+'" x2="'+(margin.left+plotW)+'" y2="'+(margin.top+plotH)+'"/>');
+      parts.push('<text class="map-label" x="'+(margin.left+plotW/2)+'" y="'+(height-4)+'" text-anchor="middle">Move accuracy %</text>');
+      parts.push('<text class="map-label" transform="rotate(-90 '+(margin.left-40)+' '+(margin.top+plotH/2)+')" x="'+(margin.left-40)+'" y="'+(margin.top+plotH/2)+'" text-anchor="middle">Performance (map Elo)</text>');
+      pairs.forEach(p=>{{
+        parts.push('<circle class="map-pair" cx="'+sx(Number(p.accuracy))+'" cy="'+sy(Number(p.elo))+'" r="3.5"><title>'+esc(p.engine_id)+': '+Number(p.accuracy).toFixed(1)+'% → '+Number(p.elo)+'</title></circle>');
+      }});
+      const knotPts=knots.map(k=>sx(Number(k.accuracy))+','+sy(Number(k.elo))).join(' ');
+      parts.push('<polyline class="map-knot-line" points="'+knotPts+'"/>');
+      const yLeft=mapEloAtAccuracy(knots,extLeft);
+      const yRight=mapEloAtAccuracy(knots,extRight);
+      if(yLeft!=null){{
+        parts.push('<line class="map-ext-line" x1="'+sx(extLeft)+'" y1="'+sy(yLeft)+'" x2="'+sx(Number(knots[0].accuracy))+'" y2="'+sy(Number(knots[0].elo))+'"/>');
+      }}
+      if(yRight!=null){{
+        parts.push('<line class="map-ext-line" x1="'+sx(Number(knots[knots.length-1].accuracy))+'" y1="'+sy(Number(knots[knots.length-1].elo))+'" x2="'+sx(extRight)+'" y2="'+sy(yRight)+'"/>');
+      }}
+      knots.forEach(k=>{{
+        parts.push('<circle class="map-knot" cx="'+sx(Number(k.accuracy))+'" cy="'+sy(Number(k.elo))+'" r="4.5"><title>Knot '+Number(k.accuracy).toFixed(2)+'% → '+Number(k.elo)+'</title></circle>');
+      }});
+      svg.innerHTML=parts.join('');
     }}
     let calState={{pairingLocked:false,confirmAbove:4,hardCap:16,fleetBudget:4,fleetConfirmAbove:4,fleetInUse:0,lastPairingMode:'floaters'}};
     const CAL_FETCH_TIMEOUT_MS=12000;
@@ -605,6 +713,7 @@ def render_calibration_html(*, loopback: bool = True) -> str:
           }}
           prEl.textContent=lines.join(' · ');
         }}
+        renderAccuracyMapGraph(am);
         const modeSel=document.getElementById('pairing-mode');
         if(modeSel&&d.pairing_mode&&!calState.pairingLocked){{
           modeSel.value=d.pairing_mode;

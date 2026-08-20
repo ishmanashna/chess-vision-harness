@@ -43,7 +43,40 @@ A named tunnel connector can be Healthy while Pages stays **Sleeping** — there
 .\deploy\go-online.ps1
 ```
 
-That starts/reuses a Quick Tunnel, sets GitHub `GAME_ORIGIN`, redeploys Pages, and runs [`verify-online.ps1`](verify-online.ps1). Target **under ~15 minutes**. **Not** zero-touch across reboots — Quick Tunnel URLs change when the tunnel restarts.
+Or double-click **`deploy\Start-Online.bat`** (same script; the window stays open if something fails — missing `gh`, `cloudflared`, etc.).
+
+**Install a Desktop shortcut (once, no admin):**
+
+```powershell
+.\deploy\go-online.ps1 -InstallShortcut
+```
+
+Creates **`Chess Vision Harness Go Online.lnk`** on your Desktop pointing at `deploy\Start-Online.bat`. The shortcut does **not** install or start the NSSM service (that can need admin).
+
+**Prerequisites before Go Online**
+
+| Tool | Why |
+|------|-----|
+| **`cloudflared`** on PATH or default install path | Quick Tunnel to `127.0.0.1:8765` |
+| **`gh auth login`** with repo access | Set `GAME_ORIGIN` secret and trigger Pages deploy |
+| **`chess-harness`** on your **Desktop user PATH** | Background `serve --force` when no NSSM service and `/health` is down |
+
+**Localhost-only surfaces** — **Calibration** (`/calibration*`) and **Puzzle set** (`/puzzle-set`) stay on **`http://127.0.0.1:8765`** (direct loopback, not via the tunnel). Public Pages proxies live play/watch/create only.
+
+**Durability — pick one harness auto-start path:** NSSM (`install-harness-nssm.ps1`, admin) **or** logon task (`install-harness-logon-task.ps1`, no admin). **Do not run both** — they can fight over port 8765.
+
+**What `go-online` does to the harness (`Ensure-Harness`)**
+
+- If `http://127.0.0.1:8765/health` is already OK (NSSM service, logon task, or manual `serve`): **no restart**, no `--force`.
+- If the **ChessHarness** NSSM service exists but is stopped: starts the service and waits for `/health`.
+- If there is **no** NSSM service and `/health` is down: starts `chess-harness serve --force` in the background (logon task uses `--force` the same way). **`--force`** kills a stuck listener on `:8765` only in that no-service path.
+
+**Quick Tunnel + deploy**
+
+- Each run starts a fresh Quick Tunnel; the URL changes → updates GitHub secret `GAME_ORIGIN` and may trigger **Deploy public site** **twice** (secret/deploy race — see verify step in the script).
+- Target **under ~15 minutes**. **Not** zero-touch across reboots — run Go Online again after reboot or when Pages shows Sleeping.
+
+That starts/reuses a Quick Tunnel, sets GitHub `GAME_ORIGIN`, redeploys Pages, and runs [`verify-online.ps1`](verify-online.ps1).
 
 ---
 
@@ -235,13 +268,19 @@ If NSSM / service install is blocked (`Acceso denegado`), use:
 
 Registers HKCU Run + a Startup folder `.cmd` that runs `python -m chess_harness serve --force` with `TRUSTED_PROXIES` set. Starts after **user logon** (not before login screen).
 
-### Public Online — one script
+### Public Online — one script or Desktop shortcut
 
 ```powershell
 .\deploy\go-online.ps1
 ```
 
-Use after reboot (or whenever Pages shows Sleeping) once the harness is healthy.
+Or double-click **`deploy\Start-Online.bat`**. Install a Desktop icon once:
+
+```powershell
+.\deploy\go-online.ps1 -InstallShortcut
+```
+
+Use after reboot (or whenever Pages shows Sleeping) once the harness is healthy. Needs **`cloudflared`**, **`gh auth login`** (repo write for secrets/workflows), and **`chess-harness`** on your user PATH. The shortcut does not start NSSM. See [Two success criteria](#two-success-criteria-separate) for `--force`, NSSM vs logon-task, and localhost-only Calibration / Puzzle set.
 
 ### Harness — manual NSSM (reference)
 

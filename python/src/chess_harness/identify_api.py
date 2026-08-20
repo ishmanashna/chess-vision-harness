@@ -20,12 +20,13 @@ from pydantic import BaseModel, Field
 
 from .agent_brief import public_base_url
 from .api_limits import ApiLimitEnforcer, AuthContext
-from .board_text import format_board_text
+from .board_text import bottom_color_for_board, format_board_text
 from .identify_attempt import IdentifyAttemptStore
 from .identify_scoring import build_placement, submit_answer, validate_pieces_answer
 from .identify_brief import render_identify_brief
 from .limits import load_limits
 from .puzzle_attempt import session_exclude_sec
+from .puzzle_select import select_identify_position
 from .puzzle_store import PuzzleStore
 from .render_pillow import ChessBoardRenderer
 from .scope_auth import reject_scoped_auth
@@ -115,8 +116,11 @@ def register_identify_routes(
         excluded = store.recent_puzzle_ids(
             auth.key_fingerprint, session_exclude_sec()
         )
-        record = PuzzleStore().random_puzzle(
-            rating_min=rating_min, rating_max=rating_max, exclusions=excluded
+        record = select_identify_position(
+            model_id=auth.model_id,
+            rating_min=rating_min,
+            rating_max=rating_max,
+            exclusions=excluded,
         )
         if record is None:
             return err(404, "No eligible position found for the requested filters")
@@ -144,9 +148,11 @@ def register_identify_routes(
         record = _open(attempt_id, auth)
         if isinstance(record, JSONResponse):
             return record
+        record = _store().ensure_agent_joined(attempt_id) or record
         try:
+            board = chess.Board(record["corpus_fen"])
             png = ChessBoardRenderer().render_board_bytes(
-                chess.Board(record["corpus_fen"])
+                board, bottom_color=bottom_color_for_board(board)
             )
         except Exception as exc:
             return err(500, f"Board render failed: {exc}")
@@ -159,8 +165,12 @@ def register_identify_routes(
         record = _open(attempt_id, auth)
         if isinstance(record, JSONResponse):
             return record
+        record = _store().ensure_agent_joined(attempt_id) or record
+        board = chess.Board(record["corpus_fen"])
         return PlainTextResponse(
-            content=format_board_text(chess.Board(record["corpus_fen"])),
+            content=format_board_text(
+                board, bottom_color=bottom_color_for_board(board)
+            ),
             headers={"Cache-Control": "no-store"},
         )
 

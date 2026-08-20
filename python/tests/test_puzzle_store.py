@@ -130,5 +130,11 @@ def test_store_stats(tmp_path):
     stats = store.stats()
     assert stats["total"] == 2
     assert stats["average_rating"] == 1500.0
+    assert stats["rating_min"] == 1000
+    assert stats["rating_max"] == 2000
+    assert stats["rating_median"] == 1500.0
+    assert stats["buckets"]["1000_1200"] == 1
+    assert stats["buckets"]["1200_1500"] == 0
+    assert stats["buckets"]["1500_plus"] == 1
     assert stats["themes"]["mateIn2"] == 2
     assert stats["themes"]["fork"] == 1

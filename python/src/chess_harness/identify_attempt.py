@@ -99,6 +99,8 @@ class IdentifyAttemptStore:
             "score": None,
             "per_square": None,
             "submitted_at": None,
+            "agent_joined": False,
+            "agent_joined_at": None,
             "started_at": now,
             "updated_at": now,
             "finished_at": None,
@@ -114,6 +116,18 @@ class IdentifyAttemptStore:
         record = data["attempts"].get(attempt_id)
         return dict(record) if record else None
 
+    def ensure_agent_joined(self, attempt_id: str) -> Optional[Dict[str, Any]]:
+        """Mark the owning agent as joined on first authenticated board read."""
+
+        def _mark(record: Dict[str, Any]) -> None:
+            if record.get("agent_joined"):
+                return
+            record["agent_joined"] = True
+            record["agent_joined_at"] = _now()
+            record["updated_at"] = _now()
+
+        return self.update(attempt_id, _mark)
+
     def update(
         self, attempt_id: str, fn: Callable[[Dict[str, Any]], None]
     ) -> Optional[Dict[str, Any]]:
@@ -126,6 +140,15 @@ class IdentifyAttemptStore:
             fn(record)
             self._save(data)
         return dict(record)
+
+    def finished_count(self, model_id: str) -> int:
+        data = self._load()
+        return sum(
+            1
+            for record in data["attempts"].values()
+            if record.get("model_id") == model_id
+            and record.get("status") == "finished"
+        )
 
     def active_count(self, key_fingerprint: str) -> int:
         data = self._load()

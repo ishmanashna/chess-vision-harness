@@ -14,6 +14,7 @@ import json
 import shutil
 from typing import Any, Dict, List
 
+import chess
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,6 +22,7 @@ from conftest import FIXTURES
 
 from chess_harness.child_credentials import ChildCredentialStore
 from chess_harness.game_manager import GameManager
+from chess_harness.identify_attempt import IdentifyAttemptStore
 from chess_harness.puzzle_import import PuzzleImporter
 
 from leak_guards import assert_identify_no_leak
@@ -154,7 +156,12 @@ def test_start_safe_payload_and_flow(identify_client):
     assert "/api/v1/identify/start" in brief
     assert "Do not skip board.txt" in brief
     assert "confirm every occupied square" in brief
+    assert "side to move at the bottom" in brief.lower()
+    assert "a1 is bottom-left" not in brief.lower()
     assert "Prefer the PNG" not in brief
+    assert "-d @answer.json" in brief
+    assert '{\\"pieces' not in brief
+    assert "422" in brief
     assert_identify_no_leak(start)
 
     board = client.get(start["board_url"], headers=_auth(key))
@@ -164,7 +171,12 @@ def test_start_safe_payload_and_flow(identify_client):
 
     text = client.get(start["board_text_url"], headers=_auth(key))
     assert text.status_code == 200
-    assert "a b c d e f g h" in text.text
+    record = IdentifyAttemptStore().get(attempt_id)
+    board = chess.Board(record["corpus_fen"])
+    header = (
+        "h g f e d c b a" if board.turn == chess.BLACK else "a b c d e f g h"
+    )
+    assert header in text.text
     assert "side_to_move:" in text.text
     assert "pieces" not in text.text
 
@@ -172,6 +184,93 @@ def test_start_safe_payload_and_flow(identify_client):
     assert store.exists()
     assert "correct_pieces" in store.read_text(encoding="utf-8")
     assert "puzzle_id" in store.read_text(encoding="utf-8")
+
+
+def test_agent_joined_false_until_board_read(identify_client):
+    client, harness_dir = identify_client
+    key = _register(client, "join-identify")
+
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+
+    public = client.get(f"/api/v1/identify/public/{attempt_id}").json()
+    assert public["agent_joined"] is False
+    record = IdentifyAttemptStore().get(attempt_id)
+    board = chess.Board(record["corpus_fen"])
+    assert public["side_to_move"] == (
+        "black" if board.turn == chess.BLACK else "white"
+    )
+
+    board = client.get(start["board_url"], headers=_auth(key))
+    assert board.status_code == 200
+    public_joined = client.get(f"/api/v1/identify/public/{attempt_id}").json()
+    assert public_joined["agent_joined"] is True
+
+    record = _store_record(harness_dir, attempt_id)
+    assert record["agent_joined"] is True
+    assert record["agent_joined_at"]
+
+
+def test_agent_joined_board_text_also_joins(identify_client):
+    client, _ = identify_client
+    key = _register(client, "join-identify-text")
+
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+    assert client.get(f"/api/v1/identify/public/{attempt_id}").json()["agent_joined"] is False
+
+    text = client.get(start["board_text_url"], headers=_auth(key))
+    assert text.status_code == 200
+    assert client.get(f"/api/v1/identify/public/{attempt_id}").json()["agent_joined"] is True
+
+
+def test_start_alone_does_not_join(identify_client):
+    client, harness_dir = identify_client
+    key = _register(client, "no-join-yet")
+
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+    assert client.get(f"/api/v1/identify/public/{attempt_id}").json()["agent_joined"] is False
+    record = _store_record(harness_dir, attempt_id)
+    assert record.get("agent_joined") is False
+
+
+def test_identify_novice_prefers_easy_rating(identify_client):
+    from chess_harness.puzzle_store import PuzzleStore
+
+    client, harness_dir = identify_client
+    key = _register(client, "novice-identify")
+
+    start = _start(client, key)
+    attempt = _store_record(harness_dir, start["attempt_id"])
+    record = PuzzleStore().get(attempt["puzzle_id"])
+    assert record is not None
+    assert attempt["puzzle_id"] == "pz-b"
+    assert int(record["rating"]) <= 1400
+
+
+def test_malformed_json_422_without_finishing(identify_client):
+    client, _ = identify_client
+    key = _register(client, "json-agent")
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+    url = f"/api/v1/identify/{attempt_id}/answer"
+
+    bad = client.post(
+        url,
+        headers={**_auth(key), "Content-Type": "application/json"},
+        content=b"{\\",
+    )
+    assert bad.status_code == 422
+    assert client.get(
+        f"/api/v1/identify/{attempt_id}/review", headers=_auth(key)
+    ).status_code == 409
+
+    good = client.post(
+        url, headers=_auth(key), json={"pieces": {"a1": "wR", "e8": "bK"}}
+    )
+    assert good.status_code == 200
+    assert good.json()["status"] == "finished"
 
 
 def test_schema_validation_400_without_finishing(identify_client):
@@ -366,7 +465,7 @@ def test_ownership_auth_scoped(identify_client):
     assert denied.status_code == 403
 
 
-def test_observer_secrecy_live_and_replay_gate(identify_client):
+def test_observer_live_solution_and_replay_gate(identify_client):
     client, harness_dir = identify_client
     key = _register(client, "watch-agent")
 
@@ -379,8 +478,11 @@ def test_observer_secrecy_live_and_replay_gate(identify_client):
     assert state["result"] is None
     assert state["submitted_count"] == 0
     assert state["watch_url"] == f"/i/{attempt_id}"
+    assert state["agent_joined"] is False
     assert "accuracy" not in state
     assert "difficulty" not in state
+    record = _store_record(harness_dir, attempt_id)
+    assert state["correct_pieces"] == record["correct_pieces"]
 
     replay = client.get(f"/api/v1/identify/public/{attempt_id}/replay")
     assert replay.status_code == 409
@@ -430,7 +532,7 @@ def test_watch_pages_browse_and_media(identify_client):
     assert "pieces" not in page.text.lower()
     assert 'id="moves-col"' in page.text, "watch page uses the 3-column spectator layout"
     assert "Attempt chain" in page.text
-    assert 'id="chain"' in page.text
+    assert 'id="chain-panel"' in page.text
     assert "Placement review" in page.text
 
     img = client.get(f"/i/{attempt_id}/board.png")
@@ -439,6 +541,12 @@ def test_watch_pages_browse_and_media(identify_client):
 
     text = client.get(f"/i/{attempt_id}/board.txt")
     assert text.status_code == 200
+    record = _store_record(harness_dir, attempt_id)
+    board = chess.Board(record["corpus_fen"])
+    header = (
+        "h g f e d c b a" if board.turn == chess.BLACK else "a b c d e f g h"
+    )
+    assert header in text.text
     assert "side_to_move:" in text.text
 
     assert client.get("/i/does-not-exist").status_code == 200

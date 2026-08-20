@@ -150,6 +150,8 @@ def test_watch_css_last_move_theme_tokens():
     assert "[data-theme=\"dark\"]" in css
     assert "--last-move-from-fill" in css
     assert "arrow-annotation-preview" not in css
-    assert ".meta-game-id code" in css
-    assert "overflow-wrap: anywhere" in css
+    assert ".meta-game-id" not in css
     assert "copy-game-id" in (PUBLIC_SITE / "g" / "index.html").read_text(encoding="utf-8")
+    js = (PUBLIC_JS / "spectator-game.js").read_text(encoding="utf-8")
+    assert "meta-game-id" not in js
+    assert '["Game ID"' not in js

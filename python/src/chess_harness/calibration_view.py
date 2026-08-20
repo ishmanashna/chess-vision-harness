@@ -340,7 +340,7 @@ def _build_file_calibration_status(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     rating_table = build_ladder_rating_table(catalog, calibration)
     rating_table = enrich_rating_rows_from_snapshot(rating_table, snapshot)
 
-    from .accuracy_elo_map import MIN_ENGINE_PAIRS, status_summary as accuracy_map_status
+    from .accuracy_elo_map import MIN_ENGINE_PAIRS, load_accuracy_elo_map
     from .play_rating import play_rating_status_summary
 
     cal_root = project_root() / "elo_calibration" / "results"
@@ -352,8 +352,23 @@ def _build_file_calibration_status(snapshot: Dict[str, Any]) -> Dict[str, Any]:
             "min_samples": 30,
         }
     try:
-        accuracy_map = accuracy_map_status(root=cal_root)
+        map_doc = load_accuracy_elo_map(root=cal_root, force=True)
     except Exception:
+        map_doc = None
+    if map_doc:
+        accuracy_map = {
+            "engine_count": int(map_doc.get("engine_count") or 0),
+            "min_engines": int(map_doc.get("min_engines") or MIN_ENGINE_PAIRS),
+            "fitted_at": map_doc.get("fitted_at"),
+            "warm": bool(
+                map_doc.get("fitted_at")
+                and map_doc.get("knots")
+                and int(map_doc.get("engine_count") or 0) >= MIN_ENGINE_PAIRS
+            ),
+            "knots": map_doc.get("knots") or [],
+            "pairs": map_doc.get("pairs") or [],
+        }
+    else:
         accuracy_map = {}
     by_engine = {row["engine_id"]: row for row in play_rating.get("engines", [])}
     for row in rating_table:
@@ -384,6 +399,8 @@ def _build_file_calibration_status(snapshot: Dict[str, Any]) -> Dict[str, Any]:
             "min_samples": int(accuracy_map.get("min_engines") or MIN_ENGINE_PAIRS),
             "fitted_at": accuracy_map.get("fitted_at"),
             "warm": bool(accuracy_map.get("warm")),
+            "knots": accuracy_map.get("knots") or [],
+            "pairs": accuracy_map.get("pairs") or [],
         },
     }
 

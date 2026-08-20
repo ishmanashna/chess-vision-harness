@@ -44,9 +44,14 @@ from .glicko2 import (
 from .paths import resolve_puzzle_ratings_file
 from .puzzle_store import PuzzleStore
 
-__all__ = ["PuzzleRatingStore", "rating_fields_for_attempt"]
+__all__ = [
+    "AGENT_START_RATING",
+    "PuzzleRatingStore",
+    "rating_fields_for_attempt",
+]
 
 DATA_VERSION = 1
+AGENT_START_RATING = 800
 
 
 def _now() -> str:
@@ -116,7 +121,7 @@ class PuzzleRatingStore:
         record = data["agents"].get(model_id)
         if record is None:
             return {
-                "rating": DEFAULT_RATING,
+                "rating": AGENT_START_RATING,
                 "deviation": DEFAULT_DEVIATION,
                 "volatility": DEFAULT_VOLATILITY,
                 "games": 0,

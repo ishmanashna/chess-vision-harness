@@ -1,13 +1,11 @@
 """Public puzzle watching and replay (/p/{attempt_id}, /api/v1/puzzles/public/*).
 
-Observer-safe by construction: while an attempt is active the published state
-contains only the attempt id, agent display name, imported difficulty, the
-current visible board, the agent's submitted and opponent moves as plain SAN
-(they are not secret — only the solution is), the attempt-chain key, and move
-counts. The solution, hidden FENs, and puzzle id are never published before
-completion; replay (solution line, submitted line, per-ply FENs, rating
-changes, source link) unlocks only after the attempt ends. Themes are never
-published on any public surface: they stay only inside attempt/puzzle records.
+Public spectator state for operator watch pages: attempt id, agent display
+name, imported difficulty, the current visible board, submitted and opponent
+moves as plain SAN, the full solution line (UCI + SAN labels), attempt-chain
+key, and move counts. Hidden FENs and puzzle id stay off the live observer;
+replay adds per-ply FENs, rating changes, and source link after finish.
+Themes are never published on any public surface.
 """
 
 from __future__ import annotations
@@ -19,6 +17,7 @@ import chess
 from .models import ModelRegistry
 from .puzzle_leaderboard import puzzle_agent_summary
 from .puzzle_store import PuzzleStore
+from .board_text import bottom_color_for_board
 from .render_pillow import ChessBoardRenderer
 
 __all__ = [
@@ -31,34 +30,58 @@ __all__ = [
 CM_CHESSBOARD_VERSION = "8.7.2"
 CM_CDN = f"https://cdn.jsdelivr.net/npm/cm-chessboard@{CM_CHESSBOARD_VERSION}"
 
+_MOVE_PARSE_ERRORS = (
+    ValueError,
+    chess.IllegalMoveError,
+    chess.InvalidMoveError,
+    chess.AmbiguousMoveError,
+)
+
+
+def _legal_uci_move(board: chess.Board, uci: str) -> chess.Move | None:
+    """Parse UCI and return the move only when it is legal on *board*."""
+    try:
+        move = chess.Move.from_uci(uci)
+    except ValueError:
+        return None
+    if not board.is_legal(move):
+        return None
+    return move
+
 
 def san_moves(
     start_fen: str, submitted: List[str], opponent: List[str]
 ) -> tuple[List[str], List[str]]:
     """SAN labels for the submitted agent moves and opponent replies.
 
-    Replays the known move history from the start position. Both lists were
-    validated as legal when recorded, so ``board.san`` cannot raise here.
+    Replays legal moves from the start position. Illegal or unparseable UCI is
+    labeled with the raw token and does not advance the scratch board.
     """
     board = chess.Board(start_fen)
     agent_labels: List[str] = []
     opponent_labels: List[str] = []
     for index, uci in enumerate(submitted):
-        try:
-            agent = chess.Move.from_uci(uci)
-            agent_labels.append(board.san(agent))
-            board.push(agent)
-        except ValueError:
+        move = _legal_uci_move(board, uci)
+        if move is None:
             agent_labels.append(str(uci))
             break
+        try:
+            agent_labels.append(board.san(move))
+        except _MOVE_PARSE_ERRORS:
+            agent_labels.append(str(uci))
+            break
+        board.push(move)
         if index < len(opponent):
-            try:
-                reply = chess.Move.from_uci(opponent[index])
-                opponent_labels.append(board.san(reply))
-                board.push(reply)
-            except ValueError:
+            reply = _legal_uci_move(board, opponent[index])
+            if reply is None:
                 opponent_labels.append(str(opponent[index]))
                 break
+            try:
+                opponent_labels.append(board.san(reply))
+            except _MOVE_PARSE_ERRORS:
+                opponent_labels.append(str(opponent[index]))
+                break
+            board.push(reply)
     return agent_labels, opponent_labels
 
 
@@ -76,14 +99,23 @@ def _puzzle(record: Dict[str, Any]) -> Dict[str, Any]:
     return PuzzleStore().get(str(record.get("puzzle_id") or "")) or {}
 
 
+def _side_to_move(record: Dict[str, Any]) -> str:
+    """Puzzle start side (white/black) for the static spectator turn label."""
+    start_fen = record.get("start_fen", record.get("board_fen"))
+    board = chess.Board(start_fen)
+    return "white" if board.turn == chess.WHITE else "black"
+
+
 def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
-    """Observer-safe live state (never leaks solution or puzzle id)."""
+    """Public live state for spectators (solution line included; no puzzle id)."""
     finished = record.get("status") == "finished"
+    start_fen = record.get("start_fen", record.get("board_fen"))
     submitted = list(record.get("submitted_moves") or [])
     opponent = list(record.get("opponent_moves") or [])
-    agent_moves, opponent_moves = san_moves(
-        record.get("start_fen", record.get("board_fen")), submitted, opponent
-    )
+    agent_moves, opponent_moves = san_moves(start_fen, submitted, opponent)
+    solution_uci = list(record.get("solution_moves") or [])
+    sol_agent_uci, sol_opp_uci = _split_agent_opponent_uci(solution_uci)
+    sol_agent_san, sol_opp_san = san_moves(start_fen, sol_agent_uci, sol_opp_uci)
     model_id = str(record.get("model_id") or "")
     state: Dict[str, Any] = {
         "ok": True,
@@ -91,13 +123,18 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
         "key": record.get("key_fingerprint"),
         "model_id": record.get("model_id"),
         "agent_name": _agent_name(record),
+        "agent_joined": bool(record.get("agent_joined", True)),
         "status": record.get("status", "active"),
         "result": record.get("result") if finished else None,
         "moves_played": len(submitted),
         "submitted_moves": agent_moves,
         "opponent_moves": opponent_moves,
+        "solution_moves": solution_uci,
+        "solution_agent_moves": sol_agent_san,
+        "solution_opponent_moves": sol_opp_san,
         "puzzle_rating": int(record.get("puzzle_rating") or 0),
         "fen": record.get("board_fen", chess.STARTING_FEN),
+        "side_to_move": _side_to_move(record),
         "started_at": record.get("started_at"),
         "updated_at": record.get("updated_at"),
         "finished_at": record.get("finished_at") if finished else None,
@@ -107,6 +144,9 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
         summary = puzzle_agent_summary(model_id)
         if summary:
             state["agent_summary"] = summary
+    if finished:
+        state["failure_reason"] = record.get("failure_reason")
+        state["first_wrong_move"] = record.get("first_wrong_move")
     return state
 
 
@@ -114,44 +154,53 @@ def _build_plies(
     start_fen: str,
     submitted: List[str],
     opponent: List[str],
+    *,
+    result: str | None = None,
 ) -> List[Dict[str, Any]]:
     """Per-ply FEN + SAN labels for replay scrubbing (start -> final)."""
     board = chess.Board(start_fen)
     plies: List[Dict[str, Any]] = []
-    count = len(submitted)
-    for index in range(count):
-        try:
-            agent = chess.Move.from_uci(submitted[index])
-            agent_label = f"{index + 1}. {board.san(agent)}"
-            board.push(agent)
+    for index, uci in enumerate(submitted):
+        pre_fen = board.fen()
+        move = _legal_uci_move(board, uci)
+        if move is None:
             plies.append(
                 {
-                    "fen": board.fen(),
-                    "label": agent_label,
-                    "uci": agent.uci(),
-                }
-            )
-        except ValueError:
-            plies.append(
-                {
-                    "fen": board.fen(),
-                    "label": f"{index + 1}. {submitted[index]}",
+                    "fen": pre_fen,
+                    "label": f"{index + 1}. {uci}",
                 }
             )
             break
+        try:
+            agent_label = f"{index + 1}. {board.san(move)}"
+        except _MOVE_PARSE_ERRORS:
+            plies.append(
+                {
+                    "fen": pre_fen,
+                    "label": f"{index + 1}. {uci}",
+                }
+            )
+            break
+        if result == "failed" and index == len(submitted) - 1:
+            plies.append(
+                {
+                    "fen": pre_fen,
+                    "label": agent_label,
+                    "uci": move.uci(),
+                }
+            )
+            break
+        board.push(move)
+        plies.append(
+            {
+                "fen": board.fen(),
+                "label": agent_label,
+                "uci": move.uci(),
+            }
+        )
         if index < len(opponent):
-            try:
-                reply = chess.Move.from_uci(opponent[index])
-                reply_label = f"{index + 1}... {board.san(reply)}"
-                board.push(reply)
-                plies.append(
-                    {
-                        "fen": board.fen(),
-                        "label": reply_label,
-                        "uci": reply.uci(),
-                    }
-                )
-            except ValueError:
+            reply = _legal_uci_move(board, opponent[index])
+            if reply is None:
                 plies.append(
                     {
                         "fen": board.fen(),
@@ -159,6 +208,24 @@ def _build_plies(
                     }
                 )
                 break
+            try:
+                reply_label = f"{index + 1}... {board.san(reply)}"
+            except _MOVE_PARSE_ERRORS:
+                plies.append(
+                    {
+                        "fen": board.fen(),
+                        "label": f"{index + 1}... {opponent[index]}",
+                    }
+                )
+                break
+            board.push(reply)
+            plies.append(
+                {
+                    "fen": board.fen(),
+                    "label": reply_label,
+                    "uci": reply.uci(),
+                }
+            )
     return plies
 
 
@@ -191,7 +258,10 @@ def replay_payload(record: Dict[str, Any]) -> Dict[str, Any]:
         "solution_agent_moves": sol_agent_san,
         "solution_opponent_moves": sol_opp_san,
         "start_fen": start_fen,
-        "plies": _build_plies(start_fen, submitted, opponent),
+        "side_to_move": _side_to_move(record),
+        "plies": _build_plies(
+            start_fen, submitted, opponent, result=record.get("result")
+        ),
         "source_link": puzzle.get("game_url") or "",
         "puzzle_rating": int(record.get("puzzle_rating") or 0),
         "rating_before": record.get("rating_before"),
@@ -205,7 +275,9 @@ def replay_payload(record: Dict[str, Any]) -> Dict[str, Any]:
 def render_observer_board_png(record: Dict[str, Any]) -> bytes:
     """Answer-safe board PNG: the current visible position, no move highlights."""
     board = chess.Board(record.get("board_fen", chess.STARTING_FEN))
-    return ChessBoardRenderer().render_board_bytes(board)
+    return ChessBoardRenderer().render_board_bytes(
+        board, bottom_color=bottom_color_for_board(board)
+    )
 
 
 def public_attempt_row(record: Dict[str, Any]) -> Dict[str, Any]:

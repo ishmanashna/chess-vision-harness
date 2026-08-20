@@ -1,9 +1,10 @@
 /**
  * Public board-identification watch/replay page (/i/{id}).
  * Mirrors the game spectator layout: info column, board column, review column.
- * Navigation to other attempts is via the chain links or URL only.
+ * Navigation to other attempts is via the attempt chain panel or URL.
  */
 
+import { createWatchChain } from "./watch-chain.js?v=1";
 import {
   Chessboard,
   COLOR,
@@ -28,21 +29,6 @@ const IDENTIFY_MISMATCH_MARKER = {
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
 const POLL_MS = 3000;
-const CHAIN_POLL_MS = 15000;
-
-function watchHrefForRow(row, prefix) {
-  const url = row.watch_url;
-  if (url) {
-    const trimmed = String(url).replace(/\/+$/, "");
-    const parts = trimmed.split("/").filter(Boolean);
-    const last = parts[parts.length - 1] || "";
-    if (last && last !== "p" && last !== "i" && last !== "index.html") {
-      return url;
-    }
-  }
-  if (row.attempt_id) return prefix + row.attempt_id;
-  return "";
-}
 
 function attemptIdFromPage() {
   const root = document.body;
@@ -116,11 +102,32 @@ function httpErrorMessage(status, kind) {
 }
 
 function statusLabel(s) {
+  if (s.status === "active" && s.agent_joined === false) {
+    return "Waiting for agent…";
+  }
   if (s.status === "finished") {
     return s.result === "correct" ? "Identified" : "Mismatched";
   }
   if (s.status === "abandoned") return "Abandoned";
   return "In progress";
+}
+
+function updateAgentWaitChip(state) {
+  const wrap = document.getElementById("board-wrap");
+  if (!wrap) return;
+  let chip = wrap.querySelector(".watch-agent-wait-chip");
+  const waiting = state.status === "active" && state.agent_joined === false;
+  if (!waiting) {
+    if (chip) chip.remove();
+    return;
+  }
+  if (!chip) {
+    chip = document.createElement("span");
+    chip.className = "watch-agent-wait-chip";
+    chip.setAttribute("aria-live", "polite");
+    chip.textContent = "Waiting for agent…";
+    wrap.appendChild(chip);
+  }
 }
 
 function fmtAccuracy(a) {
@@ -131,6 +138,19 @@ function fmtAccuracy(a) {
 function fmtYesNo(v) {
   if (v == null) return "—";
   return v ? "Yes" : "No";
+}
+
+function orientationFromSide(side) {
+  return side === "black" ? COLOR.black : COLOR.white;
+}
+
+function sideToMoveFromSource(source) {
+  if (!source) return null;
+  if (source.side_to_move === "white" || source.side_to_move === "black") {
+    return source.side_to_move;
+  }
+  if (!source.fen) return null;
+  return String(source.fen).indexOf(" b ") >= 0 ? "black" : "white";
 }
 
 async function main() {
@@ -172,9 +192,18 @@ async function main() {
   let lastFen = null;
   let replay = null;
   let pollTimer = null;
-  let chainTimer = null;
-  let agentKey = null;
-  let agentName = null;
+  let finished = false;
+  let boardOrientation = COLOR.white;
+
+  function syncBoardOrientation(source) {
+    const side = sideToMoveFromSource(source);
+    if (!side) return;
+    const orient = orientationFromSide(side);
+    if (orient !== boardOrientation) {
+      board.setOrientation(orient);
+      boardOrientation = orient;
+    }
+  }
 
   function setPosition(fen, animate) {
     annotations.clearAnnotations();
@@ -186,12 +215,7 @@ async function main() {
   function renderMeta(state) {
     const dl = document.getElementById("meta");
     if (dl) {
-      dl.innerHTML =
-        "<dt>Attempt</dt><dd>" +
-        escHtml(state.attempt_id) +
-        "</dd><dt>Agent</dt><dd>" +
-        escHtml(state.agent_name) +
-        "</dd>";
+      dl.innerHTML = "<dt>Agent</dt><dd>" + escHtml(state.agent_name) + "</dd>";
     }
     const outcomeEl = document.getElementById("state-outcome");
     const accEl = document.getElementById("state-accuracy");
@@ -199,6 +223,7 @@ async function main() {
     const diffEl = document.getElementById("state-difficulty");
     const subEl = document.getElementById("state-submitted");
     if (outcomeEl) outcomeEl.textContent = statusLabel(state);
+    updateAgentWaitChip(state);
     if (accEl) accEl.textContent = fmtAccuracy(state.accuracy);
     if (fullEl) fullEl.textContent = fmtYesNo(state.full_position);
     if (diffEl) {
@@ -251,31 +276,83 @@ async function main() {
       .catch(() => applyIdentifyAgent(null));
   }
 
+  function rowsFromCorrectPieces(correct, submitted) {
+    const map = submitted || {};
+    const squares = {};
+    Object.keys(correct || {}).forEach((sq) => (squares[sq] = true));
+    Object.keys(map).forEach((sq) => (squares[sq] = true));
+    return Object.keys(squares)
+      .sort()
+      .map((sq) => {
+        const expected = (correct || {})[sq] || null;
+        const got = map[sq] || null;
+        let status = "exact";
+        if (!expected) status = "extra";
+        else if (!got) status = "missing";
+        else if (expected === got) status = "exact";
+        else if (expected[0] === got[0]) status = "wrong_type";
+        else status = "wrong_color";
+        return {
+          square: sq,
+          expected: expected,
+          submitted: got,
+          status: status,
+        };
+      });
+  }
+
   function replyRows(replay) {
     const per = replay.per_square || [];
     if (per.length) return per;
-    const map = replay.submitted_pieces || {};
-    const correct = replay.correct_pieces || {};
-    const squares = {};
-    Object.keys(map).forEach((sq) => (squares[sq] = true));
-    Object.keys(correct).forEach((sq) => (squares[sq] = true));
-    return Object.keys(squares)
-      .sort()
-      .map((sq) => ({
-        square: sq,
-        expected: correct[sq] || null,
-        submitted: map[sq] || null,
-        status:
-          !correct[sq]
-            ? "extra"
-            : !map[sq]
-              ? "missing"
-              : correct[sq] === map[sq]
-                ? "exact"
-                : correct[sq][0] === map[sq][0]
-                  ? "wrong_type"
-                  : "wrong_color",
-      }));
+    return rowsFromCorrectPieces(
+      replay.correct_pieces || {},
+      replay.submitted_pieces || {}
+    );
+  }
+
+  function renderPlacementTable(rows, options) {
+    const opts = options || {};
+    const mv = document.getElementById("mv");
+    if (!mv) return;
+    if (!rows.length) {
+      mv.innerHTML =
+        '<p style="color:var(--faint);margin:0">No placement data.</p>';
+      return;
+    }
+    const showSubmitted = opts.showSubmitted !== false;
+    mv.innerHTML =
+      '<table class="results-table"><thead><tr><th>Square</th><th>Expected</th>' +
+      (showSubmitted ? "<th>Submitted</th><th>Status</th>" : "") +
+      "</tr></thead><tbody>" +
+      rows
+        .map((r) => {
+          let row =
+            "<tr><td>" +
+            escHtml(r.square) +
+            "</td><td>" +
+            escHtml(r.expected || "—") +
+            "</td>";
+          if (showSubmitted) {
+            row +=
+              "<td>" +
+              escHtml(r.submitted || "—") +
+              '</td><td><span class="badge ' +
+              r.status +
+              '">' +
+              escHtml(String(r.status).replace("_", " ")) +
+              "</span></td>";
+          }
+          return row + "</tr>";
+        })
+        .join("") +
+      "</tbody></table>";
+    if (opts.paintMarkers) paintReviewMarkers(rows);
+    syncHeights();
+  }
+
+  function renderLiveCorrectPlacement(state) {
+    const rows = rowsFromCorrectPieces(state.correct_pieces || {}, null);
+    renderPlacementTable(rows, { showSubmitted: false, paintMarkers: true });
   }
 
   function paintReviewMarkers(rows) {
@@ -289,31 +366,9 @@ async function main() {
   }
 
   function renderReplay() {
-    const mv = document.getElementById("mv");
-    if (!mv || !replay) return;
+    if (!replay) return;
     const rows = replyRows(replay);
-    mv.innerHTML =
-      '<table class="results-table"><thead><tr><th>Square</th><th>Expected</th>' +
-      "<th>Submitted</th><th>Status</th></tr></thead><tbody>" +
-      rows
-        .map(
-          (r) =>
-            "<tr><td>" +
-            escHtml(r.square) +
-            "</td><td>" +
-            escHtml(r.expected || "—") +
-            "</td><td>" +
-            escHtml(r.submitted || "—") +
-            '</td><td><span class="badge ' +
-            r.status +
-            '">' +
-            escHtml(String(r.status).replace("_", " ")) +
-            "</span></td></tr>"
-        )
-        .join("") +
-      "</tbody></table>";
-    paintReviewMarkers(rows);
-    syncHeights();
+    renderPlacementTable(rows, { showSubmitted: true, paintMarkers: true });
   }
 
   async function loadReplay() {
@@ -333,89 +388,26 @@ async function main() {
     }
   }
 
-  function renderChain(rows, opts) {
-    const list = document.getElementById("chain");
-    const empty = document.getElementById("chain-empty");
-    if (!list || !empty) return;
-    if (opts && opts.error) {
-      list.hidden = true;
-      empty.hidden = false;
-      empty.textContent = opts.error;
-      return;
+  function chainRowLabel(row, isCurrent) {
+    const time = row.started_at
+      ? new Date(row.started_at).toLocaleTimeString()
+      : "";
+    if (isCurrent) {
+      return time ? time + " · this attempt" : "this attempt";
     }
-    const all = (rows || []).slice();
-    if (!all.length) {
-      list.hidden = true;
-      empty.hidden = false;
-      empty.textContent = "No attempts in this chain yet.";
-      return;
-    }
-    empty.hidden = true;
-    list.hidden = false;
-    list.innerHTML = all
-      .map((row) => {
-        const isYou = row.attempt_id === ATTEMPT_ID;
-        const label =
-          (row.started_at ? new Date(row.started_at).toLocaleTimeString() : "") +
-          " · " +
-          (isYou
-            ? "this attempt"
-            : statusLabel(row) +
-              " · " +
-              (row.status === "finished" ? fmtAccuracy(row.accuracy) : "…"));
-        if (isYou) {
-          return '<li class="chain-you">' + escHtml(label) + "</li>";
-        }
-        const href = watchHrefForRow(row, "/i/");
-        if (!href) {
-          return "<li>" + escHtml(label) + "</li>";
-        }
-        return (
-          '<li><a href="' +
-          escHtml(href) +
-          '">' +
-          escHtml(label) +
-          "</a></li>"
-        );
-      })
-      .join("");
+    const acc =
+      row.status === "finished" ? fmtAccuracy(row.accuracy) : "…";
+    return (time ? time + " · " : "") + statusLabel(row) + " · " + acc;
   }
 
-  async function refreshChain() {
-    const keyParam = agentKey
-      ? "by_key=" + encodeURIComponent(agentKey)
-      : agentName
-        ? "by_agent=" + encodeURIComponent(agentName)
-        : null;
-    if (!keyParam) return;
-    try {
-      const r = await fetch(
-        "/api/v1/identify/public/attempts?" + keyParam + "&limit=50"
-      );
-      if (!r.ok) {
-        const msg =
-          r.status === 502 || r.status === 503
-            ? "Could not load attempt chain — is the server online?"
-            : "Could not load attempt chain.";
-        renderChain([], { error: msg });
-        return;
-      }
-      const rows = (await r.json()).attempts || [];
-      renderChain(rows);
-    } catch (e) {
-      renderChain([], {
-        error: "Could not load attempt chain — is the server online?",
-      });
-    }
-  }
-
-  function startChainTracking(state) {
-    agentKey = state.key || agentKey;
-    agentName = state.agent_name || agentName;
-    if ((!agentKey && !agentName) || chainTimer) return;
-    chainTimer = setInterval(refreshChain, CHAIN_POLL_MS);
-    refreshChain();
-  }
+  const chain = createWatchChain({
+    attemptId: ATTEMPT_ID,
+    attemptsPath: "/api/v1/identify/public/attempts",
+    watchPrefix: "/i/",
+    chainKind: "identify",
+    rowLabel: chainRowLabel,
+    getFinished: () => finished,
+  });
 
   function stopPolling() {
     if (pollTimer) {
@@ -439,24 +431,48 @@ async function main() {
         return;
       }
       const state = await r.json();
+      syncBoardOrientation(state);
       renderMeta(state);
       renderAgentMetrics(state);
       setPosition(state.fen, true);
       if (state.status === "finished") {
+        finished = true;
         stopPolling();
         await loadReplay();
-        startChainTracking(state);
+        chain.startTracking(state);
       } else if (state.status === "abandoned") {
+        finished = true;
         stopPolling();
-        startChainTracking(state);
+        renderLiveCorrectPlacement(state);
+        chain.startTracking(state);
       } else {
-        startChainTracking(state);
+        renderLiveCorrectPlacement(state);
+        chain.startTracking(state);
       }
       syncHeights();
       showPollError("");
     } catch (e) {
       showPollError("Could not refresh identification state — is the server online?");
     }
+  }
+
+  const copyIdBtn = document.getElementById("copy-attempt-id");
+  const copyHintEl = document.getElementById("copy-hint");
+  function showCopyHint(msg) {
+    if (copyHintEl) {
+      copyHintEl.textContent = msg;
+      setTimeout(() => {
+        if (copyHintEl && copyHintEl.textContent === msg) copyHintEl.textContent = "";
+      }, 2000);
+    }
+  }
+  if (copyIdBtn) {
+    copyIdBtn.onclick = () => {
+      if (!ATTEMPT_ID) return showCopyHint("No attempt ID");
+      navigator.clipboard
+        .writeText(ATTEMPT_ID)
+        .then(() => showCopyHint("ID copied"));
+    };
   }
 
   window.addEventListener("resize", syncHeights);

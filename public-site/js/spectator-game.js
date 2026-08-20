@@ -409,36 +409,20 @@ async function main() {
     }
     whiteName = abbreviateName(whiteName);
     blackName = abbreviateName(blackName);
-    const gameId = s.game_id || tags.GameId || GAME_ID;
     const dateLabel = formatSpectatorDate(s, tags);
     const rows = [
-      ["Game ID", gameId, "game-id"],
       ["Event", tags.Event],
       ["Date", dateLabel],
       ["White", playerLine(whiteName, whiteElo)],
       ["Black", playerLine(blackName, blackElo)],
     ];
     if (s.game_type === "agent_vs_agent")
-      rows.splice(1, 0, ["Type", "Agent vs agent"]);
+      rows.splice(0, 0, ["Type", "Agent vs agent"]);
     if (s.game_type === "human_vs_agent")
-      rows.splice(1, 0, ["Type", "Agent vs Human"]);
+      rows.splice(0, 0, ["Type", "Agent vs Human"]);
     dl.innerHTML = rows
       .filter((r) => r[1] != null && r[1] !== "")
-      .map((r) => {
-        const kind = r[2];
-        let dd;
-        if (kind === "game-id") {
-          dd =
-            '<dd class="meta-game-id"><code title="' +
-            escHtml(r[1]) +
-            '">' +
-            escHtml(r[1]) +
-            "</code></dd>";
-        } else {
-          dd = "<dd>" + escHtml(r[1]) + "</dd>";
-        }
-        return "<dt>" + escHtml(r[0]) + "</dt>" + dd;
-      })
+      .map((r) => "<dt>" + escHtml(r[0]) + "</dt><dd>" + escHtml(r[1]) + "</dd>")
       .join("");
     renderQualityMetrics(s, tags);
   }

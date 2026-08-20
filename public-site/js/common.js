@@ -3,6 +3,7 @@
 
   var HEALTH_URL = "/api/edge-health";
   var FETCH_TIMEOUT_MS = 12000;
+  var HEALTH_POLL_MS = 15000;
   var HEALTH_STORAGE_KEY = "cvh-edge-health-v1";
   /** Optimistic Online paint if last probe was within this window (ms). */
   var HEALTH_FRESH_MS = 90000;
@@ -19,6 +20,9 @@
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
   var healthInflight = null;
+  var healthPollTimer = null;
+  var healthPollStarted = false;
+  var healthUiListeners = [];
   var liveLeaderboardListeners = [];
   var latestLiveLeaderboard = null;
 
@@ -45,7 +49,8 @@
     if (!activeId && current.indexOf("/p/") === 0) activeId = "nav-spectator";
     if (!activeId && current.indexOf("/i/") === 0) activeId = "nav-spectator";
     if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-create";
-    if (!activeId) return;
+    if (!activeId && current.indexOf("/puzzle-set/") === 0) activeId = "nav-puzzle-set";
+    if (!activeId && current === "/puzzle-set") activeId = "nav-puzzle-set";
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
   }
@@ -77,6 +82,25 @@
     a.textContent = "Calibration";
     leaderboard.parentNode.insertBefore(a, leaderboard.nextSibling);
     if (navPath() === "/calibration") a.classList.add("active");
+  }
+
+  function ensurePuzzleSetNav() {
+    if (document.getElementById("nav-puzzle-set")) {
+      if (navPath() === "/puzzle-set") {
+        document.getElementById("nav-puzzle-set").classList.add("active");
+      }
+      return;
+    }
+    if (!isLoopbackHost()) return;
+    var calibration = document.getElementById("nav-calibration");
+    var anchor = calibration || document.getElementById("nav-leaderboard");
+    if (!anchor || !anchor.parentNode) return;
+    var a = document.createElement("a");
+    a.href = "/puzzle-set";
+    a.id = "nav-puzzle-set";
+    a.textContent = "Puzzle set";
+    anchor.parentNode.insertBefore(a, calibration ? calibration.nextSibling : anchor.nextSibling);
+    if (navPath() === "/puzzle-set") a.classList.add("active");
   }
 
   function currentTheme() {
@@ -747,7 +771,7 @@
   }
 
   function fetchEdgeHealthNetwork() {
-    return fetch(HEALTH_URL, { cache: "default" })
+    return fetch(HEALTH_URL, { cache: "no-store" })
       .then(function (res) {
         if (!res.ok) throw new Error("health unavailable");
         return res.json();
@@ -760,10 +784,66 @@
         return healthCache;
       })
       .catch(function () {
+        // Do not stamp offline on fetch/timeout blips — keep last good Online in memory and storage.
+        if (healthCache && healthCache.online) return healthCache;
         healthCache = { online: false, raw: null };
-        // Do not stamp sessionStorage offline on fetch/timeout blips — keep last good Online for the next tab.
         return healthCache;
       });
+  }
+
+  function notifyHealthUiListeners(health) {
+    healthUiListeners.slice().forEach(function (cb) {
+      try {
+        cb(health);
+      } catch (_err) {}
+    });
+  }
+
+  function tickHealthPoll() {
+    return checkEdgeHealth({ force: true }).then(function (health) {
+      paintHealth(health);
+      notifyHealthUiListeners(health);
+      return health;
+    });
+  }
+
+  function scheduleHealthPoll() {
+    if (healthPollTimer) {
+      clearTimeout(healthPollTimer);
+      healthPollTimer = null;
+    }
+    if (!healthPollStarted || document.hidden) return;
+    healthPollTimer = setTimeout(function () {
+      healthPollTimer = null;
+      tickHealthPoll()
+        .catch(function () {})
+        .then(function () {
+          scheduleHealthPoll();
+        });
+    }, HEALTH_POLL_MS);
+  }
+
+  function onHealthVisibilityChange() {
+    if (document.hidden) {
+      if (healthPollTimer) {
+        clearTimeout(healthPollTimer);
+        healthPollTimer = null;
+      }
+      return;
+    }
+    if (!healthPollStarted) return;
+    tickHealthPoll()
+      .catch(function () {})
+      .then(function () {
+        scheduleHealthPoll();
+      });
+  }
+
+  function startHealthPoll() {
+    if (healthPollStarted) return;
+    healthPollStarted = true;
+    document.addEventListener("visibilitychange", onHealthVisibilityChange);
+    scheduleHealthPoll();
   }
 
   function checkEdgeHealth(options) {
@@ -789,21 +869,24 @@
 
   function applyHealthUi(options) {
     options = options || {};
+    if (typeof options.onHealth === "function") {
+      healthUiListeners.push(options.onHealth);
+    }
     var stored = readStoredHealth();
     if (stored) {
       healthCache = { online: stored.online, raw: stored.raw };
       paintHealth(stored);
-      if (options.onHealth) options.onHealth(stored);
+      notifyHealthUiListeners(stored);
     } else {
       setStatusChip(
         "checking",
         "Checking whether the game server is reachable…"
       );
     }
-    // Always refresh in the background (or foreground when no optimistic paint).
     return checkEdgeHealth({ force: true }).then(function (health) {
       paintHealth(health);
-      if (options.onHealth) options.onHealth(health);
+      notifyHealthUiListeners(health);
+      if (document.querySelector("[data-status-chip]")) startHealthPoll();
       return health;
     });
   }
@@ -909,6 +992,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();
     ensureCalibrationNav();
+    ensurePuzzleSetNav();
     initThemeToggle();
     if (document.querySelector("[data-status-chip]")) {
       applyHealthUi();
@@ -921,8 +1005,8 @@
     if (document.querySelector("[data-engines-leaderboard]")) {
       loadEnginesOnce();
     }
-    // Pages OAuth only — skip on origin calibration to avoid /auth/me 404 noise.
-    if (navPath() !== "/calibration") {
+    // Pages OAuth only — skip on origin operator pages to avoid /auth/me 404 noise.
+    if (navPath() !== "/calibration" && navPath() !== "/puzzle-set") {
       loadScriptOnce("/js/auth.js");
     }
   });

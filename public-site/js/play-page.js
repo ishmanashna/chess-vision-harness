@@ -31,6 +31,24 @@ function wirePlayShellChrome(gameId) {
   if (spectate && gameId) {
     spectate.href = "/g/" + encodeURIComponent(gameId);
   }
+
+  const copyBtn = document.querySelector("[data-copy-game-id]");
+  const copyHint = document.querySelector("[data-copy-game-hint]");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      if (!gameId) {
+        if (copyHint) copyHint.textContent = "No game ID";
+        return;
+      }
+      navigator.clipboard.writeText(gameId).then(() => {
+        if (!copyHint) return;
+        copyHint.textContent = "ID copied";
+        setTimeout(() => {
+          if (copyHint.textContent === "ID copied") copyHint.textContent = "";
+        }, 2000);
+      });
+    });
+  }
 }
 
 function canHumanMove(pos) {

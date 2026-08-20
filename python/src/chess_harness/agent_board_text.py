@@ -9,10 +9,20 @@ BOARD_CHANNEL_NUDGE = (
     "highlights on the PNG are not extra pieces. Do not skip board.txt."
 )
 
-_BOARD_TEXT_LEGEND = (
-    "The response is the live position as eight compact rows, ranks 8 through 1, "
-    "with files a through h left to right. White=uppercase, Black=lowercase, and .=empty. "
-    "It is absolute and white-at-bottom."
+_WHITE_BOTTOM_LEGEND = (
+    "The response is the live position as eight compact rows, ranks 8 through 1. "
+    "The header row lists file letters left to right, matching the PNG (a through h "
+    "for ladder games). White=uppercase, Black=lowercase, and .=empty. "
+    "Those file columns are correct — use them to read each square."
+)
+
+_MOVING_SIDE_LEGEND = (
+    "The response is the live position as eight compact rows. The header row lists "
+    "file letters left to right exactly as on the PNG (often h through a when Black "
+    "is at the bottom). The side to move sits at the bottom of the image. Square "
+    "names are absolute (a1 is still a1 on the board). White=uppercase, "
+    "Black=lowercase, and .=empty. Those file columns are correct — match them to "
+    "the image; do not treat them as unreliable."
 )
 
 _POSITION_SOURCE_BAN = (
@@ -21,11 +31,14 @@ _POSITION_SOURCE_BAN = (
 )
 
 
-def render_board_text_channel(url: str, auth: str) -> str:
+def render_board_text_channel(
+    url: str, auth: str, *, moving_side_at_bottom: bool = False
+) -> str:
     """GET block for an authenticated board.txt URL (games, puzzles, or identify)."""
+    legend = _MOVING_SIDE_LEGEND if moving_side_at_bottom else _WHITE_BOTTOM_LEGEND
     return f"""GET {url}
 Header: {auth}
-{_BOARD_TEXT_LEGEND}
+{legend}
 Authenticated board.txt is always allowed — same live position as the PNG.
 {BOARD_CHANNEL_NUDGE}
 {_POSITION_SOURCE_BAN}"""

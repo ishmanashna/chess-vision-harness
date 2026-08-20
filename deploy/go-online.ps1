@@ -8,6 +8,8 @@
 #   .\deploy\go-online.ps1
 #   .\deploy\go-online.ps1 -SkipDeploy   # tunnel + secret only
 #   .\deploy\go-online.ps1 -PagesUrl "https://chessvisionharness.pages.dev"
+#   .\deploy\go-online.ps1 -InstallShortcut   # Desktop .lnk -> deploy\Start-Online.bat
+#   deploy\Start-Online.bat   # double-click entry (same script, visible window on failure)
 #
 # Prerequisites: chess-harness reachable (NSSM service or already running),
 # cloudflared on PATH or at the default install path, GitHub CLI logged in.
@@ -24,7 +26,8 @@ param(
     [int]$TunnelWaitSec = 90,
     [int]$EdgeWaitSec = 180,
     [switch]$SkipDeploy,
-    [switch]$SkipVerify
+    [switch]$SkipVerify,
+    [switch]$InstallShortcut
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +44,25 @@ $TunnelPidPath = Join-Path $RepoRoot ".chess_harness\logs\quick-tunnel.pid"
 $TunnelUrlPath = Join-Path $RepoRoot ".chess_harness\logs\quick-tunnel.url"
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TunnelLogPath) | Out-Null
+
+function Install-StartOnlineShortcut {
+    param([string]$Root)
+    $batPath = Join-Path $Root "deploy\Start-Online.bat"
+    if (-not (Test-Path -LiteralPath $batPath)) {
+        throw "Start-Online.bat not found at $batPath"
+    }
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    $lnkPath = Join-Path $desktop "Chess Vision Harness Go Online.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($lnkPath)
+    $shortcut.TargetPath = $batPath
+    $shortcut.WorkingDirectory = $Root
+    $shortcut.Description = "Start localhost harness (if needed) and public Online (Quick Tunnel + Pages)."
+    $shortcut.Save()
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+    Write-Host "Desktop shortcut created: $lnkPath"
+    Write-Host "Double-click it to run go-online (no admin; does not install or start NSSM)."
+}
 
 function Resolve-Cloudflared {
     param([string]$Candidate)
@@ -196,6 +218,11 @@ function Wait-OriginHealth {
 # --- main ---
 Write-Host "=== Go Online ==="
 Write-Host "Repo: $RepoRoot"
+
+if ($InstallShortcut) {
+    Install-StartOnlineShortcut -Root $RepoRoot
+    return
+}
 
 Ensure-Harness -BaseUrl $HarnessUrl -SvcName $ServiceName -WaitSec $HarnessWaitSec
 

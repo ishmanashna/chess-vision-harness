@@ -9,7 +9,7 @@
   <title>Puzzle · Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
-  <link rel="stylesheet" href="/css/watch.css?v=9"/>
+  <link rel="stylesheet" href="/css/watch.css?v=11"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/arrows/arrows.css"/>
@@ -44,17 +44,19 @@
           <div class="info-card">
             <h2>Puzzle info</h2>
             <dl class="meta-grid" id="meta">
-              <dt>Attempt</dt><dd>Loading…</dd>
               <dt>Agent</dt><dd>—</dd>
-              <dt id="state-puzzle-label" hidden>Puzzle id</dt><dd id="state-puzzle" hidden>—</dd>
-              <dt id="state-source-label" hidden>Source</dt><dd id="state-source" hidden>—</dd>
             </dl>
+            <div class="export-links">
+              <button type="button" class="export-link" id="copy-attempt-id">Copy ID</button>
+              <span class="export-hint" id="copy-hint"></span>
+            </div>
           </div>
           <div class="info-card">
             <h2>Attempt state</h2>
             <dl class="meta-grid" id="state-meta">
               <dt>Outcome</dt><dd id="state-outcome">Loading…</dd>
               <dt id="state-rating-label" hidden>Rating change</dt><dd id="state-rating" hidden>—</dd>
+              <dt id="state-source-label" hidden>Source</dt><dd id="state-source" hidden>—</dd>
               <dt>Difficulty</dt><dd id="state-difficulty">—</dd>
               <dt>Agent puzzle rating</dt><dd id="state-agent-rating"><span id="state-agent-rating-value">—</span><span id="state-deviation-sub" class="meta-sub"></span></dd>
               <dt>Attempts</dt><dd id="state-attempts">—</dd>
@@ -64,7 +66,18 @@
           <div class="info-card">
             <h2>Attempt chain</h2>
             <p class="chain-empty" id="chain-empty" style="margin:0;font-size:.84em;color:var(--faint)">No attempts in this chain yet.</p>
-            <ul class="chain-list" id="chain" hidden></ul>
+            <div class="chain-panel" id="chain-panel" hidden>
+              <div class="chain-nav">
+                <button type="button" class="chain-nav-btn" id="chain-newer" disabled>Newer</button>
+                <span class="chain-index" id="chain-index" aria-live="polite">—</span>
+                <button type="button" class="chain-nav-btn" id="chain-older" disabled>Older</button>
+              </div>
+              <p class="chain-current" id="chain-current"></p>
+            </div>
+            <div class="follow-banner" id="follow-banner" role="status" aria-live="polite">
+              Agent started a new attempt — following in <span id="follow-countdown">5</span>s.
+              <button type="button" class="export-link" id="follow-stay">Stay</button>
+            </div>
           </div>
         </aside>
         <div class="col board-col" id="board-col">
@@ -88,7 +101,8 @@
       <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
-  <script src="/js/common.js?v=8"></script>
-  <script type="module" src="/js/puzzle-watch.js?v=9"></script>
+  <link rel="modulepreload" href="/js/watch-chain.js?v=1"/>
+  <script src="/js/common.js?v=9"></script>
+  <script type="module" src="/js/puzzle-watch.js?v=12"></script>
 </body>
 </html>

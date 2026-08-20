@@ -9,13 +9,19 @@ from fastapi.responses import HTMLResponse
 
 from .paths import project_root
 
-__all__ = ["inject_shell_entity_id", "read_watch_shell", "watch_shell_response"]
+__all__ = [
+    "inject_shell_entity_id",
+    "puzzle_set_preview_shell_response",
+    "read_watch_shell",
+    "watch_shell_response",
+]
 
 _SHELL_DIRS = {
     "g": "g",
     "p": "p",
     "i": "i",
     "play": "play",
+    "preview": "puzzle-set/preview",
 }
 
 _DATA_ATTR_BY_KIND = {
@@ -23,6 +29,7 @@ _DATA_ATTR_BY_KIND = {
     "i": "data-attempt-id",
     "g": "data-game-id",
     "play": "data-game-id",
+    "preview": "data-puzzle-id",
 }
 
 _BODY_TAG_RE = re.compile(r"(<body)(\s[^>]*)?(>)", re.IGNORECASE)
@@ -63,3 +70,10 @@ def watch_shell_response(kind: str, entity_id: str | None = None) -> HTMLRespons
     if kind == "play":
         headers["Referrer-Policy"] = "no-referrer"
     return HTMLResponse(html, headers=headers or None)
+
+
+def puzzle_set_preview_shell_response(puzzle_id: str) -> HTMLResponse:
+    """Localhost-only shell for /puzzle-set/{id}."""
+    html = read_watch_shell("preview")
+    html = inject_shell_entity_id(html, "preview", puzzle_id)
+    return HTMLResponse(html)

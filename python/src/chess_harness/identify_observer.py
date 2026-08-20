@@ -1,10 +1,10 @@
 """Public board-identification watching and replay (/i/{attempt_id}, public API).
 
-Observer-safe by construction: while an attempt is active the published state
-contains only the attempt id, agent display name, the attempt-chain key, the
-current visible board, and submission progress. The true placement, submitted
-placement, per-square errors, and difficulty are never published before
-submission; replay unlocks only after the attempt ends.
+Public spectator state for operator watch pages: attempt id, agent display
+name, attempt-chain key, the current visible board, submission progress, and
+the correct placement map. Submitted placement, per-square errors, and
+difficulty stay off the live observer until finish; replay adds full review
+detail after the attempt ends.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import Any, Dict
 import chess
 from PIL import Image, ImageDraw
 
+from .board_text import bottom_color_for_board
 from .models import ModelRegistry
 from .puzzle_leaderboard import identify_agent_summary
 from .render_pillow import ChessBoardRenderer
@@ -38,8 +39,29 @@ def _agent_name(record: Dict[str, Any]) -> str:
     return str(record.get("model_id") or "unknown")
 
 
+def _side_to_move(record: Dict[str, Any]) -> str:
+    board = chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
+    return "white" if board.turn == chess.WHITE else "black"
+
+
+def _square_overlay_xy(
+    renderer: ChessBoardRenderer, square_name: str, *, flip_board: bool
+) -> tuple[int, int]:
+    file_index = chess.FILE_NAMES.index(square_name[0])
+    rank_index = int(square_name[1]) - 1
+    if flip_board:
+        col = 7 - file_index
+        row = rank_index
+    else:
+        col = file_index
+        row = 7 - rank_index
+    x = renderer.coord_margin + col * renderer.square_size
+    y = row * renderer.square_size
+    return x, y
+
+
 def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
-    """Observer-safe live state (never leaks placements or difficulty)."""
+    """Public live state for spectators (correct placement included)."""
     finished = record.get("status") == "finished"
     state: Dict[str, Any] = {
         "ok": True,
@@ -47,10 +69,13 @@ def observer_state(record: Dict[str, Any]) -> Dict[str, Any]:
         "key": record.get("key_fingerprint"),
         "model_id": record.get("model_id"),
         "agent_name": _agent_name(record),
+        "agent_joined": bool(record.get("agent_joined", True)),
         "status": record.get("status", "active"),
         "result": record.get("result") if finished else None,
         "submitted_count": 1 if record.get("submitted_pieces") else 0,
+        "correct_pieces": dict(record.get("correct_pieces") or {}),
         "fen": record.get("corpus_fen", chess.STARTING_FEN),
+        "side_to_move": _side_to_move(record),
         "started_at": record.get("started_at"),
         "updated_at": record.get("updated_at"),
         "finished_at": record.get("finished_at") if finished else None,
@@ -99,16 +124,19 @@ def replay_payload(record: Dict[str, Any]) -> Dict[str, Any]:
 
 def render_identify_board_png(record: Dict[str, Any]) -> bytes:
     """Answer-safe board PNG: the visible position, no highlights."""
+    board = chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
     return ChessBoardRenderer().render_board_bytes(
-        chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
+        board, bottom_color=bottom_color_for_board(board)
     )
 
 
 def render_answer_overlay_png(record: Dict[str, Any]) -> bytes:
     """Post-completion answer board: green = exact, red = wrong/missing/extra."""
     renderer = ChessBoardRenderer()
+    board = chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
+    flip_board = bottom_color_for_board(board) == "black"
     base = renderer.render_board_bytes(
-        chess.Board(record.get("corpus_fen", chess.STARTING_FEN))
+        board, bottom_color=bottom_color_for_board(board)
     )
     image = Image.open(io.BytesIO(base)).convert("RGBA")
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
@@ -118,10 +146,7 @@ def render_answer_overlay_png(record: Dict[str, Any]) -> bytes:
         square = str(entry.get("square") or "")
         if len(square) != 2:
             continue
-        file_index = chess.FILE_NAMES.index(square[0])
-        rank = int(square[1]) - 1
-        x = renderer.coord_margin + file_index * size
-        y = (7 - rank) * size
+        x, y = _square_overlay_xy(renderer, square, flip_board=flip_board)
         fill = (0, 200, 0, 80) if entry.get("status") == "exact" else (255, 45, 45, 90)
         draw.rectangle([x, y, x + size, y + size], fill=fill)
     buf = io.BytesIO()

@@ -209,10 +209,25 @@ def fit_map_knots(samples: List[Dict[str, Any]]) -> List[Dict[str, float]]:
 def interpolate_map(knots: Sequence[Dict[str, float]], q: float) -> Optional[float]:
     if not knots:
         return None
-    if q <= knots[0]["q"]:
+    if len(knots) < 2:
         return float(knots[0]["play_rating"])
-    if q >= knots[-1]["q"]:
-        return float(knots[-1]["play_rating"])
+
+    q_lo, r_lo = knots[0]["q"], knots[0]["play_rating"]
+    q_hi, r_hi = knots[1]["q"], knots[1]["play_rating"]
+    if q < q_lo:
+        if q_hi == q_lo:
+            return float(r_lo)
+        t = (q - q_lo) / (q_hi - q_lo)
+        return float(r_lo + t * (r_hi - r_lo))
+
+    q_top, r_top = knots[-1]["q"], knots[-1]["play_rating"]
+    q_prev, r_prev = knots[-2]["q"], knots[-2]["play_rating"]
+    if q > q_top:
+        if q_top == q_prev:
+            return float(r_top)
+        t = (q - q_prev) / (q_top - q_prev)
+        return float(r_prev + t * (r_top - r_prev))
+
     for i in range(len(knots) - 1):
         q0, r0 = knots[i]["q"], knots[i]["play_rating"]
         q1, r1 = knots[i + 1]["q"], knots[i + 1]["play_rating"]

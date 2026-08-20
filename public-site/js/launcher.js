@@ -12,7 +12,7 @@
   var registry = window.CVH && window.CVH.humanGames;
 
   var VALID_FLOWS = ["engine", "avaa", "playground", "puzzles", "identify"];
-  var REDIRECT_MS = 4000;
+  var PUZZLE_WAIT_POLL_MS = 2500;
 
   var flow = "engine";
   var pairing = "find";
@@ -228,7 +228,7 @@
     resultEl.hidden = false;
     resultEl.innerHTML =
       '<div class="form-message form-message-ok">Game created. Copy the agent prompt below.</div>' +
-      '<p class="game-id-line">Game ID: <code>' + escapeHtml(game.game_id) + "</code></p>" +
+      (resultApi && resultApi.renderCopyIdRow ? resultApi.renderCopyIdRow() : "") +
       '<p class="human-wait-status is-waiting" data-human-wait-status aria-live="polite">' +
       "<strong>Waiting for agent…</strong> Paste the brief once. Your agent should keep polling, waiting, and moving with its own tools until the game ends. Do not re-prompt it. " +
       "You will be taken to the play board when the agent joins.</p>" +
@@ -236,6 +236,7 @@
         ? resultApi.renderBriefCollapsible(game.agent_brief, escapeHtml)
         : "");
     if (resultApi && resultApi.wireCopyBrief) resultApi.wireCopyBrief(resultEl);
+    if (resultApi && resultApi.wireCopyId) resultApi.wireCopyId(resultEl, game.game_id);
     if (!waitApi || !registry) return;
     var waitStatus = resultEl.querySelector("[data-human-wait-status]");
     activeWaitPoll = waitApi.startWaitingPoll(game.game_id, game.play_token, {
@@ -260,6 +261,10 @@
     setMessage(messageEl, null, "");
     var attemptId = data.attempt_id;
     var watchPath = kind === "identify" ? "/i/" + attemptId : "/p/" + attemptId;
+    var publicUrl =
+      kind === "identify"
+        ? "/api/v1/identify/public/" + encodeURIComponent(attemptId)
+        : "/api/v1/puzzles/public/" + encodeURIComponent(attemptId);
     hideChrome(root);
     resultEl.hidden = false;
     resultEl.innerHTML =
@@ -267,15 +272,76 @@
       "<strong>" + escapeHtml(kind === "identify" ? "Board identification started" : "Puzzle started") + "</strong> · " +
       escapeHtml(label) +
       ' · <a href="/leaderboard/">Leaderboards</a></div>' +
-      '<p class="game-id-line">Attempt ID: <code>' + escapeHtml(attemptId) + "</code></p>" +
+      (resultApi && resultApi.renderCopyIdRow ? resultApi.renderCopyIdRow() : "") +
+      '<p class="human-wait-status is-waiting" data-puzzle-wait-status aria-live="polite">' +
+      "<strong>Waiting for agent…</strong> Paste the brief once. The watch page opens when the agent reads the board. " +
+      'You can also <a href="' + escapeHtml(watchPath) + '">open the watch page</a> manually.</p>' +
       (data.agent_brief
         ? resultApi.renderBriefCollapsible(data.agent_brief, escapeHtml)
-        : '<p class="form-message form-message-error">No agent prompt was returned — check CHESS_HARNESS_PUBLIC_URL on the game PC.</p>') +
-      '<p class="card-hint">Redirecting to the watch page…</p>';
+        : '<p class="form-message form-message-error">No agent prompt was returned — check CHESS_HARNESS_PUBLIC_URL on the game PC.</p>');
     if (resultApi && resultApi.wireCopyBrief) resultApi.wireCopyBrief(resultEl);
-    window.setTimeout(function () {
-      window.location.assign(watchPath);
-    }, REDIRECT_MS);
+    if (resultApi && resultApi.wireCopyId) resultApi.wireCopyId(resultEl, attemptId);
+    var waitStatus = resultEl.querySelector("[data-puzzle-wait-status]");
+    var stopped = false;
+    var timer = null;
+
+    function stopPoll() {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    }
+
+    function schedulePoll() {
+      if (!stopped) timer = setTimeout(pollOnce, PUZZLE_WAIT_POLL_MS);
+    }
+
+    function pollOnce() {
+      if (stopped) return;
+      fetch(publicUrl)
+        .then(function (res) {
+          return res.json().then(function (body) {
+            if (!res.ok) {
+              var err = new Error((body && body.error) || "Could not load attempt state");
+              err.status = res.status;
+              throw err;
+            }
+            return body;
+          });
+        })
+        .then(function (state) {
+          if (stopped) return;
+          if (state.agent_joined) {
+            stopPoll();
+            window.location.assign(watchPath);
+            return;
+          }
+          if (state.status === "abandoned") {
+            stopPoll();
+            if (waitStatus) {
+              waitStatus.innerHTML =
+                "Attempt was abandoned (idle timeout). " +
+                '<a href="' + escapeHtml(watchPath) + '">Open watch page</a>';
+              waitStatus.classList.remove("is-waiting");
+            }
+            return;
+          }
+          if (state.status === "finished") {
+            stopPoll();
+            window.location.assign(watchPath);
+            return;
+          }
+          schedulePoll();
+        })
+        .catch(function () {
+          if (stopped) return;
+          schedulePoll();
+        });
+    }
+
+    activeWaitPoll = { stop: stopPoll };
+    pollOnce();
   }
 
   /* --- module-local refs, assigned in mount --- */
@@ -383,7 +449,10 @@
       .then(function (game) {
         if (!resultApi) throw new Error("Result module missing.");
         var g = resultApi.requireBrief(game, false);
-        resultApi.showBriefResult(root, g.game_id, g.agent_brief, false, { escapeHtml: escapeHtml });
+        resultApi.showBriefResult(root, g.game_id, g.agent_brief, false, {
+          escapeHtml: escapeHtml,
+          waitForAgent: true,
+        });
       });
   }
 

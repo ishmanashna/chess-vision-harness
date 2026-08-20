@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Imported puzzle corpus — difficulty spread and attempt stats (localhost only)."/>
+  <title>Puzzle set — Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+        </div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="checking" title="Checking whether the game server is reachable…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Checking…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main data-puzzle-set-page>
+      <section aria-labelledby="puzzle-set-heading">
+        <h2 id="puzzle-set-heading">Imported puzzle set</h2>
+        <p class="lead">Every puzzle in the runtime corpus, with puzzle and identify attempt stats. Localhost imported catalog — not the Spectator attempt lists on Pages.</p>
+
+        <p class="form-message is-error" data-puzzle-set-error hidden></p>
+
+        <div class="puzzle-set-summary" data-puzzle-set-summary hidden>
+          <ul class="puzzle-set-chips" data-summary-chips></ul>
+        </div>
+
+        <div class="puzzle-set-controls" data-puzzle-set-controls hidden>
+          <label for="puzzle-set-band">Rating band</label>
+          <select id="puzzle-set-band" data-rating-band>
+            <option value="">All ratings</option>
+            <option value="under_600">Under 600</option>
+            <option value="600_800">600–800</option>
+            <option value="800_1000">800–1000</option>
+            <option value="1000_1200">1000–1200</option>
+            <option value="1200_1500">1200–1500</option>
+            <option value="1500_plus">1500+</option>
+          </select>
+        </div>
+
+        <table class="leaderboard-table" data-puzzle-set-table aria-label="Imported puzzles">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col" data-sort="id">ID</th>
+              <th scope="col" data-sort="difficulty">Difficulty</th>
+              <th scope="col" data-sort="side_to_move">Side</th>
+              <th scope="col" data-sort="themes">Themes</th>
+              <th scope="col" data-sort="puzzle_attempts" title="Finished puzzle attempts">Pz att.</th>
+              <th scope="col" data-sort="puzzle_solve_rate" title="Puzzle solve rate">Pz %</th>
+              <th scope="col" data-sort="identify_attempts" title="Finished identify attempts">Id att.</th>
+              <th scope="col" data-sort="identify_mean_accuracy" title="Mean piece accuracy or full-board rate">Id acc.</th>
+              <th scope="col">Preview / watch</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="10" class="empty-state">Loading puzzle set…</td></tr>
+          </tbody>
+        </table>
+        <p class="snapshot-meta" data-puzzle-set-meta></p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/table-sort.js"></script>
+  <script src="/js/common.js?v=9"></script>
+  <script src="/js/puzzle-set.js"></script>
+</body>
+</html>

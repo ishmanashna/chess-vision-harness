@@ -21,7 +21,7 @@ from conftest import FIXTURES
 from chess_harness.game_manager import GameManager
 from chess_harness.glicko2 import DEFAULT_RATING, GlickoRating, update_rating
 from chess_harness.puzzle_import import PuzzleImporter
-from chess_harness.puzzle_ratings import PuzzleRatingStore
+from chess_harness.puzzle_ratings import AGENT_START_RATING, PuzzleRatingStore
 from chess_harness.puzzle_store import PuzzleStore
 
 
@@ -224,6 +224,13 @@ def _attempt_record(
     }
 
 
+def test_new_agent_starts_at_easy_floor(p8_client):
+    store = PuzzleRatingStore()
+    agent = store.agent_rating("fresh-agent")
+    assert agent["rating"] == AGENT_START_RATING
+    assert agent["deviation"] == 350.0
+
+
 def test_store_agent_win_moves_agent_only(p8_client):
     _, harness_dir = p8_client
     store = PuzzleRatingStore()
@@ -240,7 +247,7 @@ def test_store_agent_win_moves_agent_only(p8_client):
     assert fields["elapsed_seconds"] == 60.0
 
     agent = store.agent_rating("solve-agent")
-    assert agent["rating"] > DEFAULT_RATING
+    assert agent["rating"] > AGENT_START_RATING
     assert agent["games"] == 1
     assert agent["solves"] == 1
 
@@ -268,7 +275,7 @@ def test_store_puzzle_win_and_frozen_difficulty(p8_client):
     assert fields["puzzle_rating_after"] == 2000.0
 
     agent = store.agent_rating("losing-agent")
-    assert agent["rating"] < DEFAULT_RATING
+    assert agent["rating"] < AGENT_START_RATING
     assert agent["games"] == 1
     assert agent["solves"] == 0
 
@@ -359,8 +366,8 @@ def test_api_correct_solve_stamps_and_reviews(p8_client):
     review = client.get(
         f"/api/v1/puzzles/{attempt_id}/review", headers=_auth(key)
     ).json()
-    assert review["rating_before"] == 1500.0
-    assert review["rating_after"] > 1500.0
+    assert review["rating_before"] == AGENT_START_RATING
+    assert review["rating_after"] > AGENT_START_RATING
     assert review["rating_change"] > 0
     assert review["content_version"] is not None
     assert review["puzzle_rating_before"] == 1500.0
@@ -382,7 +389,7 @@ def test_api_wrong_move_rates_as_puzzle_win(p8_client):
     ).json()
     assert review["result"] == "failed"
     assert review["rating_after"] < review["rating_before"]
-    assert review["rating_before"] == 1500.0
+    assert review["rating_before"] == AGENT_START_RATING
 
 
 def test_api_abandon_never_rates(p8_client):

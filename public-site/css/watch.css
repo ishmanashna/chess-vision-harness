@@ -164,6 +164,22 @@
   height: 100%;
 }
 
+.watch-agent-wait-chip {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  pointer-events: none;
+}
+
 .watch-moves-col,
 .moves-col {
   display: flex;
@@ -256,6 +272,14 @@
   color: var(--danger, #c0392b);
 }
 
+.watch-move-row .w.is-solved,
+.watch-move-row .b.is-solved,
+.move-row .w.is-solved,
+.move-row .b.is-solved {
+  font-weight: 700;
+  color: var(--success, #27ae60);
+}
+
 .move-row.move-header {
   font-size: 0.72em;
   font-weight: 600;
@@ -297,42 +321,6 @@
   font-weight: 400;
 }
 
-.watch-chain-list,
-.chain-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.86em;
-}
-
-.watch-chain-list li,
-.chain-list li {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--row);
-}
-
-.watch-chain-list li:last-child,
-.chain-list li:last-child {
-  border-bottom: none;
-}
-
-.watch-chain-list a,
-.chain-list a {
-  color: var(--link);
-  text-decoration: none;
-}
-
-.watch-chain-list a:hover,
-.chain-list a:hover {
-  text-decoration: underline;
-}
-
-.watch-chain-list .chain-you,
-.chain-list .chain-you {
-  color: var(--faint);
-  font-style: italic;
-}
-
 .watch-follow-banner,
 .follow-banner {
   display: none;
@@ -342,6 +330,101 @@
   border-radius: 6px;
   font-size: 0.84em;
   color: var(--accent, #6b8afd);
+}
+
+.watch-follow-banner.is-visible,
+.follow-banner.is-visible {
+  display: block;
+}
+
+.chain-panel {
+  margin-top: 4px;
+}
+
+.chain-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chain-nav-btn {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.84em;
+  color: var(--link);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chain-nav-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.chain-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chain-index {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 0.86em;
+  color: var(--faint);
+}
+
+.chain-current {
+  margin: 8px 0 0;
+  font-size: 0.84em;
+  color: var(--faint);
+}
+
+.puzzle-view .export-links,
+.identify-view .export-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--row);
+  font-size: 0.84em;
+}
+
+.puzzle-view .export-link,
+.identify-view .export-link,
+.puzzle-view .export-links a,
+.identify-view .export-links a {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.puzzle-view .export-link:hover,
+.identify-view .export-link:hover,
+.puzzle-view .export-links a:hover,
+.identify-view .export-links a:hover {
+  opacity: 0.85;
+}
+
+.puzzle-view .export-hint,
+.identify-view .export-hint {
+  font-size: 0.9em;
+  color: var(--faint);
+  min-height: 1.2em;
+}
+
+.puzzle-view .follow-banner .export-link,
+.identify-view .follow-banner .export-link {
+  margin-left: 8px;
 }
 
 .watch-poll-error {
@@ -628,19 +711,6 @@
   font-weight: 500;
 }
 
-.game-view .meta-game-id {
-  min-width: 0;
-}
-
-.game-view .meta-game-id code {
-  display: block;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
-  font-size: 1em;
-}
-
 /* Last-move square highlights + user annotations (theme-aware) */
 :root,
 [data-theme="light"] {
@@ -674,6 +744,30 @@
 
 .cm-chessboard .arrow-annotation-shaft .arrow-head {
   display: none;
+}
+
+/* Puzzle finish overlay: wrong (red) and solution (green) arrows */
+:root,
+[data-theme="light"] {
+  --result-wrong-arrow-color: rgba(192, 57, 43, 0.92);
+  --result-solution-arrow-color: rgba(39, 174, 96, 0.92);
+}
+
+[data-theme="dark"] {
+  --result-wrong-arrow-color: rgba(231, 76, 60, 0.9);
+  --result-solution-arrow-color: rgba(46, 204, 113, 0.9);
+}
+
+.cm-chessboard .arrow-default.arrow-result-wrong .arrow-line,
+.cm-chessboard .arrow-annotation-shaft.arrow-result-wrong .arrow-line {
+  stroke: var(--result-wrong-arrow-color);
+  stroke-width: 7;
+}
+
+.cm-chessboard .arrow-default.arrow-result-solution .arrow-line,
+.cm-chessboard .arrow-annotation-shaft.arrow-result-solution .arrow-line {
+  stroke: var(--result-solution-arrow-color);
+  stroke-width: 7;
 }
 
 .cm-chessboard .arrow-default .arrow-line,

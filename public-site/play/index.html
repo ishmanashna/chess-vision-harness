@@ -10,8 +10,8 @@
   <title>Play · Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css"/>
-  <link rel="stylesheet" href="/css/watch.css?v=9"/>
-  <link rel="stylesheet" href="/css/play.css?v=9"/>
+  <link rel="stylesheet" href="/css/watch.css?v=11"/>
+  <link rel="stylesheet" href="/css/play.css?v=10"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/arrows/arrows.css"/>
@@ -89,6 +89,8 @@
       </div>
       <p class="play-links">
         <a href="#" data-spectate-link>Spectate this game</a>
+        · <button type="button" class="export-link" data-copy-game-id>Copy ID</button>
+        <span class="play-copy-hint" data-copy-game-hint aria-live="polite"></span>
         · <a href="/launch/?flow=playground">Create another Playground game</a>
         <span class="play-download-slot" data-download-slot hidden>
           · <button type="button" class="export-link" data-download-board>Download position</button>
@@ -99,8 +101,8 @@
       <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
     </footer>
   </div>
-  <script src="/js/common.js?v=8"></script>
+  <script src="/js/common.js?v=9"></script>
   <script src="/js/human-games-registry.js"></script>
-  <script type="module" src="/js/play-page.js?v=9"></script>
+  <script type="module" src="/js/play-page.js?v=10"></script>
 </body>
 </html>

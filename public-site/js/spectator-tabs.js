@@ -1,6 +1,16 @@
 (function () {
   "use strict";
 
+  function isLoopbackHost() {
+    var host = window.location.hostname;
+    return (
+      host === "127.0.0.1" ||
+      host === "localhost" ||
+      host === "::1" ||
+      host === "[::1]"
+    );
+  }
+
   function normalizeTab(name) {
     if (name === "completed" || name === "mygames") return name;
     if (name === "puzzles" || name === "identify") return name;
@@ -9,6 +19,10 @@
 
   function setTab(root, name) {
     var next = normalizeTab(name);
+    if (isLoopbackHost() && (next === "puzzles" || next === "identify")) {
+      window.location.assign("/puzzle-set");
+      return;
+    }
     root.querySelectorAll("[data-spec-tab]").forEach(function (tab) {
       var active = tab.getAttribute("data-spec-tab") === next;
       tab.classList.toggle("is-active", active);
@@ -56,7 +70,12 @@
   document.addEventListener("DOMContentLoaded", function () {
     var root = document.querySelector("[data-spectator-page]");
     if (!root) return;
-    setTab(root, initialTab());
+    var initial = initialTab();
+    if (isLoopbackHost() && (initial === "puzzles" || initial === "identify")) {
+      window.location.replace("/puzzle-set");
+      return;
+    }
+    setTab(root, initial);
     root.querySelectorAll("[data-spec-tab]").forEach(function (tab) {
       tab.addEventListener("click", function () {
         setTab(root, tab.getAttribute("data-spec-tab"));

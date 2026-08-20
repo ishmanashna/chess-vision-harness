@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import json
 import random
+import statistics
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+import chess
 
 from .paths import resolve_puzzle_dataset_file, resolve_puzzle_manifest_file
 
@@ -109,11 +112,53 @@ class PuzzleStore:
     def stats(self) -> Dict[str, Any]:
         puzzles = self.load()
         totals: Dict[str, int] = {}
+        ratings: List[int] = []
+        buckets = {
+            "under_600": 0,
+            "600_800": 0,
+            "800_1000": 0,
+            "1000_1200": 0,
+            "1200_1500": 0,
+            "1500_plus": 0,
+        }
+        side_to_move = {"white": 0, "black": 0}
         for record in puzzles.values():
             for theme in record.get("themes") or []:
                 totals[str(theme)] = totals.get(str(theme), 0) + 1
+            rating = int(record.get("rating") or 0)
+            ratings.append(rating)
+            if rating < 600:
+                buckets["under_600"] += 1
+            elif rating < 800:
+                buckets["600_800"] += 1
+            elif rating < 1000:
+                buckets["800_1000"] += 1
+            elif rating < 1200:
+                buckets["1000_1200"] += 1
+            elif rating < 1500:
+                buckets["1200_1500"] += 1
+            else:
+                buckets["1500_plus"] += 1
+            fen = str(record.get("display_fen") or "")
+            if fen:
+                try:
+                    turn = chess.Board(fen).turn
+                    side_to_move["white" if turn == chess.WHITE else "black"] += 1
+                except ValueError:
+                    pass
         total = len(puzzles)
         avg = 0.0
         if total:
-            avg = sum(int(p.get("rating") or 0) for p in puzzles.values()) / total
-        return {"total": total, "themes": totals, "average_rating": round(avg, 1)}
+            avg = sum(ratings) / total
+        payload: Dict[str, Any] = {
+            "total": total,
+            "themes": totals,
+            "average_rating": round(avg, 1),
+            "rating_min": min(ratings) if ratings else None,
+            "rating_max": max(ratings) if ratings else None,
+            "rating_mean": round(avg, 1) if total else None,
+            "rating_median": round(statistics.median(ratings), 1) if ratings else None,
+            "buckets": buckets,
+            "side_to_move": side_to_move,
+        }
+        return payload

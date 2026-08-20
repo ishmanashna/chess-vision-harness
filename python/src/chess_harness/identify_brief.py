@@ -59,23 +59,25 @@ Submit a JSON body listing ONLY occupied squares, each value a color letter
     Content-Type: application/json
     {{ "pieces": {{ "a1": "wR", "e8": "bK", "g1": "wN", ... }} }}
 
-- Keys are absolute squares; a1 is the bottom-left square of the image.
+- Keys are absolute squares (e.g. a1, e8); they do not change when the view flips.
 - Values are uppercase piece letters: K king, Q queen, R rook, B bishop,
   N knight, P pawn.
 - Every occupied square must appear; empty squares must not.
 - The schema is validated exactly: legal squares, legal piece codes, no extra
-  or duplicate pieces. A malformed answer is rejected (HTTP 400) without
-  ending the attempt — resubmit a well-formed one.
+  or duplicate pieces. Malformed JSON (HTTP 422) or schema errors (HTTP 400)
+  are rejected without ending the attempt — resubmit a well-formed body.
+- PowerShell inline ``-d "{{...}}"`` often breaks JSON (HTTP 422); that does
+  not end the attempt either. Use a file body (see Examples).
 
 ## Play loop
 
 1. Read both board channels before answering:
    - GET {board_url}
      Response is image/png — open and read this image before answering.
-     The board is always white at bottom with absolute square labels (a1 is bottom-left).
-     Your color does not flip it.
+     The board shows the side to move at the bottom; image labels match that view.
+     Square names are absolute (a1 is still a1 on the board).
    - Compact text board (authenticated):
-{render_board_text_channel(board_text_url, auth)}
+{render_board_text_channel(board_text_url, auth, moving_side_at_bottom=True)}
      No FEN and no machine-readable answer beyond the visible board.
 
 2. POST {answer_url} with the placement JSON above.
@@ -95,6 +97,8 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 - The true placement and position difficulty are never exposed before you
   submit — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
+- Do NOT fetch public spectator APIs (`/api/v1/identify/public/*`) or watch pages
+  (`/i/`) — operators see the correct placement there; agents must read the board.
 - Do NOT use chess engines or scripts to generate or check the placement.
 
 ## Examples
@@ -106,7 +110,8 @@ curl.exe -s -H "{auth}" "{board_url}" -o board.png
 curl.exe -s -H "{auth}" "{board_text_url}"
 
 # Submit placement (final — no retry)
-curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d "{{\\"pieces\\": {{\\"e2\\": \\"wP\\", \\"e7\\": \\"bP\\"}}}}" "{answer_url}"
+# Save answer.json with your placement, e.g. {{"pieces": {{"e2": "wP", "e7": "bP"}}}}
+curl.exe -s -X POST -H "{auth}" -H "Content-Type: application/json" -d @answer.json "{answer_url}"
 
 # Review (only after submission)
 curl.exe -s -H "{auth}" "{review_url}"

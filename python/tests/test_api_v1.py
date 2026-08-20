@@ -199,3 +199,69 @@ def test_api_v1_status_includes_play_rating(api_client):
     assert data["agent_play_rating"] == 1200.0
     assert data["white_accuracy"] == 90.0
     assert_game_api_no_leaks(data)
+
+
+def test_ave_agent_joined_false_until_board_read(api_client):
+    client, harness_dir = api_client
+    reg = client.post("/api/v1/agents", json={"id": "ave-join-agent", "name": "AvE Join"})
+    api_key = reg.json()["api_key"]
+
+    create = client.post(
+        "/api/v1/games",
+        headers=auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    assert create.status_code == 200, create.text
+    game_id = create.json()["game_id"]
+
+    gm = GameManager(str(harness_dir))
+    assert gm.load_state(game_id).get("agent_joined") is False
+
+    spec = client.get(f"/api/games/{game_id}/state")
+    assert spec.status_code == 200
+    assert spec.json().get("agent_joined") is False
+
+    status = client.get(f"/api/v1/games/{game_id}/status", headers=auth_headers(api_key))
+    assert status.status_code == 200
+    assert gm.load_state(game_id).get("agent_joined") is False
+
+    board = client.get(f"/api/v1/games/{game_id}/board", headers=auth_headers(api_key))
+    assert board.status_code == 200
+    assert gm.load_state(game_id).get("agent_joined") is True
+    assert client.get(f"/api/games/{game_id}/state").json().get("agent_joined") is True
+
+    gm.save_state(game_id, {**gm.load_state(game_id), "agent_joined": False})
+    text = client.get(f"/api/v1/games/{game_id}/board.txt", headers=auth_headers(api_key))
+    assert text.status_code == 200
+    assert gm.load_state(game_id).get("agent_joined") is True
+
+
+def test_api_v1_can_create_second_game_after_first_finishes(api_client):
+    client, _ = api_client
+    reg = client.post("/api/v1/agents", json={"id": "replay-agent", "name": "Replay"})
+    api_key = reg.json()["api_key"]
+
+    first = client.post(
+        "/api/v1/games",
+        headers=auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    assert first.status_code == 200
+    first_id = first.json()["game_id"]
+
+    client.post(f"/api/v1/games/{first_id}/resign", headers=auth_headers(api_key))
+
+    second = client.post(
+        "/api/v1/games",
+        headers=auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    assert second.status_code == 200, second.text
+    second_id = second.json()["game_id"]
+    assert second_id != first_id
+
+    move = client.post(
+        f"/api/v1/games/{second_id}/move/e2e4",
+        headers=auth_headers(api_key),
+    )
+    assert move.status_code == 200, move.text

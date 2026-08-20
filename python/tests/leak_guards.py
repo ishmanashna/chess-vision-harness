@@ -10,30 +10,24 @@ GAME_API_FORBIDDEN_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen"})
 # Imagine error payloads must not echo raw image bytes.
 IMAGINE_FORBIDDEN_KEYS = GAME_API_FORBIDDEN_KEYS | frozenset({"png_bytes"})
 
-# Public puzzle watch/replay must stay spoiler-free while active.
+# Public puzzle watch: solution line is operator-visible; hide corpus internals.
 PUZZLE_LEAK_KEYS = frozenset(
     {
-        "solution_moves",
         "board_fen",
         "start_fen",
         "puzzle_id",
-        "first_wrong_move",
-        "failure_reason",
     }
 )
 
-# Public identify watch/replay must stay spoiler-free while active.
+# Public identify watch: correct placement is operator-visible; hide submissions.
 IDENTIFY_LEAK_KEYS = frozenset(
     {
         "pieces",
-        "correct_pieces",
         "submitted_pieces",
         "per_square",
         "corpus_fen",
         "puzzle_id",
         "puzzle_rating",
-        "first_wrong_move",
-        "failure_reason",
         "board_fen",
         "solution_moves",
     }

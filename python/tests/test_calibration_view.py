@@ -284,6 +284,10 @@ def test_get_calibration_status_accuracy_map_warm(cal_results):
     assert row["play_rating"] is not None
     assert status["accuracy_map"]["warm"] is True
     assert status["accuracy_map"]["sample_count"] == 2
+    assert isinstance(status["accuracy_map"]["knots"], list)
+    assert isinstance(status["accuracy_map"]["pairs"], list)
+    assert len(status["accuracy_map"]["knots"]) >= 2
+    assert len(status["accuracy_map"]["pairs"]) == 2
     assert "elo_estimations" not in row
     assert "estimators" not in status["play_rating"]
 

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from .agent_brief import public_base_url
 from .api_limits import ApiLimitEnforcer, AuthContext
-from .board_text import format_board_text
+from .board_text import bottom_color_for_board, format_board_text
 from .puzzle_attempt import (
     PuzzleAttemptStore,
     apply_submission,
@@ -27,6 +27,7 @@ from .puzzle_attempt import (
 )
 from .puzzle_brief import render_puzzle_brief
 from .puzzle_ratings import PuzzleRatingStore
+from .puzzle_select import select_puzzle_for_agent
 from .puzzle_store import PuzzleStore
 from .render_pillow import ChessBoardRenderer
 from .scope_auth import reject_scoped_auth
@@ -82,7 +83,9 @@ def register_puzzle_routes(
                 chess.Move.from_uci(record["opponent_moves"][-1])
             )
         return ChessBoardRenderer().render_board_bytes(
-            board, last_moves=last_moves
+            board,
+            last_moves=last_moves,
+            bottom_color=bottom_color_for_board(board),
         )
 
     def _safe_start_payload(
@@ -133,7 +136,8 @@ def register_puzzle_routes(
         excluded = store.recent_puzzle_ids(
             auth.key_fingerprint, session_exclude_sec()
         )
-        record = PuzzleStore().random_puzzle(
+        record = select_puzzle_for_agent(
+            model_id=auth.model_id,
             rating_min=rating_min,
             rating_max=rating_max,
             theme=theme or None,
@@ -167,6 +171,7 @@ def register_puzzle_routes(
         record = _open(attempt_id, auth)
         if isinstance(record, JSONResponse):
             return record
+        record = _store().ensure_agent_joined(attempt_id) or record
         try:
             png = _render(record)
         except Exception as exc:
@@ -180,9 +185,12 @@ def register_puzzle_routes(
         record = _open(attempt_id, auth)
         if isinstance(record, JSONResponse):
             return record
+        record = _store().ensure_agent_joined(attempt_id) or record
         board = chess.Board(record["board_fen"])
         return PlainTextResponse(
-            content=format_board_text(board),
+            content=format_board_text(
+                board, bottom_color=bottom_color_for_board(board)
+            ),
             headers={"Cache-Control": "no-store"},
         )
 

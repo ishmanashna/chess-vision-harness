@@ -37,6 +37,34 @@
     });
   }
 
+  function renderCopyIdRow() {
+    return (
+      '<p class="copy-id-row">' +
+      '<button type="button" class="export-link" data-copy-id>Copy ID</button>' +
+      '<span class="copy-id-hint" data-copy-id-hint aria-live="polite"></span>' +
+      "</p>"
+    );
+  }
+
+  function wireCopyId(container, id) {
+    var btn = container.querySelector("[data-copy-id]");
+    var hint = container.querySelector("[data-copy-id-hint]");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (!id) {
+        if (hint) hint.textContent = "No ID";
+        return;
+      }
+      navigator.clipboard.writeText(id).then(function () {
+        if (!hint) return;
+        hint.textContent = "ID copied";
+        setTimeout(function () {
+          if (hint.textContent === "ID copied") hint.textContent = "";
+        }, 2000);
+      });
+    });
+  }
+
   function renderBriefCollapsible(brief, esc, options) {
     options = options || {};
     var label = options.label || "Show agent prompt";
@@ -127,6 +155,11 @@
             return;
           }
           if (callbacks.onProgress) callbacks.onProgress(pos);
+          if (callbacks.onAgentJoined && pos.agent_joined) {
+            stop();
+            callbacks.onAgentJoined(pos);
+            return;
+          }
           if (pos.white_joined && pos.black_joined) {
             stop();
             if (callbacks.onBothJoined) callbacks.onBothJoined(pos);
@@ -154,6 +187,15 @@
     hideCreateChrome(root);
     var result = root.querySelector("[data-create-result]");
     if (!result) return;
+    var waitHtml = "";
+    if (!matched && options.waitForAgent) {
+      waitHtml =
+        '<p class="human-wait-status is-waiting" data-ave-wait-status aria-live="polite">' +
+        "<strong>Waiting for agent…</strong> Paste the brief once. The watch page opens when the agent reads the board. " +
+        'You can also <a href="/g/' +
+        esc(gameId) +
+        '">open the watch page</a> manually.</p>';
+    }
     result.hidden = false;
     result.innerHTML =
       '<div class="form-message form-message-ok">' +
@@ -162,16 +204,43 @@
       esc(gameId) +
       '">Spectate this game</a>' +
       ' · <a href="/spectator/">Spectator</a></div>' +
-      '<p class="game-id-line">Game ID: <code>' +
-      esc(gameId) +
-      "</code></p>" +
+      renderCopyIdRow() +
+      waitHtml +
       extraHtml +
       renderBriefCollapsible(brief, esc);
     wireCopyBrief(result);
+    wireCopyId(result, gameId);
     if (matched && options.autoRedirectMs) {
       window.setTimeout(function () {
         window.location.assign("/g/" + gameId);
       }, options.autoRedirectMs);
+    }
+    if (!matched && options.waitForAgent) {
+      var waitStatus = result.querySelector("[data-ave-wait-status]");
+      activeJoinPoll = startJoinPoll(gameId, {
+        onAgentJoined: function () {
+          window.location.assign("/g/" + gameId);
+        },
+        onGameOver: function (pos) {
+          if (!waitStatus) return;
+          var idle =
+            pos.result === "*" ||
+            (pos.end_reason_label && /idle timeout/i.test(pos.end_reason_label));
+          waitStatus.innerHTML = idle
+            ? "Game ended with no result (idle timeout). " +
+              '<a href="/g/' +
+              esc(gameId) +
+              '">Open watch page</a>'
+            : "Game ended before the agent joined. " +
+              '<a href="/g/' +
+              esc(gameId) +
+              '">Open watch page</a>';
+          waitStatus.classList.remove("is-waiting");
+        },
+        onError: function () {
+          /* keep polling */
+        },
+      });
     }
   }
 
@@ -206,9 +275,7 @@
     result.hidden = false;
     result.innerHTML =
       '<div class="form-message form-message-ok">Direct game created. Copy both prompts below.</div>' +
-      '<p class="game-id-line">Game ID: <code>' +
-      esc(gameId) +
-      "</code></p>" +
+      renderCopyIdRow() +
       '<p class="human-wait-status is-waiting" data-avaa-wait-status aria-live="polite">' +
       "<strong>Waiting for both agents…</strong> Paste each brief into its agent. " +
       "You will be taken to spectator when both have connected.</p>" +
@@ -228,6 +295,7 @@
       "</div>";
 
     wireCopyBrief(result);
+    wireCopyId(result, gameId);
 
     var waitStatus = result.querySelector("[data-avaa-wait-status]");
     activeJoinPoll = startJoinPoll(gameId, {
@@ -258,6 +326,8 @@
     showBriefResult: showBriefResult,
     showDualBriefResult: showDualBriefResult,
     wireCopyBrief: wireCopyBrief,
+    renderCopyIdRow: renderCopyIdRow,
+    wireCopyId: wireCopyId,
     renderBriefCollapsible: renderBriefCollapsible,
     stopJoinPoll: stopJoinPoll,
     startJoinPoll: startJoinPoll,

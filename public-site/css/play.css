@@ -304,6 +304,11 @@
   opacity: 0.85;
 }
 
+.play-copy-hint {
+  font-size: 0.9em;
+  color: var(--faint);
+}
+
 .play-download-slot[hidden] {
   display: none;
 }

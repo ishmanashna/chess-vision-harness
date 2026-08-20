@@ -12,12 +12,14 @@ from __future__ import annotations
 import shutil
 from typing import Any, Dict, List
 
+import chess
 import pytest
 from fastapi.testclient import TestClient
 
 from conftest import FIXTURES
 
 from chess_harness.game_manager import GameManager
+from chess_harness.puzzle_attempt import PuzzleAttemptStore
 from chess_harness.puzzle_import import PuzzleImporter
 from leak_guards import assert_puzzle_no_leak
 
@@ -129,7 +131,7 @@ def _public_state(client: TestClient, attempt_id: str) -> Dict[str, Any]:
     return resp.json()
 
 
-def test_public_state_active_is_secret_safe(observer_client):
+def test_public_state_active_includes_solution(observer_client):
     client, _ = observer_client
     key = _register(client, "observer-agent")
 
@@ -145,9 +147,13 @@ def test_public_state_active_is_secret_safe(observer_client):
     assert state["agent_name"] == "observer-agent"
     assert state["submitted_moves"] == [], "no moves submitted yet"
     assert state["opponent_moves"] == []
+    assert state["solution_moves"] == ["e7e5", "g1f3"]
+    assert state["solution_agent_moves"] == ["e5"]
+    assert state["solution_opponent_moves"] == ["Nf3"]
     assert "themes" not in state, "themes are never user-facing"
     assert state["key"], "attempt chain key is published"
     assert state["watch_url"] == f"/p/{attempt_id}"
+    assert state["agent_joined"] is False
     assert " b " in state["fen"], "live board fen must reflect the visible position"
 
     # pz-c's solution is a single agent move: after it the attempt is finished.
@@ -168,10 +174,12 @@ def test_public_state_active_is_secret_safe(observer_client):
     summary = state2.get("agent_summary")
     assert summary and summary["attempts"] == 1 and summary["solves"] == 1
 
-    # A multi-move puzzle stays active after a correct move, still leak-free.
+    # A multi-move puzzle stays active after a correct move; solution stays visible.
     start2 = _start(client, key, rating_min=1400, rating_max=1600)
     assert start2["puzzle_id"] == "pz-a"
     aid2 = start2["attempt_id"]
+    st2_active = _public_state(client, aid2)
+    assert st2_active["solution_moves"] == ["e7e5", "g1f3", "g8f6", "f1c4"]
     assert _public_state(client, aid2)["status"] == "active"
     resp = client.post(f"/api/v1/puzzles/{aid2}/move/e5", headers=_auth(key))
     assert resp.status_code == 200
@@ -205,7 +213,12 @@ def test_watch_page_board_media_and_missing(observer_client):
 
     text = client.get(f"/p/{attempt_id}/board.txt")
     assert text.status_code == 200
-    assert "a b c d e f g h" in text.text
+    record = PuzzleAttemptStore().get(attempt_id)
+    board = chess.Board(record["board_fen"])
+    header = (
+        "h g f e d c b a" if board.turn == chess.BLACK else "a b c d e f g h"
+    )
+    assert header in text.text
     assert "side_to_move:" in text.text
     assert "solution" not in text.text.lower()
 
@@ -247,11 +260,13 @@ def test_correct_solve_replay_unlocks(observer_client):
     assert state["status"] == "finished"
     assert state["result"] == "correct"
     assert state["moves_played"] == 2
+    assert state["side_to_move"] in ("white", "black")
 
     replay = client.get(f"/api/v1/puzzles/public/{attempt_id}/replay")
     assert replay.status_code == 200
     rv = replay.json()
     assert rv["result"] == "correct"
+    assert rv["side_to_move"] in ("white", "black")
     assert rv["submitted_moves"] == ["e7e5", "g8f6"]
     assert rv["opponent_moves"] == ["g1f3", "f1c4"]
     assert rv["solution_moves"] == ["e7e5", "g1f3", "g8f6", "f1c4"]
@@ -272,6 +287,7 @@ def test_illegal_move_replay_records_attempt(observer_client):
     key = _register(client, "illegal-replay-agent")
     start = _start(client, key, rating_min=1400, rating_max=1600)
     attempt_id = start["attempt_id"]
+    start_fen = _public_state(client, attempt_id)["fen"]
 
     illegal = client.post(
         f"/api/v1/puzzles/{attempt_id}/move/a9a9", headers=_auth(key)
@@ -284,6 +300,9 @@ def test_illegal_move_replay_records_attempt(observer_client):
     assert state["result"] == "failed"
     assert state["moves_played"] == 1
     assert state["submitted_moves"] == ["a9a9"]
+    assert state["fen"] == start_fen, "illegal move must not advance the visible board"
+    assert state["failure_reason"] == "illegal_move"
+    assert state["first_wrong_move"] == "a9a9"
 
     replay = client.get(f"/api/v1/puzzles/public/{attempt_id}/replay")
     assert replay.status_code == 200
@@ -294,8 +313,38 @@ def test_illegal_move_replay_records_attempt(observer_client):
     assert rv["submitted_moves"] == ["a9a9"]
     assert rv["plies"], "illegal try must appear in replay plies"
     assert "a9a9" in rv["plies"][0]["label"]
+    assert rv["plies"][0]["fen"] == start_fen
+    assert rv["plies"][-1]["fen"] == state["fen"]
     assert rv["solution_moves"]
     assert rv["solution_agent_moves"]
+
+
+def test_well_formed_illegal_uci_public_state(observer_client):
+    """Well-formed but illegal UCI must not 500 public state."""
+    client, _ = observer_client
+    key = _register(client, "illegal-uci-agent")
+    start = _start(client, key, rating_min=1400, rating_max=1600)
+    attempt_id = start["attempt_id"]
+    start_fen = _public_state(client, attempt_id)["fen"]
+
+    illegal = client.post(
+        f"/api/v1/puzzles/{attempt_id}/move/b1b4", headers=_auth(key)
+    )
+    assert illegal.status_code == 200
+    assert illegal.json()["result"] == "failed"
+
+    state = _public_state(client, attempt_id)
+    assert state["status"] == "finished"
+    assert state["result"] == "failed"
+    assert state["fen"] == start_fen
+    assert state["failure_reason"] == "illegal_move"
+    assert state["first_wrong_move"] == "b1b4"
+
+    replay = client.get(f"/api/v1/puzzles/public/{attempt_id}/replay")
+    assert replay.status_code == 200
+    rv = replay.json()
+    assert rv["failure_reason"] == "illegal_move"
+    assert rv["plies"][-1]["fen"] == start_fen
 
 
 def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
@@ -303,6 +352,7 @@ def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
     key = _register(client, "failing-agent")
     start = _start(client, key, rating_min=1700, rating_max=1900)
     attempt_id = start["attempt_id"]
+    start_fen = _public_state(client, attempt_id)["fen"]
 
     wrong = client.post(
         f"/api/v1/puzzles/{attempt_id}/move/a7a6", headers=_auth(key)
@@ -319,11 +369,15 @@ def test_wrong_move_replay_shows_failure_only_after_end(observer_client):
     assert rv["solution_agent_moves"]
     assert rv["solution_opponent_moves"] is not None
     assert rv["submitted_moves"] == ["a7a6"], "wrong move is now recorded"
+    assert rv["plies"][-1]["fen"] == start_fen, "wrong move must not advance replay FEN"
 
     state = _public_state(client, attempt_id)
     assert_puzzle_no_leak(state)
     assert state["status"] == "finished"
     assert state["result"] == "failed"
+    assert state["fen"] == start_fen
+    assert state["failure_reason"] == "wrong_move"
+    assert state["first_wrong_move"] == "a7a6"
 
 
 def test_public_browse_lists_without_secrets(observer_client):
@@ -440,3 +494,23 @@ def test_public_attempt_chain_by_agent_fallback(observer_client):
         "/api/v1/puzzles/public/attempts", params={"by_agent": "nobody"}
     ).json()["attempts"]
     assert empty == []
+
+
+def test_observer_legacy_missing_agent_joined_defaults_true():
+    import chess
+
+    from chess_harness.puzzle_observer import observer_state
+
+    state = observer_state(
+        {
+            "attempt_id": "pz-legacy",
+            "status": "active",
+            "board_fen": chess.STARTING_FEN,
+            "start_fen": chess.STARTING_FEN,
+            "submitted_moves": [],
+            "opponent_moves": [],
+            "model_id": "legacy-agent",
+            "puzzle_rating": 1200,
+        }
+    )
+    assert state["agent_joined"] is True

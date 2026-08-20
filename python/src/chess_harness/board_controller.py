@@ -19,7 +19,7 @@ from .elo import ELOLadder, ENGINE_DISPLAY_NAME, format_stockfish_label
 from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent_strength
 from .game_manager import GameBusyError, GameManager
 from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
-from .human_vs_agent import HumanVsAgentPlay
+from .human_vs_agent import HumanVsAgentPlay, ensure_agent_joined
 from .models import ModelRegistry
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
@@ -497,6 +497,7 @@ class BoardController:
                     "moves": [],
                     "engine_first_move": None,
                     "opponent_uci_config": uci_config,
+                    "agent_joined": False,
                 }
                 if opponent.skill_level is not None:
                     state["pgn_headers"]["EngineSkill"] = str(opponent.skill_level)
@@ -776,6 +777,8 @@ class BoardController:
         board = chess.Board(state["board_fen"])
         board_path = self.game_manager.get_board_path(game_id)
 
+        ensure_agent_joined(self, game_id, state)
+
         if not board_path.exists():
             try:
                 self._render_state_board(board, board_path, state)
@@ -798,6 +801,7 @@ class BoardController:
         if is_human_vs_agent_state(state):
             return self.human_play.get_board_text(game_id)
         board = chess.Board(state["board_fen"])
+        ensure_agent_joined(self, game_id, state)
         return {"ok": True, "text": format_board_text(board)}
 
     def imagine_board(self, game_id: str, moves: List[str]) -> Dict[str, Any]:

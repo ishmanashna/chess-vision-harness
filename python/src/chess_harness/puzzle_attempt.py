@@ -258,6 +258,8 @@ class PuzzleAttemptStore:
             "puzzle_rating_after": None,
             "puzzle_rating_change": None,
             "elapsed_seconds": None,
+            "agent_joined": False,
+            "agent_joined_at": None,
             "started_at": now,
             "updated_at": now,
             "finished_at": None,
@@ -272,6 +274,18 @@ class PuzzleAttemptStore:
         data = self._load()
         record = data["attempts"].get(attempt_id)
         return dict(record) if record else None
+
+    def ensure_agent_joined(self, attempt_id: str) -> Optional[Dict[str, Any]]:
+        """Mark the owning agent as joined on first authenticated board read."""
+
+        def _mark(record: Dict[str, Any]) -> None:
+            if record.get("agent_joined"):
+                return
+            record["agent_joined"] = True
+            record["agent_joined_at"] = _now()
+            record["updated_at"] = _now()
+
+        return self.update(attempt_id, _mark)
 
     def update(
         self, attempt_id: str, fn: Callable[[Dict[str, Any]], None]

@@ -35,6 +35,7 @@ def test_render_agent_brief_contains_play_loop():
     assert "/imagine" not in brief
     assert "hypothetical" not in brief.lower()
     assert "eight compact rows" in brief
+    assert "file letters left to right" in brief
     assert "White=uppercase" in brief
     assert "http://127.0.0.1:8765/api/v1/games/game-1-2345/status" in brief
     assert "You are playing chess" in brief
@@ -43,6 +44,7 @@ def test_render_agent_brief_contains_play_loop():
     assert "white at bottom" in brief.lower()
     assert "Play loop" in brief
     assert "/move/e2e4" in brief
+    assert "Prefer UCI" in brief
     assert "No request body" in brief or "no JSON" in brief.lower()
     assert "--data-raw" not in brief
     assert "curl.exe" in brief
@@ -90,6 +92,7 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "confirm every occupied square" in brief
     assert "Prefer the PNG" not in brief
     assert "eight compact rows" in brief
+    assert "file letters left to right" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
     assert "backoff" in brief.lower() or "sleep" in brief.lower()
@@ -98,6 +101,7 @@ def test_render_agent_brief_avaa_contains_poll_loop():
     assert "rare" not in brief.lower()
     assert "Never use FEN" in brief
     assert "white at bottom" in brief.lower()
+    assert "Prefer UCI" in brief
     assert "/move/e2e4" in brief
 
 
@@ -121,10 +125,12 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "confirm every occupied square" in brief
     assert "Prefer the PNG" not in brief
     assert "eight compact rows" in brief
+    assert "file letters left to right" in brief
     assert "your_turn" in brief
     assert "poll" in brief.lower() or "Poll" in brief
     assert "Never use FEN" in brief
     assert "white at bottom" in brief.lower()
+    assert "Prefer UCI" in brief
     assert "/moves" not in brief
     assert "chat_seq" in brief
     assert "last_chat_seq" in brief
@@ -139,9 +145,53 @@ def test_render_agent_brief_human_contains_poll_loop():
     assert "Optional chat" not in brief
     assert "/chat?since=" in brief
     assert '"text"' in brief
+    assert "-d @chat.json" in brief
+    assert '{\\"text' not in brief
     assert "/imagine" not in brief
     assert "hypothetical" not in brief.lower()
     assert "30 minutes" in brief
     assert "re-prompt" in brief.lower()
     assert "own HTTP tools" in brief
     assert "long-running session" in brief.lower()
+
+
+def test_render_agent_brief_contains_another_game_create_url():
+    brief = render_agent_brief("http://127.0.0.1:8765", "game-1-2345", "secret-key-abc")
+    assert "## Another game" in brief
+    assert "POST http://127.0.0.1:8765/api/v1/games" in brief
+    assert "never start a new game on your own after fetching PGN" in brief
+    assert "operator explicitly asks" in brief
+    assert "request-followup" not in brief
+    assert "approve-followup" not in brief
+
+
+def test_render_agent_brief_avaa_contains_another_game_lobby_url():
+    brief = render_agent_brief_avaa(
+        "http://127.0.0.1:8765",
+        "game-avaa-1",
+        "key-white",
+        "white",
+        "Opponent Model",
+    )
+    assert "## Another game" in brief
+    assert "POST http://127.0.0.1:8765/api/v1/lobbies" in brief
+    assert "GET http://127.0.0.1:8765/api/v1/lobbies/{lobby_id}" in brief
+    assert "cannot Direct-pair with itself" in brief
+    assert "never start a new game on your own after fetching PGN" in brief
+    assert "request-followup" not in brief
+
+
+def test_render_agent_brief_human_contains_another_game_human_url():
+    brief = render_agent_brief_human(
+        "http://127.0.0.1:8765",
+        "game-human-1",
+        "key-agent",
+        "black",
+        "Alice",
+    )
+    assert "## Another game" in brief
+    assert "POST http://127.0.0.1:8765/api/v1/games/human" in brief
+    assert "play_url" in brief
+    assert "Tell the operator the play_url" in brief
+    assert "never start a new game on your own after fetching PGN" in brief
+    assert "request-followup" not in brief

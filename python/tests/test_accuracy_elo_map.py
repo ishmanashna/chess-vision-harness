@@ -41,14 +41,24 @@ def test_fit_accuracy_elo_knots_monotone():
         assert knots[i]["elo"] <= knots[i + 1]["elo"]
 
 
-def test_interpolate_accuracy_elo_clamps_and_linear():
+def test_interpolate_accuracy_elo_extrapolates_and_linear():
     knots = [
         {"accuracy": 50.0, "elo": 800.0},
         {"accuracy": 90.0, "elo": 1200.0},
     ]
-    assert interpolate_accuracy_elo(knots, 30.0) == pytest.approx(800.0)
-    assert interpolate_accuracy_elo(knots, 95.0) == pytest.approx(1200.0)
+    low_30 = interpolate_accuracy_elo(knots, 30.0)
+    low_35 = interpolate_accuracy_elo(knots, 35.0)
+    assert low_30 == pytest.approx(600.0)
+    assert low_35 == pytest.approx(650.0)
+    assert low_30 != pytest.approx(low_35)
     assert interpolate_accuracy_elo(knots, 70.0) == pytest.approx(1000.0)
+    assert interpolate_accuracy_elo(knots, 95.0) == pytest.approx(1250.0)
+
+
+def test_interpolate_accuracy_elo_single_knot_clamps():
+    knots = [{"accuracy": 50.0, "elo": 800.0}]
+    assert interpolate_accuracy_elo(knots, 30.0) == pytest.approx(800.0)
+    assert interpolate_accuracy_elo(knots, 70.0) == pytest.approx(800.0)
 
 
 def test_rebuild_and_lookup(tmp_path: Path):
@@ -103,10 +113,13 @@ def test_rebuild_and_lookup(tmp_path: Path):
     assert saved["knots"]
     assert map_warm(saved)
 
-    est = play_rating_from_accuracy(72.0, root=root)
+    est = play_rating_from_accuracy(77.0, root=root)
     assert est is not None
     assert isinstance(est, float)
     assert 850 <= est <= 1150
+    low = play_rating_from_accuracy(72.0, root=root)
+    assert low is not None
+    assert low < est
     high = play_rating_from_accuracy(96.0, root=root)
     assert high is not None
     assert isinstance(high, float)

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Preview an imported puzzle from the localhost corpus catalog."/>
+  <title>Puzzle preview — Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+  <link rel="stylesheet" href="/css/watch.css?v=10"/>
+</head>
+<body class="puzzle-set-preview-view">
+  <div class="wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+        </div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="checking" title="Checking whether the game server is reachable…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Checking…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main data-puzzle-set-preview>
+      <p class="form-message is-error" data-preview-error hidden></p>
+
+      <p class="card-hint"><a href="/puzzle-set">&larr; Back to imported puzzle set</a></p>
+
+      <div class="layout watch-layout">
+        <aside class="col info-col">
+          <div class="info-card">
+            <h2>Puzzle preview</h2>
+            <p class="card-hint">Localhost corpus catalog — not an agent attempt.</p>
+            <dl class="meta-grid" data-preview-meta>
+              <dt>Puzzle</dt><dd>Loading…</dd>
+              <dt>Difficulty</dt><dd>—</dd>
+              <dt>Side to move</dt><dd>—</dd>
+              <dt>Themes</dt><dd>—</dd>
+            </dl>
+          </div>
+          <div class="info-card">
+            <h2>Solution</h2>
+            <p data-preview-solution class="card-hint">Loading…</p>
+          </div>
+          <div class="info-card">
+            <h2>Identify placement</h2>
+            <div data-preview-placement>
+              <p class="card-hint">Loading…</p>
+            </div>
+          </div>
+        </aside>
+        <section class="col board-col">
+          <div class="board-frame">
+            <img data-preview-board alt="Puzzle position" width="480" height="480"/>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>Chess Vision Harness · <a href="https://github.com/ishmanashna/chess-vision-harness">Source on GitHub</a></p>
+    </footer>
+  </div>
+  <script src="/js/common.js?v=9"></script>
+  <script src="/js/puzzle-set-preview.js"></script>
+</body>
+</html>

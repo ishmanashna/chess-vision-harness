@@ -95,6 +95,22 @@ export function isCalibrationPath(pathname) {
 }
 
 /**
+ * @param {string} pathname
+ * @returns {boolean}
+ */
+export function isPuzzleSetPath(pathname) {
+  if (contract.puzzle_set_path_exact.includes(pathname)) {
+    return true;
+  }
+  if ((contract.puzzle_set_api_path_prefixes || []).some((prefix) => pathname.startsWith(prefix))) {
+    return true;
+  }
+  return (contract.puzzle_set_path_prefixes || []).some((prefix) =>
+    pathname.startsWith(prefix)
+  );
+}
+
+/**
  * Derive the visitor IP from an edge request (Cloudflare sets CF-Connecting-IP).
  * @param {Request} request
  * @returns {string | null}

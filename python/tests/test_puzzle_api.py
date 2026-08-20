@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from typing import Any, Dict, List
 
+import chess
 import pytest
 from fastapi.testclient import TestClient
 
@@ -12,7 +14,9 @@ from conftest import FIXTURES
 
 from chess_harness.child_credentials import ChildCredentialStore
 from chess_harness.game_manager import GameManager
+from chess_harness.puzzle_attempt import PuzzleAttemptStore
 from chess_harness.puzzle_import import PuzzleImporter
+from chess_harness.puzzle_ratings import AGENT_START_RATING
 from chess_harness.spectator import app
 
 _HIDDEN_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen", "solution_moves", "puzzle_rating"})
@@ -148,13 +152,76 @@ def test_start_attempt_safe_payload_and_flow(puzzle_api_client):
     text = client.get(start["board_text_url"], headers=_auth(key))
     assert text.status_code == 200
     body = text.text
-    assert "a b c d e f g h" in body
+    record = PuzzleAttemptStore().get(attempt_id)
+    board = chess.Board(record["board_fen"])
+    header = (
+        "h g f e d c b a" if board.turn == chess.BLACK else "a b c d e f g h"
+    )
+    assert header in body
     assert "side_to_move:" in body
     assert "solution_moves" not in body
 
     store_file = harness_dir / "puzzle_attempts.json"
     assert store_file.exists()
     assert "solution_moves" in store_file.read_text(encoding="utf-8")
+
+
+def test_agent_joined_false_until_board_read(puzzle_api_client):
+    client, harness_dir = puzzle_api_client
+    key = _register(client, "join-agent")
+
+    start = _start(client, key, rating_min=1200, rating_max=1300)
+    attempt_id = start["attempt_id"]
+
+    public = client.get(f"/api/v1/puzzles/public/{attempt_id}").json()
+    assert public["agent_joined"] is False
+
+    board = client.get(start["board_url"], headers=_auth(key))
+    assert board.status_code == 200
+    public_joined = client.get(f"/api/v1/puzzles/public/{attempt_id}").json()
+    assert public_joined["agent_joined"] is True
+
+    store = json.loads((harness_dir / "puzzle_attempts.json").read_text(encoding="utf-8"))
+    record = store["attempts"][attempt_id]
+    assert record["agent_joined"] is True
+    assert record["agent_joined_at"]
+    joined_at = record["agent_joined_at"]
+
+    client.get(start["board_url"], headers=_auth(key))
+    record2 = json.loads((harness_dir / "puzzle_attempts.json").read_text(encoding="utf-8"))[
+        "attempts"
+    ][attempt_id]
+    assert record2["agent_joined_at"] == joined_at
+
+
+def test_agent_joined_board_text_also_joins(puzzle_api_client):
+    client, _ = puzzle_api_client
+    key = _register(client, "join-text")
+
+    start = _start(client, key, rating_min=1700, rating_max=1900)
+    attempt_id = start["attempt_id"]
+    assert client.get(f"/api/v1/puzzles/public/{attempt_id}").json()["agent_joined"] is False
+
+    text = client.get(start["board_text_url"], headers=_auth(key))
+    assert text.status_code == 200
+    assert client.get(f"/api/v1/puzzles/public/{attempt_id}").json()["agent_joined"] is True
+
+
+def test_start_and_move_without_board_do_not_join(puzzle_api_client):
+    client, harness_dir = puzzle_api_client
+    key = _register(client, "no-board-join")
+
+    start = _start(client, key, rating_min=1700, rating_max=1900)
+    attempt_id = start["attempt_id"]
+    assert client.get(f"/api/v1/puzzles/public/{attempt_id}").json()["agent_joined"] is False
+
+    move = client.post(f"/api/v1/puzzles/{attempt_id}/move/e5", headers=_auth(key))
+    assert move.status_code == 200
+    assert client.get(f"/api/v1/puzzles/public/{attempt_id}").json()["agent_joined"] is False
+    record = json.loads((harness_dir / "puzzle_attempts.json").read_text(encoding="utf-8"))[
+        "attempts"
+    ][attempt_id]
+    assert record.get("agent_joined") is False
 
 
 def test_full_solve_with_review_unlock(puzzle_api_client):
@@ -203,9 +270,9 @@ def test_full_solve_with_review_unlock(puzzle_api_client):
     assert rv["solution_moves"] == ["e7e5", "g1f3", "g8f6", "f1c4"]
     assert rv["themes"] == ["opening"]
     assert rv["source_link"] == "https://lichess.org/a"
-    assert rv["rating_before"] == 1500.0
+    assert rv["rating_before"] == AGENT_START_RATING
     assert rv["rating_after"] is not None
-    assert rv["rating_after"] > 1500.0
+    assert rv["rating_after"] > AGENT_START_RATING
     assert rv["rating_change"] > 0
     assert rv["rating_deviation_before"] is not None
     assert rv["puzzle_rating_before"] is not None
@@ -302,6 +369,48 @@ def test_session_exclusion_and_empty_pool(puzzle_api_client):
     empty = client.post("/api/v1/puzzles/start", headers=_auth(key))
     assert empty.status_code == 404
     assert "No eligible puzzle" in empty.json()["error"]
+
+
+def test_bare_start_prefers_easy_band(puzzle_api_client):
+    from chess_harness.puzzle_store import PuzzleStore
+
+    client, _ = puzzle_api_client
+    key = _register(client, "easy-band-agent")
+
+    start = _start(client, key)
+    record = PuzzleStore().get(start["puzzle_id"])
+    assert record is not None
+    assert start["puzzle_id"] == "pz-b"
+    assert int(record["rating"]) <= 1200
+
+
+def test_auto_band_widens_when_tight_band_empty(tmp_path, monkeypatch):
+    harness_dir = tmp_path / "harness"
+    harness_dir.mkdir()
+    shutil.copy(FIXTURES / "models.json", harness_dir / "models.json")
+    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
+    monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
+
+    PuzzleImporter().import_rows(
+        [
+            _row("pz-hard", ["e2e4", "e7e5"], rating=1800),
+            _row("pz-easy", ["d2d4", "d7d5"], rating=900),
+        ]
+    )
+
+    import chess_harness.api_limits as api_limits
+    import chess_harness.spectator as spec
+
+    api_limits.get_limit_enforcer().reset_counters()
+    spec._base = str(harness_dir)
+    spec.game_manager = GameManager(str(harness_dir))
+    spec._controller = None
+    spec._game_service = None
+
+    client = TestClient(app)
+    key = _register(client, "widen-agent")
+    start = _start(client, key)
+    assert start["puzzle_id"] == "pz-easy"
 
 
 def test_filters_rating_band_and_theme(puzzle_api_client):
@@ -409,13 +518,32 @@ def test_start_brief_covers_perpetual_loop(puzzle_api_client):
     start = _start(client, key)
     brief = start["agent_brief"]
     assert "Continuous loop" in brief
+    assert "puzzle Glicko" in brief
+    assert "800" in brief
     assert "indefinitely" in brief
     assert "rating delta" in brief
     assert "/api/v1/puzzles/start" in brief
     assert "30 minutes" in brief
     assert "Do not skip board.txt" in brief
     assert "confirm every occupied square" in brief
+    assert "side to move at the bottom" in brief.lower()
+    assert "a1 is bottom-left" not in brief.lower()
     assert "Prefer the PNG" not in brief
+    assert "Prefer UCI" in brief
+
+
+def test_board_text_black_to_move_header(puzzle_api_client):
+    client, _ = puzzle_api_client
+    key = _register(client, "black-bottom-agent")
+    start = _start(client, key, rating_min=1490, rating_max=1510)
+    record = PuzzleAttemptStore().get(start["attempt_id"])
+    board = chess.Board(record["board_fen"])
+    assert board.turn == chess.BLACK, "pz-a setup leaves Black to move"
+
+    text = client.get(start["board_text_url"], headers=_auth(key))
+    assert text.status_code == 200
+    assert text.text.splitlines()[0] == "  h g f e d c b a"
+    assert "side_to_move: black" in text.text
 
 
 def test_attempts_never_write_results_jsonl(puzzle_api_client):

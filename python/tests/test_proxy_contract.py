@@ -91,6 +91,17 @@ def _is_calibration_path(pathname: str, contract: dict) -> bool:
     return any(pathname.startswith(prefix) for prefix in contract["calibration_path_prefixes"])
 
 
+def _is_puzzle_set_path(pathname: str, contract: dict) -> bool:
+    if pathname in contract.get("puzzle_set_path_exact", []):
+        return True
+    if any(
+        pathname.startswith(prefix)
+        for prefix in contract.get("puzzle_set_api_path_prefixes", [])
+    ):
+        return True
+    return any(pathname.startswith(prefix) for prefix in contract.get("puzzle_set_path_prefixes", []))
+
+
 @pytest.fixture
 def contract():
     return _load_contract()
@@ -191,6 +202,21 @@ def test_contract_non_proxy_paths(pathname, contract):
 )
 def test_contract_calibration_paths(pathname, contract):
     assert _is_calibration_path(pathname, contract)
+
+
+@pytest.mark.parametrize(
+    "pathname",
+    [
+        "/puzzle-set",
+        "/puzzle-set/",
+        "/api/puzzle-set",
+        "/puzzle-set/pz-sample",
+        "/api/puzzle-set/pz-sample/preview",
+        "/api/puzzle-set/pz-sample/preview/board.png",
+    ],
+)
+def test_contract_puzzle_set_paths(pathname, contract):
+    assert _is_puzzle_set_path(pathname, contract)
 
 
 def test_contract_live_leaderboard_routes_present(contract):
