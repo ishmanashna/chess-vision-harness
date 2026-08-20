@@ -78,10 +78,34 @@ def test_build_snapshot_sorts_and_flags_provisional(tmp_path):
         "puzzle_attempts": 0,
         "puzzle_solves": 0,
         "identify_attempts": 0,
+        "identify_full": 0,
         "identify_mean_accuracy": None,
         "identify_full_position_rate": None,
+        "observation": "vision",
     }
     assert snapshot["agents"][1]["provisional"] is False
+
+
+def test_build_snapshot_includes_text_observation(tmp_path):
+    models_file = tmp_path / "models.json"
+    models_file.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {
+                        "id": "text-bot",
+                        "name": "Text Bot",
+                        "elo": 500.0,
+                        "observation": "text",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    registry = ModelRegistry(models_file)
+    snapshot = build_snapshot(registry, {}, generated_at="2026-01-01T00:00:00.000Z")
+    assert snapshot["agents"][0]["observation"] == "text"
 
 
 def test_export_leaderboard_snapshot_writes_file(tmp_path, monkeypatch):
@@ -114,8 +138,10 @@ def test_export_leaderboard_snapshot_writes_file(tmp_path, monkeypatch):
             "puzzle_attempts": 0,
             "puzzle_solves": 0,
             "identify_attempts": 0,
+            "identify_full": 0,
             "identify_mean_accuracy": None,
             "identify_full_position_rate": None,
+            "observation": "vision",
         }
     ]
     assert data["generated_at"].endswith("Z")

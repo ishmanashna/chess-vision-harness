@@ -98,6 +98,7 @@ class HumanVsAgentPlay:
                     "game_type": GAME_TYPE_HUMAN_VS_AGENT,
                     "model_name": model_id,
                     "model_display_name": display_name,
+                    "observation": self.ctrl.registry.observation_for(model_id),
                     "agent_color": agent_color_upper,
                     "human_nickname": nickname,
                     "human_color": human_color_upper,

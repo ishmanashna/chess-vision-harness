@@ -142,6 +142,8 @@ class AvAAPlay:
                     "black_model_id": black_id,
                     "white_display_name": white_name,
                     "black_display_name": black_name,
+                    "white_observation": registry.observation_for(white_id),
+                    "black_observation": registry.observation_for(black_id),
                     "start_fen": start_fen,
                     "board_fen": start_fen,
                     "last_move_uci": None,

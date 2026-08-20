@@ -14,7 +14,7 @@ from .game_service import GameService
 from .ladder_display import format_agent_leaderboard_cli, format_opponent_ladder_cli
 from .opponents import get_catalog
 from .results import ResultsManager
-from .models import ModelRegistry, format_model_list
+from .models import ModelRegistry, format_model_list, validate_observation
 from .tournament import TournamentManager
 
 
@@ -189,11 +189,18 @@ def cmd_models_list() -> None:
     print(format_model_list(ModelRegistry()))
 
 
-def cmd_models_inscribe(model_id: str, name: Optional[str] = None) -> None:
+def cmd_models_inscribe(
+    model_id: str, name: Optional[str] = None, observation: Optional[str] = None
+) -> None:
     registry = ModelRegistry()
     try:
-        entry = registry.inscribe(model_id, name)
-        print(f"Inscribed: {entry['id']} ({entry['name']}) at {entry['elo']} ELO")
+        obs = validate_observation(observation)
+        entry = registry.inscribe(model_id, name, observation=obs)
+        obs_label = entry.get("observation", "vision")
+        print(
+            f"Inscribed: {entry['id']} ({entry['name']}) at {entry['elo']} ELO "
+            f"[{obs_label}]"
+        )
     except ValueError as e:
         print(str(e))
 
@@ -285,7 +292,10 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
     write_spectator_meta(host, port)
     atexit.register(remove_spectator_meta)
 
+    from .agent_brief import public_base_url
+
     print(f"Starting spectator on http://localhost:{port}")
+    print(f"Agent briefs use {public_base_url()}")
     print("Stop with Ctrl+C, or run: chess-harness serve stop")
     try:
         uvicorn.run(app, host=host, port=port, log_level="info")

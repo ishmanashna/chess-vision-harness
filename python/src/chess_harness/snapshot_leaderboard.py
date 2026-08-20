@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .models import AGENT_START_ELO, ModelRegistry
+from .models import AGENT_START_ELO, ModelRegistry, normalize_observation
 from .paths import project_root, resolve_base_dir, resolve_publish_snapshots_dir
 from .puzzle_leaderboard import (
     build_identify_leaderboard,
@@ -164,6 +164,7 @@ def build_snapshot(
                 "identify_full": int(iz.get("full") or 0),
                 "identify_mean_accuracy": iz.get("mean_accuracy"),
                 "identify_full_position_rate": iz.get("full_position_rate"),
+                "observation": normalize_observation(model.get("observation")),
             }
         )
     agents.sort(key=lambda a: (-a["elo"], str(a["name"]).lower()))

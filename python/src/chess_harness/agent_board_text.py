@@ -47,3 +47,13 @@ Authenticated board.txt is always allowed — same live position as the PNG.
 def render_board_text_access(base_url: str, game_id: str, auth: str) -> str:
     url = f"{base_url.rstrip('/')}/api/v1/games/{game_id}/board.txt"
     return render_board_text_channel(url, auth)
+
+
+def render_board_text_access_only(base_url: str, game_id: str, auth: str) -> str:
+    """Text-only agents: board.txt is the sole position channel."""
+    url = f"{base_url.rstrip('/')}/api/v1/games/{game_id}/board.txt"
+    return f"""   - GET {url}
+     Header: {auth}
+{_WHITE_BOTTOM_LEGEND}
+This authenticated board.txt is your position source — read it every turn before you move.
+{_POSITION_SOURCE_BAN}"""

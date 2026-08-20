@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
-from .activity_audit import record_activity
+from .agent_games_list import list_games_for_agent
 from .agent_brief import public_base_url, render_agent_brief
 from .api_keys import ApiKeyStore
 from .api_limits import ApiLimitEnforcer, AuthContext, client_ip, get_limit_enforcer, key_fingerprint
@@ -22,7 +22,7 @@ from .followup_api import register_followup_routes
 from .game_ids import new_game_id
 from .game_service import GameService
 from .human_vs_agent_api import register_human_vs_agent_routes
-from .models import ModelRegistry
+from .models import ModelRegistry, normalize_observation, validate_observation
 from .orchestration_api import register_orchestration_routes
 from .paths import resolve_base_dir
 from .serve_workers import run_blocking
@@ -38,6 +38,7 @@ _LEAK_KEYS = frozenset({"fen", "board_fen", "moves", "start_fen", "png_bytes"})
 class RegisterAgentBody(BaseModel):
     id: str = Field(..., min_length=1, max_length=64)
     name: Optional[str] = None
+    observation: Optional[str] = None
 
 
 class CreateGameBody(BaseModel):
@@ -156,7 +157,11 @@ def build_router(
             return _err(400, f"Invalid model id '{body.id}'")
         if not registry.is_inscribed(body.id):
             try:
-                registry.inscribe(body.id, body.name)
+                obs = validate_observation(body.observation)
+            except ValueError as exc:
+                return _err(400, str(exc))
+            try:
+                registry.inscribe(body.id, body.name, observation=obs)
             except ValueError as exc:
                 return _err(400, str(exc))
         model = registry.get(body.id)
@@ -172,7 +177,13 @@ def build_router(
             )
         except Exception:
             pass
-        return {"ok": True, "model_id": body.id, "name": model.get("name", body.id), "api_key": api_key}
+        return {
+            "ok": True,
+            "model_id": body.id,
+            "name": model.get("name", body.id),
+            "observation": normalize_observation(model.get("observation")),
+            "api_key": api_key,
+        }
 
     @router.get("/agents")
     async def list_agents():
@@ -182,6 +193,7 @@ def build_router(
                 "id": model["id"],
                 "name": model.get("name", model["id"]),
                 "elo": round(float(model.get("elo", 500))),
+                "observation": normalize_observation(model.get("observation")),
             }
             for model in registry.list_models()
         ]
@@ -235,10 +247,32 @@ def build_router(
         if authorization and authorization.lower().startswith("bearer "):
             raw_key = authorization[7:].strip()
         if raw_key:
+            registry = ModelRegistry()
             payload["agent_brief"] = render_agent_brief(
-                public_base_url(), str(result.get("game_id") or game_id), raw_key
+                public_base_url(),
+                str(result.get("game_id") or game_id),
+                raw_key,
+                observation=registry.observation_for(auth.model_id),
             )
         return payload
+
+    @router.get("/games")
+    async def list_agent_games(
+        auth: AuthContext = Depends(_auth_context),
+        include_finished: bool = False,
+    ):
+        denied = reject_scoped_auth(auth, _err)
+        if denied:
+            return denied
+        games = await run_blocking(
+            list_games_for_agent,
+            _svc(),
+            model_id=auth.model_id,
+            key_fingerprint=auth.key_fingerprint,
+            include_finished=include_finished,
+        )
+        sanitized = [_sanitize_agent_payload(entry) for entry in games]
+        return {"ok": True, "games": sanitized}
 
     @router.get("/games/{game_id}/status")
     async def game_status(game_id: str, auth: AuthContext = Depends(_auth_context)):

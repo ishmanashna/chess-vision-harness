@@ -515,10 +515,16 @@
 
     setFlowId(parseFlowFromUrl());
 
+    var agentsLoaded = false;
     window.CVH.applyHealthUi({
       onHealth: function (health) {
         enableForm(health.online);
-        if (!health.online) return;
+        if (!health.online) {
+          agentsLoaded = false;
+          return;
+        }
+        if (agentsLoaded) return;
+        agentsLoaded = true;
         loadAgents([modelSelect, whiteSelect, blackSelect]).catch(function (err) {
           setMessage(messageEl, "error", err.message || "Could not load models.");
         });

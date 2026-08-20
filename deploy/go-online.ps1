@@ -11,8 +11,9 @@
 #   .\deploy\go-online.ps1 -InstallShortcut   # Desktop .lnk -> deploy\Start-Online.bat
 #   deploy\Start-Online.bat   # double-click entry (same script, visible window on failure)
 #
-# Prerequisites: chess-harness reachable (NSSM service or already running),
-# cloudflared on PATH or at the default install path, GitHub CLI logged in.
+# Manual serve (no NSSM): always restarts so agent briefs get CHESS_HARNESS_PUBLIC_URL
+# (the Pages URL), not 127.0.0.1. NSSM keeps its own service env from install.
+# Prerequisites: cloudflared on PATH or default install path, GitHub CLI logged in.
 
 [CmdletBinding()]
 param(
@@ -99,38 +100,79 @@ function Wait-LocalHealth {
     return $false
 }
 
+function Set-HarnessBriefEnv {
+    param([string]$Pages)
+    $env:CHESS_HARNESS_PUBLIC_URL = $Pages.TrimEnd("/")
+    $env:CHESS_HARNESS_TRUSTED_PROXIES = "127.0.0.0/8"
+    Write-Host "Agent briefs will use $($env:CHESS_HARNESS_PUBLIC_URL)"
+}
+
+function Resolve-HarnessExe {
+    $cmd = Get-Command "chess-harness.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $fallback = Join-Path $env:APPDATA "Python\Python313\Scripts\chess-harness.exe"
+    if (Test-Path -LiteralPath $fallback) { return $fallback }
+    return $null
+}
+
+function Stop-ManualHarness {
+    param([string]$ExePath)
+    Write-Host "Stopping localhost serve so the next process picks up the Pages URL..."
+    try {
+        if ($ExePath) {
+            & $ExePath @("serve", "stop")
+        } else {
+            $py = Join-Path $RepoRoot "python"
+            Push-Location $py
+            try {
+                python -m chess_harness serve stop
+            } finally {
+                Pop-Location
+            }
+        }
+    } catch {
+        Write-Host "serve stop: $($_.Exception.Message)"
+    }
+    Start-Sleep -Seconds 2
+}
+
+function Start-ManualHarness {
+    param([string]$ExePath)
+    if (-not $ExePath) {
+        throw "chess-harness.exe not found and service '$ServiceName' missing."
+    }
+    $serveOut = Join-Path $RepoRoot ".chess_harness\logs\harness-manual.log.out"
+    $serveErr = Join-Path $RepoRoot ".chess_harness\logs\harness-manual.log.err"
+    foreach ($f in @($serveOut, $serveErr)) {
+        if (Test-Path -LiteralPath $f) {
+            Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+        }
+    }
+    # Start-Process forbids RedirectStandardOutput == RedirectStandardError
+    $p = Start-Process -FilePath $ExePath -ArgumentList @("serve", "--force") -WorkingDirectory $RepoRoot `
+        -RedirectStandardOutput $serveOut -RedirectStandardError $serveErr -PassThru -WindowStyle Hidden
+    Write-Host "Started chess-harness serve (pid $($p.Id)); log: $serveOut"
+}
+
 function Ensure-Harness {
     param([string]$BaseUrl, [string]$SvcName, [int]$WaitSec)
-    if (Test-LocalHealth -BaseUrl $BaseUrl) {
-        Write-Host "Harness already healthy at $BaseUrl/health"
-        return
-    }
+    Set-HarnessBriefEnv -Pages $PagesUrl
     $svc = Get-Service -Name $SvcName -ErrorAction SilentlyContinue
     if ($svc) {
         if ($svc.Status -ne "Running") {
             Write-Host "Starting Windows service '$SvcName'..."
             Start-Service -Name $SvcName
         } else {
-            Write-Host "Service '$SvcName' is Running but /health not ready yet; waiting..."
+            Write-Host "Service '$SvcName' is already running (brief URL comes from the service env)."
         }
     } else {
-        Write-Host "No '$SvcName' service. Start harness manually or run install-harness-nssm.ps1, then re-run go-online."
-        Write-Host "Trying: chess-harness serve (background)..."
-        $exe = Get-Command "chess-harness.exe" -ErrorAction SilentlyContinue
-        if (-not $exe) {
-            $fallback = Join-Path $env:APPDATA "Python\Python313\Scripts\chess-harness.exe"
-            if (Test-Path -LiteralPath $fallback) {
-                $exePath = $fallback
-            } else {
-                throw "chess-harness.exe not found and service '$SvcName' missing."
-            }
+        $exePath = Resolve-HarnessExe
+        if (Test-LocalHealth -BaseUrl $BaseUrl) {
+            Stop-ManualHarness -ExePath $exePath
         } else {
-            $exePath = $exe.Source
+            Write-Host "No '$SvcName' service. Starting chess-harness serve (background)..."
         }
-        $serveLog = Join-Path $RepoRoot ".chess_harness\logs\harness-manual.log"
-        $p = Start-Process -FilePath $exePath -ArgumentList @("serve", "--force") -WorkingDirectory $RepoRoot `
-            -RedirectStandardOutput $serveLog -RedirectStandardError $serveLog -PassThru -WindowStyle Hidden
-        Write-Host "Started chess-harness serve (pid $($p.Id)); log: $serveLog"
+        Start-ManualHarness -ExePath $exePath
     }
     if (-not (Wait-LocalHealth -BaseUrl $BaseUrl -TimeoutSec $WaitSec)) {
         throw "Harness did not become healthy within ${WaitSec}s at $BaseUrl/health"
@@ -275,5 +317,6 @@ Write-Host ""
 Write-Host "Public Online ready." -ForegroundColor Green
 Write-Host "  GAME_ORIGIN: $origin"
 Write-Host "  Pages:       $PagesUrl"
+Write-Host "  Agent briefs: $($PagesUrl.TrimEnd('/'))"
 Write-Host "  Tunnel pid:  $(Get-Content $TunnelPidPath -ErrorAction SilentlyContinue)"
 Write-Host "After next reboot: harness should auto-start (logon Startup / HKCU Run); run this script again for Online."

@@ -195,3 +195,31 @@ def test_render_agent_brief_human_contains_another_game_human_url():
     assert "Tell the operator the play_url" in brief
     assert "never start a new game on your own after fetching PGN" in brief
     assert "request-followup" not in brief
+
+
+def test_render_agent_brief_text_does_not_require_png():
+    brief = render_agent_brief(
+        "http://127.0.0.1:8765",
+        "game-text-1",
+        "secret-key",
+        observation="text",
+    )
+    assert "text-board position input" in brief
+    assert "Do not fetch the board PNG" in brief
+    assert "board.txt" in brief
+    assert "image/png" not in brief.lower()
+    assert "Response is image/png" not in brief
+    assert "-o board.png" not in brief
+
+
+def test_render_agent_brief_vision_still_requires_png():
+    brief = render_agent_brief(
+        "http://127.0.0.1:8765",
+        "game-vision-1",
+        "secret-key",
+        observation="vision",
+    )
+    assert "image-first position input" in brief
+    assert "image/png" in brief.lower()
+    assert "board.txt" in brief
+    assert "Do not fetch the board PNG" not in brief

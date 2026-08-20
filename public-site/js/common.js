@@ -4,6 +4,7 @@
   var HEALTH_URL = "/api/edge-health";
   var FETCH_TIMEOUT_MS = 12000;
   var HEALTH_POLL_MS = 15000;
+  var HEALTH_POLL_SLEEPING_MS = 4000;
   var HEALTH_STORAGE_KEY = "cvh-edge-health-v1";
   /** Optimistic Online paint if last probe was within this window (ms). */
   var HEALTH_FRESH_MS = 90000;
@@ -14,14 +15,17 @@
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
   var PERFORMANCE_TIP =
     "Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.";
-  var ENGINES_JS_VERSION = "3";
-  var SITE_JS_VERSION = "4";
+  var OBSERVATION_TEXT_TIP =
+    "Text-only agent — plays from the board.txt grid, not the PNG image.";
+  var ENGINES_JS_VERSION = "4";
+  var SITE_JS_VERSION = "5";
   var HOME_SORT_KEY = "cvh-home-ladder-sort";
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
   var healthInflight = null;
   var healthPollTimer = null;
   var healthPollStarted = false;
+  var lastPaintedOnline = null;
   var healthUiListeners = [];
   var liveLeaderboardListeners = [];
   var latestLiveLeaderboard = null;
@@ -195,6 +199,7 @@
       ),
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
+      observation: agent.observation || "vision",
       _raw: agent,
     };
   }
@@ -351,6 +356,7 @@
     if (value == null || value === "") return "—";
     var n = Number(value);
     if (isNaN(n)) return "—";
+    if (suffix === "%") return n.toFixed(2) + "%";
     if (suffix) return String(n) + suffix;
     // Performance (and other bare ratings): whole numbers only.
     return String(Math.round(n));
@@ -361,7 +367,7 @@
     if (value == null || value === "") return "—";
     var n = Number(value);
     if (isNaN(n)) return "—";
-    return (n * 100).toFixed(1) + "%";
+    return (n * 100).toFixed(2) + "%";
   }
 
   function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
@@ -405,6 +411,19 @@
     return f + "/" + a;
   }
 
+  function formatAgentNameCell(name, observation) {
+    var label = escapeHtml(name || "—");
+    if (observation === "text") {
+      return (
+        label +
+        ' <span class="observation-mark" title="' +
+        escapeHtml(OBSERVATION_TEXT_TIP) +
+        '">text</span>'
+      );
+    }
+    return label;
+  }
+
   function renderLeaderboardRows(
     agents,
     limit,
@@ -433,40 +452,41 @@
         var name = row.name || "—";
         var games = row.games;
         var provisional = isProvisional(agent);
-        var eloClass = provisional ? "elo provisional" : "elo";
-        var titleAttr = provisional
-          ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
-          : "";
+        var eloClass = homeBenchmark
+          ? ""
+          : provisional
+            ? "elo provisional"
+            : "elo";
+        var titleAttr =
+          !homeBenchmark && provisional
+            ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
+            : "";
         var accCell = fullColumns
           ? "<td>" +
             escapeHtml(formatQualityMean(agent.mean_accuracy, "%")) +
             "</td>"
           : "";
         var playCell = fullColumns
-          ? '<td title="' +
-            escapeHtml(PERFORMANCE_TIP) +
-            '">' +
-            escapeHtml(formatQualityMean(agent.mean_play_rating)) +
-            "</td>"
+          ? (homeBenchmark
+              ? "<td>" +
+                escapeHtml(formatQualityMean(agent.mean_play_rating)) +
+                "</td>"
+              : '<td title="' +
+                escapeHtml(PERFORMANCE_TIP) +
+                '">' +
+                escapeHtml(formatQualityMean(agent.mean_play_rating)) +
+                "</td>")
           : "";
         var gamesCell = homeBenchmark
           ? ""
           : "<td>" + games + "</td>";
         var homeBenchmarkCells = homeBenchmark
-          ? '<td title="' +
-            escapeHtml(
-              "Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it."
-            ) +
-            '">' +
+          ? "<td>" +
             escapeHtml(
               row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)
             ) +
             "</td>" +
-            "<td title=\"" +
-            escapeHtml(
-              "Average exact-piece placement across finished board-identification attempts."
-            ) +
-            '">' +
+            "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
             "</td>"
           : "";
@@ -502,11 +522,10 @@
           rank +
           "</td>" +
           "<td>" +
-          escapeHtml(name) +
+          formatAgentNameCell(name, agent.observation) +
           "</td>" +
-          '<td class="' +
-          eloClass +
-          '"' +
+          "<td" +
+          (eloClass ? ' class="' + eloClass + '"' : "") +
           titleAttr +
           ">" +
           escapeHtml(formatElo(agent)) +
@@ -677,6 +696,10 @@
         });
     }
 
+    onHealthUi(function (health, meta) {
+      if (health && health.online && meta && meta.becameOnline) upgradeToLive();
+    });
+
     fetchLeaderboardSnapshot()
       .then(function (raw) {
         return normalizeLeaderboardPayload(raw, false);
@@ -771,7 +794,8 @@
   }
 
   function fetchEdgeHealthNetwork() {
-    return fetch(HEALTH_URL, { cache: "no-store" })
+    var url = HEALTH_URL + "?_=" + Date.now();
+    return fetchWithTimeout(url, { cache: "no-store" }, FETCH_TIMEOUT_MS)
       .then(function (res) {
         if (!res.ok) throw new Error("health unavailable");
         return res.json();
@@ -791,20 +815,55 @@
       });
   }
 
-  function notifyHealthUiListeners(health) {
+  function notifyHealthUiListeners(health, meta) {
     healthUiListeners.slice().forEach(function (cb) {
       try {
-        cb(health);
+        cb(health, meta || {});
       } catch (_err) {}
     });
   }
 
+  function onHealthUi(cb) {
+    if (typeof cb !== "function") return;
+    healthUiListeners.push(cb);
+    if (healthCache) {
+      try {
+        cb(healthCache, { becameOnline: false });
+      } catch (_err) {}
+    }
+  }
+
+  function wakeLiveSurfaces() {
+    if (window.CVH.refreshGamesList) {
+      window.CVH.refreshGamesList("active");
+      window.CVH.refreshGamesList("completed");
+    }
+    if (window.CVH.refreshAttemptsList) {
+      window.CVH.refreshAttemptsList("puzzles");
+      window.CVH.refreshAttemptsList("identify");
+    }
+    if (window.CVH.refreshHumanGamesLists) {
+      window.CVH.refreshHumanGamesLists();
+    }
+  }
+
+  function applyHealthResult(health) {
+    var online = !!(health && health.online);
+    var becameOnline = online && lastPaintedOnline === false;
+    paintHealth(health);
+    notifyHealthUiListeners(health, { becameOnline: becameOnline });
+    if (becameOnline) wakeLiveSurfaces();
+    lastPaintedOnline = online;
+    return health;
+  }
+
   function tickHealthPoll() {
-    return checkEdgeHealth({ force: true }).then(function (health) {
-      paintHealth(health);
-      notifyHealthUiListeners(health);
-      return health;
-    });
+    return checkEdgeHealth({ force: true }).then(applyHealthResult);
+  }
+
+  function healthPollDelayMs() {
+    if (healthCache && healthCache.online) return HEALTH_POLL_MS;
+    return HEALTH_POLL_SLEEPING_MS;
   }
 
   function scheduleHealthPoll() {
@@ -812,7 +871,9 @@
       clearTimeout(healthPollTimer);
       healthPollTimer = null;
     }
-    if (!healthPollStarted || document.hidden) return;
+    if (!healthPollStarted) return;
+    // Keep probing while Sleeping even if the tab is in the background.
+    if (document.hidden && healthCache && healthCache.online) return;
     healthPollTimer = setTimeout(function () {
       healthPollTimer = null;
       tickHealthPoll()
@@ -820,12 +881,12 @@
         .then(function () {
           scheduleHealthPoll();
         });
-    }, HEALTH_POLL_MS);
+    }, healthPollDelayMs());
   }
 
   function onHealthVisibilityChange() {
     if (document.hidden) {
-      if (healthPollTimer) {
+      if (healthCache && healthCache.online && healthPollTimer) {
         clearTimeout(healthPollTimer);
         healthPollTimer = null;
       }
@@ -839,10 +900,21 @@
       });
   }
 
+  function onHealthPageShow(ev) {
+    if (!healthPollStarted) return;
+    if (ev && ev.persisted === false) return;
+    tickHealthPoll()
+      .catch(function () {})
+      .then(function () {
+        scheduleHealthPoll();
+      });
+  }
+
   function startHealthPoll() {
     if (healthPollStarted) return;
     healthPollStarted = true;
     document.addEventListener("visibilitychange", onHealthVisibilityChange);
+    window.addEventListener("pageshow", onHealthPageShow);
     scheduleHealthPoll();
   }
 
@@ -875,20 +947,17 @@
     var stored = readStoredHealth();
     if (stored) {
       healthCache = { online: stored.online, raw: stored.raw };
+      lastPaintedOnline = !!stored.online;
       paintHealth(stored);
-      notifyHealthUiListeners(stored);
+      notifyHealthUiListeners(stored, { becameOnline: false });
     } else {
       setStatusChip(
         "checking",
         "Checking whether the game server is reachable…"
       );
     }
-    return checkEdgeHealth({ force: true }).then(function (health) {
-      paintHealth(health);
-      notifyHealthUiListeners(health);
-      if (document.querySelector("[data-status-chip]")) startHealthPoll();
-      return health;
-    });
+    if (document.querySelector("[data-status-chip]")) startHealthPoll();
+    return checkEdgeHealth({ force: true }).then(applyHealthResult);
   }
 
   function loadScriptOnce(src) {
@@ -974,6 +1043,7 @@
 
   window.CVH = window.CVH || {};
   window.CVH.applyHealthUi = applyHealthUi;
+  window.CVH.onHealthUi = onHealthUi;
   window.CVH.checkEdgeHealth = checkEdgeHealth;
   window.CVH.mountLeaderboardTable = mountLeaderboardTable;
   window.CVH.fetchLeaderboard = fetchLeaderboard;
@@ -984,6 +1054,7 @@
   window.CVH.formatElo = formatElo;
   window.CVH.formatQualityMean = formatQualityMean;
   window.CVH.isProvisional = isProvisional;
+  window.CVH.formatAgentNameCell = formatAgentNameCell;
   window.CVH.nameWithoutElo = nameWithoutElo;
   window.CVH.abbreviateListName = abbreviateListName;
   window.CVH.syncWatchHeights = syncWatchHeights;

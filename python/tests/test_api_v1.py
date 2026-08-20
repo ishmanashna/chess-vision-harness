@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from conftest import LOW_OPPONENT
 
 from chess_harness.game_manager import GameManager
@@ -265,3 +267,70 @@ def test_api_v1_can_create_second_game_after_first_finishes(api_client):
         headers=auth_headers(api_key),
     )
     assert move.status_code == 200, move.text
+
+
+def test_api_v1_observation_text_and_vision(api_client):
+    client, _ = api_client
+
+    vision_reg = client.post(
+        "/api/v1/agents", json={"id": "vision-fixture", "name": "Vision Fixture"}
+    )
+    assert vision_reg.status_code == 200
+    assert vision_reg.json()["observation"] == "vision"
+
+    text_reg = client.post(
+        "/api/v1/agents",
+        json={"id": "text-fixture", "name": "Text Fixture", "observation": "text"},
+    )
+    assert text_reg.status_code == 200
+    assert text_reg.json()["observation"] == "text"
+
+    remint = client.post(
+        "/api/v1/agents",
+        json={"id": "text-fixture", "observation": "vision"},
+    )
+    assert remint.status_code == 200
+    assert remint.json()["observation"] == "text"
+
+    listed = {a["id"]: a for a in client.get("/api/v1/agents").json()["agents"]}
+    assert listed["vision-fixture"]["observation"] == "vision"
+    assert listed["text-fixture"]["observation"] == "text"
+
+    bad = client.post(
+        "/api/v1/agents",
+        json={"id": "bad-obs", "observation": "fen"},
+    )
+    assert bad.status_code == 400
+
+
+def test_api_v1_result_row_snapshots_observation(api_client):
+    client, harness_dir = api_client
+    reg = client.post(
+        "/api/v1/agents",
+        json={"id": "text-result-agent", "observation": "text"},
+    )
+    api_key = reg.json()["api_key"]
+
+    create = client.post(
+        "/api/v1/games",
+        headers=auth_headers(api_key),
+        json={"opponent": LOW_OPPONENT, "agent_color": "white"},
+    )
+    assert create.status_code == 200
+    game_id = create.json()["game_id"]
+    brief = create.json().get("agent_brief") or ""
+    assert "image/png" not in brief.lower()
+    assert "Do not fetch the board PNG" in brief
+
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state.get("observation") == "text"
+
+    resign = client.post(
+        f"/api/v1/games/{game_id}/resign", headers=auth_headers(api_key)
+    )
+    assert resign.status_code == 200
+
+    results_path = harness_dir / "results.jsonl"
+    rows = [json.loads(line) for line in results_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    row = next(r for r in rows if r.get("game_id") == game_id)
+    assert row.get("observation") == "text"

@@ -39,12 +39,18 @@ def avaa_brief(
         if caller_color == "WHITE"
         else state.get("white_display_name")
     ) or "Opponent"
+    from .models import normalize_observation
+
+    obs_key = (
+        "white_observation" if caller_color == "WHITE" else "black_observation"
+    )
     return render_agent_brief_avaa(
         public_base_url(),
         game_id,
         raw_key,
         caller_color.lower(),
         str(opponent),
+        observation=normalize_observation(state.get(obs_key)),
     )
 
 

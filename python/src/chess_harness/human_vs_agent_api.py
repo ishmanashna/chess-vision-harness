@@ -85,5 +85,6 @@ def register_human_vs_agent_routes(
                 raw_key,
                 agent_color,
                 nickname,
+                observation=registry.observation_for(auth.model_id),
             )
         return payload

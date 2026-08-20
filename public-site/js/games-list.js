@@ -136,6 +136,25 @@
 
     );
 
+    var whiteObs = avaa
+      ? game.white_observation
+      : human || game.game_type === "agent_vs_engine"
+        ? game.agent_color === "WHITE"
+          ? game.observation
+          : null
+        : game.agent_color === "WHITE"
+          ? game.observation
+          : null;
+    var blackObs = avaa
+      ? game.black_observation
+      : human || game.game_type === "agent_vs_engine"
+        ? game.agent_color === "BLACK"
+          ? game.observation
+          : null
+        : game.agent_color === "BLACK"
+          ? game.observation
+          : null;
+
     return {
 
       id: game.game_id || "",
@@ -150,9 +169,13 @@
 
       white: white,
 
+      whiteObservation: whiteObs,
+
       whiteElo: game.white_elo != null ? Number(game.white_elo) : null,
 
       black: black,
+
+      blackObservation: blackObs,
 
       blackElo: game.black_elo != null ? Number(game.black_elo) : null,
 
@@ -346,7 +369,9 @@
 
           "<td>" +
 
-          escapeHtml(g.white) +
+          (window.CVH.formatAgentNameCell
+            ? window.CVH.formatAgentNameCell(g.white, g.whiteObservation)
+            : escapeHtml(g.white)) +
 
           "</td>" +
 
@@ -358,7 +383,9 @@
 
           "<td>" +
 
-          escapeHtml(g.black) +
+          (window.CVH.formatAgentNameCell
+            ? window.CVH.formatAgentNameCell(g.black, g.blackObservation)
+            : escapeHtml(g.black)) +
 
           "</td>" +
 

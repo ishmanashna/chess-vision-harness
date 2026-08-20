@@ -2,7 +2,8 @@
 Thin facade over BoardController — single mutation path for adapters.
 
 Engine lifecycle: opponent pools are trimmed to CHESS_HARNESS_MAX_ENGINE_PROCESSES
-after moves; full release on serve shutdown. Read-only calls skip prune and trim.
+after moves; full release on serve shutdown. GET status/board/board.txt prune idle
+games but do not reset last_activity or trim engines.
 """
 
 from __future__ import annotations
@@ -139,12 +140,15 @@ class GameService:
         return self.controller.resign(game_id, reason=reason, caller_color=caller_color)
 
     def status(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        self._prune_idle()
         return self.controller.status(game_id, caller_color=caller_color)
 
     def get_board(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        self._prune_idle()
         return self.controller.get_board(game_id, caller_color=caller_color)
 
     def get_board_text(self, game_id: str, *, caller_color: Optional[str] = None) -> Dict[str, Any]:
+        self._prune_idle()
         return self.controller.get_board_text(game_id, caller_color=caller_color)
 
     def get_board_bytes(self, game_id: str, *, caller_color: Optional[str] = None) -> bytes:

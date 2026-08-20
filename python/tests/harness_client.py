@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
@@ -15,6 +16,29 @@ _FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 def auth_headers(api_key: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {api_key}"}
+
+
+def testclient_transport(client: TestClient):
+    """Map agent_http transport calls onto a FastAPI TestClient (query string preserved)."""
+
+    def transport(method: str, url: str, headers, body=None):
+        parsed = urlparse(url)
+        path = parsed.path
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
+        hdrs = dict(headers)
+        if method.upper() == "GET":
+            resp = client.get(path, headers=hdrs)
+        elif method.upper() == "POST":
+            if body is not None:
+                resp = client.post(path, headers=hdrs, content=body)
+            else:
+                resp = client.post(path, headers=hdrs)
+        else:
+            raise ValueError(f"unsupported method {method}")
+        return resp.status_code, dict(resp.headers), resp.content
+
+    return transport
 
 
 def configure_spectator_harness(harness_dir: Path, monkeypatch) -> Path:

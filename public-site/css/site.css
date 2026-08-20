@@ -482,6 +482,18 @@ p {
   text-underline-offset: 3px;
 }
 
+.observation-mark {
+  margin-left: 0.35em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
 .empty-state {
   color: var(--faint);
   font-size: 0.92rem;

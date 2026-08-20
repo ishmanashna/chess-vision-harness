@@ -1,18 +1,18 @@
 import { normalizeOrigin } from "../_proxy.js";
 
-/** Keep probes snappy — slow tunnels should fail fast, not block navigation. */
-const HEALTH_TIMEOUT_MS = 3000;
-/** Edge CDN cache for successful Online answers (seconds). Offline stays uncached. */
-const ONLINE_CACHE_S_MAXAGE = 12;
+/** Tunnel wake can be slow; 3s probes stay Sleeping after go-online. */
+const HEALTH_TIMEOUT_MS = 10000;
+const NO_STORE_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+  "cdn-cache-control": "no-store",
+};
 
 /**
  * GET /api/edge-health — probes GAME_ORIGIN/health with a short timeout.
  */
 export async function onRequest({ env }) {
   const origin = normalizeOrigin(env.GAME_ORIGIN);
-  const baseHeaders = {
-    "content-type": "application/json; charset=utf-8",
-  };
 
   if (!origin) {
     return Response.json(
@@ -22,12 +22,7 @@ export async function onRequest({ env }) {
         origin: false,
         message: "GAME_ORIGIN is not configured on this Pages project.",
       },
-      {
-        headers: {
-          ...baseHeaders,
-          "cache-control": "no-store",
-        },
-      }
+      { headers: NO_STORE_HEADERS }
     );
   }
 
@@ -61,13 +56,7 @@ export async function onRequest({ env }) {
         origin: true,
         message: "Game server is reachable.",
       },
-      {
-        headers: {
-          ...baseHeaders,
-          // Short edge cache so tab navigations reuse the last Online without a full tunnel hop.
-          "cache-control": `public, max-age=0, s-maxage=${ONLINE_CACHE_S_MAXAGE}`,
-        },
-      }
+      { headers: NO_STORE_HEADERS }
     );
   } catch (_err) {
     return Response.json(
@@ -77,12 +66,7 @@ export async function onRequest({ env }) {
         origin: true,
         message: "Game server is unreachable.",
       },
-      {
-        headers: {
-          ...baseHeaders,
-          "cache-control": "no-store",
-        },
-      }
+      { headers: NO_STORE_HEADERS }
     );
   } finally {
     clearTimeout(timer);

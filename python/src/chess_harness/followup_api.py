@@ -186,7 +186,12 @@ def register_followup_routes(
         if authorization and authorization.lower().startswith("bearer "):
             raw_key = authorization[7:].strip()
         if raw_key:
+            from .models import ModelRegistry
+
             payload["agent_brief"] = render_agent_brief(
-                public_base_url(), str(result.get("game_id") or game_id), raw_key
+                public_base_url(),
+                str(result.get("game_id") or game_id),
+                raw_key,
+                observation=ModelRegistry().observation_for(auth.model_id),
             )
         return payload

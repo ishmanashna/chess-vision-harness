@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "max_concurrent_games": 2,
+  "harness_base_url": "http://127.0.0.1:8765",
+  "slots": [
+    {
+      "inscribed_id": "runner-stub-vision",
+      "provider": "stub",
+      "observation": "vision",
+      "provider_model": "stub-vision",
+      "base_url": "",
+      "env_key": "",
+      "rpm": 60,
+      "rpd": 500,
+      "_comment": "Always runnable — no env key. Uses agent_http against localhost serve."
+    },
+    {
+      "inscribed_id": "runner-openai-text",
+      "provider": "openai",
+      "observation": "text",
+      "provider_model": "gpt-4o-mini",
+      "base_url": "https://api.openai.com/v1",
+      "env_key": "OPENAI_API_KEY",
+      "rpm": 30,
+      "rpd": 200,
+      "_comment": "Skipped until OPENAI_API_KEY is set and runner probe succeeds."
+    },
+    {
+      "inscribed_id": "runner-openai-vision",
+      "provider": "openai",
+      "observation": "vision",
+      "provider_model": "gpt-4o-mini",
+      "base_url": "https://api.openai.com/v1",
+      "env_key": "OPENAI_API_KEY",
+      "rpm": 20,
+      "rpd": 100,
+      "jpeg_max_side": 384,
+      "_comment": "Vision sends a JPEG data URL to the provider; harness board.png unchanged."
+    },
+    {
+      "inscribed_id": "runner-stub-puzzles",
+      "kind": "puzzles",
+      "provider": "stub",
+      "observation": "text",
+      "provider_model": "stub-puzzles",
+      "base_url": "",
+      "env_key": "",
+      "rpm": 60,
+      "rpd": 500,
+      "puzzle_rating_min": 1400,
+      "puzzle_rating_max": 1600,
+      "_comment": "Grinds /api/v1/puzzles via agent_http; no env key. Respects puzzle concurrency caps."
+    },
+    {
+      "inscribed_id": "runner-stub-identify",
+      "kind": "identify",
+      "provider": "stub",
+      "observation": "vision",
+      "provider_model": "stub-identify",
+      "base_url": "",
+      "env_key": "",
+      "rpm": 60,
+      "rpd": 500,
+      "identify_rating_min": 1400,
+      "identify_rating_max": 1600,
+      "_comment": "Grinds /api/v1/identify via agent_http; stub parses board.txt into a placement answer."
+    }
+  ]
+}

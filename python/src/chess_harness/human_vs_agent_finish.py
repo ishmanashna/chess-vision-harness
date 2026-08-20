@@ -36,6 +36,7 @@ def finish_human_vs_agent_game(
             "game_id": game_id,
             "game_type": GAME_TYPE_HUMAN_VS_AGENT,
             "model_name": state.get("model_name"),
+            "observation": ctrl.result_observation(state),
             "agent_color": state.get("agent_color"),
             "human_nickname": state.get("human_nickname"),
             "result": result,

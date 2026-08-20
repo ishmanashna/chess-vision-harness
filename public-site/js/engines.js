@@ -19,6 +19,7 @@
     if (value == null || value === "") return "—";
     var n = Number(value);
     if (isNaN(n)) return "—";
+    if (suffix === "%") return n.toFixed(2) + "%";
     if (suffix) return String(n) + suffix;
     return String(Math.round(n));
   }

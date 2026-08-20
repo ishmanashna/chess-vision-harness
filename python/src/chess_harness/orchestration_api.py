@@ -119,15 +119,30 @@ def _side_brief(
     side: str,
     is_ava: bool,
 ) -> str:
+    from .models import ModelRegistry, normalize_observation
+
+    registry = ModelRegistry()
     if not is_ava:
-        return render_agent_brief(public_base_url(), game_id, raw_key)
+        model_id = state.get("model_name") or ""
+        obs = normalize_observation(state.get("observation"))
+        if not state.get("observation") and model_id:
+            obs = registry.observation_for(str(model_id))
+        return render_agent_brief(
+            public_base_url(), game_id, raw_key, observation=obs
+        )
     opponent = (
         state.get("black_display_name")
         if side == "WHITE"
         else state.get("white_display_name")
     ) or "Opponent"
+    obs_key = "white_observation" if side == "WHITE" else "black_observation"
     return render_agent_brief_avaa(
-        public_base_url(), game_id, raw_key, side.lower(), str(opponent)
+        public_base_url(),
+        game_id,
+        raw_key,
+        side.lower(),
+        str(opponent),
+        observation=normalize_observation(state.get(obs_key)),
     )
 
 

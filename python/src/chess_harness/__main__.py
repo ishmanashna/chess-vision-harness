@@ -173,13 +173,25 @@ def main(argv: list[str] | None = None) -> None:
             commands.cmd_models_list()
         elif args[1] == "inscribe":
             if len(args) < 3:
-                print('Usage: chess-harness models inscribe <id> [--name "Display Name"]')
+                print(
+                    'Usage: chess-harness models inscribe <id> [--name "Display Name"] '
+                    "[--observation vision|text]"
+                )
                 sys.exit(1)
             model_id = args[2]
             name = None
-            if len(args) > 4 and args[3] == "--name":
-                name = args[4]
-            commands.cmd_models_inscribe(model_id, name)
+            observation = None
+            i = 3
+            while i < len(args):
+                if args[i] == "--name" and i + 1 < len(args):
+                    name = args[i + 1]
+                    i += 2
+                elif args[i] == "--observation" and i + 1 < len(args):
+                    observation = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
+            commands.cmd_models_inscribe(model_id, name, observation)
         elif args[1] == "uninscribe":
             if len(args) < 3:
                 print("Usage: chess-harness models uninscribe <id>")
@@ -320,6 +332,11 @@ def main(argv: list[str] | None = None) -> None:
             "reconcile|import-live|list|restore <game_id>"
         )
         sys.exit(1)
+
+    elif args[0] == "runner":
+        from .runner.cli import cmd_runner
+
+        sys.exit(cmd_runner(args[1:]))
 
     elif args[0] == "puzzles":
         if len(args) < 2:

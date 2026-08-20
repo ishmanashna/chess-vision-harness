@@ -32,6 +32,7 @@ from .game_types import (
     GAME_TYPE_HUMAN_VS_AGENT,
     is_human_vs_agent_state,
 )
+from .models import normalize_observation
 from .spectator_human import (
     human_active_card,
     human_list_fields,
@@ -704,6 +705,8 @@ def _avaa_list_fields(state: Dict[str, Any], elo: Dict[str, Any]) -> Dict[str, A
         "black_elo": elo.get("black_elo"),
         "white_joined": bool(state.get("white_joined")),
         "black_joined": bool(state.get("black_joined")),
+        "white_observation": normalize_observation(state.get("white_observation")),
+        "black_observation": normalize_observation(state.get("black_observation")),
         "model_id": state.get("white_model_id"),
         "model_name": white_name,
         "agent_elo": elo.get("white_elo"),
@@ -740,6 +743,7 @@ def _side_list_fields(
                 "black_elo": agent_elo
                 if state.get("agent_color") == "BLACK"
                 else None,
+                "observation": normalize_observation(state.get("observation")),
             }
         )
         return fields
@@ -767,6 +771,7 @@ def _side_list_fields(
         "black_display_name": black_name,
         "white_elo": white_elo,
         "black_elo": black_elo,
+        "observation": normalize_observation(state.get("observation")),
     }
 
 

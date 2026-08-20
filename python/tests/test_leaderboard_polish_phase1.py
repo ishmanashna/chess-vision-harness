@@ -64,9 +64,12 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "data-show-home-benchmark" in html
     assert 'data-sort="games"' not in html
     assert ">Benchmark</h2>" in html
-    assert "flavor snapshot" in html
-    assert "move by move" in html
-    assert "same scale as regular Elo" in html
+    assert "collaborative public benchmark" in html
+    assert "paste-ready prompt" in html
+    assert "/api/v1" in html
+    assert "these guys really suck at chess" in html
+    assert "normal intelligence indexes" in html
+    assert "flavor snapshot" not in html
     assert "casual shorthand" not in html
 
 
@@ -107,6 +110,18 @@ def test_common_js_provisional_ignores_display_games():
     assert "games < 100" not in js
     assert "data-show-model-id" in js
     assert "leaderboardColCount" in js
+    assert 'toFixed(2) + "%"' in js
+    assert '!homeBenchmark && provisional' in js
+    assert 'homeBenchmark' in js
+    assert '? "elo provisional"' in js
+
+
+def test_home_benchmark_elo_matches_other_cells():
+    js = _read_public("js/common.js")
+    # Home Elo is a plain cell (asterisk only) — no muted/underline provisional styling.
+    assert 'eloClass = homeBenchmark' in js or "eloClass = homeBenchmark" in js
+    css = _read_public("css/site.css")
+    assert ".home-ladder .leaderboard-table .provisional" not in css
 
 
 def test_calibration_html_performance_label():

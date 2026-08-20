@@ -14,6 +14,29 @@ _MODEL_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 
 AGENT_START_ELO = 500
 
+OBSERVATION_VISION = "vision"
+OBSERVATION_TEXT = "text"
+_VALID_OBSERVATIONS = frozenset({OBSERVATION_VISION, OBSERVATION_TEXT})
+
+
+def normalize_observation(value: Any) -> str:
+    """Default missing/legacy values to vision."""
+    if value == OBSERVATION_TEXT:
+        return OBSERVATION_TEXT
+    return OBSERVATION_VISION
+
+
+def validate_observation(value: Optional[str]) -> str:
+    """Parse inscription/API observation; raise ValueError when invalid."""
+    if value is None or not str(value).strip():
+        return OBSERVATION_VISION
+    obs = str(value).strip().lower()
+    if obs not in _VALID_OBSERVATIONS:
+        raise ValueError(
+            f"observation must be '{OBSERVATION_VISION}' or '{OBSERVATION_TEXT}'"
+        )
+    return obs
+
 # Legacy free-text names -> canonical inscribed id
 MODEL_ALIASES: Dict[str, str] = {
     "Composer 2.5": "composer-2.5",
@@ -133,7 +156,19 @@ class ModelRegistry:
             return dict(entry)
         raise ValueError(f"Model '{model_id}' is not inscribed")
 
-    def inscribe(self, model_id: str, name: Optional[str] = None) -> Dict[str, Any]:
+    def observation_for(self, model_id: str) -> str:
+        model = self.get(model_id)
+        if not model:
+            return OBSERVATION_VISION
+        return normalize_observation(model.get("observation"))
+
+    def inscribe(
+        self,
+        model_id: str,
+        name: Optional[str] = None,
+        *,
+        observation: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if not self.validate_id_format(model_id):
             raise ValueError(
                 f"Invalid model id '{model_id}'. Use letters, numbers, dots, dashes, underscores."
@@ -147,6 +182,7 @@ class ModelRegistry:
             "name": name or model_id,
             "inscribed": date.today().isoformat(),
             "elo": AGENT_START_ELO,
+            "observation": validate_observation(observation),
         }
         self._data.setdefault("models", []).append(entry)
         self._save()
@@ -230,7 +266,9 @@ def format_model_list(registry: ModelRegistry) -> str:
     for model in models:
         elo = model.get("elo", AGENT_START_ELO)
         disabled = "" if model.get("enabled", True) else " [disabled]"
+        obs = normalize_observation(model.get("observation"))
+        obs_mark = " [text]" if obs == OBSERVATION_TEXT else ""
         lines.append(
-            f"  {model['id']}: {model.get('name', model['id'])} ({round(elo)} ELO){disabled}"
+            f"  {model['id']}: {model.get('name', model['id'])} ({round(elo)} ELO){obs_mark}{disabled}"
         )
     return "\n".join(lines)

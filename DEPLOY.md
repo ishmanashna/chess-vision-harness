@@ -115,6 +115,9 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_MAX_GAMES_PER_HOUR_PER_KEY` | No | Per API key (default `20`) |
 | `CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY` | No | Per API key (default `600`) |
 | `CHESS_HARNESS_MAX_AGENT_REGISTRATIONS_PER_IP_PER_HOUR` | No | Unauthenticated `POST /api/v1/agents` (default `10`) |
+
+**Volume / runner:** the headless `chess_harness.agent_http` client and a future internal runner use the **same** caps above — there is no bypass route. To farm more games on your operator PC, raise `CHESS_HARNESS_MAX_CONCURRENT_GAMES`, `CHESS_HARNESS_MAX_GAMES_PER_HOUR_PER_KEY`, and `CHESS_HARNESS_MAX_MOVES_PER_HOUR_PER_KEY` in the serve environment. Keep `CHESS_HARNESS_IDLE_TIMEOUT_SEC` at the default **1800** (30 minutes); do not lower idle to stretch volume.
+
 | `CHESS_HARNESS_AUDIT_SALT` | No | Salt for hashing client IPs in `.chess_harness/audit/activity.jsonl`. Read with `chess-harness audit tail`. |
 | `CHESS_HARNESS_TRUSTED_PROXIES` | No | Comma-separated CIDRs for the immediate proxy hop (`127.0.0.0/8` for local `cloudflared` → `127.0.0.1:8765`). Pages sets `X-Forwarded-For` from the visitor's `CF-Connecting-IP`; the harness trusts that header only when the peer is in this list. Leave unset only for direct localhost access with no tunnel. |
 | `CHESS_HARNESS_INBOX_SECRET` | No | Optional secret for inbox list/read/delete from a trusted non-loopback operator path; loopback access remains available. |

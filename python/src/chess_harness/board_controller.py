@@ -20,7 +20,7 @@ from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent
 from .game_manager import GameBusyError, GameManager
 from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
 from .human_vs_agent import HumanVsAgentPlay, ensure_agent_joined
-from .models import ModelRegistry
+from .models import ModelRegistry, normalize_observation
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
 from .render_pillow import ChessBoardRenderer
@@ -475,6 +475,7 @@ class BoardController:
                     else None,
                     "model_name": model_id,
                     "model_display_name": display_name,
+                    "observation": self.registry.observation_for(model_id),
                     "start_fen": start_fen,
                     "board_fen": start_fen,
                     "last_move_uci": None,
@@ -670,6 +671,34 @@ class BoardController:
         except Exception:
             pass
 
+    @staticmethod
+    def result_observation(state: Dict[str, Any], *, side: Optional[str] = None) -> str:
+        """Snapshotted observation for a results.jsonl row."""
+        if side:
+            key = (
+                "white_observation"
+                if side.upper() == "WHITE"
+                else "black_observation"
+            )
+            if key in state:
+                return normalize_observation(state.get(key))
+        return normalize_observation(state.get("observation"))
+
+    def _result_row_base(self, game_id: str, state: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
+        row: Dict[str, Any] = {
+            "ts": datetime.now().isoformat(),
+            "game_id": game_id,
+            "opponent_id": state.get("opponent_id"),
+            "skill": state.get("skill"),
+            "agent_color": state["agent_color"],
+            "plies": len(state["moves"]),
+            "pgn_path": str(self.game_manager.get_pgn_path(game_id)),
+            "model_name": state.get("model_name"),
+            "observation": self.result_observation(state),
+        }
+        row.update(extra)
+        return row
+
     def _finish_game(self, game_id: str, state: Dict[str, Any], board: chess.Board) -> None:
         self._try_snapshot_eval(state, board)
         state["status"] = "finished"
@@ -681,17 +710,10 @@ class BoardController:
             opponent_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
         self.results.append_result(
             {
-                "ts": datetime.now().isoformat(),
-                "game_id": game_id,
-                "opponent_id": state.get("opponent_id"),
+                **self._result_row_base(game_id, state),
                 "opponent_elo": opponent_elo,
-                "skill": state.get("skill"),
-                "agent_color": state["agent_color"],
                 "result": state["result"],
                 "reason": self._get_game_over_reason(board),
-                "plies": len(state["moves"]),
-                "pgn_path": str(self.game_manager.get_pgn_path(game_id)),
-                "model_name": state.get("model_name"),
             }
         )
         delta = self.elo.record_game(
@@ -909,17 +931,10 @@ class BoardController:
                     opp_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
                 self.results.append_result(
                     {
-                        "ts": datetime.now().isoformat(),
-                        "game_id": game_id,
-                        "opponent_id": state.get("opponent_id"),
+                        **self._result_row_base(game_id, state),
                         "opponent_elo": opp_elo,
-                        "skill": state.get("skill"),
-                        "agent_color": agent_color,
                         "result": result,
                         "reason": reason,
-                        "plies": len(state["moves"]),
-                        "pgn_path": str(self.game_manager.get_pgn_path(game_id)),
-                        "model_name": state.get("model_name"),
                     }
                 )
 
@@ -970,17 +985,10 @@ class BoardController:
                     opp_elo = ladder_elo_for_opponent(self._opponent_from_state(state))
                 self.results.append_result(
                     {
-                        "ts": datetime.now().isoformat(),
-                        "game_id": game_id,
-                        "opponent_id": state.get("opponent_id"),
+                        **self._result_row_base(game_id, state),
                         "opponent_elo": opp_elo,
-                        "skill": state.get("skill"),
-                        "agent_color": agent_color,
                         "result": result,
                         "reason": reason,
-                        "plies": len(state["moves"]),
-                        "pgn_path": str(self.game_manager.get_pgn_path(game_id)),
-                        "model_name": state.get("model_name"),
                     }
                 )
                 delta = self.elo.record_game(

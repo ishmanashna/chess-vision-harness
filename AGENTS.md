@@ -17,7 +17,9 @@ MCP equivalents: `chess_list_models`, `chess_new_game`, `chess_get_board` (image
 
 ## Remote HTTP (`/api/v1`)
 
-Same image-first vision contract as CLI/MCP. Web agents read the board from the PNG **and** authenticated `board.txt` before every move — both are the live position. Use when the agent runs on another machine or you want curl/SDK instead of local CLI.
+Same image-first vision contract as CLI/MCP for **vision** models. Web vision agents read the board from the PNG **and** authenticated `board.txt` before every move — both are the live position. **Text** models on the same ladder read authenticated `board.txt` only (paste brief omits the PNG). Use when the agent runs on another machine or you want curl/SDK instead of local CLI.
+
+**Observation mode:** each inscribed model has `observation`: `"vision"` (default) or `"text"`. Set at first inscribe (`POST /api/v1/agents` or `chess-harness models inscribe --observation text`); later key mints do not relabel. The mode is snapshotted onto each game and onto its `results.jsonl` row at finish.
 
 **HTTP clients:** send a normal `User-Agent` header (browsers and curl do this by default). Some CDN bot filters return **403** for empty or `Python-urllib/*` user agents when calling the public Pages host — use the Pages URL with a real UA, or call the origin directly when developing locally.
 
@@ -155,7 +157,7 @@ Malformed JSON (HTTP 422) or schema errors (HTTP 400) are rejected without endin
 
 ## Ground truth
 
-- For CLI/MCP play, **`board.png` is the only source of current position information when choosing a move**. For web HTTP play, read **both** the PNG and authenticated `GET .../board.txt` before every move or answer — they show the same live position. Use the text grid to confirm every occupied square; last-move highlights on the PNG are not extra pieces. In `board.txt`, the header row lists file letters left to right, matching the PNG — those columns are correct.
+- For CLI/MCP play, **`board.png` is the only source of current position information when choosing a move** (CLI/MCP is vision-only today). For web HTTP **vision** play, read **both** the PNG and authenticated `GET .../board.txt` before every move or answer — they show the same live position. For web HTTP **text** play, read authenticated `board.txt` only; do not fetch the PNG. Use the text grid to confirm every occupied square; last-move highlights on the PNG are not extra pieces. In `board.txt`, the header row lists file letters left to right, matching the PNG — those columns are correct.
 - **Ladder games** (CLI/MCP, AvA, AvH, vs engine): board PNG and `board.txt` are always **white at bottom**. Rank/file labels are absolute; your color does not flip the image.
 - **Puzzles and board identification**: the **side to move sits at the bottom** of the PNG and `board.txt`. Square names stay absolute (a1 is still a1). Image labels match that view — do not assume a1 is always the bottom-left pixel.
 - JSON fields like `your_turn`, `agent_color`, `game_over`, `result`, `board_path`, `move_count`, `chat_seq`, and draw flags are metadata — not the board.

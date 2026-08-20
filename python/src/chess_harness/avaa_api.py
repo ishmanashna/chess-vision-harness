@@ -60,12 +60,16 @@ def _side_brief(
         if color == "WHITE"
         else state.get("white_display_name")
     ) or "Opponent"
+    obs_key = "white_observation" if color == "WHITE" else "black_observation"
+    from .models import normalize_observation
+
     return render_agent_brief_avaa(
         public_base_url(),
         game_id,
         raw_key,
         color.lower(),
         str(opponent),
+        observation=normalize_observation(state.get(obs_key)),
     )
 
 
