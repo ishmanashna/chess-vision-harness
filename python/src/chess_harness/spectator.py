@@ -47,6 +47,8 @@ from .ladder_display import (
 )
 from .calibration_auth import require_calibration_auth
 from .contact_api import register_contact_routes
+from .ops_api import register_ops_routes
+from .ops_metrics import register_ops_metrics
 from .play_page import register_play_routes
 from .calibration_view import get_calibration_status, get_calibration_status_live, rebuild_merged_ratings_file
 from .public_site_shell import puzzle_set_preview_shell_response, watch_shell_response
@@ -267,6 +269,9 @@ async def _calibration_post_auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+register_ops_metrics(app)
+
+
 def _get_engine() -> Optional[EvalEngineAdapter]:
     global _engine
     if _engine is None:
@@ -295,6 +300,7 @@ def _get_game_service() -> GameService:
 mount_api_v1(app, _get_game_service)
 register_play_routes(app, lambda: game_manager)
 register_contact_routes(app)
+register_ops_routes(app)
 
 _public_site = _project_root / "public-site"
 if (_public_site / "css").is_dir():

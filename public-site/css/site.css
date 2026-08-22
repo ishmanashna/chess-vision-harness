@@ -1223,3 +1223,377 @@ p {
     font-size: 0.85rem;
   }
 }
+
+/* --- Operator panel (/ops/) --- */
+.ops-body {
+  min-height: 100vh;
+}
+
+.ops-wrap {
+  max-width: none;
+}
+
+.ops-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.ops-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 12px;
+  position: sticky;
+  top: 16px;
+}
+
+.ops-brand {
+  padding: 0 8px 14px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ops-brand strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.ops-brand span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ops-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ops-tabs button {
+  text-align: left;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ops-tabs button:hover,
+.ops-tabs button[aria-current="page"] {
+  background: var(--bg-elevated, var(--surface));
+  color: var(--text);
+}
+
+.ops-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ops-sidebar-foot {
+  margin-top: 16px;
+  padding: 8px 8px 0;
+}
+
+.ops-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ops-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ops-title {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.ops-subtitle {
+  margin-top: 6px;
+}
+
+.ops-top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.ops-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ops-kpi-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.ops-kpi-value {
+  font-size: 1.45rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  margin: 4px 0 2px;
+}
+
+.ops-kpi-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ops-row.two {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+}
+
+.ops-row.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-card-title {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.ops-section.hidden {
+  display: none !important;
+}
+
+.ops-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ops-mail {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg-elevated, var(--surface));
+}
+
+.ops-mail.is-unread {
+  border-color: var(--link);
+}
+
+.ops-mail header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
+}
+
+.ops-mail header span {
+  color: var(--muted);
+}
+
+.ops-mail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ops-mail-actions button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.ops-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.ops-feed-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+
+.ops-feed-item time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-feed-msg {
+  color: var(--muted);
+}
+
+.ops-machine-line {
+  margin: 0 0 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.ops-machine-line span:last-child {
+  color: var(--muted);
+}
+
+.ops-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ops-bar span {
+  display: block;
+  height: 100%;
+  background: var(--link);
+  border-radius: inherit;
+  width: 0;
+}
+
+.ops-chart {
+  margin-top: 12px;
+  min-height: 72px;
+}
+
+.ops-chart-tall {
+  min-height: 140px;
+}
+
+.ops-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 72px;
+}
+
+.ops-chart-tall .ops-chart-bars {
+  height: 140px;
+}
+
+.ops-chart-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: 2%;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--link) 18%, transparent);
+}
+
+.ops-chart-bar.has-value {
+  background: var(--link);
+}
+
+.ops-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ops-error-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.ops-error-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.ops-error-head span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.ops-error-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.ops-go-online-card {
+  margin-bottom: 16px;
+}
+
+.ops-go-online-phase {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.ops-go-online-log {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 980px) {
+  .ops-layout {
+    flex-direction: column;
+  }
+
+  .ops-sidebar {
+    width: auto;
+    position: static;
+  }
+
+  .ops-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ops-kpis,
+  .ops-row.two,
+  .ops-row.three {
+    grid-template-columns: 1fr;
+  }
+}

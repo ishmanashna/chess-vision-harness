@@ -48,9 +48,13 @@ def configure_spectator_harness(harness_dir: Path, monkeypatch) -> Path:
     monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
     monkeypatch.setenv("MODELS_FILE", str(harness_dir / "models.json"))
     monkeypatch.setenv("CHESS_HARNESS_CALIBRATION_IN_PROCESS", "1")
+    monkeypatch.setenv("CHESS_HARNESS_OPS_METRICS_TEST_HOOK", "1")
 
     import chess_harness.api_limits as api_limits
+    import chess_harness.ops_metrics as ops_metrics
     import chess_harness.spectator as spec
+
+    ops_metrics.reset_metrics()
 
     api_limits.get_limit_enforcer().reset_counters()
     spec._base = str(harness_dir)

@@ -19,6 +19,11 @@
     "Text-only agent — plays from the board.txt grid, not the PNG image.";
   var ENGINES_JS_VERSION = "4";
   var SITE_JS_VERSION = "5";
+  /** Public Pages host — Umami tracker loads only here (never localhost/tunnel). */
+  var UMAMI_PAGES_HOST = "chessvisionharness.pages.dev";
+  /** Paste your Umami Cloud website id here; empty skips tracker injection. */
+  var UMAMI_WEBSITE_ID = "";
+  var UMAMI_SCRIPT_URL = "https://cloud.umami.is/script.js";
   var HOME_SORT_KEY = "cvh-home-ladder-sort";
   var AGENTS_SORT_KEY = "cvh-leaderboard-agents-sort";
   var healthCache = null;
@@ -55,19 +60,42 @@
     if (!activeId && current.indexOf("/play/") === 0) activeId = "nav-create";
     if (!activeId && current.indexOf("/puzzle-set/") === 0) activeId = "nav-puzzle-set";
     if (!activeId && current === "/puzzle-set") activeId = "nav-puzzle-set";
+    if (!activeId && current === "/ops") activeId = "nav-ops";
     var link = document.getElementById(activeId);
     if (link) link.classList.add("active");
   }
 
   /** Localhost only: show Calibration after Leaderboards (never on Pages). */
-  function isLoopbackHost() {
-    var host = window.location.hostname;
+  function isLoopbackHost(hostname) {
+    var host = typeof hostname === "string" ? hostname : window.location.hostname;
     return (
       host === "127.0.0.1" ||
       host === "localhost" ||
       host === "::1" ||
       host === "[::1]"
     );
+  }
+
+  /** True when the Umami tracker should load (Pages host + configured website id). */
+  function shouldLoadUmamiTracker(hostname, websiteId, pagesHost) {
+    var host = typeof hostname === "string" ? hostname : window.location.hostname;
+    var siteHost = typeof pagesHost === "string" ? pagesHost : UMAMI_PAGES_HOST;
+    var id = typeof websiteId === "string" ? websiteId : UMAMI_WEBSITE_ID;
+    if (!id) return false;
+    if (isLoopbackHost(host)) return false;
+    return host === siteHost;
+  }
+
+  function maybeLoadUmamiTracker() {
+    if (!shouldLoadUmamiTracker(window.location.hostname, UMAMI_WEBSITE_ID, UMAMI_PAGES_HOST)) {
+      return;
+    }
+    if (document.querySelector('script[src="' + UMAMI_SCRIPT_URL + '"]')) return;
+    var script = document.createElement("script");
+    script.defer = true;
+    script.src = UMAMI_SCRIPT_URL;
+    script.setAttribute("data-website-id", UMAMI_WEBSITE_ID);
+    document.head.appendChild(script);
   }
 
   function ensureCalibrationNav() {
@@ -105,6 +133,25 @@
     a.textContent = "Puzzle set";
     anchor.parentNode.insertBefore(a, calibration ? calibration.nextSibling : anchor.nextSibling);
     if (navPath() === "/puzzle-set") a.classList.add("active");
+  }
+
+  function ensureOpsNav() {
+    if (document.getElementById("nav-ops")) {
+      if (navPath() === "/ops") {
+        document.getElementById("nav-ops").classList.add("active");
+      }
+      return;
+    }
+    if (!isLoopbackHost()) return;
+    var puzzleSet = document.getElementById("nav-puzzle-set");
+    var anchor = puzzleSet || document.getElementById("nav-calibration");
+    if (!anchor || !anchor.parentNode) return;
+    var a = document.createElement("a");
+    a.href = "/ops/";
+    a.id = "nav-ops";
+    a.textContent = "Ops";
+    anchor.parentNode.insertBefore(a, puzzleSet ? puzzleSet.nextSibling : anchor.nextSibling);
+    if (navPath() === "/ops") a.classList.add("active");
   }
 
   function currentTheme() {
@@ -1059,12 +1106,17 @@
   window.CVH.abbreviateListName = abbreviateListName;
   window.CVH.syncWatchHeights = syncWatchHeights;
   window.CVH.showWatchPollError = showWatchPollError;
+  window.CVH.UMAMI_PAGES_HOST = UMAMI_PAGES_HOST;
+  window.CVH.UMAMI_WEBSITE_ID = UMAMI_WEBSITE_ID;
+  window.CVH.shouldLoadUmamiTracker = shouldLoadUmamiTracker;
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();
     ensureCalibrationNav();
     ensurePuzzleSetNav();
+    ensureOpsNav();
     initThemeToggle();
+    maybeLoadUmamiTracker();
     if (document.querySelector("[data-status-chip]")) {
       applyHealthUi();
     }
@@ -1077,7 +1129,11 @@
       loadEnginesOnce();
     }
     // Pages OAuth only — skip on origin operator pages to avoid /auth/me 404 noise.
-    if (navPath() !== "/calibration" && navPath() !== "/puzzle-set") {
+    if (
+      navPath() !== "/calibration" &&
+      navPath() !== "/puzzle-set" &&
+      navPath() !== "/ops"
+    ) {
       loadScriptOnce("/js/auth.js");
     }
   });

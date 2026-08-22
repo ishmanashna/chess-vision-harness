@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.ico" sizes="any"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <meta name="description" content="Localhost operator desk — health, disk, inbox, activity (127.0.0.1 only)."/>
+  <title>Operator panel — Chess Vision Harness</title>
+  <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+  <link rel="stylesheet" href="/css/site.css"/>
+</head>
+<body class="ops-body">
+  <div class="wrap ops-wrap">
+    <header class="site-header">
+      <div class="header-top">
+        <div class="header-brand">
+          <h1 class="site-title">Chess Vision Harness</h1>
+        </div>
+        <nav class="site-nav" aria-label="Main">
+          <a href="/" id="nav-home">Home</a>
+          <a href="/launch/?flow=engine" id="nav-create">Create Game</a>
+          <a href="/spectator/" id="nav-spectator">Spectator</a>
+          <a href="/leaderboard/" id="nav-leaderboard">Leaderboards</a>
+          <a href="/contact/" id="nav-contact">Contact</a>
+        </nav>
+        <div class="header-controls">
+          <button type="button" class="theme-toggle" data-theme-toggle>Dark mode</button>
+          <span class="status-chip" data-status-chip data-state="checking" title="Checking whether the game server is reachable…">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status-label>Checking…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <div class="ops-layout" data-ops-panel>
+      <aside class="ops-sidebar" aria-label="Operator sections">
+        <div class="ops-brand">
+          <strong>Operator panel</strong>
+          <span>Localhost desk</span>
+        </div>
+        <nav class="ops-tabs">
+          <button type="button" data-ops-tab="overview" aria-current="page">Overview</button>
+          <button type="button" data-ops-tab="traffic">Traffic</button>
+          <button type="button" data-ops-tab="errors">Errors</button>
+          <button type="button" data-ops-tab="machine">Machine</button>
+          <button type="button" data-ops-tab="inbox">Inbox <span class="ops-badge" data-inbox-badge hidden>0</span></button>
+          <button type="button" data-ops-tab="activity">Activity</button>
+        </nav>
+        <div class="ops-sidebar-foot">
+          <span class="status-chip" data-ops-serve-chip data-state="checking">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-ops-serve-label>Serve</span>
+          </span>
+        </div>
+      </aside>
+
+      <main class="ops-main">
+        <div class="ops-top">
+          <div>
+            <h2 class="ops-title" data-ops-title>Overview</h2>
+            <p class="lead ops-subtitle" data-ops-subtitle>Live snapshot from this PC · polls every 10s</p>
+          </div>
+          <div class="ops-top-actions">
+            <button type="button" class="btn-primary" data-ops-go-online>Go Online</button>
+            <button type="button" class="btn-secondary" data-ops-sleep-public>Sleep public</button>
+            <span class="snapshot-meta" data-ops-updated></span>
+          </div>
+        </div>
+
+        <p class="form-message is-error" data-ops-error hidden></p>
+
+        <section class="ops-section" data-ops-section="overview">
+          <div class="ops-kpis">
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Origin requests (24h)</div>
+              <div class="ops-kpi-value" data-kpi-requests>—</div>
+              <div class="ops-kpi-hint">HTTP to this process</div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Error rate</div>
+              <div class="ops-kpi-value" data-kpi-errors>—</div>
+              <div class="ops-kpi-hint">5xx + unexpected 4xx</div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Inbox unread</div>
+              <div class="ops-kpi-value" data-kpi-inbox>0</div>
+              <div class="ops-kpi-hint"><a href="/contact/">Contact form</a></div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Disk free</div>
+              <div class="ops-kpi-value" data-kpi-disk>—</div>
+              <div class="ops-kpi-hint" data-kpi-disk-detail></div>
+            </article>
+          </div>
+          <article class="card ops-go-online-card" data-ops-go-online-panel hidden>
+            <h3 class="ops-card-title">Go Online</h3>
+            <p class="ops-go-online-phase" data-ops-go-online-phase></p>
+            <pre class="ops-go-online-log" data-ops-go-online-log></pre>
+          </article>
+          <div class="ops-row two">
+            <article class="card">
+              <h3 class="ops-card-title">Origin requests (24h)</h3>
+              <p class="snapshot-meta" data-metrics-note></p>
+              <div class="ops-chart" data-chart-overview-requests aria-hidden="true"></div>
+            </article>
+            <article class="card">
+              <h3 class="ops-card-title">Live now</h3>
+              <table class="leaderboard-table" data-live-games-table aria-label="In-progress games">
+                <thead><tr><th>Agent</th><th>Mode</th><th>Link</th></tr></thead>
+                <tbody data-live-games-body></tbody>
+              </table>
+              <p class="snapshot-meta" data-live-games-meta></p>
+            </article>
+          </div>
+          <article class="card" style="margin-top:16px">
+            <h3 class="ops-card-title">Latest contact</h3>
+            <div class="ops-inbox-list" data-inbox-preview></div>
+          </article>
+        </section>
+
+        <section class="ops-section hidden" data-ops-section="traffic" hidden>
+          <p class="lead">Two traffic stories: <strong>Origin requests</strong> are HTTP that reached this serve process; <strong>Site visitors</strong> are Umami pageviews on the public Pages host (including while this PC was Sleeping).</p>
+          <p class="snapshot-meta" data-metrics-note-traffic></p>
+          <div class="ops-kpis">
+            <article class="card ops-kpi"><div class="ops-kpi-label">Origin requests (24h)</div><div class="ops-kpi-value" data-traffic-requests>0</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Site visitors (24h)</div><div class="ops-kpi-value" data-traffic-visitors>—</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Site pageviews (24h)</div><div class="ops-kpi-value" data-traffic-pageviews>—</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Live games</div><div class="ops-kpi-value" data-traffic-live-games>0</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Active attempts</div><div class="ops-kpi-value" data-traffic-attempts>0</div></article>
+          </div>
+          <div class="ops-row two">
+            <article class="card">
+              <h3 class="ops-card-title">Origin requests (this PC)</h3>
+              <p class="snapshot-meta">Per-minute HTTP to this process · resets when serve restarts</p>
+              <div class="ops-chart ops-chart-tall" data-chart-traffic-requests aria-hidden="true"></div>
+            </article>
+            <article class="card">
+              <h3 class="ops-card-title">Route families</h3>
+              <p class="snapshot-meta">static · /css, /js · api_v1 · /api/v1 · watch · /g/, /p/, /i/, /spectator · other · everything else</p>
+              <table class="leaderboard-table" data-route-table aria-label="Origin requests by route family">
+                <thead><tr><th>Family</th><th>Requests (24h)</th></tr></thead>
+                <tbody data-route-table-body></tbody>
+              </table>
+            </article>
+          </div>
+          <article class="card" style="margin-top:16px">
+            <h3 class="ops-card-title">Site visitors (Umami)</h3>
+            <p class="snapshot-meta">Public browser pageviews on chessvisionharness.pages.dev · last 24 hours · cached ~60s on this PC</p>
+            <p class="snapshot-meta ops-audience-empty" data-audience-empty hidden></p>
+            <div data-audience-loaded hidden>
+              <div class="ops-row three" style="margin-bottom:16px">
+                <article class="card ops-kpi"><div class="ops-kpi-label">Unique visitors</div><div class="ops-kpi-value" data-audience-visitors>—</div></article>
+                <article class="card ops-kpi"><div class="ops-kpi-label">Pageviews</div><div class="ops-kpi-value" data-audience-pageviews>—</div></article>
+                <article class="card ops-kpi"><div class="ops-kpi-label">Source</div><div class="ops-kpi-value">Umami</div></article>
+              </div>
+              <div class="ops-row three">
+                <div>
+                  <h4 class="ops-card-title">Referrers</h4>
+                  <table class="leaderboard-table" aria-label="Umami referrers">
+                    <thead><tr><th>Referrer</th><th>Visitors</th></tr></thead>
+                    <tbody data-audience-referrers></tbody>
+                  </table>
+                </div>
+                <div>
+                  <h4 class="ops-card-title">Top pages</h4>
+                  <table class="leaderboard-table" aria-label="Umami top pages">
+                    <thead><tr><th>Path</th><th>Visitors</th></tr></thead>
+                    <tbody data-audience-pages></tbody>
+                  </table>
+                </div>
+                <div>
+                  <h4 class="ops-card-title">Countries</h4>
+                  <table class="leaderboard-table" aria-label="Umami countries">
+                    <thead><tr><th>Country</th><th>Visitors</th></tr></thead>
+                    <tbody data-audience-countries></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="ops-section hidden" data-ops-section="errors" hidden>
+          <p class="lead">Outage-style errors from this process. Routine illegal-move 4xx and agent schema 422 are tracked separately and not listed here.</p>
+          <p class="snapshot-meta" data-metrics-note-errors></p>
+          <div class="ops-kpis">
+            <article class="card ops-kpi"><div class="ops-kpi-label">5xx events</div><div class="ops-kpi-value" data-errors-5xx>0</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Unexpected 4xx</div><div class="ops-kpi-value" data-errors-unexpected>0</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">Routine 4xx</div><div class="ops-kpi-value" data-errors-routine>0</div></article>
+            <article class="card ops-kpi"><div class="ops-kpi-label">p95 latency</div><div class="ops-kpi-value" data-errors-p95>—</div></article>
+          </div>
+          <div class="ops-row two">
+            <article class="card">
+              <h3 class="ops-card-title">Outage errors per minute</h3>
+              <div class="ops-chart ops-chart-tall" data-chart-errors-outages aria-hidden="true"></div>
+            </article>
+            <article class="card">
+              <h3 class="ops-card-title">Recent outage events</h3>
+              <div class="ops-error-list" data-error-events></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="ops-section hidden" data-ops-section="machine" hidden>
+          <div class="ops-kpis">
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Serve</div>
+              <div class="ops-kpi-value" data-machine-serve>up</div>
+              <div class="ops-kpi-hint">This page loaded from localhost</div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Tunnel</div>
+              <div class="ops-kpi-value" data-machine-tunnel>—</div>
+              <div class="ops-kpi-hint" data-machine-tunnel-url></div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Harness dir</div>
+              <div class="ops-kpi-value" data-machine-harness-size>—</div>
+              <div class="ops-kpi-hint" data-machine-harness-path></div>
+            </article>
+            <article class="card ops-kpi">
+              <div class="ops-kpi-label">Calibration worker</div>
+              <div class="ops-kpi-value" data-machine-calibration>—</div>
+            </article>
+          </div>
+          <div class="ops-row three">
+            <article class="card ops-machine-card">
+              <h3 class="ops-card-title">Disk</h3>
+              <p class="ops-machine-line"><span data-disk-drive>System</span> <span data-disk-used></span></p>
+              <div class="ops-bar"><span data-disk-bar></span></div>
+              <p class="ops-machine-line" style="margin-top:12px">.chess_harness <span data-harness-size></span></p>
+            </article>
+            <article class="card ops-machine-card">
+              <h3 class="ops-card-title">Processes</h3>
+              <p class="ops-machine-line">chess-harness serve <span class="status-chip" data-state="online"><span class="status-dot"></span> up</span></p>
+              <p class="ops-machine-line">cloudflared tunnel <span data-tunnel-status>—</span></p>
+              <p class="ops-machine-line">Port 8765 <span>127.0.0.1</span></p>
+            </article>
+            <article class="card ops-machine-card">
+              <h3 class="ops-card-title">Health</h3>
+              <p class="ops-machine-line">Local /health <span data-health-local>—</span></p>
+              <p class="ops-machine-line">Tunnel URL file <span data-health-tunnel-file>—</span></p>
+            </article>
+          </div>
+        </section>
+
+        <section class="ops-section hidden" data-ops-section="inbox" hidden>
+          <article class="card">
+            <h3 class="ops-card-title">Contact inbox</h3>
+            <p class="lead">Messages from the public Contact tab. Read and delete use the existing localhost inbox API.</p>
+            <div class="ops-inbox-list" data-inbox-full></div>
+          </article>
+        </section>
+
+        <section class="ops-section hidden" data-ops-section="activity" hidden>
+          <div class="ops-row two">
+            <article class="card">
+              <h3 class="ops-card-title">Live attempts</h3>
+              <table class="leaderboard-table" data-live-attempts-table aria-label="Active puzzle and identify attempts">
+                <thead><tr><th>Agent</th><th>Task</th><th>Link</th></tr></thead>
+                <tbody data-live-attempts-body></tbody>
+              </table>
+            </article>
+            <article class="card">
+              <h3 class="ops-card-title">Audit feed</h3>
+              <div class="ops-feed" data-activity-feed></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/common.js?v=14"></script>
+  <script src="/js/ops.js"></script>
+</body>
+</html>

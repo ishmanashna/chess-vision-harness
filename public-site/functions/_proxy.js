@@ -63,6 +63,12 @@ export function shouldProxyToOrigin(pathname) {
   if (isCalibrationPath(pathname)) {
     return false;
   }
+  if (isPuzzleSetPath(pathname)) {
+    return false;
+  }
+  if (isOpsPath(pathname)) {
+    return false;
+  }
   if (isWatchShellHtml(pathname)) {
     return false;
   }
@@ -108,6 +114,20 @@ export function isPuzzleSetPath(pathname) {
   return (contract.puzzle_set_path_prefixes || []).some((prefix) =>
     pathname.startsWith(prefix)
   );
+}
+
+/**
+ * @param {string} pathname
+ * @returns {boolean}
+ */
+export function isOpsPath(pathname) {
+  if ((contract.ops_path_exact || []).includes(pathname)) {
+    return true;
+  }
+  if ((contract.ops_api_path_prefixes || []).some((prefix) => pathname.startsWith(prefix))) {
+    return true;
+  }
+  return (contract.ops_path_prefixes || []).some((prefix) => pathname.startsWith(prefix));
 }
 
 /**

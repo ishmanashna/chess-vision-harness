@@ -1,5 +1,6 @@
 import {
   isCalibrationPath,
+  isOpsPath,
   isPuzzleSetPath,
   isWatchShellHtml,
   normalizeOrigin,
@@ -52,7 +53,7 @@ export async function onRequest(context) {
   const redirect = launcherRedirect(url);
   if (redirect) return redirect;
 
-  if (isCalibrationPath(pathname) || isPuzzleSetPath(pathname)) {
+  if (isCalibrationPath(pathname) || isPuzzleSetPath(pathname) || isOpsPath(pathname)) {
     return new Response(JSON.stringify({ ok: false, error: "Not Found" }), {
       status: 404,
       headers: { "content-type": "application/json; charset=utf-8" },

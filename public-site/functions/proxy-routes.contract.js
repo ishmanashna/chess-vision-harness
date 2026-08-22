@@ -19,4 +19,7 @@ export default {
   puzzle_set_path_exact: ["/puzzle-set", "/api/puzzle-set"],
   puzzle_set_path_prefixes: ["/puzzle-set/"],
   puzzle_set_api_path_prefixes: ["/api/puzzle-set/"],
+  ops_path_exact: ["/ops", "/api/ops/snapshot"],
+  ops_path_prefixes: ["/ops/"],
+  ops_api_path_prefixes: ["/api/ops/"],
 };

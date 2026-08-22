@@ -123,8 +123,13 @@ Set `STOCKFISH_PATH` if the binary is not at `bin/stockfish*`. Optional: `CHESS_
 | `CHESS_HARNESS_INBOX_SECRET` | No | Optional secret for inbox list/read/delete from a trusted non-loopback operator path; loopback access remains available. |
 | `CHESS_HARNESS_CALIBRATION_SECRET` | For calibration UI POSTs | Shared secret for `/api/calibration/*` mutations when the harness is reachable via tunnel. On loopback Host only, the `/calibration` page may embed it in a meta tag for same-origin POSTs; non-loopback hosts never receive the secret in HTML — paste it in the on-page field or send the header yourself. |
 | `CHESS_HARNESS_ALLOW_REMOTE_CALIBRATION` | No | Set to `1` to allow calibration POSTs without the secret (explicit override; not recommended on exposed hosts). |
+| `CHESS_HARNESS_UMAMI_TOKEN` | No | Umami Cloud API key for the operator panel **Site visitors** block (`GET /api/ops/audience`). **Game PC only** — never commit or deploy to Pages. |
+| `CHESS_HARNESS_UMAMI_WEBSITE_ID` | No | Umami Cloud website id for `chessvisionharness.pages.dev`. Required with the token above for audience data. |
+| `CHESS_HARNESS_UMAMI_API_HOST` | No | Umami Cloud API base URL (default `https://api.umami.is/v1`). Override only for region paths or self-hosted Umami (not used on Pages). |
 
 Create Game briefs read `CHESS_HARNESS_PUBLIC_URL`. Without it, briefs default to `http://127.0.0.1:8765` (local only).
+
+**Umami (operator panel):** paste the website id into `UMAMI_WEBSITE_ID` in `public-site/js/common.js` so the public Pages site loads the Umami tracker. Keep `CHESS_HARNESS_UMAMI_TOKEN` on the game PC serve environment only — the Traffic tab reads audience stats via localhost `/api/ops/audience`.
 
 **Do not** pass `--host 0.0.0.0` to `chess-harness serve`. Default bind is `127.0.0.1`. Only a reverse proxy or tunnel should expose the process.
 

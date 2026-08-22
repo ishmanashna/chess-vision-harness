@@ -10,9 +10,11 @@
 #   .\deploy\go-online.ps1 -PagesUrl "https://chessvisionharness.pages.dev"
 #   .\deploy\go-online.ps1 -InstallShortcut   # Desktop .lnk -> deploy\Start-Online.bat
 #   deploy\Start-Online.bat   # double-click entry (same script, visible window on failure)
+#   .\deploy\go-online.ps1 -NoPanel   # skip opening /ops/ in the browser
 #
-# Manual serve (no NSSM): always restarts so agent briefs get CHESS_HARNESS_PUBLIC_URL
-# (the Pages URL), not 127.0.0.1. NSSM keeps its own service env from install.
+# Manual serve (no NSSM): starts serve when /health is down (sets CHESS_HARNESS_PUBLIC_URL
+# in the script env for that new process). If /health is already OK, leave serve running.
+# NSSM keeps its own service env from install.
 # Prerequisites: cloudflared on PATH or default install path, GitHub CLI logged in.
 
 [CmdletBinding()]
@@ -28,7 +30,8 @@ param(
     [int]$EdgeWaitSec = 180,
     [switch]$SkipDeploy,
     [switch]$SkipVerify,
-    [switch]$InstallShortcut
+    [switch]$InstallShortcut,
+    [switch]$NoPanel
 )
 
 $ErrorActionPreference = "Stop"
@@ -156,7 +159,6 @@ function Start-ManualHarness {
 
 function Ensure-Harness {
     param([string]$BaseUrl, [string]$SvcName, [int]$WaitSec)
-    Set-HarnessBriefEnv -Pages $PagesUrl
     $svc = Get-Service -Name $SvcName -ErrorAction SilentlyContinue
     if ($svc) {
         if ($svc.Status -ne "Running") {
@@ -168,11 +170,12 @@ function Ensure-Harness {
     } else {
         $exePath = Resolve-HarnessExe
         if (Test-LocalHealth -BaseUrl $BaseUrl) {
-            Stop-ManualHarness -ExePath $exePath
+            Write-Host "Harness already healthy at $BaseUrl/health (leaving serve running)."
         } else {
             Write-Host "No '$SvcName' service. Starting chess-harness serve (background)..."
+            Set-HarnessBriefEnv -Pages $PagesUrl
+            Start-ManualHarness -ExePath $exePath
         }
-        Start-ManualHarness -ExePath $exePath
     }
     if (-not (Wait-LocalHealth -BaseUrl $BaseUrl -TimeoutSec $WaitSec)) {
         throw "Harness did not become healthy within ${WaitSec}s at $BaseUrl/health"
@@ -267,6 +270,12 @@ if ($InstallShortcut) {
 }
 
 Ensure-Harness -BaseUrl $HarnessUrl -SvcName $ServiceName -WaitSec $HarnessWaitSec
+
+if (-not $NoPanel) {
+    $panelUrl = "$($HarnessUrl.TrimEnd('/'))/ops/"
+    Write-Host "Opening operator panel: $panelUrl"
+    Start-Process $panelUrl
+}
 
 $cf = Resolve-Cloudflared -Candidate $CloudflaredPath
 $origin = Start-QuickTunnel -CfPath $cf -OriginUrl $HarnessUrl -WaitSec $TunnelWaitSec

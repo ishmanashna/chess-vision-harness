@@ -102,6 +102,14 @@ def _is_puzzle_set_path(pathname: str, contract: dict) -> bool:
     return any(pathname.startswith(prefix) for prefix in contract.get("puzzle_set_path_prefixes", []))
 
 
+def _is_ops_path(pathname: str, contract: dict) -> bool:
+    if pathname in contract.get("ops_path_exact", []):
+        return True
+    if any(pathname.startswith(prefix) for prefix in contract.get("ops_api_path_prefixes", [])):
+        return True
+    return any(pathname.startswith(prefix) for prefix in contract.get("ops_path_prefixes", []))
+
+
 @pytest.fixture
 def contract():
     return _load_contract()
@@ -217,6 +225,32 @@ def test_contract_calibration_paths(pathname, contract):
 )
 def test_contract_puzzle_set_paths(pathname, contract):
     assert _is_puzzle_set_path(pathname, contract)
+
+
+@pytest.mark.parametrize(
+    "pathname",
+    [
+        "/ops",
+        "/ops/",
+        "/api/ops/snapshot",
+        "/api/ops/go-online",
+    ],
+)
+def test_contract_ops_paths(pathname, contract):
+    assert _is_ops_path(pathname, contract)
+
+
+@pytest.mark.parametrize(
+    "pathname",
+    [
+        "/ops",
+        "/ops/",
+        "/api/ops/snapshot",
+    ],
+)
+def test_contract_ops_paths_not_proxied(pathname, contract):
+    assert _is_ops_path(pathname, contract)
+    assert not _should_proxy_to_origin(pathname, contract)
 
 
 def test_contract_live_leaderboard_routes_present(contract):
