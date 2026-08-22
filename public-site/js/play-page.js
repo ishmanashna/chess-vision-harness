@@ -15,6 +15,8 @@ import {
   showError,
   updateMatchup,
 } from "./play-page-ui.js";
+import { bindLiveHealthGate } from "./live-health-gate.js";
+import { createLivePollLoop } from "./live-poll-loop.js";
 
 const POLL_WAIT_MS = 2500;
 
@@ -89,9 +91,9 @@ async function main() {
   }
 
   const api = createPlayApi(gameId, token);
-  createPlayChat(root, api);
+  const chat = createPlayChat(root, api);
   const syncTabAttention = createTabAttention(document.title);
-  let pollTimer = null;
+  let positionPollLoop = null;
   let busy = false;
   let lastMoveCount = -1;
   let lastRenderedMoveCount = -1;
@@ -124,7 +126,7 @@ async function main() {
         return false;
       } finally {
         busy = false;
-        schedulePoll();
+        ensurePositionPolling();
       }
     },
     syncClearPremoveBtn
@@ -178,6 +180,10 @@ async function main() {
     prevYourTurn = !!pos.your_turn;
     lastMoveCount = pos.move_count ?? lastMoveCount;
     syncHumanGameRegistry(gameId, token, pos);
+    if (pos.game_over) {
+      stopPositionPolling();
+      chat.stop();
+    }
   }
 
   async function refreshPosition(forceAnimate) {
@@ -189,28 +195,52 @@ async function main() {
     return pos;
   }
 
-  function schedulePoll() {
-    if (pollTimer) clearTimeout(pollTimer);
-    pollTimer = setTimeout(pollLoop, POLL_WAIT_MS);
+  function stopPositionPolling() {
+    if (positionPollLoop) positionPollLoop.stop();
   }
 
-  async function pollLoop() {
-    if (busy) {
-      schedulePoll();
-      return;
-    }
+  async function pollPosition() {
+    if (busy) return;
     try {
       const pos = await refreshPosition(false);
       if (pos.game_over) {
-        pollTimer = null;
-        return;
+        stopPositionPolling();
+        chat.stop();
       }
-      pollTimer = setTimeout(pollLoop, POLL_WAIT_MS);
     } catch (err) {
       showError(root, err.message || "Could not reach game server");
-      pollTimer = setTimeout(pollLoop, POLL_WAIT_MS);
     }
   }
+
+  function ensurePositionPolling() {
+    if (!positionPollLoop) {
+      positionPollLoop = createLivePollLoop({
+        intervalMs: POLL_WAIT_MS,
+        poll: pollPosition,
+      });
+    }
+    if (!positionPollLoop.isActive()) positionPollLoop.start();
+  }
+
+  async function startPositionPolling() {
+    try {
+      await refreshPosition(false);
+      ensurePositionPolling();
+    } catch (err) {
+      showError(root, err.message || "Could not load game");
+    }
+  }
+
+  bindLiveHealthGate({
+    onOnline: () => startPositionPolling(),
+    onOffline: () => {
+      stopPositionPolling();
+      showError(
+        root,
+        "Game server is offline — try again when the operator is online."
+      );
+    },
+  });
 
   const resignBtn = root.querySelector("[data-resign]");
   if (resignBtn) {
@@ -227,7 +257,7 @@ async function main() {
         resignBtn.disabled = false;
       } finally {
         busy = false;
-        schedulePoll();
+        ensurePositionPolling();
       }
     });
   }
@@ -243,7 +273,7 @@ async function main() {
       await refreshPosition(false);
     } finally {
       busy = false;
-      schedulePoll();
+      ensurePositionPolling();
     }
   }
 
@@ -272,13 +302,6 @@ async function main() {
   }
 
   setupBoardDownload(root, board, api, gameId);
-
-  try {
-    await refreshPosition(false);
-    schedulePoll();
-  } catch (err) {
-    showError(root, err.message || "Could not load game");
-  }
 }
 
 document.addEventListener("DOMContentLoaded", main);

@@ -273,28 +273,52 @@
 
     root.refreshAttempts = function () {
       if (!tbody) return;
-      var attemptsReq = fetch(ENDPOINTS[kind]).then(function (res) {
-        if (!res.ok) throw new Error("Could not load attempts");
-        return res.json();
-      });
-      var totalsReq = fetchAttemptTotalsByModel(kind);
+      var healthFn =
+        window.CVH && window.CVH.checkEdgeHealth
+          ? window.CVH.checkEdgeHealth
+          : function () {
+              return Promise.resolve({ online: true });
+            };
+      var shouldFn =
+        window.CVH && window.CVH.shouldFetchLive
+          ? window.CVH.shouldFetchLive
+          : function (health) {
+              return !!(health && health.online);
+            };
 
-      Promise.all([attemptsReq, totalsReq])
-        .then(function (parts) {
-          var data = parts[0];
-          var totalsByModel = parts[1];
-          cache = (Array.isArray(data.attempts) ? data.attempts : []).map(function (row) {
-            return normalizeAttempt(row, kind, totalsByModel);
-          });
-          paint();
-        })
-        .catch(function () {
+      healthFn().then(function (health) {
+        if (!shouldFn(health)) {
           cache = [];
           tbody.innerHTML =
             '<tr><td colspan="' +
             colspanFor(kind) +
             '" class="empty-state">Could not load attempts — is the server online?</td></tr>';
+          return;
+        }
+
+        var attemptsReq = fetch(ENDPOINTS[kind]).then(function (res) {
+          if (!res.ok) throw new Error("Could not load attempts");
+          return res.json();
         });
+        var totalsReq = fetchAttemptTotalsByModel(kind);
+
+        Promise.all([attemptsReq, totalsReq])
+          .then(function (parts) {
+            var data = parts[0];
+            var totalsByModel = parts[1];
+            cache = (Array.isArray(data.attempts) ? data.attempts : []).map(function (row) {
+              return normalizeAttempt(row, kind, totalsByModel);
+            });
+            paint();
+          })
+          .catch(function () {
+            cache = [];
+            tbody.innerHTML =
+              '<tr><td colspan="' +
+              colspanFor(kind) +
+              '" class="empty-state">Could not load attempts — is the server online?</td></tr>';
+          });
+      });
     };
   }
 

@@ -662,8 +662,6 @@ class BoardController:
             return self._error(game_id, f"Illegal move: {e}")
 
     def _try_snapshot_eval(self, state: Dict[str, Any], board: chess.Board) -> None:
-        if is_human_vs_agent_state(state):
-            return
         try:
             score = self._get_eval_engine().evaluate(board, depth=8)
             if score is not None:

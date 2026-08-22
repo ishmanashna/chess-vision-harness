@@ -15,6 +15,8 @@ import {
 } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/markers/Markers.js";
 import { Arrows } from "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/src/extensions/arrows/Arrows.js";
 import { createBoardAnnotations } from "./board-annotations.js";
+import { bindLiveHealthGate } from "./live-health-gate.js";
+import { createLivePollLoop } from "./live-poll-loop.js";
 
 const IDENTIFY_EXACT_MARKER = {
   class: "identify-marker-exact",
@@ -189,9 +191,11 @@ async function main() {
 
   const annotations = createBoardAnnotations(board);
 
-  let lastFen = null;
+  let lastPolledFen = null;
+  let lastPolledStatus = null;
+  let lastPolledSubmitted = -1;
   let replay = null;
-  let pollTimer = null;
+  let pollLoop = null;
   let finished = false;
   let boardOrientation = COLOR.white;
 
@@ -409,11 +413,22 @@ async function main() {
     getFinished: () => finished,
   });
 
+  function liveStateChanged(state) {
+    return (
+      state.fen !== lastPolledFen ||
+      state.status !== lastPolledStatus ||
+      state.submitted_count !== lastPolledSubmitted
+    );
+  }
+
+  function rememberPolledState(state) {
+    lastPolledFen = state.fen;
+    lastPolledStatus = state.status;
+    lastPolledSubmitted = state.submitted_count;
+  }
+
   function stopPolling() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
+    if (pollLoop) pollLoop.stop();
   }
 
   async function poll() {
@@ -434,7 +449,10 @@ async function main() {
       syncBoardOrientation(state);
       renderMeta(state);
       renderAgentMetrics(state);
-      setPosition(state.fen, true);
+      const stateChanged = liveStateChanged(state);
+      if (state.fen !== lastFen) {
+        setPosition(state.fen, true);
+      }
       if (state.status === "finished") {
         finished = true;
         stopPolling();
@@ -443,10 +461,16 @@ async function main() {
       } else if (state.status === "abandoned") {
         finished = true;
         stopPolling();
-        renderLiveCorrectPlacement(state);
+        if (stateChanged) {
+          renderLiveCorrectPlacement(state);
+          rememberPolledState(state);
+        }
         chain.startTracking(state);
       } else {
-        renderLiveCorrectPlacement(state);
+        if (stateChanged) {
+          renderLiveCorrectPlacement(state);
+          rememberPolledState(state);
+        }
         chain.startTracking(state);
       }
       syncHeights();
@@ -475,6 +499,24 @@ async function main() {
     };
   }
 
+  function startPolling() {
+    if (finished) return;
+    if (!pollLoop) {
+      pollLoop = createLivePollLoop({ intervalMs: POLL_MS, poll });
+    }
+    pollLoop.start();
+  }
+
+  bindLiveHealthGate({
+    onOnline: () => startPolling(),
+    onOffline: () => {
+      stopPolling();
+      showPollError(
+        "Game server is offline — try again when the operator is online."
+      );
+    },
+  });
+
   window.addEventListener("resize", syncHeights);
   if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
@@ -483,9 +525,6 @@ async function main() {
       ro.observe(wrap);
     }
   }
-
-  pollTimer = setInterval(poll, POLL_MS);
-  poll();
 }
 
 main();

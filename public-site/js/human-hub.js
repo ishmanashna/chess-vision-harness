@@ -103,19 +103,17 @@
     }
 
     var agentsLoaded = false;
-    window.CVH.applyHealthUi({
-      onHealth: function (health) {
-        enableForm(health.online);
-        if (!health.online || !modelSelect) {
-          agentsLoaded = false;
-          return;
-        }
-        if (agentsLoaded) return;
-        agentsLoaded = true;
-        loadAgents(modelSelect).catch(function (err) {
-          setMessage(messageEl, "error", err.message || "Could not load models.");
-        });
-      },
+    window.CVH.onHealthUi(function (health) {
+      enableForm(health.online);
+      if (!health.online || !modelSelect) {
+        agentsLoaded = false;
+        return;
+      }
+      if (agentsLoaded) return;
+      agentsLoaded = true;
+      loadAgents(modelSelect).catch(function (err) {
+        setMessage(messageEl, "error", err.message || "Could not load models.");
+      });
     });
 
     if (inscribeBtn) {

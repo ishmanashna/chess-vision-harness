@@ -2,6 +2,9 @@
  * Shared attempt-chain panel, polling, and live-follow for puzzle and identify watch pages.
  */
 
+import { bindLiveHealthGate } from "./live-health-gate.js";
+import { createLivePollLoop } from "./live-poll-loop.js";
+
 const CHAIN_POLL_MS = 15000;
 const CHAIN_POLL_FINISHED_MS = 5000;
 const FOLLOW_DELAY_MS = 5000;
@@ -45,7 +48,9 @@ export function createWatchChain(options) {
     getFinished,
   } = options;
 
-  let chainTimer = null;
+  let chainPollLoop = null;
+  let chainTracking = false;
+  let chainPollMs = CHAIN_POLL_MS;
   let agentKey = null;
   let agentName = null;
   let chainRows = [];
@@ -192,12 +197,39 @@ export function createWatchChain(options) {
     location.assign(href);
   }
 
-  function setChainPollInterval(ms) {
-    if (chainTimer) clearInterval(chainTimer);
-    chainTimer = setInterval(refreshChain, ms);
+  function stopChainPolling() {
+    if (chainPollLoop) chainPollLoop.stop();
   }
 
+  function setChainPollInterval(ms) {
+    chainPollMs = ms;
+    stopChainPolling();
+    if (!liveGate.isAllowed()) return;
+    chainPollLoop = createLivePollLoop({
+      intervalMs: ms,
+      poll: refreshChain,
+    });
+    chainPollLoop.start();
+  }
+
+  const liveGate = bindLiveHealthGate({
+    onOnline: () => {
+      if (!chainTracking) return;
+      refreshChain();
+      if (!chainTimer) setChainPollInterval(chainPollMs);
+    },
+    onOffline: () => {
+      stopChainPolling();
+      if (chainTracking) {
+        renderChain([], {
+          error: "Could not load attempt chain — is the server online?",
+        });
+      }
+    },
+  });
+
   async function refreshChain() {
+    if (!liveGate.isAllowed()) return;
     const keyParam = agentKey
       ? "by_key=" + encodeURIComponent(agentKey)
       : agentName
@@ -227,10 +259,12 @@ export function createWatchChain(options) {
     agentKey = state.key || agentKey;
     agentName = state.agent_name || agentName;
     if (!agentKey && !agentName) return;
+    chainTracking = true;
     loadStayFromSession();
     const finished = getFinished();
     const interval = finished ? CHAIN_POLL_FINISHED_MS : CHAIN_POLL_MS;
-    if (!chainTimer) {
+    if (!liveGate.isAllowed()) return;
+    if (!chainPollLoop || !chainPollLoop.isActive()) {
       setChainPollInterval(interval);
       refreshChain();
     } else if (finished) {

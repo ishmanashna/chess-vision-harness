@@ -1,7 +1,7 @@
 import { normalizeOrigin } from "../_proxy.js";
 
 /** Tunnel wake can be slow; 3s probes stay Sleeping after go-online. */
-const HEALTH_TIMEOUT_MS = 10000;
+const HEALTH_TIMEOUT_MS = 3000;
 const NO_STORE_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store, no-cache, must-revalidate, max-age=0",

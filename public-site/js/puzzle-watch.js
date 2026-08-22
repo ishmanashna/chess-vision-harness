@@ -25,6 +25,8 @@ import {
   squaresFromUci,
 } from "./board-last-move.js";
 import { pinScrollToBottom } from "./moves-scroll.js";
+import { bindLiveHealthGate } from "./live-health-gate.js";
+import { createLivePollLoop } from "./live-poll-loop.js";
 
 const BOARD_ASSETS =
   "https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/";
@@ -367,10 +369,12 @@ async function main() {
 
   const annotations = createBoardAnnotations(board);
 
-  let lastFen = null;
+  let lastPolledFen = null;
+  let lastPolledStatus = null;
+  let lastPolledMoveCount = -1;
   let replay = null;
   let scanPly = -1;
-  let pollTimer = null;
+  let pollLoop = null;
   let finished = false;
   let puzzleSideToMove = null;
   let boardOrientation = COLOR.white;
@@ -853,11 +857,27 @@ async function main() {
     getFinished: () => finished,
   });
 
+  function liveStateChanged(state) {
+    const moveCount =
+      (state.submitted_moves && state.submitted_moves.length) +
+      (state.opponent_moves && state.opponent_moves.length);
+    return (
+      state.fen !== lastPolledFen ||
+      state.status !== lastPolledStatus ||
+      moveCount !== lastPolledMoveCount
+    );
+  }
+
+  function rememberPolledState(state) {
+    lastPolledFen = state.fen;
+    lastPolledStatus = state.status;
+    lastPolledMoveCount =
+      (state.submitted_moves && state.submitted_moves.length) +
+      (state.opponent_moves && state.opponent_moves.length);
+  }
+
   function stopPolling() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
+    if (pollLoop) pollLoop.stop();
   }
 
   async function poll() {
@@ -879,8 +899,10 @@ async function main() {
       syncBoardOrientation(state);
       renderMeta(state);
       renderAgentMetrics(state);
-      if (!finished) {
+      const stateChanged = liveStateChanged(state);
+      if (!finished && stateChanged) {
         renderLiveMoves(state);
+        rememberPolledState(state);
       }
       if (state.status === "finished") {
         finished = true;
@@ -904,7 +926,9 @@ async function main() {
         }
         chain.startTracking(state);
       } else {
-        setPosition(state.fen, true);
+        if (state.fen !== lastFen) {
+          setPosition(state.fen, true);
+        }
         turnLabel();
         chain.startTracking(state);
       }
@@ -940,6 +964,24 @@ async function main() {
     if (!finished) pinScrollToBottom(document.getElementById("mv"));
   }
 
+  function startPolling() {
+    if (finished) return;
+    if (!pollLoop) {
+      pollLoop = createLivePollLoop({ intervalMs: POLL_MS, poll });
+    }
+    pollLoop.start();
+  }
+
+  bindLiveHealthGate({
+    onOnline: () => startPolling(),
+    onOffline: () => {
+      stopPolling();
+      showPollError(
+        "Game server is offline — try again when the operator is online."
+      );
+    },
+  });
+
   window.addEventListener("resize", onPuzzleLayout);
   if (typeof ResizeObserver !== "undefined") {
     const wrap = document.getElementById("board-wrap");
@@ -948,9 +990,6 @@ async function main() {
       ro.observe(wrap);
     }
   }
-
-  pollTimer = setInterval(poll, POLL_MS);
-  poll();
 }
 
 main();

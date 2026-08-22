@@ -2,6 +2,8 @@
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
+  /** Must stay above edge-health.js probe (~3s class); used only for /api/edge-health. */
+  var HEALTH_FETCH_TIMEOUT_MS = 3500;
   var FETCH_TIMEOUT_MS = 12000;
   var HEALTH_POLL_MS = 15000;
   var HEALTH_POLL_SLEEPING_MS = 4000;
@@ -788,12 +790,13 @@
     });
   }
 
-  function applyHealthVisibility(online) {
+  function applyHealthVisibility(online, healthKnown) {
+    var known = healthKnown !== false;
     document.querySelectorAll("[data-requires-origin]").forEach(function (el) {
-      el.hidden = !online;
+      el.hidden = !(known && online);
     });
     document.querySelectorAll("[data-offline-only]").forEach(function (el) {
-      el.hidden = online;
+      el.hidden = !(known && !online);
     });
   }
 
@@ -808,13 +811,31 @@
     applyHealthVisibility(online);
   }
 
+  function isHealthStorageFresh(ts, nowMs) {
+    if (typeof ts !== "number") return false;
+    var now = typeof nowMs === "number" ? nowMs : Date.now();
+    return now - ts <= HEALTH_FRESH_MS;
+  }
+
+  function shouldForceHealthProbeOnLoad(storedHealth) {
+    return storedHealth == null;
+  }
+
+  function shouldPauseHealthPollWhenHidden(hidden) {
+    return !!hidden;
+  }
+
+  function shouldFetchLive(health) {
+    return !!(health && health.online);
+  }
+
   function readStoredHealth() {
     try {
       var raw = sessionStorage.getItem(HEALTH_STORAGE_KEY);
       if (!raw) return null;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed.ts !== "number") return null;
-      if (Date.now() - parsed.ts > HEALTH_FRESH_MS) return null;
+      if (!isHealthStorageFresh(parsed.ts)) return null;
       return {
         online: !!parsed.online,
         raw: parsed.raw || null,
@@ -842,7 +863,7 @@
 
   function fetchEdgeHealthNetwork() {
     var url = HEALTH_URL + "?_=" + Date.now();
-    return fetchWithTimeout(url, { cache: "no-store" }, FETCH_TIMEOUT_MS)
+    return fetchWithTimeout(url, { cache: "no-store" }, HEALTH_FETCH_TIMEOUT_MS)
       .then(function (res) {
         if (!res.ok) throw new Error("health unavailable");
         return res.json();
@@ -919,8 +940,7 @@
       healthPollTimer = null;
     }
     if (!healthPollStarted) return;
-    // Keep probing while Sleeping even if the tab is in the background.
-    if (document.hidden && healthCache && healthCache.online) return;
+    if (shouldPauseHealthPollWhenHidden(document.hidden)) return;
     healthPollTimer = setTimeout(function () {
       healthPollTimer = null;
       tickHealthPoll()
@@ -933,7 +953,7 @@
 
   function onHealthVisibilityChange() {
     if (document.hidden) {
-      if (healthCache && healthCache.online && healthPollTimer) {
+      if (healthPollTimer) {
         clearTimeout(healthPollTimer);
         healthPollTimer = null;
       }
@@ -989,7 +1009,7 @@
   function applyHealthUi(options) {
     options = options || {};
     if (typeof options.onHealth === "function") {
-      healthUiListeners.push(options.onHealth);
+      onHealthUi(options.onHealth);
     }
     var stored = readStoredHealth();
     if (stored) {
@@ -1002,8 +1022,12 @@
         "checking",
         "Checking whether the game server is reachable…"
       );
+      applyHealthVisibility(false, false);
     }
     if (document.querySelector("[data-status-chip]")) startHealthPoll();
+    if (!shouldForceHealthProbeOnLoad(stored)) {
+      return Promise.resolve(stored);
+    }
     return checkEdgeHealth({ force: true }).then(applyHealthResult);
   }
 
@@ -1109,6 +1133,12 @@
   window.CVH.UMAMI_PAGES_HOST = UMAMI_PAGES_HOST;
   window.CVH.UMAMI_WEBSITE_ID = UMAMI_WEBSITE_ID;
   window.CVH.shouldLoadUmamiTracker = shouldLoadUmamiTracker;
+  window.CVH.HEALTH_FETCH_TIMEOUT_MS = HEALTH_FETCH_TIMEOUT_MS;
+  window.CVH.HEALTH_FRESH_MS = HEALTH_FRESH_MS;
+  window.CVH.isHealthStorageFresh = isHealthStorageFresh;
+  window.CVH.shouldForceHealthProbeOnLoad = shouldForceHealthProbeOnLoad;
+  window.CVH.shouldPauseHealthPollWhenHidden = shouldPauseHealthPollWhenHidden;
+  window.CVH.shouldFetchLive = shouldFetchLive;
 
   document.addEventListener("DOMContentLoaded", function () {
     setActiveNav();

@@ -4,6 +4,8 @@
 
 import { createSpectatorBoard } from "./spectator-board.js";
 import { pinScrollToBottom } from "./moves-scroll.js";
+import { bindLiveHealthGate } from "./live-health-gate.js";
+import { createLivePollLoop } from "./live-poll-loop.js";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -94,7 +96,8 @@ async function main() {
   let chatSince = 0;
   let chatPanelMode = "info";
   let isAvhGame = false;
-  let pollTimer = null;
+  let pollLoop = null;
+  let gamePollingStopped = false;
   let evalDebounceTimer = null;
   let evalFetchGen = 0;
   const EVAL_DEBOUNCE_MS = 150;
@@ -676,15 +679,37 @@ async function main() {
       ) {
         qualityWaitAttempts++;
       }
-      if (!shouldKeepPolling(s) && pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
+      if (!shouldKeepPolling(s)) {
+        gamePollingStopped = true;
+        stopPolling();
       }
       showPollError("");
     } catch (e) {
       showPollError("Could not refresh game state — is the server online?");
     }
   }
+
+  function stopPolling() {
+    if (pollLoop) pollLoop.stop();
+  }
+
+  function startPolling() {
+    if (gamePollingStopped) return;
+    if (!pollLoop) {
+      pollLoop = createLivePollLoop({ intervalMs: 3000, poll });
+    }
+    pollLoop.start();
+  }
+
+  bindLiveHealthGate({
+    onOnline: () => startPolling(),
+    onOffline: () => {
+      stopPolling();
+      showPollError(
+        "Game server is offline — try again when the operator is online."
+      );
+    },
+  });
 
   window.addEventListener("resize", () => {
     syncHeights();
@@ -701,8 +726,6 @@ async function main() {
       ro.observe(wrap);
     }
   }
-  pollTimer = setInterval(poll, 3000);
-  poll();
 }
 
 main();
