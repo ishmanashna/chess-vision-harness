@@ -18,7 +18,9 @@ from .game_types import (
 )
 from .models import ModelRegistry
 from .opponents import get_catalog
+from .accuracy_elo_map import play_rating_from_accuracy
 from .paths import project_root, resolve_base_dir
+from .prompt_packs import is_packed_result_row
 
 
 class ResultsManager:
@@ -177,6 +179,8 @@ class ResultsManager:
         for result in self.load_results():
             if result.get("result") == "*":
                 continue
+            if is_packed_result_row(result):
+                continue
             model_id = registry.normalize_result_model(result.get("model_name"))
             if model_id:
                 counts[model_id] += 1
@@ -187,7 +191,8 @@ class ResultsManager:
     ) -> Dict[str, Dict[str, Any]]:
         """Per-model quality means from results.jsonl (includes AvH; excludes *; AvA deduped).
 
-        mean_play_rating is the mean of stored play_rating fields, separate from ladder Elo.
+        mean_play_rating is play_rating_from_accuracy(mean_accuracy) via the current
+        accuracy→Elo map — not a mean of per-game stored play_rating (those can be stale).
         """
 
         if cal_root is None:
@@ -197,13 +202,13 @@ class ResultsManager:
         seen_avaa: set[tuple[str, str]] = set()
         acc_sum: Dict[str, float] = defaultdict(float)
         acc_n: Dict[str, int] = defaultdict(int)
-        play_sum: Dict[str, float] = defaultdict(float)
-        play_n: Dict[str, int] = defaultdict(int)
         quality_games: Dict[str, int] = defaultdict(int)
 
         for row in self.load_results():
             result = row.get("result")
             if result is None or result == "*":
+                continue
+            if is_packed_result_row(row):
                 continue
             model_id = registry.normalize_result_model(row.get("model_name"))
             if not model_id:
@@ -221,10 +226,6 @@ class ResultsManager:
             quality_games[model_id] += 1
             acc_sum[model_id] += float(accuracy)
             acc_n[model_id] += 1
-            play_rating = row.get("play_rating")
-            if play_rating is not None:
-                play_sum[model_id] += float(play_rating)
-                play_n[model_id] += 1
 
         out: Dict[str, Dict[str, Any]] = {}
         for model_id in quality_games:
@@ -232,10 +233,8 @@ class ResultsManager:
             if acc_n[model_id]:
                 mean_accuracy = round(acc_sum[model_id] / acc_n[model_id], 2)
                 entry["mean_accuracy"] = mean_accuracy
-                entry["mean_play_rating"] = (
-                    round(play_sum[model_id] / play_n[model_id], 1)
-                    if play_n[model_id]
-                    else None
+                entry["mean_play_rating"] = play_rating_from_accuracy(
+                    mean_accuracy, root=cal_root
                 )
             out[model_id] = entry
         return out
@@ -249,8 +248,6 @@ class ResultsManager:
         dropping the stale compound-Q era values. Returns the number of rows
         rewritten; 0 when the map is cold, nothing changed, or lock failure.
         """
-        from .accuracy_elo_map import play_rating_from_accuracy
-
         try:
             with self._results_lock():
                 results = self.load_results()

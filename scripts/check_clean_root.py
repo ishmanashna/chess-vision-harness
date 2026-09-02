@@ -9,7 +9,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 ALLOWED_MD = {
-    "AGENTS.md",
     "ARCHITECTURE.md",
     "DEPLOY.md",
     "NOTICE.md",

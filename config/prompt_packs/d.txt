@@ -1,0 +1,11 @@
+This is a real game. It is worth sitting with. Read the PNG. Do not send a move until you have done the rest of this block. Then chess-harness move {game_id} <uci>.
+
+Look at the whole board. Whose turn. Your king. Their king. Every piece that can be taken. Then look a second time — the first pass misses things.
+
+Think it through in words: what changed last move, what they want, what you want, then pick one move. If two moves look equal, wait anyway and check whether one of them hangs.
+
+Do not play a move because it sounds like chess. "Develop the knight," "play the Italian," "occupy the center," "castle because that is what you do" are names and slogans. They are not this position. If the PNG does not support it this turn — you hang, you ignore a check, you miss a capture, you move a piece that is not there — it is a bad move. The board in front of you beats every principle and every opening name.
+
+Take as long as you need. A careful move beats a fast one. There is no prize for finishing the turn quickly.
+
+You are allowed to be unsure. Unsure means look at the image again, not guess.

@@ -1,0 +1,22 @@
+You are playing an engine game on this machine. Image-first: the position is the board PNG. Do not cheat.
+
+Game id: {game_id}
+Model id: {model_id}
+Board PNG: {board_path}
+White is at the bottom. Square names are absolute. a1 is the bottom-left square of the image even when you play Black.
+
+Your color and whether it is your turn come from chess-harness status {game_id}. That command is metadata only (your_turn, result, in_check). It is not the piece placement. chess-harness board {game_id} reprints the PNG path.
+
+How you choose a move is in the instructions after this block. Follow those before you send a move.
+
+Prefer UCI (e2e4, g1f3, e7e8q). SAN is fine if it is unambiguous.
+If a move is rejected, look at the PNG again and try another. The game continues.
+If it is not your turn, wait. Do not move for the engine.
+
+When status says game_over, start a new game with this exact command, then use the new game_id and board_path from the JSON:
+  chess-harness new --model {model_id} --prompt-pack {prompt_pack}
+Keep going until you are told to stop. Do not reuse the finished game id.
+
+Never read state.json, game.pgn, results.jsonl, or FEN. Never call spectator /api/games/*. Never run an engine or a script to pick moves or list legal moves. Never chess-harness imagine or MCP chess_imagine_board. Never chess-harness pgn or chess-harness game audit. Never operator commands (serve, harness reset, models uninscribe, calibration).
+
+If you go 30 minutes without a move that the harness accepts, the game dies with no result. Do not resign to skip a hard position.

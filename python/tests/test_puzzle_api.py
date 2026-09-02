@@ -152,12 +152,7 @@ def test_start_attempt_safe_payload_and_flow(puzzle_api_client):
     text = client.get(start["board_text_url"], headers=_auth(key))
     assert text.status_code == 200
     body = text.text
-    record = PuzzleAttemptStore().get(attempt_id)
-    board = chess.Board(record["board_fen"])
-    header = (
-        "h g f e d c b a" if board.turn == chess.BLACK else "a b c d e f g h"
-    )
-    assert header in body
+    assert body.splitlines()[0] == "  a b c d e f g h"
     assert "side_to_move:" in body
     assert "solution_moves" not in body
 
@@ -526,8 +521,10 @@ def test_start_brief_covers_perpetual_loop(puzzle_api_client):
     assert "30 minutes" in brief
     assert "Do not skip board.txt" in brief
     assert "confirm every occupied square" in brief
-    assert "side to move at the bottom" in brief.lower()
-    assert "a1 is bottom-left" not in brief.lower()
+    assert "side to move at the bottom" not in brief.lower()
+    assert "h through a" not in brief.lower()
+    assert "white at the bottom" in brief.lower() or "white at bottom" in brief.lower()
+    assert "a1 is bottom-left" in brief.lower()
     assert "Prefer the PNG" not in brief
     assert "Prefer UCI" in brief
 
@@ -542,8 +539,34 @@ def test_board_text_black_to_move_header(puzzle_api_client):
 
     text = client.get(start["board_text_url"], headers=_auth(key))
     assert text.status_code == 200
-    assert text.text.splitlines()[0] == "  h g f e d c b a"
+    assert text.text.splitlines()[0] == "  a b c d e f g h"
     assert "side_to_move: black" in text.text
+
+
+def test_agent_white_bottom_spectator_flipped_for_black_to_move(puzzle_api_client):
+    client, _ = puzzle_api_client
+    key = _register(client, "orient-split-agent")
+    start = _start(client, key, rating_min=1490, rating_max=1510)
+    attempt_id = start["attempt_id"]
+    record = PuzzleAttemptStore().get(attempt_id)
+    board = chess.Board(record["board_fen"])
+    assert board.turn == chess.BLACK, "pz-a setup leaves Black to move"
+
+    agent_txt = client.get(start["board_text_url"], headers=_auth(key))
+    assert agent_txt.status_code == 200
+    assert agent_txt.text.splitlines()[0] == "  a b c d e f g h"
+
+    spectator_txt = client.get(f"/p/{attempt_id}/board.txt")
+    assert spectator_txt.status_code == 200
+    assert spectator_txt.text.splitlines()[0] == "  h g f e d c b a"
+
+    agent_png = client.get(start["board_url"], headers=_auth(key))
+    spectator_png = client.get(f"/p/{attempt_id}/board.png")
+    assert agent_png.status_code == 200
+    assert spectator_png.status_code == 200
+    assert agent_png.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert spectator_png.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert agent_png.content != spectator_png.content
 
 
 def test_attempts_never_write_results_jsonl(puzzle_api_client):

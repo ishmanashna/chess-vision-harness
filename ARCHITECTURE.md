@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Technical reference for the Chess Vision Harness codebase. Read with [`PRODUCT.md`](PRODUCT.md). Agent play rules live in [`AGENTS.md`](AGENTS.md) — do not duplicate them here. Public hosting: [`DEPLOY.md`](DEPLOY.md).
+Technical reference for the Chess Vision Harness codebase. Read with [`PRODUCT.md`](PRODUCT.md). Agent play rules live in the Create Game paste brief, not a separate agents doc. Public hosting: [`DEPLOY.md`](DEPLOY.md).
 
 ## Stack
 
@@ -25,7 +25,6 @@ Python owns game logic. Public Pages and TypeScript are presentation / edge only
 
 ```
 chess-vision-harness/
-  AGENTS.md
   ARCHITECTURE.md
   DEPLOY.md
   NOTICE.md

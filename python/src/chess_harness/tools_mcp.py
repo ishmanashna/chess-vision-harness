@@ -79,6 +79,12 @@ class ChessHarnessMCP:
                             "type": "boolean",
                             "description": "Overwrite existing game_id if true",
                         },
+                        "prompt_pack": {
+                            "type": "string",
+                            "description": (
+                                "Optional prompt-test pack id (overlay or committee)"
+                            ),
+                        },
                     },
                     "required": ["model_id"],
                 },
@@ -147,6 +153,7 @@ class ChessHarnessMCP:
             model_id = arguments.get("model_id") or arguments.get("model_name")
             opponent = arguments.get("opponent")
             skill = arguments.get("skill")
+            prompt_pack = arguments.get("prompt_pack")
             result = svc.new_game(
                 game_id,
                 resolve_agent_color(arguments.get("agent_color")),
@@ -154,6 +161,7 @@ class ChessHarnessMCP:
                 force=arguments.get("force", False),
                 opponent_id=opponent,
                 skill=skill,
+                prompt_pack=prompt_pack,
             )
         elif tool_name == "chess_get_board":
             result = svc.get_board(game_id)

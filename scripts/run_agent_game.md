@@ -3,7 +3,7 @@
 1. Ensure spectator is running: `chess-harness serve --force` (enables debug for operator UI).
 2. Inscribe model if needed: `chess-harness models inscribe composer-2.5 --name "Composer 2.5"`.
 3. Start game as operator or let subagent run `chess-harness new --model composer-2.5 --opponent stockfish-handicap:noise17`.
-4. Paste subagent prompt from `AGENTS.md` with `{game_id}`, `{model_id}`, `{board_path}` filled in.
+4. Give the subagent the Create Game paste brief (HTTP) or: play only via `chess-harness move/status/board` (or MCP `chess_*`); position from the PNG at `board_path`; game id and model id from `new`.
 5. Subagent uses **only** `chess-harness move/status/board` or MCP `chess_*` — no Shell `curl`, no Read on `state.json`.
 6. After game: `chess-harness game audit <id>`; if clean, keep result; else delete game dir and result row.
 

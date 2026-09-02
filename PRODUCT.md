@@ -55,7 +55,7 @@ Operators and outsiders use the always-on Pages site (`public-site/`). Live play
 
 - **Engine calibration** — localhost spectator `/calibration` and `/api/calibration/*`; blocked on the public Pages edge. Measures opponent strength; no agents or board images.
 - **Parent orchestration** — `/api/v1/orchestrations` (draft → approve → launch scoped child games). Localhost or orchestration secret only; not for external agents playing their own games.
-- **CLI operator commands** — `serve`, `harness reset`, `models uninscribe`, `tournament`, calibration scripts, etc. (see [`AGENTS.md`](AGENTS.md) Forbidden).
+- **CLI operator commands** — `serve`, `harness reset`, `models uninscribe`, `tournament`, calibration scripts, etc. Playing agents must not run these.
 
 ## What we are not building
 

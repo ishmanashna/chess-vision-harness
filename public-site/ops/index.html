@@ -47,6 +47,7 @@
           <button type="button" data-ops-tab="machine">Machine</button>
           <button type="button" data-ops-tab="inbox">Inbox <span class="ops-badge" data-inbox-badge hidden>0</span></button>
           <button type="button" data-ops-tab="activity">Activity</button>
+          <button type="button" data-ops-tab="prompt-test">A/B</button>
         </nav>
         <div class="ops-sidebar-foot">
           <span class="status-chip" data-ops-serve-chip data-state="checking">
@@ -269,11 +270,23 @@
             </article>
           </div>
         </section>
+
+        <section class="ops-section hidden" data-ops-section="prompt-test" hidden>
+          <article class="card">
+            <h3 class="ops-card-title">A/B</h3>
+            <p class="lead">Local prompt-pack comparison — unrated tagged games on this PC.</p>
+            <table class="leaderboard-table" data-prompt-test-table aria-label="A/B packs">
+              <thead><tr><th>Pack</th><th>Live</th><th>Finished</th><th>W-D-L</th><th>Accuracy</th><th>Performance</th><th>Recent</th></tr></thead>
+              <tbody data-prompt-test-body></tbody>
+            </table>
+            <p class="snapshot-meta" data-prompt-test-meta></p>
+          </article>
+        </section>
       </main>
     </div>
   </div>
 
   <script src="/js/common.js?v=15"></script>
-  <script src="/js/ops.js"></script>
+  <script src="/js/ops.js?v=2"></script>
 </body>
 </html>

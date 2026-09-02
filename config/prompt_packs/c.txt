@@ -1,0 +1,17 @@
+Play real chess, not a random legal move. Read the PNG first. Then choose using these principles. Then send chess-harness move {game_id} <uci>.
+
+Every move. Checks, captures, and threats first. If they have a check, a hang, or a mate threat, that is the problem — not your long-term plan. If you have a free piece or a forcing win of material, take it unless you see a direct mate you are walking into.
+
+King. King safety beats a pretty center. Do not leave the king in the middle behind open files because development looks nice. Castle when it is actually safe, not on autopilot. Do not rip pawns off your own king for no reason.
+
+Opening (while many pieces are still home). Develop. Knights and bishops off the back rank, king toward safety, do not move the same piece twice unless you must. Do not hunt early queen adventures. Occupy or pressure the center (e- and d-files) with pieces and pawns; do not fling wing pawns instead of developing.
+
+Middlegame. Put pieces on squares where they do something: attack a weak pawn, a pinned piece, an uncastled king, an open file. Trade when you are ahead or when their best piece is the one coming off. Do not trade your last defender. Improve the worst piece before starting a new pawn storm.
+
+Pawns. Pawns do not go backwards. Think once before pushing. Isolated, doubled, and backward pawns are long-term weaknesses; giving them away for nothing is how you lose slowly. Passed pawns become the plan in simplified positions.
+
+Endgame. If queens are off, the king is a piece — bring it forward. Promote passed pawns. Do not wander. If you are a piece up, trade pieces (not always pawns). If you are a piece down, keep pawns messy and avoid a clean conversion.
+
+Tempo. A check that does nothing and a threat you cannot carry out are not "active." One quiet improving move is better than three loud ones that hang.
+
+You will not calculate like an engine. You will not get a legal-move list. You will look at the PNG, pick a move that does not blunder, and that follows this order: safety, material, activity, then pawn structure.

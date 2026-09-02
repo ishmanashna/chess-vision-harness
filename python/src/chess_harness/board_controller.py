@@ -23,6 +23,7 @@ from .human_vs_agent import HumanVsAgentPlay, ensure_agent_joined
 from .models import ModelRegistry, normalize_observation
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
+from .prompt_packs import assert_creatable, is_committee_state, is_packed_state
 from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
 from .quality_finish import schedule_game_quality, schedule_provisional_game_quality
@@ -402,11 +403,19 @@ class BoardController:
         opponent_id: Optional[str] = None,
         skill: Optional[int] = None,
         game_type: str = DEFAULT_GAME_TYPE,
+        prompt_pack: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self.game_manager.validate_game_id(game_id):
             return {"ok": False, "error": f"Invalid game_id: {game_id}"}
         if agent_color.lower() not in ("white", "black"):
             return {"ok": False, "error": "agent_color must be 'white' or 'black'"}
+
+        pack_meta = None
+        if prompt_pack:
+            try:
+                pack_meta = assert_creatable(prompt_pack)
+            except ValueError as e:
+                return {"ok": False, "error": str(e)}
 
         try:
             model_id = self.registry.resolve(model_name)
@@ -500,6 +509,10 @@ class BoardController:
                     "opponent_uci_config": uci_config,
                     "agent_joined": False,
                 }
+                if pack_meta is not None:
+                    state["prompt_pack"] = pack_meta.id
+                    state["prompt_pack_hash"] = pack_meta.body_hash
+                    state["prompt_pack_kind"] = pack_meta.kind
                 if opponent.skill_level is not None:
                     state["pgn_headers"]["EngineSkill"] = str(opponent.skill_level)
                 if fen:
@@ -569,6 +582,8 @@ class BoardController:
         # (AvA has no agent_color and would KeyError).
         if not state or "agent_color" not in state:
             return {"ok": False, "error": f"Game {game_id} not found"}
+        if is_committee_state(state):
+            return {"ok": False, "error": "Committee games use vote instead of move"}
         try:
             with self.game_manager.game_lock(game_id):
                 state = self.game_manager.load_state(game_id)
@@ -576,67 +591,75 @@ class BoardController:
                     return {"ok": False, "error": f"Game {game_id} not found"}
                 if is_avaa_state(state) or "agent_color" not in state:
                     return {"ok": False, "error": f"Game {game_id} not found"}
+                if is_committee_state(state):
+                    return {"ok": False, "error": "Committee games use vote instead of move"}
                 if state["status"] != "in_progress":
                     return self._error(game_id, f"Game is already over: {state['result']}")
 
-                board = chess.Board(state["board_fen"])
-                agent_color = chess.WHITE if state["agent_color"] == "WHITE" else chess.BLACK
-                if board.turn != agent_color:
-                    return self._error(game_id, "Not your turn")
-
-                move = self._parse_move(board, game_id, move_str)
-                if isinstance(move, dict):
-                    return move
-
-                self._record_move_audit(state, board, move_str)
-
-                try:
-                    san = board.san(move)
-                    board.push(move)
-                    state["moves"].append(move.uci())
-                    state["last_move_uci"] = move.uci()
-                    state["board_fen"] = board.fen()
-                except Exception as e:
-                    return self._error(game_id, f"Failed to make move: {e}")
-
-                if board.is_game_over():
-                    self._finish_game(game_id, state, board)
-
-                engine_move = None
-                engine_san = None
-                if state["status"] == "in_progress" and board.turn != agent_color:
-                    try:
-                        opponent = self._opponent_from_state(state)
-                        result = self.opponent_mgr.play(opponent, board, time_limit=0.1)
-                        engine_move = result.move
-                        engine_san = board.san(engine_move)
-                        board.push(engine_move)
-                        state["moves"].append(engine_move.uci())
-                        state["last_move_uci"] = engine_move.uci()
-                        state["board_fen"] = board.fen()
-                        if board.is_game_over():
-                            self._finish_game(game_id, state, board)
-                    except Exception as e:
-                        return self._error(game_id, f"Opponent failed to move: {e}")
-
-                self._touch_activity(state)
-                if state["status"] == "in_progress":
-                    self._try_snapshot_eval(state, board)
-                if not self.game_manager.save_state(game_id, state):
-                    return {"ok": False, "error": "Failed to save game state"}
-
-                self._auto_save_pgn(game_id, state)
-                self._schedule_quality_if_scored(game_id, state)
-
-                board_path = self.game_manager.get_board_path(game_id)
-                try:
-                    self._render_state_board(board, board_path, state)
-                except Exception as e:
-                    return {"ok": False, "error": f"Failed to render board: {e}"}
-
-                return self._move_response(game_id, board_path, state, board)
+                return self._execute_ave_move_locked(game_id, state, move_str)
         except GameBusyError as e:
             return {"ok": False, "error": str(e)}
+
+    def _execute_ave_move_locked(
+        self, game_id: str, state: Dict[str, Any], move_str: str
+    ) -> Dict[str, Any]:
+        """Agent move + engine reply; caller must hold game_lock."""
+        if state.get("status") != "in_progress":
+            return self._error(
+                game_id, f"Game is already over: {state.get('result')}"
+            )
+        board = chess.Board(state["board_fen"])
+        agent_color = chess.WHITE if state["agent_color"] == "WHITE" else chess.BLACK
+        if board.turn != agent_color:
+            return self._error(game_id, "Not your turn")
+
+        move = self._parse_move(board, game_id, move_str)
+        if isinstance(move, dict):
+            return move
+
+        self._record_move_audit(state, board, move_str)
+
+        try:
+            board.push(move)
+            state["moves"].append(move.uci())
+            state["last_move_uci"] = move.uci()
+            state["board_fen"] = board.fen()
+        except Exception as e:
+            return self._error(game_id, f"Failed to make move: {e}")
+
+        if board.is_game_over():
+            self._finish_game(game_id, state, board)
+
+        if state["status"] == "in_progress" and board.turn != agent_color:
+            try:
+                opponent = self._opponent_from_state(state)
+                result = self.opponent_mgr.play(opponent, board, time_limit=0.1)
+                engine_move = result.move
+                board.push(engine_move)
+                state["moves"].append(engine_move.uci())
+                state["last_move_uci"] = engine_move.uci()
+                state["board_fen"] = board.fen()
+                if board.is_game_over():
+                    self._finish_game(game_id, state, board)
+            except Exception as e:
+                return self._error(game_id, f"Opponent failed to move: {e}")
+
+        self._touch_activity(state)
+        if state["status"] == "in_progress":
+            self._try_snapshot_eval(state, board)
+        if not self.game_manager.save_state(game_id, state):
+            return {"ok": False, "error": "Failed to save game state"}
+
+        self._auto_save_pgn(game_id, state)
+        self._schedule_quality_if_scored(game_id, state)
+
+        board_path = self.game_manager.get_board_path(game_id)
+        try:
+            self._render_state_board(board, board_path, state)
+        except Exception as e:
+            return {"ok": False, "error": f"Failed to render board: {e}"}
+
+        return self._move_response(game_id, board_path, state, board)
 
     def _parse_move(
         self, board: chess.Board, game_id: str, move_str: str
@@ -694,6 +717,10 @@ class BoardController:
             "model_name": state.get("model_name"),
             "observation": self.result_observation(state),
         }
+        if is_packed_state(state):
+            row["prompt_pack"] = state["prompt_pack"]
+            row["prompt_pack_hash"] = state.get("prompt_pack_hash")
+            row["rated"] = False
         row.update(extra)
         return row
 
@@ -714,18 +741,19 @@ class BoardController:
                 "reason": self._get_game_over_reason(board),
             }
         )
-        delta = self.elo.record_game(
-            state.get("model_name"),
-            opponent_elo,
-            state["result"],
-            state["agent_color"],
-            opponent_id=state.get("opponent_id"),
-        )
-        if delta:
-            state.update(delta)
-            from .snapshot_leaderboard import request_public_snapshots_refresh
+        if not is_packed_state(state):
+            delta = self.elo.record_game(
+                state.get("model_name"),
+                opponent_elo,
+                state["result"],
+                state["agent_color"],
+                opponent_id=state.get("opponent_id"),
+            )
+            if delta:
+                state.update(delta)
+                from .snapshot_leaderboard import request_public_snapshots_refresh
 
-            request_public_snapshots_refresh()
+                request_public_snapshots_refresh()
 
     def apply_elo_delta(self, state: Dict[str, Any]) -> Optional[Dict[str, int]]:
         """Return ELO change for a game, backfilling from results if needed."""
@@ -989,15 +1017,16 @@ class BoardController:
                         "reason": reason,
                     }
                 )
-                delta = self.elo.record_game(
-                    state.get("model_name"),
-                    opp_elo,
-                    result,
-                    agent_color,
-                    opponent_id=state.get("opponent_id"),
-                )
-                if delta:
-                    state.update(delta)
+                if not is_packed_state(state):
+                    delta = self.elo.record_game(
+                        state.get("model_name"),
+                        opp_elo,
+                        result,
+                        agent_color,
+                        opponent_id=state.get("opponent_id"),
+                    )
+                    if delta:
+                        state.update(delta)
 
                 if not self.game_manager.save_state(game_id, state):
                     return {"ok": False, "error": "Failed to save game state"}
@@ -1223,16 +1252,17 @@ class BoardController:
 
     def _schedule_quality_if_scored(self, game_id: str, state: Dict[str, Any]) -> None:
         if state.get("status") == "finished" and state.get("result") not in (None, "*"):
-            from .finished_games_db import record_scored_finish
+            if not is_packed_state(state):
+                from .finished_games_db import record_scored_finish
 
-            # Dual-write permanent record (outside .chess_harness/). Live delete
-            # must not remove this row.
-            record_scored_finish(
-                game_id,
-                state,
-                game_manager=self.game_manager,
-                results_manager=self.results,
-            )
+                # Dual-write permanent record (outside .chess_harness/). Live delete
+                # must not remove this row.
+                record_scored_finish(
+                    game_id,
+                    state,
+                    game_manager=self.game_manager,
+                    results_manager=self.results,
+                )
             schedule_game_quality(
                 game_id,
                 base_dir=str(self.game_manager.base_dir),

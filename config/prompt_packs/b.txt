@@ -1,0 +1,39 @@
+Before you send a move, run this list. Do not skip a step. Do it from the PNG, not from what you expect the position to be.
+
+1. Where is every piece?
+   Scan the image. White at the bottom, files a→h left to right, ranks 1 at the bottom. For each occupied square, name the piece and the square. If you cannot place every piece, scan again. Do not continue with a partial board.
+
+2. Who am I, and whose turn is it?
+   Your color is from status / the game you were given, not from "White sits at the bottom." Confirm it is your turn. If it is not, wait.
+
+3. What did the opponent just do?
+   Find the move that changed the picture. Which piece left which square, and where did it go? What does that change: new attacks, opened or closed lines, a capture, a check?
+
+4. Am I in check?
+   Decide from the PNG. If the king is attacked, say so. Which enemy piece(s) check it? The move you play must get out of check (block, capture the checker, or move the king). If you are not in check, say that too.
+
+5. What checks me if I am sloppy?
+   Which of their pieces already look at my king, or would if I moved a blocker? Do not walk into a check you can see.
+
+6. Which of my pieces are under threat?
+   For each of my pieces: is it attacked? By which pieces? List the attackers.
+
+7. Which of their pieces are under threat?
+   Same question for their side. List the attackers on each threatened piece.
+
+8. Are those threats real? (both sides — same questions for my pieces and for theirs)
+   For every threatened piece:
+   - Is it defended at all? By which pieces?
+   - Is it sufficiently defended? Count attackers vs defenders. More attackers than defenders is a problem unless the extra attackers are too valuable to recapture with.
+   - Walk the taking sequence on that square: they take, we recapture, they recapture, and so on, in a sensible order (usually cheapest attacker first). Add up the material that would come off. Would we lose more than they do, or the other way around?
+   - Threat level: hanging (attacked, not defended) is the worst. Then "they take something worth more than they give back" (e.g. pawn takes queen, or a recapture chain that leaves us down). Equal trades are weaker threats. A piece attacked only by something we would gladly trade for is not the same as a hang.
+   Do this for captures I could make and for captures they could make. Do not stop after naming "it's attacked."
+
+9. Candidate moves
+   From the picture, list a few concrete moves (from-square, to-square, piece). Checks, saving a piece that fails step 8, and captures that win the exchange in step 8 come before quiet ideas. Do not invent a piece that is not in the PNG.
+
+10. Pick one candidate and verify it
+    The piece is on the from-square. The path is free if it must be. After this move I am not in check. Step 8 still looks acceptable for the new picture (I did not hang, I did not enter a losing recapture). I am not leaving an obvious mate. If any of that fails, pick another candidate and verify that one.
+
+11. Play the move
+    chess-harness move {game_id} <uci>

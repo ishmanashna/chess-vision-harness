@@ -14,6 +14,7 @@
     machine: ["Machine", "Disk, processes, and local health"],
     inbox: ["Inbox", "Public Contact tab messages on this PC"],
     activity: ["Activity", "Live games, attempts, and audit tail"],
+    "prompt-test": ["A/B", "Packed prompt-pack games on this PC"],
   };
 
   function root() {
@@ -489,6 +490,72 @@
     renderErrorEvents((metrics.errors && metrics.errors.recent) || []);
   }
 
+  function fmtMean(value, digits) {
+    if (value == null || isNaN(value)) return "—";
+    return Number(value).toFixed(digits != null ? digits : 1);
+  }
+
+  function renderPromptTest(packs) {
+    var body = root() && root().querySelector("[data-prompt-test-body]");
+    if (!body) return;
+    body.innerHTML = "";
+    if (!packs || !packs.length) {
+      body.innerHTML = '<tr><td colspan="7">No A/B games yet.</td></tr>';
+      setText("[data-prompt-test-meta]", "0 packs");
+      return;
+    }
+    packs.forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
+      tr.children[0].textContent = row.title || row.id || "—";
+      tr.children[1].textContent = String(row.in_progress != null ? row.in_progress : 0);
+      tr.children[2].textContent = String(row.finished != null ? row.finished : 0);
+      var w = row.wins != null ? row.wins : 0;
+      var d = row.draws != null ? row.draws : 0;
+      var l = row.losses != null ? row.losses : 0;
+      tr.children[3].textContent = w + "-" + d + "-" + l;
+      tr.children[4].textContent = fmtMean(row.mean_accuracy, 1);
+      tr.children[5].textContent = fmtMean(row.mean_play_rating, 0);
+      var linksCell = tr.children[6];
+      var ids = row.recent_game_ids || [];
+      if (!ids.length) {
+        linksCell.textContent = "—";
+      } else {
+        ids.forEach(function (gid, idx) {
+          var link = document.createElement("a");
+          link.href = "/g/" + encodeURIComponent(gid);
+          link.textContent = shortId(gid);
+          linksCell.appendChild(link);
+          if (idx < ids.length - 1) {
+            linksCell.appendChild(document.createTextNode(" "));
+          }
+        });
+      }
+      body.appendChild(tr);
+    });
+    setText("[data-prompt-test-meta]", packs.length + " pack" + (packs.length === 1 ? "" : "s"));
+  }
+
+  function fetchPromptTest() {
+    return fetch("/api/ops/prompt-test", {
+      headers: LOOPBACK_HEADERS,
+      cache: "no-store",
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("A/B HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (body) {
+        renderPromptTest(body.packs || []);
+        return body;
+      })
+      .catch(function () {
+        renderPromptTest([]);
+        return null;
+      });
+  }
+
   function renderActivity(rows) {
     var el = root() && root().querySelector("[data-activity-feed]");
     if (!el) return;
@@ -596,7 +663,7 @@
       .catch(function () {
         return null;
       });
-    return Promise.all([snapshotReq, inboxReq, fetchAudience()])
+    return Promise.all([snapshotReq, inboxReq, fetchAudience(), fetchPromptTest()])
       .then(function (results) {
         showError("");
         applySnapshot(results[0]);

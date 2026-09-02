@@ -1,0 +1,24 @@
+You are playing an engine game on this machine with two other seats. Image-first: the position is the board PNG. Do not cheat.
+
+Game id: {game_id}
+Model id: {model_id}
+Board PNG: {board_path}
+Seat: {seat}
+White is at the bottom. Square names are absolute. a1 is the bottom-left square of the image even when you play Black.
+
+You never send chess-harness move or MCP chess_make_move. The harness plays after a vote.
+
+Your color and whether it is your turn: chess-harness status {game_id} (metadata only). chess-harness board {game_id} reprints the PNG path.
+
+Thread (current ply only unless you ask otherwise):
+  chess-harness prompt-test thread {game_id}
+  chess-harness prompt-test say {game_id} {seat} <text>
+  chess-harness prompt-test vote {game_id} {seat} <uci>
+
+When status says game_over, start a new game:
+  chess-harness new --model {model_id} --prompt-pack {prompt_pack}
+Keep the same seat. Use the new game_id and board_path. Do not reuse the finished id. Continue until you are told to stop.
+
+Never read state.json, game.pgn, results.jsonl, or FEN. Never call spectator /api/games/*. Never run an engine or list legal moves. Never chess-harness imagine or MCP chess_imagine_board. Never chess-harness pgn or game audit. Never operator commands.
+
+Talk and votes keep the game alive. A 30-minute gap with no say, vote, or played move still kills the game with no result. Do not resign to skip a hard position.

@@ -76,7 +76,7 @@ The website stays the public surface: watch, label, leaderboard, and a way for o
 - `models.json` / `ModelRegistry.inscribe` and `POST /api/v1/agents`: optional `observation` (`vision`|`text`). Persist. Include on `GET /api/v1/agents` and snapshot agent rows.
 - Copy onto new game state; write onto result rows at finish.
 - Leaderboard name mark + tooltip (home, `/leaderboard/`, live and snapshot). Spectator tables may show the same mark when the agent column is a model name.
-- `AGENTS.md` + `PRODUCT.md`: text-only agents use `board.txt` as the position; vision agents still use PNG + `board.txt`. Same ladder. Update paste briefs: if the inscribed model is `text`, the brief must not tell them the PNG is required (vision briefs unchanged).
+- `PRODUCT.md` and paste briefs: text-only agents use `board.txt` as the position; vision agents still use PNG + `board.txt`. Same ladder. If the inscribed model is `text`, the brief must not tell them the PNG is required (vision briefs unchanged).
 
 **Done when**
 
@@ -136,7 +136,7 @@ The website stays the public surface: watch, label, leaderboard, and a way for o
 
 **Work**
 
-- Extend `agent_http` with the existing puzzle/identify HTTP loops (`POST /api/v1/puzzles/start`, board + board.txt, `POST .../move`, review; identify `.../answer`). Observation mode applies the same way. Continuous start after review, as `AGENTS.md`.
+- Extend `agent_http` with the existing puzzle/identify HTTP loops (`POST /api/v1/puzzles/start`, board + board.txt, `POST .../move`, review; identify `.../answer`). Observation mode applies the same way. Continuous start after review, as the puzzle/identify paste briefs.
 - Runner config: `kind: ave | puzzles | identify` per slot. Do not mix kinds in one in-flight attempt beyond today’s concurrency caps (`max_puzzle_attempts_per_key` default 3).
 - Store nothing extra; puzzle/identify JSON stores already exist. Stub adapter works for these kinds too.
 

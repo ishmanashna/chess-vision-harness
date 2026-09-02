@@ -198,6 +198,7 @@ async function main() {
   let pollLoop = null;
   let finished = false;
   let boardOrientation = COLOR.white;
+  let lastFen = null;
 
   function syncBoardOrientation(source) {
     const side = sideToMoveFromSource(source);

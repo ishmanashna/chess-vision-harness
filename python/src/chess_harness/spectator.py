@@ -32,6 +32,7 @@ from .game_types import (
     GAME_TYPE_HUMAN_VS_AGENT,
     is_human_vs_agent_state,
 )
+from .prompt_packs import is_packed_state
 from .models import normalize_observation
 from .spectator_human import (
     human_active_card,
@@ -45,7 +46,7 @@ from .ladder_display import (
     THEME_INIT_SCRIPT,
     render_calibration_html,
 )
-from .calibration_auth import require_calibration_auth
+from .calibration_auth import host_is_loopback, require_calibration_auth
 from .contact_api import register_contact_routes
 from .ops_api import register_ops_routes
 from .ops_metrics import register_ops_metrics
@@ -873,10 +874,25 @@ def _enrich_list_game(g: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
+def packed_game_forbidden(request: Request, state: Dict[str, Any]) -> bool:
+    """Packed prompt-test games are loopback-only on spectator routes."""
+    return is_packed_state(state) and not host_is_loopback(request)
+
+
+def _omit_packed_from_list(request: Optional[Request], state: Dict[str, Any]) -> bool:
+    """True when a packed game must not appear in a games list."""
+    if not is_packed_state(state):
+        return False
+    if request is None:
+        return True
+    return not host_is_loopback(request)
+
+
 def _build_games_list(
     status: Optional[str],
     limit: Optional[int],
     offset: int,
+    request: Optional[Request] = None,
 ) -> tuple[list[Dict[str, Any]], int]:
     _get_game_service().prune_idle_games()
     games = game_manager.list_games()
@@ -884,6 +900,8 @@ def _build_games_list(
         games = [g for g in games if g["state"].get("status") == "in_progress"]
     elif status in ("finished", "done", "completed"):
         games = [g for g in games if g["state"].get("status") != "in_progress"]
+
+    games = [g for g in games if not _omit_packed_from_list(request, g["state"])]
 
     total = len(games)
     if limit is not None:
@@ -1155,14 +1173,20 @@ async def calibration_rebuild_accuracy_map():
 
 
 @app.get("/g/{game_id}", response_class=HTMLResponse)
-async def game_view(game_id: str):
+async def game_view(game_id: str, request: Request):
     """Static shell from public-site/g/; game data via /api/games/*."""
+    state = game_manager.load_state(game_id)
+    if state and packed_game_forbidden(request, state):
+        raise HTTPException(404, "Game not found")
     return watch_shell_response("g", game_id)
 
 
 @app.get("/g/{game_id}/board.png")
-async def get_board_image(game_id: str):
+async def get_board_image(game_id: str, request: Request):
     if not game_manager.validate_game_id(game_id):
+        raise HTTPException(404, "Board not found")
+    state = game_manager.load_state(game_id)
+    if state and packed_game_forbidden(request, state):
         raise HTTPException(404, "Board not found")
     await run_blocking(_get_controller().refresh_board_image, game_id)
     board_path = game_manager.get_board_path(game_id)
@@ -1416,12 +1440,15 @@ async def public_identify_replay(attempt_id: str):
 
 @app.get("/api/games")
 async def list_games(
+    request: Request,
     status: Optional[str] = Query(None),
     limit: Optional[int] = Query(None, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
     """List games newest-first. status=in_progress|finished; omit for all."""
-    enriched, total = await run_blocking(_build_games_list, status, limit, offset)
+    enriched, total = await run_blocking(
+        _build_games_list, status, limit, offset, request
+    )
     return {
         "games": enriched,
         "total": total,
@@ -1431,9 +1458,11 @@ async def list_games(
 
 
 @app.get("/api/games/{game_id}/state")
-async def get_game_state(game_id: str, debug: Optional[str] = None):
+async def get_game_state(game_id: str, request: Request, debug: Optional[str] = None):
     state = game_manager.load_state(game_id)
     if not state:
+        raise HTTPException(404, "Game not found")
+    if packed_game_forbidden(request, state):
         raise HTTPException(404, "Game not found")
     avaa = is_avaa_state(state)
     human = is_human_vs_agent_state(state)
@@ -1533,21 +1562,25 @@ async def get_game_state(game_id: str, debug: Optional[str] = None):
 
 
 @app.get("/api/games/{game_id}/moves")
-async def get_game_moves(game_id: str):
+async def get_game_moves(game_id: str, request: Request):
     state = game_manager.load_state(game_id)
     if not state:
+        raise HTTPException(404, "Game not found")
+    if packed_game_forbidden(request, state):
         raise HTTPException(404, "Game not found")
     return spectator_moves_payload(state)
 
 
 @app.get("/api/games/{game_id}/chat")
-async def get_game_chat(game_id: str, since: int = Query(0, ge=0)):
+async def get_game_chat(game_id: str, request: Request, since: int = Query(0, ge=0)):
     """Public read-only chat for spectators of human-vs-agent games."""
     from .chat import read_chat_messages
     from .game_types import is_human_vs_agent_state
 
     state = game_manager.load_state(game_id)
     if not state:
+        raise HTTPException(404, "Game not found")
+    if packed_game_forbidden(request, state):
         raise HTTPException(404, "Game not found")
     if not is_human_vs_agent_state(state):
         raise HTTPException(404, "Chat is only available for agent vs human games")
@@ -1558,7 +1591,10 @@ async def get_game_chat(game_id: str, since: int = Query(0, ge=0)):
 
 
 @app.get("/api/games/{game_id}/pgn")
-async def get_game_pgn(game_id: str, debug: Optional[str] = None):
+async def get_game_pgn(game_id: str, request: Request, debug: Optional[str] = None):
+    state = game_manager.load_state(game_id)
+    if state and packed_game_forbidden(request, state):
+        raise HTTPException(404, "Game not found")
     if not debug_state_enabled(debug):
         state = game_manager.load_state(game_id)
         if state and state.get("status") == "in_progress":
@@ -1578,10 +1614,12 @@ async def get_game_pgn(game_id: str, debug: Optional[str] = None):
 
 
 @app.get("/api/games/{game_id}/eval")
-async def get_eval(game_id: str, ply: Optional[int] = Query(None)):
+async def get_eval(game_id: str, request: Request, ply: Optional[int] = Query(None)):
     """Tip eval (omit ply) or historical ply eval. Never returns FEN."""
     state = game_manager.load_state(game_id)
     if not state:
+        raise HTTPException(404, "Game not found")
+    if packed_game_forbidden(request, state):
         raise HTTPException(404, "Game not found")
     if not show_eval_for_state(state):
         return {"ok": True, "show_eval": False}

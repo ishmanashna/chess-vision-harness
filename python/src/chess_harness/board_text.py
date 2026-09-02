@@ -13,9 +13,9 @@ def bottom_color_for_board(board: chess.Board) -> str:
 def format_board_text(board: chess.Board, *, bottom_color: str = "white") -> str:
     """Return an absolute board grid with one row per rank.
 
-    Default (games): white at bottom, files a→h, ranks 8→1.
-    Black at bottom (puzzles/identify when Black is to move): files h→a,
-    ranks 1→8 top to bottom (moving side nearest the footer).
+    Default (games and agent puzzles): white at bottom, files a→h, ranks 8→1.
+    Black at bottom (identify, and spectator puzzle views when Black is to
+    move): files h→a, ranks 1→8 top to bottom (moving side nearest the footer).
     """
     flip = bottom_color.lower() == "black"
     if flip:

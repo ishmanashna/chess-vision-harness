@@ -1,0 +1,25 @@
+{
+  "packs": {
+    "a": {
+      "title": "A Baseline",
+      "kind": "overlay"
+    },
+    "b": {
+      "title": "B Verify",
+      "kind": "overlay"
+    },
+    "c": {
+      "title": "C Principles",
+      "kind": "overlay"
+    },
+    "d": {
+      "title": "D Slow",
+      "kind": "overlay"
+    },
+    "e": {
+      "title": "E Committee",
+      "kind": "committee",
+      "seats": 3
+    }
+  }
+}

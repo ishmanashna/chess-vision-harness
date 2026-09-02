@@ -378,6 +378,27 @@ async function main() {
   let finished = false;
   let puzzleSideToMove = null;
   let boardOrientation = COLOR.white;
+  let lastFen = null;
+
+  function refreshLayout() {
+    try {
+      if (board.view && typeof board.view.handleResize === "function") {
+        board.view.handleResize();
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+
+  function afterLayoutPaint() {
+    refreshLayout();
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        refreshLayout();
+        requestAnimationFrame(resolve);
+      });
+    });
+  }
 
   function syncBoardOrientation(source) {
     const side = sideToMoveFromSource(source);
@@ -485,6 +506,7 @@ async function main() {
 
   function setPosition(fen, animate, lastUci, opts) {
     const options = opts || {};
+    if (!fen) return Promise.resolve();
     annotations.clearAnnotations();
     const doAnimate = !!animate && lastFen != null && fen !== lastFen;
     const prevFen = lastFen;
@@ -500,7 +522,7 @@ async function main() {
       if (options.resultArrows) {
         paintResultArrows(replay);
       }
-    });
+    }).then(() => afterLayoutPaint());
   }
 
   function lastUciForScanPly(n) {
@@ -907,6 +929,9 @@ async function main() {
       if (state.status === "finished") {
         finished = true;
         stopPolling();
+        if (state.fen) {
+          await setPosition(state.fen, false);
+        }
         await loadReplay();
         chain.startTracking(state);
       } else if (state.status === "abandoned") {

@@ -46,6 +46,7 @@ def cmd_new(
     model_name: Optional[str] = None,
     force: bool = False,
     opponent: Optional[str] = None,
+    prompt_pack: Optional[str] = None,
 ) -> Dict[str, Any]:
     color = resolve_agent_color(color)
     return _game_service().new_game(
@@ -56,6 +57,7 @@ def cmd_new(
         force=force,
         opponent_id=opponent,
         skill=skill,
+        prompt_pack=prompt_pack,
     )
 
 

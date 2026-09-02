@@ -16,6 +16,7 @@ from .avaa_api import register_avaa_routes
 from .api_v1_avh import register_avh_agent_routes
 from .chat_api import register_agent_chat_routes
 from .child_credentials import ChildCredentialStore
+from .calibration_auth import host_is_loopback
 from .commands import resolve_agent_color
 from .elo import ELOLadder
 from .followup_api import register_followup_routes
@@ -44,6 +45,7 @@ class RegisterAgentBody(BaseModel):
 class CreateGameBody(BaseModel):
     opponent: Optional[str] = None
     agent_color: Optional[str] = None
+    prompt_pack: Optional[str] = None
 
 
 class MoveBody(BaseModel):
@@ -217,6 +219,8 @@ def build_router(
         denied = limits.check_create_game(_svc(), auth)
         if denied:
             return denied
+        if body.prompt_pack and not host_is_loopback(request):
+            return _err(403, "prompt_pack is only available on loopback")
         try:
             color = resolve_agent_color(body.agent_color)
         except ValueError as exc:
@@ -228,6 +232,7 @@ def build_router(
             color,
             model_name=auth.model_id,
             opponent_id=body.opponent,
+            prompt_pack=body.prompt_pack,
         )
         if not result.get("ok"):
             return _err(400, result.get("error", "Failed to create game"))

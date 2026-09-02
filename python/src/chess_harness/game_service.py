@@ -65,6 +65,7 @@ class GameService:
         opponent_id: Optional[str] = None,
         skill: Optional[int] = None,
         game_type: str = DEFAULT_GAME_TYPE,
+        prompt_pack: Optional[str] = None,
     ) -> Dict[str, Any]:
         self._prune_idle()
         try:
@@ -78,6 +79,7 @@ class GameService:
                 opponent_id=opponent_id,
                 skill=skill,
                 game_type=game_type,
+                prompt_pack=prompt_pack,
             )
         finally:
             self._trim_engines()

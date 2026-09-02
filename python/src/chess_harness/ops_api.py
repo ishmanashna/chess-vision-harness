@@ -24,6 +24,7 @@ from .ops_audience import audience_snapshot
 from .ops_jobs import register_ops_job_routes
 from .ops_metrics import metrics_snapshot
 from .puzzle_observer import public_attempt_row as puzzle_public_row
+from .prompt_test_ops import build_prompt_test_snapshot
 
 __all__ = ["build_ops_snapshot", "register_ops_routes"]
 
@@ -211,6 +212,18 @@ def register_ops_routes(app) -> None:
     async def ops_audience(request: Request):
         _require_loopback(request)
         return await asyncio.to_thread(audience_snapshot)
+
+    @router.get("/api/ops/prompt-test")
+    async def ops_prompt_test(request: Request):
+        if not host_is_loopback(request):
+            raise HTTPException(
+                status_code=403,
+                detail="Operator A/B is only available on localhost",
+            )
+        return await asyncio.to_thread(
+            build_prompt_test_snapshot,
+            base_dir=resolve_base_dir(),
+        )
 
     app.include_router(router)
     register_ops_job_routes(app)

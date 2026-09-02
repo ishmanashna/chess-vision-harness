@@ -227,6 +227,21 @@ def test_watch_page_board_media_and_missing(observer_client):
     assert client.get("/p/does-not-exist/board.png").status_code == 404
 
 
+def test_spectator_board_text_black_to_move_stays_flipped(observer_client):
+    client, _ = observer_client
+    key = _register(client, "spec-flip-agent")
+    start = _start(client, key, rating_min=1490, rating_max=1510)
+    attempt_id = start["attempt_id"]
+    record = PuzzleAttemptStore().get(attempt_id)
+    board = chess.Board(record["board_fen"])
+    assert board.turn == chess.BLACK, "pz-a setup leaves Black to move"
+
+    text = client.get(f"/p/{attempt_id}/board.txt")
+    assert text.status_code == 200
+    assert text.text.splitlines()[0] == "  h g f e d c b a"
+    assert "side_to_move: black" in text.text
+
+
 def test_replay_blocked_while_active(observer_client):
     client, _ = observer_client
     key = _register(client, "blocked-agent")

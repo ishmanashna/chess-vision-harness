@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> None:
                     opts.get("model"),
                     force=opts.get("force", False),
                     opponent=opponent,
+                    prompt_pack=opts.get("prompt-pack"),
                 ),
                 indent=2,
             )
@@ -332,6 +333,102 @@ def main(argv: list[str] | None = None) -> None:
             "reconcile|import-live|list|restore <game_id>"
         )
         sys.exit(1)
+
+    elif args[0] == "prompt-test":
+        from .prompt_test import (
+            cmd_prompt_test_say,
+            cmd_prompt_test_start,
+            cmd_prompt_test_thread,
+            cmd_prompt_test_vote,
+            parse_packs_list,
+        )
+
+        if len(args) < 2:
+            print(
+                "Usage: chess-harness prompt-test "
+                "start --model <id> --packs a,b | "
+                "thread <game_id> | say <game_id> <seat> <text...> | "
+                "vote <game_id> <seat> <uci>"
+            )
+            sys.exit(1)
+
+        sub = args[1]
+        if sub == "start":
+            model_id = None
+            packs_str = None
+            opponent = None
+            i = 2
+            while i < len(args):
+                if args[i] == "--model" and i + 1 < len(args):
+                    model_id = args[i + 1]
+                    i += 2
+                elif args[i] == "--packs" and i + 1 < len(args):
+                    packs_str = args[i + 1]
+                    i += 2
+                elif args[i] == "--opponent" and i + 1 < len(args):
+                    opponent = args[i + 1]
+                    i += 2
+                else:
+                    print("Usage: chess-harness prompt-test start --model <id> --packs a,b")
+                    sys.exit(1)
+
+            if not model_id or not packs_str:
+                print("Usage: chess-harness prompt-test start --model <id> --packs a,b")
+                sys.exit(1)
+
+            try:
+                pack_ids = parse_packs_list(packs_str)
+            except ValueError as exc:
+                print(json.dumps({"ok": False, "error": str(exc)}))
+                sys.exit(1)
+
+            result = cmd_prompt_test_start(model_id, pack_ids, opponent=opponent)
+            print(json.dumps(result, indent=2))
+            if not result.get("ok"):
+                sys.exit(1)
+        elif sub == "thread":
+            if len(args) < 3:
+                print("Usage: chess-harness prompt-test thread <game_id>")
+                sys.exit(1)
+            result = cmd_prompt_test_thread(args[2])
+            print(json.dumps(result, indent=2))
+            if not result.get("ok"):
+                sys.exit(1)
+        elif sub == "say":
+            if len(args) < 5:
+                print("Usage: chess-harness prompt-test say <game_id> <seat> <text...>")
+                sys.exit(1)
+            try:
+                seat = int(args[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "seat must be an integer"}))
+                sys.exit(1)
+            text = " ".join(args[4:])
+            result = cmd_prompt_test_say(args[2], seat, text)
+            print(json.dumps(result, indent=2))
+            if not result.get("ok"):
+                sys.exit(1)
+        elif sub == "vote":
+            if len(args) < 5:
+                print("Usage: chess-harness prompt-test vote <game_id> <seat> <uci>")
+                sys.exit(1)
+            try:
+                seat = int(args[3])
+            except ValueError:
+                print(json.dumps({"ok": False, "error": "seat must be an integer"}))
+                sys.exit(1)
+            result = cmd_prompt_test_vote(args[2], seat, args[4])
+            print(json.dumps(result, indent=2))
+            if not result.get("ok"):
+                sys.exit(1)
+        else:
+            print(
+                "Usage: chess-harness prompt-test "
+                "start --model <id> --packs a,b | "
+                "thread <game_id> | say <game_id> <seat> <text...> | "
+                "vote <game_id> <seat> <uci>"
+            )
+            sys.exit(1)
 
     elif args[0] == "runner":
         from .runner.cli import cmd_runner

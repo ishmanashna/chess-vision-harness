@@ -238,12 +238,12 @@ def test_aggregate_quality_by_model_rules(tmp_path):
     assert agg["agent-a"] == {
         "quality_games": 3,
         "mean_accuracy": mean_a,
-        "mean_play_rating": 550.0,
+        "mean_play_rating": 1000.0,
     }
     assert agg["agent-b"] == {
         "quality_games": 1,
         "mean_accuracy": 88.0,
-        "mean_play_rating": 720.0,
+        "mean_play_rating": 1180.0,
     }
 
 
@@ -386,7 +386,7 @@ def test_build_snapshot_includes_quality_stats(tmp_path):
     )
     agent = snapshot["agents"][0]
     assert agent["mean_accuracy"] == 90.0
-    assert agent["mean_play_rating"] == 800.0
+    assert agent["mean_play_rating"] == 1200.0
     assert agent["quality_games"] == 1
 
 
@@ -436,24 +436,57 @@ def test_build_snapshot_merges_puzzle_and_identify_stats(tmp_path):
     assert po["games"] == 0 and po["puzzle_rating"] == 1400.0 and po["elo"] == 500
 
 
-def test_aggregate_quality_uses_stored_play_rating(tmp_path):
-    """Quality aggregation uses canonical stored Q-map ratings, not accuracy-only remapping."""
+def test_aggregate_quality_derives_play_rating_from_map(tmp_path):
+    """Leaderboard Performance uses map(mean_accuracy), not stale stored play_rating."""
     harness = tmp_path / "harness"
     harness.mkdir()
     models_file = harness / "models.json"
     models_file.write_text(
-        json.dumps({"models": [{"id": "agent-a", "name": "Agent A", "elo": 700.0}]}),
+        json.dumps(
+            {
+                "models": [
+                    {"id": "low-acc", "name": "Low Acc", "elo": 700.0},
+                    {"id": "high-acc", "name": "High Acc", "elo": 700.0},
+                ]
+            }
+        ),
         encoding="utf-8",
     )
     _write_results(
         harness / "results.jsonl",
         [
-            {"game_id": "g1", "model_name": "agent-a", "result": "1-0", "accuracy": 70.0, "play_rating": 999.0},
-            {"game_id": "g2", "model_name": "agent-a", "result": "0-1", "accuracy": 90.0, "play_rating": 111.0},
+            {
+                "game_id": "g1",
+                "model_name": "low-acc",
+                "result": "1-0",
+                "accuracy": 61.0,
+                "play_rating": 999.0,
+            },
+            {
+                "game_id": "g2",
+                "model_name": "high-acc",
+                "result": "0-1",
+                "accuracy": 69.0,
+                "play_rating": 100.0,
+            },
+        ],
+    )
+
+    cal_root = tmp_path / "cal"
+    _write_warm_map(
+        cal_root,
+        [
+            {"accuracy": 50.0, "elo": 500.0},
+            {"accuracy": 70.0, "elo": 700.0},
         ],
     )
 
     rm = ResultsManager(base_dir=str(harness))
-    agg = rm.aggregate_quality_by_model(cal_root=tmp_path / "unused")
-    assert agg["agent-a"]["mean_accuracy"] == 80.0
-    assert agg["agent-a"]["mean_play_rating"] == 555.0
+    agg = rm.aggregate_quality_by_model(cal_root=cal_root)
+    low = agg["low-acc"]
+    high = agg["high-acc"]
+    assert low["mean_accuracy"] == 61.0
+    assert high["mean_accuracy"] == 69.0
+    assert low["mean_play_rating"] == 610.0
+    assert high["mean_play_rating"] == 690.0
+    assert low["mean_play_rating"] < high["mean_play_rating"]

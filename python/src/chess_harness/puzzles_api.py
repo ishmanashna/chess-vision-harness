@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from .agent_brief import public_base_url
 from .api_limits import ApiLimitEnforcer, AuthContext
-from .board_text import bottom_color_for_board, format_board_text
+from .board_text import format_board_text
 from .puzzle_attempt import (
     PuzzleAttemptStore,
     apply_submission,
@@ -82,10 +82,12 @@ def register_puzzle_routes(
             last_moves.append(
                 chess.Move.from_uci(record["opponent_moves"][-1])
             )
+        # Agent puzzle PNG always matches ladder/AvE: White at the bottom.
+        # Spectator /p/ and puzzle-set previews keep side-to-move at bottom.
         return ChessBoardRenderer().render_board_bytes(
             board,
             last_moves=last_moves,
-            bottom_color=bottom_color_for_board(board),
+            bottom_color="white",
         )
 
     def _safe_start_payload(
@@ -188,9 +190,7 @@ def register_puzzle_routes(
         record = _store().ensure_agent_joined(attempt_id) or record
         board = chess.Board(record["board_fen"])
         return PlainTextResponse(
-            content=format_board_text(
-                board, bottom_color=bottom_color_for_board(board)
-            ),
+            content=format_board_text(board, bottom_color="white"),
             headers={"Cache-Control": "no-store"},
         )
 

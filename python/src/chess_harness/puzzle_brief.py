@@ -62,10 +62,10 @@ Repeat until the move response says the attempt is finished:
 1. Read both live board channels before every move:
    - GET {board_url}
      Response is image/png — open and read this image before every move.
-     The board shows the side to move at the bottom; image labels match that view.
-     Square names are absolute (a1 is still a1 on the board).
+     The board is always white at the bottom; image labels match that view.
+     Square names are absolute (a1 is bottom-left).
    - Compact text board (authenticated):
-{render_board_text_channel(board_text_url, auth, moving_side_at_bottom=True)}
+{render_board_text_channel(board_text_url, auth)}
      No FEN, no solution, no move list.
 
 2. POST {move_base}/{{move}}
@@ -87,6 +87,7 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
 ## Rules
 
 - Read both the board PNG and authenticated board.txt before every move.
+- Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - The solution and hidden puzzle metadata are never exposed before the
   attempt ends — never attempt to derive them from JSON.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
