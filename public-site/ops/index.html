@@ -8,7 +8,7 @@
   <meta name="description" content="Localhost operator desk — health, disk, inbox, activity (127.0.0.1 only)."/>
   <title>Operator panel — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
-  <link rel="stylesheet" href="/css/site.css"/>
+  <link rel="stylesheet" href="/css/site.css?v=3"/>
 </head>
 <body class="ops-body">
   <div class="wrap ops-wrap">
@@ -273,7 +273,7 @@
 
         <section class="ops-section hidden" data-ops-section="prompt-test" hidden>
           <article class="card">
-            <h3 class="ops-card-title">A/B</h3>
+            <h3 class="ops-card-title">A/B packs</h3>
             <p class="lead">Local prompt-pack comparison — unrated tagged games on this PC.</p>
             <table class="leaderboard-table" data-prompt-test-table aria-label="A/B packs">
               <thead><tr><th>Pack</th><th>Live</th><th>Finished</th><th>W-D-L</th><th>Accuracy</th><th>Performance</th><th>Recent</th></tr></thead>
@@ -281,12 +281,25 @@
             </table>
             <p class="snapshot-meta" data-prompt-test-meta></p>
           </article>
+          <article class="card">
+            <h3 class="ops-card-title">A/B games</h3>
+            <p class="lead">Per-game result, accuracy, and performance.</p>
+            <table class="leaderboard-table" data-prompt-test-games-table aria-label="A/B games">
+              <thead><tr><th>Pack</th><th>Game</th><th>Color</th><th>Opponent</th><th>Result</th><th>Accuracy</th><th>Performance</th></tr></thead>
+              <tbody data-prompt-test-games></tbody>
+            </table>
+          </article>
+          <article class="card">
+            <h3 class="ops-card-title">Committee chat</h3>
+            <p class="lead">Live conversation for committee (E) games on this PC.</p>
+            <div data-prompt-test-chats></div>
+          </article>
         </section>
       </main>
     </div>
   </div>
 
-  <script src="/js/common.js?v=15"></script>
-  <script src="/js/ops.js?v=2"></script>
+  <script src="/js/common.js?v=16"></script>
+  <script src="/js/ops.js?v=3"></script>
 </body>
 </html>

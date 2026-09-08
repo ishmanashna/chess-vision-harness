@@ -6,7 +6,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from .paths import project_root
 
@@ -31,6 +31,7 @@ class PromptPack:
     body: str
     body_hash: str
     title: str
+    seat_packs: Optional[Tuple[str, ...]] = None
 
 
 def _packs_dir() -> Path:
@@ -54,13 +55,35 @@ def load_pack(pack_id: str) -> PromptPack:
     body = body_path.read_text(encoding="utf-8")
     body_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
     seats = meta.get("seats")
+    seat_count = int(seats) if seats is not None else None
+    raw_seat_packs = meta.get("seat_packs")
+    seat_packs: Optional[Tuple[str, ...]] = None
+    if raw_seat_packs is not None:
+        if not isinstance(raw_seat_packs, list) or not raw_seat_packs:
+            raise ValueError(f"prompt pack {pack_id}: seat_packs must be a non-empty list")
+        seat_packs = tuple(str(item) for item in raw_seat_packs)
+        if seat_count is not None and len(seat_packs) != seat_count:
+            raise ValueError(
+                f"prompt pack {pack_id}: seat_packs length must match seats"
+            )
+        for overlay_id in seat_packs:
+            if overlay_id == pack_id:
+                raise ValueError(f"prompt pack {pack_id}: seat_packs cannot include itself")
+            if overlay_id not in packs:
+                raise ValueError(f"Unknown prompt pack: {overlay_id}")
+            overlay_kind = str(packs[overlay_id].get("kind") or "")
+            if overlay_kind != "overlay":
+                raise ValueError(
+                    f"prompt pack {pack_id}: seat pack {overlay_id} must be overlay"
+                )
     return PromptPack(
         id=pack_id,
         kind=str(meta["kind"]),
-        seats=int(seats) if seats is not None else None,
+        seats=seat_count,
         body=body,
         body_hash=body_hash,
         title=str(meta.get("title") or pack_id),
+        seat_packs=seat_packs,
     )
 
 
@@ -112,6 +135,22 @@ def _fill_brief_placeholders(
     return filled
 
 
+def _rewrite_overlay_commands_for_committee(body: str, game_id: str, seat: int) -> str:
+    """Point overlay 'send a move' lines at vote; never expose a legal-move list."""
+    vote_cmd = f"chess-harness prompt-test vote {game_id} {seat}"
+    return body.replace(f"chess-harness move {game_id}", vote_cmd).replace(
+        f"python -m chess_harness move {game_id}", vote_cmd
+    )
+
+
+def _seat_overlay_body(pack: PromptPack, seat: int) -> str:
+    if not pack.seat_packs:
+        return ""
+    if seat < 1 or seat > len(pack.seat_packs):
+        raise ValueError(f"seat must be between 1 and {len(pack.seat_packs)}")
+    return load_pack(pack.seat_packs[seat - 1]).body
+
+
 def render_overlay_brief(
     pack: PromptPack,
     *,
@@ -145,24 +184,23 @@ def render_committee_brief(
     model_id: str,
     seat: int,
 ) -> str:
-    """Committee brief: shared committee rules, then pack body, with seat filled."""
-    rules = _fill_brief_placeholders(
-        _committee_rules_text(),
-        game_id=game_id,
-        board_path=board_path,
-        model_id=model_id,
-        prompt_pack=pack.id,
-        seat=seat,
-    )
-    body = _fill_brief_placeholders(
-        pack.body,
-        game_id=game_id,
-        board_path=board_path,
-        model_id=model_id,
-        prompt_pack=pack.id,
-        seat=seat,
-    )
-    return rules + "\n\n" + body
+    """Committee brief: rules, optional seat overlay (B/C/D), then vote protocol."""
+    fill_kwargs = {
+        "game_id": game_id,
+        "board_path": board_path,
+        "model_id": model_id,
+        "prompt_pack": pack.id,
+        "seat": seat,
+    }
+    rules = _fill_brief_placeholders(_committee_rules_text(), **fill_kwargs)
+    overlay_src = _seat_overlay_body(pack, seat)
+    sections = [rules]
+    if overlay_src:
+        overlay = _fill_brief_placeholders(overlay_src, **fill_kwargs)
+        sections.append(_rewrite_overlay_commands_for_committee(overlay, game_id, seat))
+    protocol = _fill_brief_placeholders(pack.body, **fill_kwargs)
+    sections.append(protocol)
+    return "\n\n".join(sections)
 
 
 def is_packed_state(state: Dict[str, Any]) -> bool:

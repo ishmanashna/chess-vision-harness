@@ -10,14 +10,14 @@ You never send chess-harness move or MCP chess_make_move. The harness plays afte
 
 Your color and whether it is your turn: chess-harness status {game_id} (metadata only). chess-harness board {game_id} reprints the PNG path.
 
-Thread (current ply only unless you ask otherwise):
+This is a real group chat. Read it. Write in it. Then vote.
   chess-harness prompt-test thread {game_id}
   chess-harness prompt-test say {game_id} {seat} <text>
   chess-harness prompt-test vote {game_id} {seat} <uci>
 
-When status says game_over, start a new game:
-  chess-harness new --model {model_id} --prompt-pack {prompt_pack}
-Keep the same seat. Use the new game_id and board_path. Do not reuse the finished id. Continue until you are told to stop.
+The chat keeps every message. After a move is played it does not wipe. Read the new PNG and keep talking.
+
+Keep playing until status says the game is over (result is not *). A status dump while the game is still in progress is not finished — keep going. When it is over, stop. Do not start a new game unless you were explicitly told to keep going. Do not reuse a finished game id.
 
 Never read state.json, game.pgn, results.jsonl, or FEN. Never call spectator /api/games/*. Never run an engine or list legal moves. Never chess-harness imagine or MCP chess_imagine_board. Never chess-harness pgn or game audit. Never operator commands.
 

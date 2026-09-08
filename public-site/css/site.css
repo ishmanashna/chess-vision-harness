@@ -1597,3 +1597,38 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+.ops-ab-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ops-ab-chat-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+
+.ops-ab-chat {
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.ops-ab-chat-line {
+  margin: 0 0 6px;
+}
+
+.ops-ab-chat-line[data-kind="system"] {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.ops-ab-chat-seat {
+  font-weight: 650;
+  margin-right: 6px;
+}

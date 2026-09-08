@@ -31,7 +31,11 @@ def schedule_game_quality(
     map_root: Optional[Path] = None,
     force: bool = False,
 ) -> None:
-    """Enqueue background quality analysis after PGN is on disk (finished games)."""
+    """Enqueue quality analysis after PGN is on disk (finished games).
+
+    The worker is a non-daemon thread so a CLI process that just finished a
+    game stays alive until accuracy/performance are written.
+    """
     _enqueue_quality(
         game_id,
         ("final", 0, force),
@@ -85,12 +89,12 @@ def _enqueue_quality(
         if game_id in _running:
             return
         _running.add(game_id)
-    thread = threading.Thread(
-        target=_run_queue,
-        args=(game_id, base_dir, map_root),
-        name=f"quality-{game_id}",
-        daemon=True,
-    )
+        thread = threading.Thread(
+            target=_run_queue,
+            args=(game_id, base_dir, map_root),
+            name=f"quality-{game_id}",
+            daemon=False,
+        )
     thread.start()
 
 

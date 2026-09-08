@@ -19,7 +19,8 @@
     "e": {
       "title": "E Committee",
       "kind": "committee",
-      "seats": 3
+      "seats": 3,
+      "seat_packs": ["b", "c", "d"]
     }
   }
 }

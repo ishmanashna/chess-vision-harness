@@ -13,9 +13,7 @@ Prefer UCI (e2e4, g1f3, e7e8q). SAN is fine if it is unambiguous.
 If a move is rejected, look at the PNG again and try another. The game continues.
 If it is not your turn, wait. Do not move for the engine.
 
-When status says game_over, start a new game with this exact command, then use the new game_id and board_path from the JSON:
-  chess-harness new --model {model_id} --prompt-pack {prompt_pack}
-Keep going until you are told to stop. Do not reuse the finished game id.
+Keep playing until status says the game is over (result is not *). A status dump while the game is still in progress is not finished — keep going. When it is over, stop. Do not start a new game unless you were explicitly told to keep going. Do not reuse a finished game id.
 
 Never read state.json, game.pgn, results.jsonl, or FEN. Never call spectator /api/games/*. Never run an engine or a script to pick moves or list legal moves. Never chess-harness imagine or MCP chess_imagine_board. Never chess-harness pgn or chess-harness game audit. Never operator commands (serve, harness reset, models uninscribe, calibration).
 

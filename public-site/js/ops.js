@@ -14,7 +14,7 @@
     machine: ["Machine", "Disk, processes, and local health"],
     inbox: ["Inbox", "Public Contact tab messages on this PC"],
     activity: ["Activity", "Live games, attempts, and audit tail"],
-    "prompt-test": ["A/B", "Packed prompt-pack games on this PC"],
+    "prompt-test": ["A/B", "Packed games, performances, and committee chat on this PC"],
   };
 
   function root() {
@@ -495,46 +495,139 @@
     return Number(value).toFixed(digits != null ? digits : 1);
   }
 
-  function renderPromptTest(packs) {
+  function renderPromptTest(payload, errorMessage) {
+    var packs = (payload && payload.packs) || [];
+    var games = (payload && payload.games) || [];
+    var chats = (payload && payload.chats) || [];
     var body = root() && root().querySelector("[data-prompt-test-body]");
     if (!body) return;
     body.innerHTML = "";
-    if (!packs || !packs.length) {
+    if (errorMessage) {
+      body.innerHTML = '<tr><td colspan="7"></td></tr>';
+      body.querySelector("td").textContent = errorMessage;
+      setText("[data-prompt-test-meta]", errorMessage);
+    } else if (!packs.length) {
       body.innerHTML = '<tr><td colspan="7">No A/B games yet.</td></tr>';
       setText("[data-prompt-test-meta]", "0 packs");
+    } else {
+      packs.forEach(function (row) {
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
+        tr.children[0].textContent = row.title || row.id || "—";
+        tr.children[1].textContent = String(row.in_progress != null ? row.in_progress : 0);
+        tr.children[2].textContent = String(row.finished != null ? row.finished : 0);
+        var w = row.wins != null ? row.wins : 0;
+        var d = row.draws != null ? row.draws : 0;
+        var l = row.losses != null ? row.losses : 0;
+        tr.children[3].textContent = w + "-" + d + "-" + l;
+        tr.children[4].textContent = fmtMean(row.mean_accuracy, 1);
+        tr.children[5].textContent = fmtMean(row.mean_play_rating, 0);
+        var linksCell = tr.children[6];
+        var ids = row.recent_game_ids || [];
+        if (!ids.length) {
+          linksCell.textContent = "—";
+        } else {
+          ids.forEach(function (gid, idx) {
+            var link = document.createElement("a");
+            link.href = "/g/" + encodeURIComponent(gid);
+            link.textContent = shortId(gid);
+            linksCell.appendChild(link);
+            if (idx < ids.length - 1) {
+              linksCell.appendChild(document.createTextNode(" "));
+            }
+          });
+        }
+        body.appendChild(tr);
+      });
+      setText("[data-prompt-test-meta]", packs.length + " pack" + (packs.length === 1 ? "" : "s"));
+    }
+    renderPromptTestGames(games);
+    renderPromptTestChats(chats);
+  }
+
+  function renderPromptTestGames(games) {
+    var body = root() && root().querySelector("[data-prompt-test-games]");
+    if (!body) return;
+    body.innerHTML = "";
+    if (!games || !games.length) {
+      body.innerHTML = '<tr><td colspan="7">No packed games on this PC.</td></tr>';
       return;
     }
-    packs.forEach(function (row) {
+    games.forEach(function (row) {
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
-      tr.children[0].textContent = row.title || row.id || "—";
-      tr.children[1].textContent = String(row.in_progress != null ? row.in_progress : 0);
-      tr.children[2].textContent = String(row.finished != null ? row.finished : 0);
-      var w = row.wins != null ? row.wins : 0;
-      var d = row.draws != null ? row.draws : 0;
-      var l = row.losses != null ? row.losses : 0;
-      tr.children[3].textContent = w + "-" + d + "-" + l;
-      tr.children[4].textContent = fmtMean(row.mean_accuracy, 1);
-      tr.children[5].textContent = fmtMean(row.mean_play_rating, 0);
-      var linksCell = tr.children[6];
-      var ids = row.recent_game_ids || [];
-      if (!ids.length) {
-        linksCell.textContent = "—";
+      tr.children[0].textContent = row.title || row.prompt_pack || "—";
+      var gid = row.game_id || "";
+      if (gid) {
+        var link = document.createElement("a");
+        link.href = "/g/" + encodeURIComponent(gid);
+        link.textContent = shortId(gid);
+        tr.children[1].appendChild(link);
       } else {
-        ids.forEach(function (gid, idx) {
-          var link = document.createElement("a");
-          link.href = "/g/" + encodeURIComponent(gid);
-          link.textContent = shortId(gid);
-          linksCell.appendChild(link);
-          if (idx < ids.length - 1) {
-            linksCell.appendChild(document.createTextNode(" "));
-          }
-        });
+        tr.children[1].textContent = "—";
       }
+      tr.children[2].textContent = row.agent_color || "—";
+      tr.children[3].textContent = row.opponent_id || "—";
+      var resultBits = [];
+      if (row.outcome) resultBits.push(row.outcome);
+      if (row.result && row.result !== "*") resultBits.push(row.result);
+      tr.children[4].textContent = resultBits.length ? resultBits.join(" · ") : (row.status || "—");
+      tr.children[5].textContent = fmtMean(row.accuracy, 1);
+      tr.children[6].textContent = fmtMean(row.play_rating, 0);
       body.appendChild(tr);
     });
-    setText("[data-prompt-test-meta]", packs.length + " pack" + (packs.length === 1 ? "" : "s"));
+  }
+
+  function renderPromptTestChats(chats) {
+    var rootEl = root() && root().querySelector("[data-prompt-test-chats]");
+    if (!rootEl) return;
+    rootEl.innerHTML = "";
+    rootEl.className = "ops-ab-chat-list";
+    if (!chats || !chats.length) {
+      var empty = document.createElement("p");
+      empty.className = "snapshot-meta";
+      empty.textContent = "No committee chat yet.";
+      rootEl.appendChild(empty);
+      return;
+    }
+    chats.forEach(function (chat) {
+      var card = document.createElement("div");
+      card.className = "ops-ab-chat-card";
+      var heading = document.createElement("h4");
+      var title = chat.title || "Committee";
+      var gid = chat.game_id ? shortId(chat.game_id) : "";
+      heading.textContent = title + (gid ? " · " + gid : "");
+      card.appendChild(heading);
+      var box = document.createElement("div");
+      box.className = "ops-ab-chat";
+      var messages = chat.messages || [];
+      if (!messages.length) {
+        var none = document.createElement("p");
+        none.className = "snapshot-meta";
+        none.textContent = "No messages yet.";
+        box.appendChild(none);
+      } else {
+        messages.forEach(function (msg) {
+          var line = document.createElement("p");
+          line.className = "ops-ab-chat-line";
+          line.setAttribute("data-kind", msg.kind || "say");
+          var seat = document.createElement("span");
+          seat.className = "ops-ab-chat-seat";
+          if (msg.kind === "system") {
+            seat.textContent = "harness";
+          } else {
+            seat.textContent = "seat " + (msg.seat != null ? msg.seat : "?");
+          }
+          line.appendChild(seat);
+          line.appendChild(document.createTextNode(msg.text || msg.uci || ""));
+          box.appendChild(line);
+        });
+      }
+      card.appendChild(box);
+      rootEl.appendChild(card);
+    });
   }
 
   function fetchPromptTest() {
@@ -547,11 +640,12 @@
         return res.json();
       })
       .then(function (body) {
-        renderPromptTest(body.packs || []);
+        renderPromptTest(body);
         return body;
       })
-      .catch(function () {
-        renderPromptTest([]);
+      .catch(function (err) {
+        var message = err && err.message ? err.message : "Could not load A/B";
+        renderPromptTest({ packs: [], games: [], chats: [] }, message);
         return null;
       });
   }

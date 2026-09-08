@@ -7,10 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import chess
+
 from .board_controller import BoardController
 from .commands import cmd_new
+from .elo import ELOLadder
 from .game_ids import new_game_id
 from .game_manager import GameBusyError, GameManager
+from .opponents import get_catalog
 from .paths import resolve_base_dir
 from .prompt_packs import (
     PromptPack,
@@ -69,8 +73,8 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _agent_ply_index(state: Dict[str, Any]) -> int:
-    """Completed agent plies (0 before the first agent move is played)."""
+def _agent_turn_index(state: Dict[str, Any]) -> int:
+    """Completed agent moves (0 before the first agent move is played)."""
     moves = state.get("moves") or []
     agent_is_white = state.get("agent_color") == "WHITE"
     count = 0
@@ -81,39 +85,55 @@ def _agent_ply_index(state: Dict[str, Any]) -> int:
     return count
 
 
-def _load_current_ply(game_id: str) -> int:
-    path = _ply_path(game_id)
-    if not path.is_file():
-        return 0
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return int(data.get("ply", 0))
-
-
-def _save_current_ply(game_id: str, ply: int) -> None:
-    root = _thread_root(game_id)
-    root.mkdir(parents=True, exist_ok=True)
-    _ply_path(game_id).write_text(json.dumps({"ply": ply}), encoding="utf-8")
-
-
 def _default_thread_data() -> Dict[str, Any]:
-    return {"notes": [], "votes": [], "status": "open"}
+    return {"messages": [], "votes": [], "status": "open", "turn": 0}
+
+
+def _migrate_messages(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if data.get("messages"):
+        return list(data["messages"])
+    notes = data.get("notes") or []
+    migrated: List[Dict[str, Any]] = []
+    for note in notes:
+        entry = dict(note)
+        entry.setdefault("kind", "say")
+        migrated.append(entry)
+    return migrated
 
 
 def _load_thread_data(game_id: str) -> Dict[str, Any]:
     path = _thread_path(game_id)
     if not path.is_file():
-        return _default_thread_data()
+        data = _default_thread_data()
+        ply_path = _ply_path(game_id)
+        if ply_path.is_file():
+            ply_data = json.loads(ply_path.read_text(encoding="utf-8"))
+            data["turn"] = int(ply_data.get("ply", 0))
+        return data
     data = json.loads(path.read_text(encoding="utf-8"))
-    data.setdefault("notes", [])
+    data["messages"] = _migrate_messages(data)
     data.setdefault("votes", [])
     data.setdefault("status", "open")
+    if "turn" not in data:
+        ply_path = _ply_path(game_id)
+        if ply_path.is_file():
+            ply_data = json.loads(ply_path.read_text(encoding="utf-8"))
+            data["turn"] = int(ply_data.get("ply", 0))
+        else:
+            data["turn"] = 0
     return data
 
 
 def _save_thread_data(game_id: str, data: Dict[str, Any]) -> None:
     root = _thread_root(game_id)
     root.mkdir(parents=True, exist_ok=True)
-    _thread_path(game_id).write_text(json.dumps(data, indent=2), encoding="utf-8")
+    payload = {
+        "messages": data.get("messages") or [],
+        "votes": data.get("votes") or [],
+        "status": data.get("status") or "open",
+        "turn": int(data.get("turn") or 0),
+    }
+    _thread_path(game_id).write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def _committee_seats(state: Dict[str, Any]) -> int:
@@ -128,8 +148,14 @@ def _validate_seat(state: Dict[str, Any], seat: int) -> Optional[str]:
     return None
 
 
-def _ply_entries(entries: List[Dict[str, Any]], ply: int) -> List[Dict[str, Any]]:
-    return [entry for entry in entries if int(entry.get("ply", -1)) == ply]
+def _current_turn_votes(thread_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    turn = int(thread_data.get("turn") or 0)
+    votes: List[Dict[str, Any]] = []
+    for vote in thread_data.get("votes") or []:
+        vote_turn = vote.get("turn")
+        if vote_turn is None or int(vote_turn) == turn:
+            votes.append(vote)
+    return votes
 
 
 def _thread_response(
@@ -140,15 +166,14 @@ def _thread_response(
     ok: bool = True,
     error: Optional[str] = None,
 ) -> Dict[str, Any]:
-    ply = _load_current_ply(game_id)
     thread_data = data if data is not None else _load_thread_data(game_id)
     response: Dict[str, Any] = {
         "ok": ok,
         "game_id": game_id,
-        "ply": ply,
+        "turn": int(thread_data.get("turn") or 0),
         "seats": _committee_seats(state),
-        "notes": _ply_entries(thread_data.get("notes", []), ply),
-        "votes": _ply_entries(thread_data.get("votes", []), ply),
+        "messages": list(thread_data.get("messages") or []),
+        "votes": _current_turn_votes(thread_data),
         "status": thread_data.get("status", "open"),
     }
     if error is not None:
@@ -171,35 +196,43 @@ def _game_over_error(state: Dict[str, Any]) -> Optional[str]:
     return f"Game is already over: {state.get('result')}"
 
 
-def _advance_played_ply_if_needed(
-    game_id: str, thread_data: Dict[str, Any], state: Dict[str, Any]
-) -> Dict[str, Any]:
-    """After a successful majority play, advance to the next ply on thread read."""
-    if thread_data.get("status") != "played":
-        return thread_data
-    if state.get("status") != "in_progress":
-        return thread_data
-    ply = _load_current_ply(game_id)
-    _clear_ply_thread(thread_data, ply)
-    _save_current_ply(game_id, ply + 1)
-    thread_data["status"] = "open"
-    _save_thread_data(game_id, thread_data)
-    return thread_data
+def _append_message(
+    thread_data: Dict[str, Any],
+    *,
+    kind: str,
+    text: str,
+    seat: int = 0,
+    uci: Optional[str] = None,
+) -> None:
+    entry: Dict[str, Any] = {
+        "kind": kind,
+        "seat": seat,
+        "text": text,
+        "ts": _utc_now(),
+        "turn": int(thread_data.get("turn") or 0),
+    }
+    if uci is not None:
+        entry["uci"] = uci
+    thread_data.setdefault("messages", []).append(entry)
+
+
+def _shared_opponent_id(model_id: str, opponent: Optional[str]) -> str:
+    if opponent is not None:
+        return opponent
+    agent_elo = ELOLadder().get_rating(model_id)
+    return get_catalog().select_by_elo(agent_elo).id
 
 
 def cmd_prompt_test_thread(game_id: str) -> Dict[str, Any]:
-    """Return the committee thread for the current ply."""
+    """Return the full committee chat plus current-turn votes."""
     state, error = _ensure_committee_game(game_id)
     if state is None:
         return {"ok": False, "error": error}
-    thread_data = _advance_played_ply_if_needed(
-        game_id, _load_thread_data(game_id), state
-    )
-    return _thread_response(game_id, state, data=thread_data)
+    return _thread_response(game_id, state)
 
 
 def cmd_prompt_test_say(game_id: str, seat: int, text: str) -> Dict[str, Any]:
-    """Post a discussion note for a committee seat on the current ply."""
+    """Post a discussion note for a committee seat. Chat is never wiped."""
     gm = _game_manager()
     ctrl = _controller()
     try:
@@ -217,22 +250,8 @@ def cmd_prompt_test_say(game_id: str, seat: int, text: str) -> Dict[str, Any]:
             if seat_error:
                 return {"ok": False, "error": seat_error}
 
-            ply = _load_current_ply(game_id)
-            if ply != _agent_ply_index(state):
-                return {"ok": False, "error": "wrong ply"}
-
             thread_data = _load_thread_data(game_id)
-            if thread_data.get("status") == "played":
-                return {"ok": False, "error": "wrong ply"}
-
-            thread_data.setdefault("notes", []).append(
-                {
-                    "seat": seat,
-                    "ply": ply,
-                    "text": text,
-                    "ts": _utc_now(),
-                }
-            )
+            _append_message(thread_data, kind="say", text=text, seat=seat)
             _save_thread_data(game_id, thread_data)
 
             ctrl._touch_activity(state)
@@ -244,21 +263,33 @@ def cmd_prompt_test_say(game_id: str, seat: int, text: str) -> Dict[str, Any]:
         return {"ok": False, "error": str(exc)}
 
 
-def _clear_ply_thread(thread_data: Dict[str, Any], ply: int) -> None:
-    thread_data["notes"] = [
-        note for note in thread_data.get("notes", []) if int(note.get("ply", -1)) != ply
-    ]
-    thread_data["votes"] = [
-        vote for vote in thread_data.get("votes", []) if int(vote.get("ply", -1)) != ply
-    ]
-
-
-def _votes_for_ply(thread_data: Dict[str, Any], ply: int) -> List[Dict[str, Any]]:
-    return _ply_entries(thread_data.get("votes", []), ply)
+def _reject_illegal_vote(
+    game_id: str,
+    state: Dict[str, Any],
+    thread_data: Dict[str, Any],
+    seat: int,
+    move_str: str,
+    parsed_error: str,
+) -> Dict[str, Any]:
+    blunt = (
+        f"{parsed_error}. That vote was not counted. "
+        "Look at the PNG and vote a different move."
+    )
+    _append_message(
+        thread_data,
+        kind="system",
+        text=f"Seat {seat} voted {move_str} — illegal. Not counted.",
+        seat=0,
+        uci=move_str,
+    )
+    _save_thread_data(game_id, thread_data)
+    response = _thread_response(game_id, state, data=thread_data, ok=False, error=blunt)
+    response["move_error"] = parsed_error
+    return response
 
 
 def cmd_prompt_test_vote(game_id: str, seat: int, uci: str) -> Dict[str, Any]:
-    """Record a committee vote; majority on the current ply plays via AvE executor."""
+    """Record a committee vote; two matching legal votes play via AvE executor."""
     gm = _game_manager()
     ctrl = _controller()
     try:
@@ -276,31 +307,52 @@ def cmd_prompt_test_vote(game_id: str, seat: int, uci: str) -> Dict[str, Any]:
             if seat_error:
                 return {"ok": False, "error": seat_error}
 
-            ply = _load_current_ply(game_id)
-            if ply != _agent_ply_index(state):
-                return {"ok": False, "error": "wrong ply"}
-
             thread_data = _load_thread_data(game_id)
-            status = thread_data.get("status", "open")
-            if status == "played":
-                return {"ok": False, "error": "wrong ply"}
+            turn = _agent_turn_index(state)
+            thread_data["turn"] = turn
 
-            current_votes = _votes_for_ply(thread_data, ply)
-            current_votes = [vote for vote in current_votes if int(vote.get("seat", -1)) != seat]
+            board = chess.Board(state["board_fen"])
+            parsed = ctrl._parse_move(board, game_id, uci.strip())
+            if isinstance(parsed, dict):
+                ctrl._touch_activity(state)
+                if not gm.save_state(game_id, state):
+                    return {"ok": False, "error": "Failed to save game state"}
+                return _reject_illegal_vote(
+                    game_id,
+                    state,
+                    thread_data,
+                    seat,
+                    uci.strip(),
+                    str(parsed.get("error") or "Illegal move"),
+                )
+
+            move_uci = parsed.uci()
+            current_votes = [
+                vote
+                for vote in _current_turn_votes(thread_data)
+                if int(vote.get("seat", -1)) != seat
+            ]
             current_votes.append(
                 {
                     "seat": seat,
-                    "ply": ply,
-                    "uci": uci,
+                    "turn": turn,
+                    "uci": move_uci,
                     "ts": _utc_now(),
                 }
             )
-            other_votes = [
+            older = [
                 vote
-                for vote in thread_data.get("votes", [])
-                if int(vote.get("ply", -1)) != ply
+                for vote in thread_data.get("votes") or []
+                if int(vote.get("turn", turn)) != turn
             ]
-            thread_data["votes"] = other_votes + current_votes
+            thread_data["votes"] = older + current_votes
+            _append_message(
+                thread_data,
+                kind="vote",
+                text=f"Seat {seat} votes {move_uci}",
+                seat=seat,
+                uci=move_uci,
+            )
 
             ctrl._touch_activity(state)
             if not gm.save_state(game_id, state):
@@ -316,22 +368,41 @@ def cmd_prompt_test_vote(game_id: str, seat: int, uci: str) -> Dict[str, Any]:
                     break
 
             if majority_uci is not None:
-                if status == "played":
-                    return _thread_response(game_id, state, data=thread_data)
-
                 move_result = ctrl._execute_ave_move_locked(game_id, state, majority_uci)
                 if not move_result.get("ok"):
-                    thread_data["status"] = "rejected"
-                    _clear_ply_thread(thread_data, ply)
+                    move_error = str(move_result.get("error") or "move failed")
+                    thread_data["status"] = "open"
+                    _append_message(
+                        thread_data,
+                        kind="system",
+                        text=f"Harness rejected {majority_uci}: {move_error}",
+                        seat=0,
+                        uci=majority_uci,
+                    )
                     _save_thread_data(game_id, thread_data)
                     response = _thread_response(game_id, state, data=thread_data)
-                    response["move_error"] = move_result.get("error")
+                    response["move_error"] = move_error
                     return response
 
-                thread_data["status"] = "played"
+                played_line = f"Played {majority_uci}."
+                moves = state.get("moves") or []
+                if len(moves) >= 2:
+                    played_line = f"Played {majority_uci}. Engine replied {moves[-1]}."
+                if state.get("status") != "in_progress":
+                    played_line = (
+                        f"{played_line} Game over: {state.get('result')}."
+                    )
+                _append_message(thread_data, kind="system", text=played_line, seat=0)
+                thread_data["votes"] = []
+                if state.get("status") == "in_progress":
+                    thread_data["turn"] = _agent_turn_index(state)
+                    thread_data["status"] = "open"
+                else:
+                    thread_data["status"] = "played"
                 _save_thread_data(game_id, thread_data)
                 response = _thread_response(game_id, state, data=thread_data)
                 response["move"] = majority_uci
+                response["status"] = "played"
                 return response
 
             if len(current_votes) >= 3 and len({vote["uci"] for vote in current_votes}) == 3:
@@ -360,26 +431,35 @@ def cmd_prompt_test_start(
         except ValueError as exc:
             return {"ok": False, "error": str(exc)}
 
+    shared_opponent = _shared_opponent_id(model_id, opponent)
     games: List[Dict[str, Any]] = []
     for pack in validated:
         game_id = new_game_id()
-        new_kwargs: Dict[str, Any] = {
-            "game_id": game_id,
-            "color": "white" if pack.kind == "committee" else None,
-            "skill": None,
-            "fen": None,
-            "model_name": model_id,
-            "force": True,
-            "prompt_pack": pack.id,
-        }
-        if opponent is not None:
-            new_kwargs["opponent"] = opponent
-        created = cmd_new(**new_kwargs)
+        created = cmd_new(
+            game_id=game_id,
+            color="white",
+            skill=None,
+            fen=None,
+            model_name=model_id,
+            force=True,
+            prompt_pack=pack.id,
+            opponent=shared_opponent,
+        )
         if not created.get("ok"):
             return {
                 "ok": False,
                 "error": created.get("error", "failed to create game"),
             }
+
+        game_entry: Dict[str, Any] = {
+            "game_id": created["game_id"],
+            "board_path": created["board_path"],
+            "model": model_id,
+            "prompt_pack": pack.id,
+            "kind": pack.kind,
+            "opponent_id": created.get("opponent_id") or shared_opponent,
+            "agent_color": created.get("agent_color") or "WHITE",
+        }
 
         if pack.kind == "committee":
             seat_count = int(pack.seats or 3)
@@ -397,35 +477,17 @@ def cmd_prompt_test_start(
                         ),
                     }
                 )
-            _save_current_ply(created["game_id"], 0)
             _save_thread_data(created["game_id"], _default_thread_data())
-            games.append(
-                {
-                    "game_id": created["game_id"],
-                    "board_path": created["board_path"],
-                    "model": model_id,
-                    "prompt_pack": pack.id,
-                    "kind": pack.kind,
-                    "seats": seats,
-                }
-            )
+            game_entry["seats"] = seats
+            games.append(game_entry)
             continue
 
-        brief = render_overlay_brief(
+        game_entry["brief"] = render_overlay_brief(
             pack,
             game_id=created["game_id"],
             board_path=created["board_path"],
             model_id=model_id,
         )
-        games.append(
-            {
-                "game_id": created["game_id"],
-                "board_path": created["board_path"],
-                "model": model_id,
-                "prompt_pack": pack.id,
-                "kind": pack.kind,
-                "brief": brief,
-            }
-        )
+        games.append(game_entry)
 
-    return {"ok": True, "games": games}
+    return {"ok": True, "games": games, "opponent_id": shared_opponent}

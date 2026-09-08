@@ -57,6 +57,7 @@ def _assert_brief_ok(game: dict, model_id: str) -> None:
     assert "{prompt_pack}" not in brief
     assert game["kind"] == "overlay"
     assert game["model"] == model_id
+    assert game["agent_color"] == "WHITE"
 
 
 def test_prompt_test_start_abcd(tmp_path, monkeypatch):
@@ -78,6 +79,26 @@ def test_prompt_test_start_abcd(tmp_path, monkeypatch):
     for game in result["games"]:
         _assert_brief_ok(game, model_id)
     assert _packed_game_count(harness_dir) == before + 4
+    opponents = {g["opponent_id"] for g in result["games"]}
+    assert opponents == {"random"}
+
+
+def test_prompt_test_start_same_opponent_all_white(tmp_path, monkeypatch):
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    model_id = "composer-2.5"
+
+    result = cmd_prompt_test_start(model_id, ["a", "b", "e"])
+
+    assert result["ok"] is True
+    assert len(result["games"]) == 3
+    opponent_ids = {g["opponent_id"] for g in result["games"]}
+    assert len(opponent_ids) == 1
+    assert result["opponent_id"] in opponent_ids
+    for game in result["games"]:
+        assert game["agent_color"] == "WHITE"
+        state = GameManager(str(harness_dir)).load_state(game["game_id"])
+        assert state["agent_color"] == "WHITE"
+        assert state["opponent_id"] == result["opponent_id"]
 
 
 def test_prompt_test_start_ac(tmp_path, monkeypatch):
@@ -108,6 +129,10 @@ def test_prompt_test_start_committee_only(tmp_path, monkeypatch):
     assert game["prompt_pack"] == "e"
     assert game["kind"] == "committee"
     assert len(game["seats"]) == 3
+    seats = {entry["seat"]: entry["brief"] for entry in game["seats"]}
+    assert "Where is every piece" in seats[1]
+    assert "Play real chess" in seats[2]
+    assert "sounds like chess" in seats[3]
     for seat_entry in game["seats"]:
         brief = seat_entry["brief"]
         assert seat_entry["seat"] in (1, 2, 3)

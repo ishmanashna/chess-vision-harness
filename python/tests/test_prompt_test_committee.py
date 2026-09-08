@@ -41,6 +41,7 @@ def test_assert_creatable_committee_pack():
     pack = assert_creatable("e")
     assert pack.kind == "committee"
     assert pack.seats == 3
+    assert pack.seat_packs == ("b", "c", "d")
 
 
 def test_start_committee_three_seats(tmp_path, monkeypatch):
@@ -66,21 +67,38 @@ def test_say_updates_thread_and_activity(tmp_path, monkeypatch):
 
     say = cmd_prompt_test_say(game_id, 1, "I see e2e4")
     assert say["ok"] is True
-    assert say["ply"] == 0
-    assert len(say["notes"]) == 1
-    assert say["notes"][0]["seat"] == 1
-    assert say["notes"][0]["ply"] == 0
-    assert say["notes"][0]["text"] == "I see e2e4"
+    assert say["turn"] == 0
+    assert len(say["messages"]) == 1
+    assert say["messages"][0]["seat"] == 1
+    assert say["messages"][0]["text"] == "I see e2e4"
 
     thread = cmd_prompt_test_thread(game_id)
     assert thread["ok"] is True
-    assert thread["notes"] == say["notes"]
+    assert thread["messages"] == say["messages"]
 
     after = gm.load_state(game_id)["last_activity"]
     assert after >= before
 
 
-def test_two_votes_play_and_advance_ply(tmp_path, monkeypatch):
+def test_chat_survives_played_move(tmp_path, monkeypatch):
+    _harness_dir, game_id = _start_committee(tmp_path, monkeypatch)
+    cmd_prompt_test_say(game_id, 1, "push the king pawn")
+    cmd_prompt_test_vote(game_id, 1, "e2e4")
+    played = cmd_prompt_test_vote(game_id, 2, "e2e4")
+    assert played["ok"] is True
+    assert played.get("move") == "e2e4"
+    assert played["status"] == "played"
+
+    thread = cmd_prompt_test_thread(game_id)
+    assert thread["ok"] is True
+    assert thread["turn"] == 1
+    assert thread["status"] == "open"
+    texts = [msg.get("text") or "" for msg in thread["messages"]]
+    assert "push the king pawn" in texts
+    assert any("Played e2e4" in text for text in texts)
+
+
+def test_two_votes_play_and_advance_turn(tmp_path, monkeypatch):
     harness_dir, game_id = _start_committee(tmp_path, monkeypatch)
     gm = GameManager(harness_dir)
 
@@ -91,7 +109,6 @@ def test_two_votes_play_and_advance_ply(tmp_path, monkeypatch):
     v2 = cmd_prompt_test_vote(game_id, 2, "e2e4")
     assert v2["ok"] is True
     assert v2.get("move") == "e2e4"
-    assert v2["ply"] == 0
     assert v2["status"] == "played"
 
     state = gm.load_state(game_id)
@@ -101,11 +118,13 @@ def test_two_votes_play_and_advance_ply(tmp_path, monkeypatch):
 
     v3 = cmd_prompt_test_vote(game_id, 3, "e2e3")
     assert v3["ok"] is False
-    assert "wrong ply" in v3["error"].lower()
+    err = v3["error"].lower()
+    assert "illegal" in err
+    assert "legal moves" not in err
 
     thread = cmd_prompt_test_thread(game_id)
     assert thread["ok"] is True
-    assert thread["ply"] == 1
+    assert thread["turn"] == 1
     assert thread["status"] == "open"
 
 
@@ -124,16 +143,21 @@ def test_three_different_votes_tied_no_move(tmp_path, monkeypatch):
     assert state["moves"] == []
 
 
-def test_illegal_majority_rejected_clears_votes(tmp_path, monkeypatch):
+def test_illegal_vote_rejected_keeps_other_votes(tmp_path, monkeypatch):
     harness_dir, game_id = _start_committee(tmp_path, monkeypatch)
     gm = GameManager(harness_dir)
 
-    cmd_prompt_test_vote(game_id, 1, "e2e5")
+    legal = cmd_prompt_test_vote(game_id, 1, "e2e4")
+    assert legal["ok"] is True
     rejected = cmd_prompt_test_vote(game_id, 2, "e2e5")
 
-    assert rejected["ok"] is True
-    assert rejected["status"] == "rejected"
-    assert rejected["votes"] == []
+    assert rejected["ok"] is False
+    assert "illegal" in rejected["error"].lower()
+    assert rejected.get("move_error")
+    thread = cmd_prompt_test_thread(game_id)
+    assert len(thread["votes"]) == 1
+    assert thread["votes"][0]["uci"] == "e2e4"
+    assert any("illegal" in (msg.get("text") or "").lower() for msg in thread["messages"])
     state = gm.load_state(game_id)
     assert state["status"] == "in_progress"
     assert state["moves"] == []
@@ -201,7 +225,7 @@ def test_say_and_vote_rejected_after_resign(tmp_path, monkeypatch):
     assert gm.load_state(game_id)["moves"] == []
 
 
-def test_thread_does_not_advance_after_game_over(tmp_path, monkeypatch):
+def test_thread_keeps_chat_after_game_over(tmp_path, monkeypatch):
     harness_dir, game_id = _start_committee(tmp_path, monkeypatch)
     gm = GameManager(harness_dir)
 
@@ -209,18 +233,22 @@ def test_thread_does_not_advance_after_game_over(tmp_path, monkeypatch):
     played = cmd_prompt_test_vote(game_id, 2, "e2e4")
     assert played["ok"] is True
     assert played["status"] == "played"
-    assert played["ply"] == 0
+    assert played.get("move") == "e2e4"
+
+    after_play = cmd_prompt_test_thread(game_id)
+    assert after_play["ok"] is True
+    assert after_play["messages"]
 
     resigned = commands.cmd_resign(game_id)
     assert resigned["ok"] is True
 
     thread = cmd_prompt_test_thread(game_id)
     assert thread["ok"] is True
-    assert thread["ply"] == 0
-    assert thread["status"] == "played"
+    assert thread["messages"] == after_play["messages"]
 
 
 def test_committee_pack_metadata():
     pack = load_pack("e")
     assert pack.kind == "committee"
     assert pack.seats == 3
+    assert pack.seat_packs == ("b", "c", "d")

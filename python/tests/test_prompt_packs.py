@@ -137,6 +137,7 @@ def test_assert_creatable_accepts_committee():
     pack = assert_creatable("e")
     assert pack.kind == "committee"
     assert pack.seats == 3
+    assert pack.seat_packs == ("b", "c", "d")
 
 
 @pytest.fixture

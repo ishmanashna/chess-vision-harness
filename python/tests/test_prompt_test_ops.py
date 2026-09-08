@@ -164,6 +164,12 @@ def test_prompt_test_snapshot_two_packs(tmp_path, monkeypatch):
     assert pack_b["mean_accuracy"] == 70.0
     assert pack_b["mean_play_rating"] == 700.0
 
+    games = {row["game_id"]: row for row in payload["games"]}
+    assert "live-a" in games
+    assert games["packed-a-win"]["accuracy"] == 80.0
+    assert games["packed-a-win"]["play_rating"] == 800.0
+    assert games["packed-b-loss"]["outcome"] == "loss"
+
 
 def test_prompt_test_snapshot_five_pack_ids(tmp_path, monkeypatch):
     harness_dir = _harness_setup(tmp_path, monkeypatch)
@@ -191,7 +197,7 @@ def test_prompt_test_snapshot_five_pack_ids(tmp_path, monkeypatch):
 def test_prompt_test_snapshot_empty(tmp_path, monkeypatch):
     harness_dir = _harness_setup(tmp_path, monkeypatch)
     payload = build_prompt_test_snapshot(base_dir=harness_dir)
-    assert payload == {"ok": True, "packs": []}
+    assert payload == {"ok": True, "packs": [], "games": [], "chats": []}
 
 
 def test_prompt_test_api_loopback_only(spectator_client):
@@ -206,6 +212,8 @@ def test_prompt_test_api_loopback_only(spectator_client):
     body = ok.json()
     assert body["ok"] is True
     assert "packs" in body
+    assert "games" in body
+    assert "chats" in body
 
 
 def test_prompt_test_api_with_fixture_results(harness_client):
@@ -245,3 +253,5 @@ def test_ops_html_has_prompt_test_tab(spectator_client):
     assert "data-ops-tab=\"prompt-test\"" in resp.text
     assert "data-ops-section=\"prompt-test\"" in resp.text
     assert "data-prompt-test-body" in resp.text
+    assert "data-prompt-test-games" in resp.text
+    assert "data-prompt-test-chats" in resp.text
