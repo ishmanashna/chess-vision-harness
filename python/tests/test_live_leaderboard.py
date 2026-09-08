@@ -66,12 +66,13 @@ def _assert_snapshot_shape(data: dict) -> None:
 
 def test_live_leaderboard_endpoint_shape(live_lb_client):
     client, _ = live_lb_client
-    resp = client.get("/api/leaderboard/live")
-    assert resp.status_code == 200
-    assert resp.headers.get("cache-control") == "public, max-age=5"
-    data = resp.json()
-    _assert_snapshot_shape(data)
-    assert len(data["agents"]) >= 1
+    for path in ("/api/leaderboard/live", "/api/leaderboard/snapshot"):
+        resp = client.get(path)
+        assert resp.status_code == 200, path
+        assert resp.headers.get("cache-control") == "public, max-age=5"
+        data = resp.json()
+        _assert_snapshot_shape(data)
+        assert len(data["agents"]) >= 1
 
 
 def test_data_leaderboard_json_serves_live_on_origin(live_lb_client):
@@ -88,6 +89,9 @@ def test_client_health_requires_reachable_origin():
     assert "data.origin === true" not in js
     assert "fetchLeaderboardSnapshot" in js
     assert "live leaderboard fetch failed" in js
+    assert "/api/leaderboard/snapshot" in js
+    assert "preferNewerSnapshot" in js
+    assert "if (window.CVH_INLINE_SNAPSHOT)" not in js
 
 
 def test_proxy_allows_live_leaderboard_path():

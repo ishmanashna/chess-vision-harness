@@ -1,14 +1,30 @@
 {
   "version": 1,
-  "generated_at": "2026-08-16T18:49:22.000Z",
+  "generated_at": "2026-09-08T13:20:06.000Z",
   "agents": [
+    {
+      "id": "muse-spark-1.2",
+      "name": "Muse Spark 1.2",
+      "attempts": 644,
+      "full": 644,
+      "mean_accuracy": 1.0,
+      "full_position_rate": 1.0
+    },
+    {
+      "id": "mimo-v2.5",
+      "name": "MiMo V2.5",
+      "attempts": 9,
+      "full": 7,
+      "mean_accuracy": 0.9907,
+      "full_position_rate": 0.7778
+    },
     {
       "id": "composer-2.5",
       "name": "Composer 2.5",
-      "attempts": 8,
-      "full": 3,
-      "mean_accuracy": 0.7902,
-      "full_position_rate": 0.375
+      "attempts": 17,
+      "full": 10,
+      "mean_accuracy": 0.8926,
+      "full_position_rate": 0.5882
     }
   ]
 }

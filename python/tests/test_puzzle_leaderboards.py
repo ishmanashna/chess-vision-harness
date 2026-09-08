@@ -151,7 +151,11 @@ def test_live_puzzle_leaderboard_and_legacy_redirects(tmp_path, monkeypatch):
     spec._game_service = None
     client = TestClient(spec.app)
     try:
-        for path in ("/api/leaderboard/puzzles/live", "/data/puzzles_leaderboard.json"):
+        for path in (
+            "/api/leaderboard/puzzles/live",
+            "/api/leaderboard/puzzles/snapshot",
+            "/data/puzzles_leaderboard.json",
+        ):
             resp = client.get(path)
             assert resp.status_code == 200
             assert resp.headers.get("cache-control") == "public, max-age=5"
@@ -163,7 +167,11 @@ def test_live_puzzle_leaderboard_and_legacy_redirects(tmp_path, monkeypatch):
             resp = client.get(path, follow_redirects=False)
             assert resp.status_code == 301
             assert resp.headers["location"] == location
-        for path in ("/api/leaderboard/identify/live", "/data/identify_leaderboard.json"):
+        for path in (
+            "/api/leaderboard/identify/live",
+            "/api/leaderboard/identify/snapshot",
+            "/data/identify_leaderboard.json",
+        ):
             resp = client.get(path)
             assert resp.status_code == 200
             assert resp.headers.get("cache-control") == "public, max-age=5"
@@ -252,7 +260,7 @@ def test_proxy_allows_puzzle_leaderboard_paths():
 def test_pages_middleware_unknown_api_returns_json_404():
     text = (ROOT / "public-site" / "functions" / "_middleware.js").read_text(encoding="utf-8")
     assert 'pathname.startsWith("/api/")' in text
-    assert "/api/edge-health" in text
+    assert "isPagesOwnedApiPath" in text
     assert 'application/json' in text
     assert 'error: "Not Found"' in text
     assert "isCalibrationPath" in text

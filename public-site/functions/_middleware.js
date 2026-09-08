@@ -1,4 +1,10 @@
 import {
+  isLeaderboardLivePath,
+  isPagesOwnedApiPath,
+  rememberLeaderboardResponse,
+  scheduleBackground,
+} from "./_leaderboard_cache.js";
+import {
   isCalibrationPath,
   isOpsPath,
   isPuzzleSetPath,
@@ -62,7 +68,7 @@ export async function onRequest(context) {
 
   if (
     pathname.startsWith("/api/") &&
-    pathname !== "/api/edge-health" &&
+    !isPagesOwnedApiPath(pathname) &&
     !shouldProxyToOrigin(pathname)
   ) {
     return new Response(JSON.stringify({ ok: false, error: "Not Found" }), {
@@ -83,7 +89,16 @@ export async function onRequest(context) {
   }
 
   if (origin && shouldProxyToOrigin(pathname)) {
-    return proxyToOrigin(request, origin);
+    const upstream = await proxyToOrigin(request, origin);
+    if (request.method === "GET" && isLeaderboardLivePath(pathname)) {
+      // Clone before returning so Cache API write-through can read the body.
+      const copy = upstream.clone();
+      scheduleBackground(
+        context,
+        rememberLeaderboardResponse(request.url, pathname, copy)
+      );
+    }
+    return upstream;
   }
 
   return next();

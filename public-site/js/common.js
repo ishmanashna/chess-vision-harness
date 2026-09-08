@@ -12,6 +12,7 @@
   var HEALTH_FRESH_MS = 90000;
   var LIVE_LEADERBOARD_URL = "/api/leaderboard/live";
   var SNAPSHOT_LEADERBOARD_URL = "/data/leaderboard.json";
+  var EDGE_SNAPSHOT_LEADERBOARD_URL = "/api/leaderboard/snapshot";
   var THEME_KEY = "chess-harness-theme";
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
@@ -300,14 +301,53 @@
     );
   }
 
+  function snapshotGeneratedAtMs(data) {
+    if (!data || typeof data.generated_at !== "string") return 0;
+    var ms = Date.parse(data.generated_at);
+    return isNaN(ms) ? 0 : ms;
+  }
+
+  function preferNewerSnapshot(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    return snapshotGeneratedAtMs(a) >= snapshotGeneratedAtMs(b) ? a : b;
+  }
+
+  function parseSnapshotResponse(res, label) {
+    if (!res.ok) throw new Error(label);
+    return res.json();
+  }
+
+  function fetchRemoteLeaderboardSnapshot() {
+    return fetchWithTimeout(
+      EDGE_SNAPSHOT_LEADERBOARD_URL,
+      { cache: "no-cache" },
+      FETCH_TIMEOUT_MS
+    )
+      .then(function (res) {
+        return parseSnapshotResponse(res, "leaderboard snapshot fetch failed");
+      })
+      .catch(function () {
+        return fetchWithTimeout(
+          SNAPSHOT_LEADERBOARD_URL,
+          { cache: "no-cache" },
+          FETCH_TIMEOUT_MS
+        ).then(function (res) {
+          return parseSnapshotResponse(res, "leaderboard snapshot fetch failed");
+        });
+      });
+  }
+
   function fetchLeaderboardSnapshot() {
-    if (window.CVH_INLINE_SNAPSHOT) {
-      return Promise.resolve(window.CVH_INLINE_SNAPSHOT);
-    }
-    return fetchWithTimeout(SNAPSHOT_LEADERBOARD_URL, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(function (res) {
-      if (!res.ok) throw new Error("leaderboard snapshot fetch failed");
-      return res.json();
-    });
+    var inline = window.CVH_INLINE_SNAPSHOT || null;
+    return fetchRemoteLeaderboardSnapshot()
+      .then(function (remote) {
+        return preferNewerSnapshot(inline, remote);
+      })
+      .catch(function () {
+        if (inline) return inline;
+        throw new Error("leaderboard snapshot fetch failed");
+      });
   }
 
   function fetchLeaderboard() {
@@ -369,22 +409,18 @@
       kind === "puzzles"
         ? "/api/leaderboard/puzzles/live"
         : "/api/leaderboard/identify/live";
+    var snapApiUrl =
+      kind === "puzzles"
+        ? "/api/leaderboard/puzzles/snapshot"
+        : "/api/leaderboard/identify/snapshot";
     var snapUrl =
       kind === "puzzles"
         ? "/data/puzzles_leaderboard.json"
         : "/data/identify_leaderboard.json";
-    return checkEdgeHealth().then(function (health) {
-      if (!health.online) {
-        return fetchWithTimeout(snapUrl, { cache: "no-cache" }, FETCH_TIMEOUT_MS).then(
-          function (res) {
-            if (!res.ok) throw new Error("specialty snapshot fetch failed");
-            return res.json();
-          }
-        );
-      }
-      return fetch(liveUrl, { cache: "no-cache" })
+    function fetchSpecialtySnapshot() {
+      return fetchWithTimeout(snapApiUrl, { cache: "no-cache" }, FETCH_TIMEOUT_MS)
         .then(function (res) {
-          if (!res.ok) throw new Error("specialty live fetch failed");
+          if (!res.ok) throw new Error("specialty snapshot fetch failed");
           return res.json();
         })
         .catch(function () {
@@ -394,6 +430,19 @@
               return res.json();
             }
           );
+        });
+    }
+    return checkEdgeHealth().then(function (health) {
+      if (!health.online) {
+        return fetchSpecialtySnapshot();
+      }
+      return fetch(liveUrl, { cache: "no-cache" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("specialty live fetch failed");
+          return res.json();
+        })
+        .catch(function () {
+          return fetchSpecialtySnapshot();
         });
     }).then(function (data) {
       specialtyLeaderboardCache[kind] = { ts: Date.now(), data: data };
@@ -749,6 +798,11 @@
       if (health && health.online && meta && meta.becameOnline) upgradeToLive();
     });
 
+    var inline = window.CVH_INLINE_SNAPSHOT;
+    if (inline) {
+      paintData(normalizeLeaderboardPayload(inline, false));
+    }
+
     fetchLeaderboardSnapshot()
       .then(function (raw) {
         return normalizeLeaderboardPayload(raw, false);
@@ -758,6 +812,10 @@
         upgradeToLive();
       })
       .catch(function () {
+        if (inline) {
+          upgradeToLive();
+          return;
+        }
         if (tbody) {
           var colCount = leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark);
           tbody.innerHTML =

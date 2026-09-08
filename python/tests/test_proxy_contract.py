@@ -121,6 +121,12 @@ def test_proxy_js_exports_watch_shell_helpers():
     assert "buildProxyRequestHeaders" in text
     assert "isWatchShellHtml" in text
     assert "shouldProxyToOrigin" in text
+    middleware = (REPO_ROOT / "public-site" / "functions" / "_middleware.js").read_text(
+        encoding="utf-8"
+    )
+    assert "isPagesOwnedApiPath" in middleware
+    assert "rememberLeaderboardResponse" in middleware
+    assert "upstream.clone()" in middleware
     assert "fetchWatchShellHtml" in (
         REPO_ROOT / "public-site" / "functions" / "_watch_shell.js"
     ).read_text(encoding="utf-8")
@@ -189,6 +195,9 @@ def test_contract_watch_shell_html_not_proxied(pathname, contract):
     [
         "/api/models",
         "/api/edge-health",
+        "/api/leaderboard/snapshot",
+        "/api/leaderboard/puzzles/snapshot",
+        "/api/leaderboard/identify/snapshot",
         "/api/calibration/status",
         "/calibration",
         "/leaderboard/",
@@ -275,6 +284,20 @@ def test_proxy_header_forwarding_node():
     result = subprocess.run(
         ["node", "--test", str(PROXY_HEADER_TEST)],
         cwd=PROXY_HEADER_TEST.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_leaderboard_cache_node():
+    if shutil.which("node") is None:
+        pytest.skip("node not installed")
+    test_path = REPO_ROOT / "public-site" / "functions" / "leaderboard-cache.test.mjs"
+    result = subprocess.run(
+        ["node", "--test", str(test_path)],
+        cwd=test_path.parent,
         capture_output=True,
         text=True,
         check=False,

@@ -343,6 +343,7 @@ async def _live_leaderboard_json() -> JSONResponse:
 
 
 @app.get("/api/leaderboard/live")
+@app.get("/api/leaderboard/snapshot")
 async def live_leaderboard_api():
     """Live public ladder (agents + calibrated engines); same shape as snapshot JSON."""
     return await _live_leaderboard_json()
@@ -359,6 +360,7 @@ async def _live_puzzle_leaderboard_json() -> JSONResponse:
 
 
 @app.get("/api/leaderboard/puzzles/live")
+@app.get("/api/leaderboard/puzzles/snapshot")
 async def live_puzzle_leaderboard_api():
     """Live puzzle leaderboard (agents + puzzle content view)."""
     return await _live_puzzle_leaderboard_json()
@@ -375,6 +377,7 @@ async def _live_identify_leaderboard_json() -> JSONResponse:
 
 
 @app.get("/api/leaderboard/identify/live")
+@app.get("/api/leaderboard/identify/snapshot")
 async def live_identify_leaderboard_api():
     """Live board-identification leaderboard (agent metrics per watch page)."""
     return await _live_identify_leaderboard_json()
