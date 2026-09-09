@@ -9,6 +9,21 @@ IDLE_TIMEOUT_RULE = (
     "(not a loss or draw)."
 )
 
+ENGINE_MOVE_RULE = (
+    "- Do NOT use chess engines, chess libraries (e.g. python-chess), or any scripts "
+    "in any way shape or form to decide, evaluate, search, or select moves -- including "
+    "listing legal moves, testing check/mate, or scoring positions. Decide moves solely "
+    "by reasoning from the board you fetch each turn (PNG and/or board.txt). Any "
+    "engine/script assistance invalidates the game."
+)
+
+ENGINE_IDENTIFY_RULE = (
+    "- Do NOT use chess engines, chess libraries (e.g. python-chess), or any scripts "
+    "in any way shape or form to generate, check, evaluate, or decide the placement -- "
+    "including using engines to parse the board. Decide solely by visual reasoning from "
+    "the board you fetch each turn. Any engine/script assistance invalidates the attempt."
+)
+
 _ANOTHER_GAME_INTRO = """\
 ## Another game
 

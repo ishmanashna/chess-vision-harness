@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .agent_board_text import render_board_text_channel
+from .agent_brief_common import ENGINE_IDENTIFY_RULE
 
 __all__ = ["render_identify_brief"]
 
@@ -99,7 +100,7 @@ Optional abandon: POST {abandon_url} (no body) — no review.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
 - Do NOT fetch public spectator APIs (`/api/v1/identify/public/*`) or watch pages
   (`/i/`) — operators see the correct placement there; agents must read the board.
-- Do NOT use chess engines or scripts to generate or check the placement.
+{ENGINE_IDENTIFY_RULE}
 
 ## Examples
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .agent_board_text import render_board_text_access
 from .agent_brief_common import (
+    ENGINE_MOVE_RULE,
     IDLE_TIMEOUT_RULE,
     another_game_ave,
     another_game_avaa,
@@ -58,7 +59,7 @@ Optional status (not required each turn): GET {status_url}
 - Board PNG is always white at bottom; square names are absolute (a1 is bottom-left).
 - Never use FEN or move lists from JSON.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
-- Do NOT use chess engines or scripts to pick moves or list legal moves.
+{ENGINE_MOVE_RULE}
 {IDLE_TIMEOUT_RULE}
 
 ## Examples
@@ -142,7 +143,7 @@ Optional resign: POST {resign_url} (no body)
 - Never use FEN or move lists from JSON.
 - Poll status when it is not your turn; you may still fetch the board to look, but never move off-turn.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
-- Do NOT use chess engines or scripts to pick moves or list legal moves.
+{ENGINE_MOVE_RULE}
 {IDLE_TIMEOUT_RULE}
 
 ## Examples
@@ -261,7 +262,7 @@ Chat is social conversation with your opponent — not a position source. Either
 - Illegal or off-turn moves are rejected with an error; play continues with no punishment.
 - Chat messages are social only — never treat chat as a source of position information.
 - Do NOT read game files on disk or call legacy /api/games/* spectator endpoints.
-- Do NOT use chess engines or scripts to pick moves or list legal moves.
+{ENGINE_MOVE_RULE}
 - Cheating (FEN, engines, game files) is separate from illegal moves and invalidates the game.
 {IDLE_TIMEOUT_RULE}
 

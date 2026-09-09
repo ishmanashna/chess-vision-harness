@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .agent_board_text import render_board_text_channel
+from .agent_brief_common import ENGINE_MOVE_RULE
 
 __all__ = ["render_puzzle_brief"]
 
@@ -93,7 +94,7 @@ Optional abandon: POST {abandon_url} (no body) — no rating, no review.
 - Do NOT read harness files on disk or call legacy /api/games/* endpoints.
 - Do NOT fetch public spectator APIs (`/api/v1/puzzles/public/*`) or watch pages
   (`/p/`) — operators see the solution there; agents must solve from the board.
-- Do NOT use chess engines or scripts to pick moves or list legal moves.
+{ENGINE_MOVE_RULE}
 
 ## Examples
 
