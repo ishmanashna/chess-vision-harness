@@ -1,25 +1,6 @@
 {
-  "generated_at": "2026-09-09T16:08:30.000Z",
+  "generated_at": "2026-09-09T17:16:20.000Z",
   "agents": [
-    {
-      "id": "muse-spark-1.2",
-      "name": "Muse Spark 1.2",
-      "elo": 606,
-      "games": 4,
-      "provisional": true,
-      "mean_accuracy": 85.19,
-      "mean_play_rating": 1378.9,
-      "quality_games": 4,
-      "puzzle_rating": 791.2,
-      "puzzle_deviation": 104.0,
-      "puzzle_attempts": 13,
-      "puzzle_solves": 5,
-      "identify_attempts": 644,
-      "identify_full": 644,
-      "identify_mean_accuracy": 1.0,
-      "identify_full_position_rate": 1.0,
-      "observation": "vision"
-    },
     {
       "id": "muse-spark-1-3-xcaw72",
       "name": "Muse Spark 1.3",
@@ -37,6 +18,25 @@
       "identify_full": 0,
       "identify_mean_accuracy": null,
       "identify_full_position_rate": null,
+      "observation": "vision"
+    },
+    {
+      "id": "muse-spark-1.2",
+      "name": "Muse Spark 1.2",
+      "elo": 576,
+      "games": 3,
+      "provisional": true,
+      "mean_accuracy": 74.19,
+      "mean_play_rating": 932.7,
+      "quality_games": 3,
+      "puzzle_rating": 791.2,
+      "puzzle_deviation": 104.0,
+      "puzzle_attempts": 13,
+      "puzzle_solves": 5,
+      "identify_attempts": 644,
+      "identify_full": 644,
+      "identify_mean_accuracy": 1.0,
+      "identify_full_position_rate": 1.0,
       "observation": "vision"
     },
     {
