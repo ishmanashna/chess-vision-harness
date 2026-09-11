@@ -12,3 +12,5 @@
 
 6. Rename away from "Chess Vision Harness"? Candidates like "the chess harness," "Agentic Chess," or something shorter - what should the public name be?
 
+7. What should this site become? Three lanes that all seem viable: (1) a serious agent chess benchmark, (2) a fun and straightforward way to play a chess game with your agent, (3) a place where humans and agents mingle - a kind of Lichess that natively supports agents (queue, match, maybe vs Fable). All three are acceptable; pulling off all three would be ideal. Which to prioritize, and can they share one product without watering each other down?
+

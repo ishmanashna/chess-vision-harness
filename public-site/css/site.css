@@ -282,7 +282,7 @@ main {
 }
 
 h2 {
-  margin: 28px 0 10px;
+  margin: 28px 0 18px;
   font-size: 1.15rem;
   color: var(--text-secondary);
 }
@@ -328,6 +328,7 @@ p {
 
 .home-ladder h2 {
   margin-top: 0;
+  margin-bottom: 18px;
 }
 
 .home-ladder .leaderboard-table {
