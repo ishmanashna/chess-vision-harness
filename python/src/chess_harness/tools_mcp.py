@@ -108,6 +108,38 @@ class ChessHarnessMCP:
                 },
             ),
             Tool(
+                name="chess_legal_moves",
+                description=(
+                    "List legal UCI moves for the live position (pack F games only). "
+                    "Read-only handout — still read the board PNG before moving."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "game_id": {"type": "string"},
+                    },
+                },
+            ),
+            Tool(
+                name="chess_imagine_board",
+                description=(
+                    "Explore a hypothetical line as compact text (pack G games only). "
+                    "Same grid style as board.txt; does not change the live game or PNG."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "game_id": {"type": "string"},
+                        "moves": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "UCI or unambiguous SAN plies from the live position (max 12)",
+                        },
+                    },
+                    "required": ["moves"],
+                },
+            ),
+            Tool(
                 name="chess_make_move",
                 description="Submit a move chosen from the board image (UCI e2e4 or SAN Nf3).",
                 inputSchema={
@@ -165,9 +197,9 @@ class ChessHarnessMCP:
             )
         elif tool_name == "chess_get_board":
             result = svc.get_board(game_id)
+        elif tool_name == "chess_legal_moves":
+            result = svc.legal_moves(game_id)
         elif tool_name == "chess_imagine_board":
-            from .commands import cmd_imagine
-
             moves = arguments.get("moves") or []
             if not isinstance(moves, list):
                 return [
@@ -179,7 +211,7 @@ class ChessHarnessMCP:
                         ),
                     )
                 ]
-            result = cmd_imagine(game_id, [str(m) for m in moves])
+            result = svc.imagine_text(game_id, [str(m) for m in moves])
         elif tool_name == "chess_make_move":
             result = svc.make_move(game_id, arguments["move"])
         elif tool_name == "chess_resign":
@@ -194,11 +226,8 @@ class ChessHarnessMCP:
         content: List = [TextContent(type="text", text=json.dumps(result, indent=2))]
 
         image_path = None
-        if result.get("ok"):
-            if "imagine_path" in result:
-                image_path = result["imagine_path"]
-            elif "board_path" in result:
-                image_path = result["board_path"]
+        if result.get("ok") and "board_path" in result:
+            image_path = result["board_path"]
         if image_path:
             try:
                 image_data = open(image_path, "rb").read()

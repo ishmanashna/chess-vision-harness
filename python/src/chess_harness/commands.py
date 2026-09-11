@@ -69,24 +69,13 @@ def cmd_board(game_id: str) -> Dict[str, Any]:
     return _game_service().get_board(game_id)
 
 
-def cmd_imagine(game_id: str, moves: List[str]) -> Dict[str, Any]:
-    """Write a hypothetical-line PNG outside the game dir; does not change state."""
-    import tempfile
-    from pathlib import Path
+def cmd_legal(game_id: str) -> Dict[str, Any]:
+    return _game_service().legal_moves(game_id)
 
-    result = _game_service().imagine_board(game_id, moves)
-    if not result.get("ok"):
-        return {k: v for k, v in result.items() if k != "png_bytes"}
-    fd, path = tempfile.mkstemp(suffix=".png", prefix="chess-imagine-")
-    os.close(fd)
-    Path(path).write_bytes(result["png_bytes"])
-    return {
-        "ok": True,
-        "game_id": game_id,
-        "imagine_path": path,
-        "applied_count": result.get("applied_count", 0),
-        "hypothetical": True,
-    }
+
+def cmd_imagine(game_id: str, moves: List[str]) -> Dict[str, Any]:
+    """Return a hypothetical text board; live position unchanged (pack G only)."""
+    return _game_service().imagine_text(game_id, moves)
 
 
 def cmd_pgn(game_id: str) -> Dict[str, Any]:

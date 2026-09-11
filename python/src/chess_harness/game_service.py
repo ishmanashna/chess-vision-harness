@@ -159,8 +159,16 @@ class GameService:
             raise ValueError(result.get("error", "board unavailable"))
         return Path(result["board_path"]).read_bytes()
 
+    def legal_moves(self, game_id: str) -> Dict[str, Any]:
+        """Live-position legal UCI list. Pack F only; touches last_activity."""
+        return self.controller.legal_moves(game_id)
+
+    def imagine_text(self, game_id: str, moves: list[str]) -> Dict[str, Any]:
+        """Hypothetical line → text board. Pack G only; touches last_activity."""
+        return self.controller.imagine_text(game_id, moves)
+
     def imagine_board(self, game_id: str, moves: list[str]) -> Dict[str, Any]:
-        """Hypothetical line → PNG bytes. No prune, idle touch, or state writes."""
+        """Hypothetical line → PNG bytes (public API). No position or audit writes."""
         return self.controller.imagine_board(game_id, moves)
 
     def export_pgn(self, game_id: str, *, allow_in_progress: bool = False) -> Dict[str, Any]:

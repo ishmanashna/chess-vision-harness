@@ -164,34 +164,8 @@ def test_imagine_avaa(api_client):
     assert after_png == before_png
 
 
-def test_cmd_imagine_temp_outside_game_dir(api_client, monkeypatch):
-    client, harness_dir = api_client
-    monkeypatch.setenv("CHESS_HARNESS_DIR", str(harness_dir))
-    api_key = _register(client, "imagine-cli")
-    game_id = _create_ave(client, api_key)
-
-    from chess_harness.commands import cmd_imagine
-
-    before_state, before_png, _ = _snapshot(harness_dir, game_id)
-    result = cmd_imagine(game_id, ["e2e4", "c7c5"])
-    assert result["ok"] is True
-    assert result["hypothetical"] is True
-    assert result["applied_count"] == 2
-    path = Path(result["imagine_path"])
-    assert path.is_file()
-    assert path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
-    game_dir = GameManager(str(harness_dir)).get_game_dir(game_id)
-    assert game_dir.resolve() not in path.resolve().parents
-    assert path.resolve() != GameManager(str(harness_dir)).get_board_path(game_id).resolve()
-
-    after_state, after_png, _ = _snapshot(harness_dir, game_id)
-    assert after_state == before_state
-    assert after_png == before_png
-    path.unlink(missing_ok=True)
-
-
-def test_mcp_does_not_advertise_imagine_board_tool():
+def test_mcp_advertises_imagine_board_tool():
     from chess_harness.tools_mcp import ChessHarnessMCP
 
     tools = {t.name: t for t in ChessHarnessMCP().get_tools()}
-    assert "chess_imagine_board" not in tools
+    assert "chess_imagine_board" in tools

@@ -23,6 +23,12 @@ from .human_vs_agent import HumanVsAgentPlay, ensure_agent_joined
 from .models import ModelRegistry, normalize_observation
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
+from .prompt_pack_caps import (
+    CAP_IMAGINE,
+    CAP_LEGAL,
+    pack_allows_capability,
+    reject_capability,
+)
 from .prompt_packs import assert_creatable, is_committee_state, is_packed_state
 from .render_pillow import ChessBoardRenderer
 from .limits import load_limits
@@ -852,14 +858,35 @@ class BoardController:
         ensure_agent_joined(self, game_id, state)
         return {"ok": True, "text": format_board_text(board)}
 
-    def imagine_board(self, game_id: str, moves: List[str]) -> Dict[str, Any]:
-        """Apply a hypothetical line from the current FEN and render a PNG.
+    def legal_moves(self, game_id: str) -> Dict[str, Any]:
+        """List legal UCI moves for the live position. Pack F only; touches activity."""
+        try:
+            with self.game_manager.game_lock(game_id):
+                state = self.game_manager.load_state(game_id)
+                if not state:
+                    return {"ok": False, "error": f"Game {game_id} not found"}
+                if not pack_allows_capability(state, CAP_LEGAL):
+                    return reject_capability(CAP_LEGAL)
 
-        Read-only: does not touch activity, joined flags, board.png, moves, or audit.
-        """
-        state = self.game_manager.load_state(game_id)
-        if not state:
-            return {"ok": False, "error": f"Game {game_id} not found"}
+                board = chess.Board(state["board_fen"])
+                uci_list = sorted(m.uci() for m in board.legal_moves)
+                side = "white" if board.turn == chess.WHITE else "black"
+
+                self._touch_activity(state)
+                if not self.game_manager.save_state(game_id, state):
+                    return {"ok": False, "error": "Failed to save game state"}
+
+                return {
+                    "ok": True,
+                    "game_id": game_id,
+                    "side_to_move": side,
+                    "legal_moves_uci": uci_list,
+                    "count": len(uci_list),
+                }
+        except GameBusyError as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def _validate_imagine_moves(self, moves: List[str]) -> Optional[Dict[str, Any]]:
         if not isinstance(moves, list):
             return {"ok": False, "error": "moves must be a list of UCI/SAN strings"}
         if len(moves) > MAX_IMAGINE_PLIES:
@@ -867,13 +894,16 @@ class BoardController:
                 "ok": False,
                 "error": f"Too many moves (max {MAX_IMAGINE_PLIES} plies)",
             }
+        return None
 
-        board = chess.Board(state["board_fen"])
+    def _apply_imagine_moves(
+        self, board: chess.Board, game_id: str, moves: List[str]
+    ) -> tuple[List[chess.Move], Optional[Dict[str, Any]]]:
         applied: List[chess.Move] = []
         for index, raw in enumerate(moves):
             move_str = str(raw or "").strip()
             if not move_str:
-                return {
+                return applied, {
                     "ok": False,
                     "error": f"Empty move at index {index}",
                     "index": index,
@@ -881,9 +911,63 @@ class BoardController:
             parsed = self._parse_move(board, game_id, move_str)
             if isinstance(parsed, dict):
                 err = parsed.get("error", f"Illegal move: {move_str}")
-                return {"ok": False, "error": err, "index": index}
+                return applied, {"ok": False, "error": err, "index": index}
             board.push(parsed)
             applied.append(parsed)
+        return applied, None
+
+    def imagine_text(self, game_id: str, moves: List[str]) -> Dict[str, Any]:
+        """Hypothetical text board after a move line. Pack G only; touches activity."""
+        try:
+            with self.game_manager.game_lock(game_id):
+                state = self.game_manager.load_state(game_id)
+                if not state:
+                    return {"ok": False, "error": f"Game {game_id} not found"}
+                if not pack_allows_capability(state, CAP_IMAGINE):
+                    return reject_capability(CAP_IMAGINE)
+
+                bad = self._validate_imagine_moves(moves)
+                if bad:
+                    return bad
+
+                board = chess.Board(state["board_fen"])
+                applied, err = self._apply_imagine_moves(board, game_id, moves)
+                if err:
+                    return err
+
+                self._touch_activity(state)
+                if not self.game_manager.save_state(game_id, state):
+                    return {"ok": False, "error": "Failed to save game state"}
+
+                side = "white" if board.turn == chess.WHITE else "black"
+                return {
+                    "ok": True,
+                    "game_id": game_id,
+                    "text": format_board_text(board, bottom_color="white"),
+                    "side_to_move": side,
+                    "in_check": board.is_check(),
+                    "applied_count": len(applied),
+                    "hypothetical": True,
+                }
+        except GameBusyError as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def imagine_board(self, game_id: str, moves: List[str]) -> Dict[str, Any]:
+        """Apply a hypothetical line from the current FEN and render a PNG.
+
+        Public API path: read-only — no activity touch, board.png, moves, or audit writes.
+        """
+        state = self.game_manager.load_state(game_id)
+        if not state:
+            return {"ok": False, "error": f"Game {game_id} not found"}
+        bad = self._validate_imagine_moves(moves)
+        if bad:
+            return bad
+
+        board = chess.Board(state["board_fen"])
+        applied, err = self._apply_imagine_moves(board, game_id, moves)
+        if err:
+            return err
 
         try:
             png = self.renderer.render_board_bytes(

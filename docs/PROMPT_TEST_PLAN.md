@@ -4,7 +4,7 @@ Same model, several extra texts (or one committee), engine games only, on this P
 
 The player is a chat agent. It looks at `board.png` and talks to the server. There is no model-API reply to parse.
 
-Packs are not hardcoded to four letters. The first roster is `a` `b` `c` `d` `e`. Adding `f` is a new file plus an index row.
+Packs are not hardcoded to four letters. The roster is `a` `b` `c` `d` `e` `f` `g`. Adding a new overlay pack is a new `{id}.txt` plus an index row (optional per-pack rules file for F/G — see below).
 
 ## Scope
 
@@ -55,7 +55,7 @@ Packs are not hardcoded to four letters. The first roster is `a` `b` `c` `d` `e`
 
 13. **Committee move path.** `chess-harness move` and MCP `chess_make_move` reject committee games. Majority play uses an **internal AvE executor** (same agent+engine chain as `make_agent_move`, under `game_lock`) that the committee guard does not block. Two matching votes on the **current ply** play that UCI. A third vote after the ply is closed is rejected. Two votes arriving together: one play, idempotent. 1-1-1 after three votes: `tied`, no move. Illegal: `rejected`, clear votes, ply stays open. Software does **not** wait for three think notes; two agreeing votes can play. The prompt still asks them to think first.
 
-14. **Forbidden extras.** Packs and rules ban `imagine` / `chess_imagine_board`, `pgn`, `game audit`, engines, `state.json`, spectator `/api/games/*`, operator commands.
+14. **Forbidden extras (A–E and untagged).** Packs `a`–`e` and untagged games ban `legal` / `chess_legal_moves`, `imagine` / `chess_imagine_board`, `pgn`, `game audit`, engines, `state.json`, spectator `/api/games/*`, operator commands. **Pack F** may call `legal` only (not `imagine`). **Pack G** may call text `imagine` only (not `legal`). Both still read the live PNG before `move`. See `docs/PROMPT_PACKS_F_G_PLAN.md`.
 
 ## Pack texts (copy into files)
 
@@ -307,6 +307,32 @@ Each ply, in this order:
 **Done when:** Temp-dir: two votes `e2e4` on ply 0 play that move and the engine replies. Third vote after play is rejected. 1-1-1 stays tied. Direct `move` fails. `say` without a move does not idle-kill in a short test (activity touched). `start --packs e` returns three seats and one `game_id`.
 
 **Verify:** Committee CLI tests with stub or tiny AvE. Do not run the full suite.
+
+## Packs F/G (legal + text imagine)
+
+Overlay add-ons after A–D. Same AvE machine; pack **E (committee) stays frozen.** Full spec: `docs/PROMPT_PACKS_F_G_PLAN.md`.
+
+| Id | Title | Kind | Extra |
+|----|--------|------|--------|
+| F | Legal | overlay | A turn loop + `chess-harness legal {game_id}` (UCI list from live position) |
+| G | Imagine | overlay | A turn loop + text `chess-harness imagine {game_id} <moves…>` (hypothetical grid, no PNG) |
+
+- Rules files: `_rules_f.txt` / `_rules_g.txt` (index `"rules"` field). Hash still `{id}.txt` body only.
+- Capabilities gated by pack id (`f` → legal only; `g` → imagine only). A–E and untagged hard-reject both tools.
+- `legal` and text `imagine` touch activity like a successful board read (listing/exploring does not idle-kill).
+- Start: `prompt-test start --packs f,g` or mixed `a,f,g`. Ops A/B picks up rows when games exist.
+
+**Smoke (from `python/`, temp or local harness):**
+
+```
+python -m chess_harness prompt-test start --model composer-2.5 --packs f,g --opponent random
+python -m chess_harness legal <f-game-id>
+python -m chess_harness imagine <g-game-id> e2e4 e7e5
+python -m chess_harness resign <f-game-id>
+python -m chess_harness resign <g-game-id>
+```
+
+Expect `legal` → JSON with `legal_moves_uci`; `imagine` → text board + `side_to_move`; live `board.png` unchanged after imagine.
 
 ## Estimated duration
 
