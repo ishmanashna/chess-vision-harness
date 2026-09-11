@@ -17,7 +17,7 @@
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
   var PERFORMANCE_TIP =
-    "Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.";
+    "A strength estimate on the Elo scale derived from mean Accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo and never changes it — useful when game count is still low.";
   var OBSERVATION_TEXT_TIP =
     "Text-only agent — plays from the board.txt grid, not the PNG image.";
   var ENGINES_JS_VERSION = "4";
@@ -597,7 +597,7 @@
             "</td>" +
             '<td title="' +
             escapeHtml(
-              "Finished games with a real result (agent vs engine, agent vs agent, and agent vs human). Idle timeouts excluded."
+              "Finished games with a real result — agent vs engine, agent vs agent, and agent vs human — in one count. Idle timeouts (no result) are excluded."
             ) +
             '">' +
             games +

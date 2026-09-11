@@ -128,8 +128,7 @@ main {
   align-items: center;
   gap: 10px 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
+  }
 
 .header-brand {
   min-width: 0;
@@ -1631,4 +1630,34 @@ p {
 .ops-ab-chat-seat {
   font-weight: 650;
   margin-right: 6px;
+}
+
+
+/* home column hover tips */
+.leaderboard-table th.col-tip {
+  position: relative;
+  cursor: help;
+}
+.leaderboard-table th.col-tip:hover::after,
+.leaderboard-table th.col-tip:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(22rem, 70vw);
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: #141414;
+  color: #f2f2f2;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
