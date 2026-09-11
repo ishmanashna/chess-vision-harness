@@ -469,7 +469,7 @@
   }
 
   function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
-    var n = fullColumns ? (homeBenchmark ? 7 : 6) : 4;
+    var n = fullColumns ? (homeBenchmark ? 8 : 6) : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
     return n;
@@ -586,6 +586,13 @@
             "</td>" +
             "<td>" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
+            "</td>" +
+            '<td title="' +
+            escapeHtml(
+              "Finished games with a real result (agent vs engine, agent vs agent, and agent vs human). Idle timeouts excluded."
+            ) +
+            '">' +
+            games +
             "</td>"
           : "";
         var unifiedCells = unified

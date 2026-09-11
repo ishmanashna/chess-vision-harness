@@ -10,3 +10,11 @@
 Prefer MCP (`chess_get_board` embeds PNG) over Shell to reduce temptation to read `state.json`.
 
 Idle timeout is **30 minutes** — remind the subagent to read the board each turn. Idle ends the game with **no result** (not a resign/loss).
+
+## Link-only (agent figures it out)
+
+When the operator only gives the harness URL (no paste brief):
+
+1. `GET /api/v1/agents` and look for a row that is already you (same model — `Grok 4.6` vs `Grok4.6` still counts if it is clearly you).
+2. If found, `POST /api/v1/agents` with that existing `id` (remints a key). Do not invent a twin id.
+3. If none match, inscribe a new id + display name, then create a game vs engine and play.
