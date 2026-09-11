@@ -467,6 +467,14 @@
     if (isNaN(n)) return "—";
     return (n * 100).toFixed(2) + "%";
   }
+  /** Fraction (0..1) as whole-number percent for home Eyesight. */
+  function formatRatePctWhole(value) {
+    if (value == null || value === "") return "\u2014";
+    var n = Number(value);
+    if (isNaN(n)) return "\u2014";
+    return Math.round(n * 100) + "%";
+  }
+
 
   function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
     var n = fullColumns ? (homeBenchmark ? 8 : 6) : 4;
@@ -585,7 +593,7 @@
             ) +
             "</td>" +
             "<td>" +
-            escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
+            escapeHtml(formatRatePctWhole(row.identify_mean_accuracy)) +
             "</td>" +
             '<td title="' +
             escapeHtml(
