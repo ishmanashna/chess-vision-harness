@@ -31,6 +31,7 @@ class PromptPack:
     body: str
     body_hash: str
     title: str
+    rules: str = "_rules.txt"
     seat_packs: Optional[Tuple[str, ...]] = None
 
 
@@ -76,6 +77,7 @@ def load_pack(pack_id: str) -> PromptPack:
                 raise ValueError(
                     f"prompt pack {pack_id}: seat pack {overlay_id} must be overlay"
                 )
+    rules = str(meta.get("rules") or "_rules.txt")
     return PromptPack(
         id=pack_id,
         kind=str(meta["kind"]),
@@ -83,6 +85,7 @@ def load_pack(pack_id: str) -> PromptPack:
         body=body,
         body_hash=body_hash,
         title=str(meta.get("title") or pack_id),
+        rules=rules,
         seat_packs=seat_packs,
     )
 
@@ -105,8 +108,8 @@ def is_committee_state(state: Dict[str, Any]) -> bool:
     return state.get("prompt_pack_kind") == "committee"
 
 
-def _overlay_rules_text() -> str:
-    path = _packs_dir() / "_rules.txt"
+def _overlay_rules_text(rules_file: str = "_rules.txt") -> str:
+    path = _packs_dir() / rules_file
     return path.read_text(encoding="utf-8")
 
 
@@ -160,7 +163,7 @@ def render_overlay_brief(
 ) -> str:
     """Overlay brief: shared rules block, then pack-specific turn instructions."""
     rules = _fill_brief_placeholders(
-        _overlay_rules_text(),
+        _overlay_rules_text(pack.rules),
         game_id=game_id,
         board_path=board_path,
         model_id=model_id,

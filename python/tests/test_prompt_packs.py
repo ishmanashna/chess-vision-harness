@@ -14,7 +14,11 @@ from conftest import FIXTURES
 from chess_harness import commands
 from chess_harness.game_manager import GameManager
 from chess_harness.paths import project_root
-from chess_harness.prompt_packs import assert_creatable, load_pack
+from chess_harness.prompt_packs import (
+    assert_creatable,
+    load_pack,
+    render_overlay_brief,
+)
 from chess_harness.spectator import app
 
 
@@ -38,6 +42,57 @@ def test_load_pack_b_hash_matches_file():
     pack = load_pack("b")
     assert pack.body_hash == _pack_body_hash("b")
     assert pack.kind == "overlay"
+    assert pack.rules == "_rules.txt"
+
+
+def test_load_pack_f_g_hash_and_rules():
+    pack_f = load_pack("f")
+    assert pack_f.body_hash == _pack_body_hash("f")
+    assert pack_f.kind == "overlay"
+    assert pack_f.rules == "_rules_f.txt"
+    assert pack_f.title == "F Legal"
+
+    pack_g = load_pack("g")
+    assert pack_g.body_hash == _pack_body_hash("g")
+    assert pack_g.kind == "overlay"
+    assert pack_g.rules == "_rules_g.txt"
+    assert pack_g.title == "G Imagine"
+
+
+def test_render_overlay_brief_pack_rules():
+    game_id = "brief-test-game"
+    board_path = "/tmp/board.png"
+    model_id = "composer-2.5"
+
+    brief_a = render_overlay_brief(
+        load_pack("a"),
+        game_id=game_id,
+        board_path=board_path,
+        model_id=model_id,
+    )
+    assert "Never chess-harness imagine" in brief_a
+    assert "list legal moves" in brief_a
+    assert "chess-harness legal" not in brief_a
+
+    brief_f = render_overlay_brief(
+        load_pack("f"),
+        game_id=game_id,
+        board_path=board_path,
+        model_id=model_id,
+    )
+    assert f"chess-harness legal {game_id}" in brief_f
+    assert f"chess-harness imagine {game_id}" not in brief_f
+    assert "Never chess-harness imagine" in brief_f
+
+    brief_g = render_overlay_brief(
+        load_pack("g"),
+        game_id=game_id,
+        board_path=board_path,
+        model_id=model_id,
+    )
+    assert f"chess-harness imagine {game_id}" in brief_g
+    assert "Never chess-harness legal" in brief_g
+    assert f"chess-harness legal {game_id}" not in brief_g
 
 
 def test_cmd_new_prompt_pack_b_stores_state(tmp_path, monkeypatch):
@@ -58,6 +113,26 @@ def test_cmd_new_prompt_pack_b_stores_state(tmp_path, monkeypatch):
     assert state["prompt_pack"] == "b"
     assert state["prompt_pack_hash"] == _pack_body_hash("b")
     assert state["prompt_pack_kind"] == "overlay"
+
+
+def test_cmd_new_prompt_pack_f_g_store_state(tmp_path, monkeypatch):
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    for pack_id in ("f", "g"):
+        game_id = f"prompt-pack-{pack_id}-test"
+        result = commands.cmd_new(
+            game_id,
+            "white",
+            None,
+            model_name="composer-2.5",
+            force=True,
+            opponent="random",
+            prompt_pack=pack_id,
+        )
+        assert result["ok"] is True
+        state = GameManager(str(harness_dir)).load_state(game_id)
+        assert state["prompt_pack"] == pack_id
+        assert state["prompt_pack_hash"] == _pack_body_hash(pack_id)
+        assert state["prompt_pack_kind"] == "overlay"
 
 
 def test_cmd_new_prompt_pack_a_works(tmp_path, monkeypatch):

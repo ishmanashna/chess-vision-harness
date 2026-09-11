@@ -1,0 +1,5 @@
+Each turn, until the game is over:
+
+1. Read the board PNG at {board_path}. Do not skip this. Do not reuse an old image.
+2. Optional: chess-harness legal {game_id} if you want the legal-move list for this live position.
+3. Send one move: chess-harness move {game_id} <move>

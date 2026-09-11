@@ -21,6 +21,16 @@
       "kind": "committee",
       "seats": 3,
       "seat_packs": ["b", "c", "d"]
+    },
+    "f": {
+      "title": "F Legal",
+      "kind": "overlay",
+      "rules": "_rules_f.txt"
+    },
+    "g": {
+      "title": "G Imagine",
+      "kind": "overlay",
+      "rules": "_rules_g.txt"
     }
   }
 }

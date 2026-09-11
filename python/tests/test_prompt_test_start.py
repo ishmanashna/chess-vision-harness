@@ -40,13 +40,17 @@ PACK_MARKERS = {
     "b": "Where is every piece",
     "c": "Play real chess",
     "d": "sounds like chess",
+    "f": "chess-harness legal",
+    "g": "chess-harness imagine",
 }
 
 
 def _assert_brief_ok(game: dict, model_id: str) -> None:
     brief = game["brief"]
-    assert _rules_snippet() in brief
-    assert PACK_MARKERS[game["prompt_pack"]] in brief
+    pack_id = game["prompt_pack"]
+    if pack_id in ("a", "b", "c", "d"):
+        assert _rules_snippet() in brief
+    assert PACK_MARKERS[pack_id] in brief
     assert game["game_id"] in brief
     assert game["board_path"] in brief
     assert model_id in brief
@@ -99,6 +103,30 @@ def test_prompt_test_start_same_opponent_all_white(tmp_path, monkeypatch):
         state = GameManager(str(harness_dir)).load_state(game["game_id"])
         assert state["agent_color"] == "WHITE"
         assert state["opponent_id"] == result["opponent_id"]
+
+
+def test_prompt_test_start_afg(tmp_path, monkeypatch):
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    model_id = "composer-2.5"
+    before = _packed_game_count(harness_dir)
+
+    result = cmd_prompt_test_start(model_id, ["a", "f", "g"], opponent="random")
+
+    assert result["ok"] is True
+    assert len(result["games"]) == 3
+    assert [g["prompt_pack"] for g in result["games"]] == ["a", "f", "g"]
+    briefs = {g["prompt_pack"]: g["brief"] for g in result["games"]}
+    game_id_f = next(g["game_id"] for g in result["games"] if g["prompt_pack"] == "f")
+    game_id_g = next(g["game_id"] for g in result["games"] if g["prompt_pack"] == "g")
+    assert f"chess-harness legal {game_id_f}" in briefs["f"]
+    assert f"chess-harness imagine {game_id_f}" not in briefs["f"]
+    assert f"chess-harness imagine {game_id_g}" in briefs["g"]
+    assert f"chess-harness legal {game_id_g}" not in briefs["g"]
+    assert "Never chess-harness imagine" in briefs["a"]
+    assert "list legal moves" in briefs["a"]
+    for game in result["games"]:
+        _assert_brief_ok(game, model_id)
+    assert _packed_game_count(harness_dir) == before + 3
 
 
 def test_prompt_test_start_ac(tmp_path, monkeypatch):
