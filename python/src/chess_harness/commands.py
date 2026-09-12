@@ -69,6 +69,10 @@ def cmd_board(game_id: str) -> Dict[str, Any]:
     return _game_service().get_board(game_id)
 
 
+def cmd_board_text(game_id: str) -> Dict[str, Any]:
+    return _game_service().get_board_text(game_id)
+
+
 def cmd_legal(game_id: str) -> Dict[str, Any]:
     return _game_service().legal_moves(game_id)
 

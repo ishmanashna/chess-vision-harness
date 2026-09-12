@@ -55,7 +55,7 @@ Packs are not hardcoded to four letters. The roster is `a` `b` `c` `d` `e` `f` `
 
 13. **Committee move path.** `chess-harness move` and MCP `chess_make_move` reject committee games. Majority play uses an **internal AvE executor** (same agent+engine chain as `make_agent_move`, under `game_lock`) that the committee guard does not block. Two matching votes on the **current ply** play that UCI. A third vote after the ply is closed is rejected. Two votes arriving together: one play, idempotent. 1-1-1 after three votes: `tied`, no move. Illegal: `rejected`, clear votes, ply stays open. Software does **not** wait for three think notes; two agreeing votes can play. The prompt still asks them to think first.
 
-14. **Forbidden extras (A–E and untagged).** Packs `a`–`e` and untagged games ban `legal` / `chess_legal_moves`, `imagine` / `chess_imagine_board`, `pgn`, `game audit`, engines, `state.json`, spectator `/api/games/*`, operator commands. **Pack F** may call `legal` only (not `imagine`). **Pack G** may call text `imagine` only (not `legal`). Both still read the live PNG before `move`. See `docs/PROMPT_PACKS_F_G_PLAN.md`.
+14. **Forbidden extras (A–E and untagged).** Packs `a`–`e` and untagged games ban `legal` / `chess_legal_moves`, `imagine` / `chess_imagine_board`, `pgn`, `game audit`, engines, `state.json`, spectator `/api/games/*`, operator commands. **Pack F** may call `legal` only (not `imagine`). **Pack G** may call text `imagine` only (not `legal`). **Pack H** uses text `board-text` only (not PNG, `legal`, or `imagine`). F and G still read the live PNG before `move`; H reads `board-text` only. See `docs/PROMPT_PACKS_F_G_PLAN.md` and `docs/PROMPT_PACK_H_PLAN.md`.
 
 ## Pack texts (copy into files)
 
@@ -333,6 +333,35 @@ python -m chess_harness resign <g-game-id>
 ```
 
 Expect `legal` → JSON with `legal_moves_uci`; `imagine` → text board + `side_to_move`; live `board.png` unchanged after imagine.
+
+## Pack H (text-only board)
+
+Overlay add-on for non-vision AvE. Full spec: `docs/PROMPT_PACK_H_PLAN.md`.
+
+| Id | Title | Kind | Extra |
+|----|--------|------|--------|
+| H | Text | overlay | A turn loop + `chess-harness board-text {game_id}` (text grid only; no PNG) |
+
+- Rules file: `_rules_h.txt` (index `"rules"` field). Hash still `{id}.txt` body only.
+- Pack meta `"observation": "text"` snapshots text observation on the game (Ops `[text]` mark) without a separate inscribed model.
+- Bans `legal`, `imagine`, PNG, engines, `state.json`, spectator `/api/games/*`, operator commands — same spirit as A.
+- Start: `prompt-test start --packs f,g,h` or mixed waves. Prefer triads of one seat per pack; stack waves rather than 9-wide concurrency.
+
+**Smoke (from `python/`, temp or local harness):**
+
+```
+python -m chess_harness prompt-test start --model composer-2.5 --packs f,g,h --opponent inverse-sf:exclude-top1-d8
+python -m chess_harness legal <f-game-id>
+python -m chess_harness imagine <g-game-id> e2e4 e7e5
+python -m chess_harness board-text <h-game-id>
+python -m chess_harness legal <h-game-id>
+python -m chess_harness imagine <h-game-id> e2e4
+python -m chess_harness resign <f-game-id>
+python -m chess_harness resign <g-game-id>
+python -m chess_harness resign <h-game-id>
+```
+
+Expect `board-text` → JSON with `text` grid; H state `observation: text`; H brief forbids PNG; `legal` / `imagine` on H reject.
 
 ## Estimated duration
 

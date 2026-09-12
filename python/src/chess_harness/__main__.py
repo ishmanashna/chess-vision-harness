@@ -81,6 +81,12 @@ def main(argv: list[str] | None = None) -> None:
         game_id = args[1] if len(args) > 1 else "default"
         print(json.dumps(commands.cmd_board(game_id), indent=2))
 
+    elif args[0] == "board-text":
+        if len(args) < 2:
+            print("Usage: chess-harness board-text <game_id>")
+            sys.exit(1)
+        print(json.dumps(commands.cmd_board_text(args[1]), indent=2))
+
     elif args[0] == "legal":
         if len(args) < 2:
             print("Usage: chess-harness legal <game_id>")

@@ -20,7 +20,7 @@ from .engine import EvalEngineAdapter, OpponentEngineManager, configure_opponent
 from .game_manager import GameBusyError, GameManager
 from .game_types import DEFAULT_GAME_TYPE, GAME_TYPE_AGENT_VS_AGENT, is_human_vs_agent_state
 from .human_vs_agent import HumanVsAgentPlay, ensure_agent_joined
-from .models import ModelRegistry, normalize_observation
+from .models import ModelRegistry, OBSERVATION_TEXT, normalize_observation
 from .calibration_view import ladder_elo_for_opponent
 from .opponents import Opponent, get_catalog
 from .prompt_pack_caps import (
@@ -490,7 +490,12 @@ class BoardController:
                     else None,
                     "model_name": model_id,
                     "model_display_name": display_name,
-                    "observation": self.registry.observation_for(model_id),
+                    "observation": (
+                        OBSERVATION_TEXT
+                        if pack_meta is not None
+                        and pack_meta.observation == OBSERVATION_TEXT
+                        else self.registry.observation_for(model_id)
+                    ),
                     "start_fen": start_fen,
                     "board_fen": start_fen,
                     "last_move_uci": None,

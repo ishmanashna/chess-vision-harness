@@ -1,0 +1,4 @@
+Each turn, until the game is over:
+
+1. Read the live text board: chess-harness board-text {game_id}. Do not fetch board.png. Do not reuse an old copy.
+2. Send one move: chess-harness move {game_id} <move>

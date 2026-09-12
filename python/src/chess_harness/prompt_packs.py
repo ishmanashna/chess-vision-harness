@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from .models import OBSERVATION_TEXT, OBSERVATION_VISION, validate_observation
 from .paths import project_root
 
 __all__ = [
@@ -32,6 +33,7 @@ class PromptPack:
     body_hash: str
     title: str
     rules: str = "_rules.txt"
+    observation: str = OBSERVATION_VISION
     seat_packs: Optional[Tuple[str, ...]] = None
 
 
@@ -78,6 +80,7 @@ def load_pack(pack_id: str) -> PromptPack:
                     f"prompt pack {pack_id}: seat pack {overlay_id} must be overlay"
                 )
     rules = str(meta.get("rules") or "_rules.txt")
+    observation = validate_observation(meta.get("observation"))
     return PromptPack(
         id=pack_id,
         kind=str(meta["kind"]),
@@ -86,6 +89,7 @@ def load_pack(pack_id: str) -> PromptPack:
         body_hash=body_hash,
         title=str(meta.get("title") or pack_id),
         rules=rules,
+        observation=observation,
         seat_packs=seat_packs,
     )
 

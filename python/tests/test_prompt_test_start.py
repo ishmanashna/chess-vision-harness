@@ -42,6 +42,7 @@ PACK_MARKERS = {
     "d": "sounds like chess",
     "f": "chess-harness legal",
     "g": "chess-harness imagine",
+    "h": "chess-harness board-text",
 }
 
 
@@ -52,7 +53,11 @@ def _assert_brief_ok(game: dict, model_id: str) -> None:
         assert _rules_snippet() in brief
     assert PACK_MARKERS[pack_id] in brief
     assert game["game_id"] in brief
-    assert game["board_path"] in brief
+    if pack_id != "h":
+        assert game["board_path"] in brief
+    else:
+        assert "Board PNG" not in brief
+        assert "Read the board PNG" not in brief
     assert model_id in brief
     assert game["prompt_pack"] in brief
     assert "{game_id}" not in brief
@@ -126,6 +131,34 @@ def test_prompt_test_start_afg(tmp_path, monkeypatch):
     assert "list legal moves" in briefs["a"]
     for game in result["games"]:
         _assert_brief_ok(game, model_id)
+    assert _packed_game_count(harness_dir) == before + 3
+
+
+def test_prompt_test_start_fgh(tmp_path, monkeypatch):
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    model_id = "composer-2.5"
+    before = _packed_game_count(harness_dir)
+
+    result = cmd_prompt_test_start(model_id, ["f", "g", "h"], opponent="random")
+
+    assert result["ok"] is True
+    assert len(result["games"]) == 3
+    assert [g["prompt_pack"] for g in result["games"]] == ["f", "g", "h"]
+    briefs = {g["prompt_pack"]: g["brief"] for g in result["games"]}
+    game_id_f = next(g["game_id"] for g in result["games"] if g["prompt_pack"] == "f")
+    game_id_g = next(g["game_id"] for g in result["games"] if g["prompt_pack"] == "g")
+    game_id_h = next(g["game_id"] for g in result["games"] if g["prompt_pack"] == "h")
+    assert f"chess-harness legal {game_id_f}" in briefs["f"]
+    assert f"chess-harness imagine {game_id_g}" in briefs["g"]
+    assert f"chess-harness board-text {game_id_h}" in briefs["h"]
+    assert "Board PNG" not in briefs["h"]
+    for game in result["games"]:
+        _assert_brief_ok(game, model_id)
+        state = GameManager(str(harness_dir)).load_state(game["game_id"])
+        if game["prompt_pack"] == "h":
+            assert state["observation"] == "text"
+        else:
+            assert state["observation"] == "vision"
     assert _packed_game_count(harness_dir) == before + 3
 
 

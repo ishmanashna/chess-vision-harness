@@ -31,6 +31,12 @@
       "title": "G Imagine",
       "kind": "overlay",
       "rules": "_rules_g.txt"
+    },
+    "h": {
+      "title": "H Text",
+      "kind": "overlay",
+      "rules": "_rules_h.txt",
+      "observation": "text"
     }
   }
 }

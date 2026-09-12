@@ -1662,3 +1662,16 @@ p {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
+
+
+/* Experimental cost note under Leaderboards heading */
+.ladder-cost-note {
+  font: 0.92rem/1.5 Georgia, "Times New Roman", serif;
+  color: var(--muted, #555);
+  margin: 0.35rem 0 1rem;
+  max-width: 46rem;
+}
+.ladder-cost-note strong {
+  color: var(--ink, #1a1a1a);
+  font-weight: 650;
+}

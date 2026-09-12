@@ -13,6 +13,7 @@ from conftest import FIXTURES
 
 from chess_harness import commands
 from chess_harness.game_manager import GameManager
+from chess_harness.models import OBSERVATION_TEXT
 from chess_harness.paths import project_root
 from chess_harness.prompt_packs import (
     assert_creatable,
@@ -59,6 +60,15 @@ def test_load_pack_f_g_hash_and_rules():
     assert pack_g.title == "G Imagine"
 
 
+def test_load_pack_h_hash_rules_and_observation():
+    pack_h = load_pack("h")
+    assert pack_h.body_hash == _pack_body_hash("h")
+    assert pack_h.kind == "overlay"
+    assert pack_h.rules == "_rules_h.txt"
+    assert pack_h.title == "H Text"
+    assert pack_h.observation == OBSERVATION_TEXT
+
+
 def test_render_overlay_brief_pack_rules():
     game_id = "brief-test-game"
     board_path = "/tmp/board.png"
@@ -93,6 +103,17 @@ def test_render_overlay_brief_pack_rules():
     assert f"chess-harness imagine {game_id}" in brief_g
     assert "Never chess-harness legal" in brief_g
     assert f"chess-harness legal {game_id}" not in brief_g
+
+    brief_h = render_overlay_brief(
+        load_pack("h"),
+        game_id=game_id,
+        board_path=board_path,
+        model_id=model_id,
+    )
+    assert f"chess-harness board-text {game_id}" in brief_h
+    assert "Board PNG" not in brief_h
+    assert "Read the board PNG" not in brief_h
+    assert "Never chess-harness legal or chess-harness imagine" in brief_h
 
 
 def test_cmd_new_prompt_pack_b_stores_state(tmp_path, monkeypatch):
@@ -133,6 +154,26 @@ def test_cmd_new_prompt_pack_f_g_store_state(tmp_path, monkeypatch):
         assert state["prompt_pack"] == pack_id
         assert state["prompt_pack_hash"] == _pack_body_hash(pack_id)
         assert state["prompt_pack_kind"] == "overlay"
+
+
+def test_cmd_new_prompt_pack_h_stores_text_observation(tmp_path, monkeypatch):
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    game_id = "prompt-pack-h-test"
+    result = commands.cmd_new(
+        game_id,
+        "white",
+        None,
+        model_name="composer-2.5",
+        force=True,
+        opponent="random",
+        prompt_pack="h",
+    )
+    assert result["ok"] is True
+    state = GameManager(str(harness_dir)).load_state(game_id)
+    assert state["prompt_pack"] == "h"
+    assert state["prompt_pack_hash"] == _pack_body_hash("h")
+    assert state["prompt_pack_kind"] == "overlay"
+    assert state["observation"] == OBSERVATION_TEXT
 
 
 def test_cmd_new_prompt_pack_a_works(tmp_path, monkeypatch):

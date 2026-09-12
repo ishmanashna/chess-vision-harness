@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   "use strict";
 
   var HEALTH_URL = "/api/edge-health";
@@ -209,6 +209,58 @@
     });
   }
 
+
+  var COST_PER_GAME_TIP =
+    "Rough inferred API dollars for one typical harness chess game (~50 ply). Experimental approximation from Composer token mix + AA suite-output scaling + public list prices — not a provider invoice.";
+
+  // Experimental API ≈$/game. Only exact SKU matches; gaps stay null (displayed as —).
+  // Do not silently map Pro/max/3.8 prices onto free/High/3.6 ladder rows.
+  var AGENT_COST_USD_BY_ID = {
+    "muse-spark-1-3-xcaw72": 0.034,
+  };
+  var AGENT_COST_USD_BY_NAME = {
+    "muse spark 1.3": 0.034,
+    "muse spark 1.2": 0.95,
+    "mimo v2.5": 0.036,
+    "gpt 5.6 luna max": 0.19,
+    "gpt 5.6 terra high": 1.12,
+    "grok 4.5 high": 1.52,
+    "grok 4.6 high": 2.31,
+    "gemini 3.6 flash high": 0.8,
+    "glm 5.3 flash max": 0.15,
+    "claude sonnet 4.5": 1.88,
+    "composer 2.5": 0.94,
+  };
+
+  function normalizeCostName(name) {
+    return String(name || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function lookupAgentCostUsd(agent) {
+    if (!agent) return null;
+    var id = String(agent.id || "").trim();
+    if (id && Object.prototype.hasOwnProperty.call(AGENT_COST_USD_BY_ID, id)) {
+      return AGENT_COST_USD_BY_ID[id];
+    }
+    var key = normalizeCostName(agent.name || "");
+    if (key && Object.prototype.hasOwnProperty.call(AGENT_COST_USD_BY_NAME, key)) {
+      return AGENT_COST_USD_BY_NAME[key];
+    }
+    return null;
+  }
+
+  function formatCostUsd(value) {
+    if (value == null || value === "") return "\u2014";
+    var n = Number(value);
+    if (isNaN(n)) return "\u2014";
+    if (n < 0.1) return "$" + n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    if (n < 1) return "$" + n.toFixed(2);
+    return "$" + n.toFixed(2);
+  }
+
   var AGENT_NUMERIC_KEYS = [
     "elo",
     "mean_accuracy",
@@ -223,6 +275,7 @@
     "identify_full_ratio",
     "identify_mean_accuracy",
     "identify_full_position_rate",
+    "cost_usd",
   ];
 
   function normalizeAgentRow(agent) {
@@ -250,6 +303,7 @@
       identify_mean_accuracy: agent.identify_mean_accuracy,
       identify_full_position_rate: agent.identify_full_position_rate,
       observation: agent.observation || "vision",
+      cost_usd: lookupAgentCostUsd(agent),
       _raw: agent,
     };
   }
@@ -480,6 +534,8 @@
     var n = fullColumns ? (homeBenchmark ? 8 : 6) : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
+    // Cost column on home benchmark + full leaderboard tables.
+    if (fullColumns || homeBenchmark) n += 1;
     return n;
   }
 
@@ -629,6 +685,14 @@
         var modelCell = showModelId
           ? "<td><code>" + escapeHtml(agent.id || "") + "</code></td>"
           : "";
+        var costCell =
+          fullColumns || homeBenchmark
+            ? '<td class="num" title="' +
+              escapeHtml(COST_PER_GAME_TIP) +
+              '">' +
+              escapeHtml(formatCostUsd(row.cost_usd)) +
+              "</td>"
+            : "";
         return (
           "<tr>" +
           '<td class="rank">' +
@@ -646,7 +710,9 @@
           accCell +
           playCell +
           gamesCell +
+          (homeBenchmark ? "" : costCell) +
           homeBenchmarkCells +
+          (homeBenchmark ? costCell : "") +
           unifiedCells +
           modelCell +
           "</tr>"
