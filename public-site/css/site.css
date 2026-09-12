@@ -1679,4 +1679,6 @@ p {
   pointer-events: none;
 }
 
-
+.leaderboard-table th.col-tip[data-sort="aa_index"] {
+  white-space: nowrap;
+}
