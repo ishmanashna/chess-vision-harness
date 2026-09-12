@@ -321,13 +321,9 @@ p {
 
 .home-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px 40px;
   align-items: start;
-}
-
-.wrap:has(.home-layout) {
-  max-width: 72rem;
 }
 
 .home-ladder h2 {
@@ -337,6 +333,7 @@ p {
 
 .home-ladder .leaderboard-table {
   width: 100%;
+  max-width: 48rem;
 }
 
 .visually-hidden {
