@@ -216,10 +216,20 @@
   // Experimental API ≈$/game. Only exact SKU matches; gaps stay null (displayed as —).
   // Do not silently map Pro/max/3.8 prices onto free/High/3.6 ladder rows.
   var AGENT_COST_USD_BY_ID = {
-    "muse-spark-1-3-xcaw72": 0.034,
+    "muse-spark-1-3-xcaw72": 1.04,
+    "muse-spark-1.2": 0.95,
+    "mimo-v2.5": 0.036,
+    "gpt5.6-luna-max": 0.19,
+    "gpt-5.6terra-high": 1.12,
+    "grok-4.5-high": 1.52,
+    "grok-4-6-high-ysqi2d": 2.31,
+    "gemini-3.6-flash-high": 0.8,
+    "glm-5-3-flash-max-euw2qw": 0.15,
+    "claude-sonnet-4.5": 1.88,
+    "composer-2.5": 0.94,
   };
   var AGENT_COST_USD_BY_NAME = {
-    "muse spark 1.3": 0.034,
+    "muse spark 1.3": 1.04,
     "muse spark 1.2": 0.95,
     "mimo v2.5": 0.036,
     "gpt 5.6 luna max": 0.19,
@@ -534,8 +544,8 @@
     var n = fullColumns ? (homeBenchmark ? 8 : 6) : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
-    // Cost column on home benchmark + full leaderboard tables.
-    if (fullColumns || homeBenchmark) n += 1;
+    // Cost column only on full Leaderboards (unified), never Home.
+    if (unified) n += 1;
     return n;
   }
 
@@ -686,7 +696,7 @@
           ? "<td><code>" + escapeHtml(agent.id || "") + "</code></td>"
           : "";
         var costCell =
-          fullColumns || homeBenchmark
+          unified
             ? '<td class="num" title="' +
               escapeHtml(COST_PER_GAME_TIP) +
               '">' +
@@ -710,9 +720,8 @@
           accCell +
           playCell +
           gamesCell +
-          (homeBenchmark ? "" : costCell) +
+          costCell +
           homeBenchmarkCells +
-          (homeBenchmark ? costCell : "") +
           unifiedCells +
           modelCell +
           "</tr>"

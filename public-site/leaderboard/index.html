@@ -945,15 +945,9 @@
         <section aria-labelledby="agents-table-heading" data-leaderboard data-leaderboard-full data-show-unified-stats>
           <h2 id="agents-table-heading">Leaderboards</h2>
           <p class="ladder-cost-note">
-            <strong>About ≈ $/game (experimental).</strong>
-            These dollar figures are an approximation, not metered invoices from real API chess games.
-            We measured cache-read, uncached-input, and output tokens from Composer games on this harness,
-            projected that mix to a typical ~50-ply game, then priced other models at public API list rates.
-            Only output is scaled by each model’s Artificial Analysis Intelligence Index suite output-token total
-            relative to an assumed Composer baseline; cache and input stay as measured on Composer.
-            Subscriptions, included usage pools, and other discounts are ignored on purpose.
-            Treat the column as a rough relative cost sketch until we meter live API runs per model.
-          </p>
+          <strong>About ≈ $/game (experimental).</strong>
+          Rough relative cost for one typical harness game (~50 ply), using public API list prices only (not OpenCode Contributor Free, not Cursor included pools). Token mix starts from a fixed Composer-style footprint (≈3.7M cache / 82k input / 64k output), then scales <em>output only</em> by each model’s Artificial Analysis “Output tokens from Intelligence Index” vs a soft 120M peg. Same model family uses the same SKU class — Muse 1.2 and Muse 1.3 are both Meta/OpenCode standard ($1.25 / $4.25 / $0.15 cache), so they land near each other; free or Contributor tiers are not what this column prices. Cursor Auto stays —. Treat as a sketch until we meter live API runs.
+        </p>
           <table class="leaderboard-table" aria-label="Agent ladder">
             <thead>
               <tr>
@@ -1038,6 +1032,6 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
     </footer>
   </div>
   <script src="/js/table-sort.js"></script>
-  <script src="/js/common.js?v=21"></script>
+  <script src="/js/common.js?v=23"></script>
 </body>
 </html>
