@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #f4f3ef;
   --bg-elevated: #faf9f6;
   --surface: #fff;
@@ -466,7 +466,23 @@ p {
 
 .leaderboard-table .rank {
   color: var(--faint);
-  width: 3rem;
+  width: 2.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-table td.agent {
+  white-space: nowrap;
+}
+
+.leaderboard-table td.num,
+.leaderboard-table td.elo {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-table thead th:not([data-sort="name"]):not([data-sort="kind"]) {
+  text-align: right;
 }
 
 .leaderboard-table .elo {

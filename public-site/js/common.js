@@ -310,8 +310,6 @@
     if (value == null || value === "") return "\u2014";
     var n = Number(value);
     if (isNaN(n)) return "\u2014";
-    if (n < 0.1) return "$" + n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-    if (n < 1) return "$" + n.toFixed(2);
     return "$" + n.toFixed(2);
   }
 
@@ -694,16 +692,16 @@
             ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
             : "";
         var accCell = fullColumns
-          ? "<td>" +
+          ? "<td class=\"num\">" +
             escapeHtml(formatQualityMean(agent.mean_accuracy, "%")) +
             "</td>"
           : "";
         var playCell = fullColumns
           ? (homeBenchmark
-              ? "<td>" +
+              ? "<td class=\"num\">" +
                 escapeHtml(formatQualityMean(agent.mean_play_rating)) +
                 "</td>"
-              : '<td title="' +
+              : '<td class="num" title="' +
                 escapeHtml(PERFORMANCE_TIP) +
                 '">' +
                 escapeHtml(formatQualityMean(agent.mean_play_rating)) +
@@ -711,14 +709,14 @@
           : "";
         var gamesCell = homeBenchmark
           ? ""
-          : "<td>" + games + "</td>";
+          : "<td class=\"num\">" + games + "</td>";
         var homeBenchmarkCells = homeBenchmark
-          ? "<td>" +
+          ? "<td class=\"num\">" +
             escapeHtml(
               row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)
             ) +
             "</td>" +
-            '<td title="' +
+            '<td class="num" title="' +
             escapeHtml(
               "Finished games with a real result — agent vs engine, agent vs agent, and agent vs human — in one count. Idle timeouts (no result) are excluded."
             ) +
@@ -727,25 +725,25 @@
             "</td>"
           : "";
         var unifiedCells = unified
-          ? '<td title="' +
+          ? '<td class="num" title="' +
             escapeHtml("Glicko-2 puzzle rating from finished attempts — separate from ladder Elo and never affects it.") +
             '">' +
             escapeHtml(row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)) +
             "</td>" +
-            "<td title=\"" +
+            "<td class=\"num\" title=\"" +
             escapeHtml("Puzzle solves over finished attempts (e.g. 2/5). Sorted by solve rate.") +
             '">' +
             escapeHtml(formatPuzzleRatio(row.puzzle_solves, row.puzzle_attempts)) +
             "</td>" +
-            "<td title=\"" +
+            "<td class=\"num\" title=\"" +
             escapeHtml("Full-position identifications over finished attempts (e.g. 1/4). Sorted by rate.") +
             '">' +
             escapeHtml(formatIdentifyRatio(row.identify_full, row.identify_attempts)) +
             "</td>" +
-            "<td>" +
+            "<td class=\"num\">" +
             escapeHtml(formatRatePct(row.identify_mean_accuracy)) +
             "</td>" +
-            "<td>" +
+            "<td class=\"num\">" +
             escapeHtml(formatRatePct(row.identify_full_position_rate)) +
             "</td>"
           : "";
@@ -768,7 +766,7 @@
           '<td class="rank">' +
           rank +
           "</td>" +
-          "<td>" +
+          "<td class=\"agent\">" +
           formatAgentNameCell(name, agent.observation) +
           "</td>" +
           "<td" +
