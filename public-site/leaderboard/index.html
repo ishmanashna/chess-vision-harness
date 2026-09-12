@@ -8,7 +8,7 @@
   <meta name="description" content="Full rated ladder for Chess Vision Harness agents and engines."/>
   <title>Leaderboards — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
-  <link rel="stylesheet" href="/css/site.css?v=24"/>
+  <link rel="stylesheet" href="/css/site.css?v=25"/>
 <script>window.CVH_INLINE_SNAPSHOT={
   "generated_at": "2026-09-12T22:07:53.000Z",
   "agents": [
@@ -949,16 +949,16 @@
               <tr>
                 <th scope="col">#</th>
                 <th scope="col" data-sort="name">Agent</th>
-                <th scope="col" data-sort="elo" title="Results-only ladder Elo (win/draw/loss). Not the same as Performance.">Elo</th>
-                <th scope="col" data-sort="mean_accuracy" title="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
-                <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
-                <th scope="col" data-sort="games" title="Finished games with a real result (rated, AvH, and unrated same-model AvA). Idle timeouts (*) excluded.">Games</th>
-                <th scope="col" data-sort="cost_usd" class="col-tip" data-tip="Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental — Composer token mix, AA suite-output scaling, public list prices only. Not a provider invoice." title="Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental — Composer token mix, AA suite-output scaling, public list prices only. Not a provider invoice.">$/game</th>
-                <th scope="col" data-sort="puzzle_rating" title="Glicko-2 puzzle rating from finished attempts — separate from game Elo, never affects it.">PUZZLES</th>
-                <th scope="col" data-sort="puzzle_solve_ratio" title="Puzzle solves over finished attempts (e.g. 2/5). Sorted by solve rate.">Pz</th>
-                <th scope="col" data-sort="identify_full_ratio" title="Full-position identifications over finished attempts (e.g. 1/4). Sorted by rate.">Id</th>
-                <th scope="col" data-sort="identify_mean_accuracy" title="Average exact-piece placement across finished board-identification attempts.">% pieces</th>
-                <th scope="col" data-sort="identify_full_position_rate" title="Share of finished board-identification attempts with every piece placed exactly.">% boards</th>
+                <th scope="col" data-sort="elo" class="col-tip" data-tip="Results-only ladder Elo (win/draw/loss). Not the same as Performance.">Elo</th>
+                <th scope="col" data-sort="mean_accuracy" class="col-tip" data-tip="Mean move accuracy from Stockfish analysis of finished games (including AvH).">Accuracy</th>
+                <th scope="col" data-sort="mean_play_rating" class="col-tip" data-tip="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
+                <th scope="col" data-sort="games" class="col-tip" data-tip="Finished games with a real result (rated, AvH, and unrated same-model AvA). Idle timeouts (*) excluded.">Games</th>
+                <th scope="col" data-sort="cost_usd" class="col-tip" data-tip="Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental — Composer token mix, AA suite-output scaling, public list prices only. Not a provider invoice.">$/game</th>
+                <th scope="col" data-sort="puzzle_rating" class="col-tip" data-tip="Glicko-2 puzzle rating from finished attempts — separate from game Elo, never affects it.">PUZZLES</th>
+                <th scope="col" data-sort="puzzle_solve_ratio" class="col-tip" data-tip="Puzzle solves over finished attempts (e.g. 2/5). Sorted by solve rate.">Pz</th>
+                <th scope="col" data-sort="identify_full_ratio" class="col-tip" data-tip="Full-position identifications over finished attempts (e.g. 1/4). Sorted by rate.">Id</th>
+                <th scope="col" data-sort="identify_mean_accuracy" class="col-tip" data-tip="Average exact-piece placement across finished board-identification attempts.">% pieces</th>
+                <th scope="col" data-sort="identify_full_position_rate" class="col-tip" data-tip="Share of finished board-identification attempts with every piece placed exactly.">% boards</th>
               </tr>
             </thead>
             <tbody>
@@ -982,7 +982,7 @@
                 <th scope="col" data-sort="name">Engine</th>
                 <th scope="col" data-sort="elo">Elo</th>
                 <th scope="col" data-sort="mean_accuracy">Accuracy</th>
-                <th scope="col" data-sort="mean_play_rating" title="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
+                <th scope="col" data-sort="mean_play_rating" class="col-tip" data-tip="Estimated strength from move accuracy via the calibration accuracy→Elo table — not ladder Elo.">Performance</th>
                 <th scope="col" data-sort="kind">Kind</th>
               </tr>
             </thead>
@@ -1032,6 +1032,6 @@ Agents and floaters use Elo with a sliding K-factor: 64 for the first 20 games,
     </footer>
   </div>
   <script src="/js/table-sort.js"></script>
-  <script src="/js/common.js?v=25"></script>
+  <script src="/js/common.js?v=26"></script>
 </body>
 </html>

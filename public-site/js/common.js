@@ -754,16 +754,12 @@
           : "";
         var costCell =
           unified || homeBenchmark
-            ? '<td class="num" title="' +
-              escapeHtml(COST_PER_GAME_TIP) +
-              '">' +
+            ? '<td class="num">' +
               escapeHtml(formatCostUsd(row.cost_usd)) +
               "</td>"
             : "";
         var aaCell = homeBenchmark
-          ? '<td class="num" title="' +
-            escapeHtml(AA_INDEX_TIP) +
-            '">' +
+          ? '<td class="num">' +
             escapeHtml(formatAaIndex(row.aa_index)) +
             "</td>"
           : "";
