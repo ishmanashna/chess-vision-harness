@@ -211,7 +211,10 @@
 
 
   var COST_PER_GAME_TIP =
-    "Rough inferred API dollars for one typical harness chess game (~50 ply). Experimental approximation from Composer token mix + AA suite-output scaling + public list prices — not a provider invoice.";
+    "Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental approximation from Composer token mix + AA suite-output scaling + public list prices — not a provider invoice.";
+
+  var AA_INDEX_TIP =
+    "Artificial Analysis Intelligence Index — public composite score from artificialanalysis.ai. Values from the harness docs scrape where a clear model match exists; otherwise —.";
 
   // Experimental API ≈$/game. Only exact SKU matches; gaps stay null (displayed as —).
   // Do not silently map Pro/max/3.8 prices onto free/High/3.6 ladder rows.
@@ -240,6 +243,27 @@
     "glm 5.3 flash max": 0.15,
     "claude sonnet 4.5": 1.88,
     "composer 2.5": 0.94,
+  };
+
+  // AA Intelligence Index from docs/harness_vs_benchmarks.html (AA scrape in that page).
+  // Exact id/name matches only; gaps stay null (displayed as —).
+  var AGENT_AA_INDEX_BY_ID = {
+    "gemini-3.6-flash-high": 50,
+    "gpt5.6-luna-max": 51,
+    "gpt-5.6terra-high": 49,
+    "grok-4.5-high": 54,
+    "mimo-v2.5": 37,
+  };
+  var AGENT_AA_INDEX_BY_NAME = {
+    "gemini 3.6 flash": 50,
+    "gemini 3.6 flash high": 50,
+    "gpt 5.6 luna": 51,
+    "gpt 5.6 luna max": 51,
+    "gpt 5.6 terra": 49,
+    "gpt 5.6 terra high": 49,
+    "grok 4.5": 54,
+    "grok 4.5 high": 54,
+    "mimo v2.5": 37,
   };
 
   function normalizeCostName(name) {
@@ -271,6 +295,26 @@
     return "$" + n.toFixed(2);
   }
 
+  function lookupAgentAaIndex(agent) {
+    if (!agent) return null;
+    var id = String(agent.id || "").trim();
+    if (id && Object.prototype.hasOwnProperty.call(AGENT_AA_INDEX_BY_ID, id)) {
+      return AGENT_AA_INDEX_BY_ID[id];
+    }
+    var key = normalizeCostName(agent.name || "");
+    if (key && Object.prototype.hasOwnProperty.call(AGENT_AA_INDEX_BY_NAME, key)) {
+      return AGENT_AA_INDEX_BY_NAME[key];
+    }
+    return null;
+  }
+
+  function formatAaIndex(value) {
+    if (value == null || value === "") return "\u2014";
+    var n = Number(value);
+    if (isNaN(n)) return "\u2014";
+    return String(Math.round(n));
+  }
+
   var AGENT_NUMERIC_KEYS = [
     "elo",
     "mean_accuracy",
@@ -286,6 +330,7 @@
     "identify_mean_accuracy",
     "identify_full_position_rate",
     "cost_usd",
+    "aa_index",
   ];
 
   function normalizeAgentRow(agent) {
@@ -314,6 +359,7 @@
       identify_full_position_rate: agent.identify_full_position_rate,
       observation: agent.observation || "vision",
       cost_usd: lookupAgentCostUsd(agent),
+      aa_index: lookupAgentAaIndex(agent),
       _raw: agent,
     };
   }
@@ -531,21 +577,15 @@
     if (isNaN(n)) return "—";
     return (n * 100).toFixed(2) + "%";
   }
-  /** Fraction (0..1) as whole-number percent for home Eyesight. */
-  function formatRatePctWhole(value) {
-    if (value == null || value === "") return "\u2014";
-    var n = Number(value);
-    if (isNaN(n)) return "\u2014";
-    return Math.round(n * 100) + "%";
-  }
-
-
   function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
-    var n = fullColumns ? (homeBenchmark ? 8 : 6) : 4;
+    // Home base: # Agent Elo Accuracy Strength Puzzles Games (=7). Leaderboards full base (=6).
+    var n = fullColumns ? (homeBenchmark ? 7 : 6) : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
-    // Cost column only on full Leaderboards (unified), never Home.
-    if (unified) n += 1;
+    // ≈$/game on Leaderboards (unified) and Home benchmark.
+    if (unified || homeBenchmark) n += 1;
+    // AA Intelligence Index on Home benchmark only.
+    if (homeBenchmark) n += 1;
     return n;
   }
 
@@ -658,9 +698,6 @@
               row.puzzle_rating == null ? "—" : formatQualityMean(row.puzzle_rating)
             ) +
             "</td>" +
-            "<td>" +
-            escapeHtml(formatRatePctWhole(row.identify_mean_accuracy)) +
-            "</td>" +
             '<td title="' +
             escapeHtml(
               "Finished games with a real result — agent vs engine, agent vs agent, and agent vs human — in one count. Idle timeouts (no result) are excluded."
@@ -696,13 +733,20 @@
           ? "<td><code>" + escapeHtml(agent.id || "") + "</code></td>"
           : "";
         var costCell =
-          unified
+          unified || homeBenchmark
             ? '<td class="num" title="' +
               escapeHtml(COST_PER_GAME_TIP) +
               '">' +
               escapeHtml(formatCostUsd(row.cost_usd)) +
               "</td>"
             : "";
+        var aaCell = homeBenchmark
+          ? '<td class="num" title="' +
+            escapeHtml(AA_INDEX_TIP) +
+            '">' +
+            escapeHtml(formatAaIndex(row.aa_index)) +
+            "</td>"
+          : "";
         return (
           "<tr>" +
           '<td class="rank">' +
@@ -720,8 +764,9 @@
           accCell +
           playCell +
           gamesCell +
-          costCell +
           homeBenchmarkCells +
+          costCell +
+          aaCell +
           unifiedCells +
           modelCell +
           "</tr>"

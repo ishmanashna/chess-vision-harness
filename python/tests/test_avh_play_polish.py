@@ -159,7 +159,7 @@ def test_spectator_game_page_quality_metrics():
     assert "meta-game-id" in js or "formatSpectatorDate" in js
     assert "Agent vs Human" in js
     assert "Agent vs human (unranked)" not in js
-    assert 'wAccLbl.textContent = "White accuracy"' in js
+    assert 'wAccLbl.textContent = "White Accuracy"' in js
     assert "whiteName + \" accuracy\"" not in js
     assert 'wPrLbl.textContent = "White Performance"' in js
 

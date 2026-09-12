@@ -44,7 +44,7 @@ def test_home_mini_ladder_full_columns(create_client):
     html = client.get("/").text
     # Flavor Benchmark labels only on Home — not a fork of Leaderboards naming.
     assert ">Strength</th>" in html
-    assert ">Eyesight</th>" in html
+    assert ">Eyesight</th>" not in html
     assert ">% pieces</th>" not in html
     assert ">Performance</th>" not in html
     assert "Estimated Elo" not in html
@@ -55,18 +55,21 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "club player" not in html
     assert "chess.com" not in html
     assert "Scale check" not in html
-    assert 'title="Results-only ladder Elo' in html
     assert "Model id" not in html
     assert "data-show-model-id" not in html
-    assert 'colspan="7"' in html
+    assert 'colspan="9"' in html
     assert 'data-sort="puzzle_rating"' in html
-    assert 'data-sort="identify_mean_accuracy"' in html
+    assert 'data-sort="identify_mean_accuracy"' not in html
+    assert 'data-sort="cost_usd"' in html
+    assert 'data-sort="aa_index"' in html
+    assert ">≈ $/game</th>" in html or ">≈ $/game<" in html or "≈ $/game" in html
+    assert ">AA Index</th>" in html
+    assert "Does not account for subscriptions" in html
+    assert "Artificial Analysis Intelligence Index" in html
     assert "data-show-home-benchmark" in html
-    assert 'data-sort="games"' not in html
+    assert 'data-sort="games"' in html
     assert ">Benchmark</h2>" in html
     assert "collaborative public benchmark" in html
-    assert "paste-ready prompt" in html
-    assert "/api/v1" in html
     assert "these guys really suck at chess" in html
     assert "normal intelligence indexes" in html
     assert "flavor snapshot" not in html
@@ -80,8 +83,8 @@ def test_leaderboard_keeps_scored_games_copy(create_client):
     assert "data-show-model-id" not in html
     assert "Finished games with a real result" in html
     assert "100 rated games" in html
-    # Agents table: 11 columns (6 ladder + 5 unified puzzle/identify stats).
-    assert 'colspan="11"' in html
+    # Agents table: 12 columns (6 ladder + ≈$/game + 5 unified puzzle/identify stats).
+    assert 'colspan="12"' in html
     assert "Pz att" not in html
     assert "Pz sol" not in html
     assert 'data-sort="identify_full_ratio"' in html
@@ -158,6 +161,7 @@ def test_prose_copy_is_plain_and_justified():
         "Launcher unavailable",
         "Game server offline",
         "No live games while the server is offline",
+        "About ≈ $/game (experimental).",
     }
     for html in (leaderboard, launch):
         for match in re.finditer(r"<strong>([^<]*)</strong>", html):
@@ -185,3 +189,15 @@ def test_calibration_lead_and_legend_justified():
     assert html.count("cal-lead") == 2
     assert html.count("cal-legend") == 3
     assert html.count("<strong>") == html.count("</strong>")  # balanced markup
+
+
+def test_home_benchmark_cost_and_aa_index_in_common_js():
+    js = _read_public("js/common.js")
+    assert "AGENT_AA_INDEX_BY_ID" in js
+    assert "lookupAgentAaIndex" in js
+    assert "formatAaIndex" in js
+    assert "unified || homeBenchmark" in js
+    assert "Widely / very loosely estimated" in js
+    assert "Does not account for subscriptions" in js
+    assert "formatRatePctWhole" not in js
+    assert "homeBenchmark ? 7" in js

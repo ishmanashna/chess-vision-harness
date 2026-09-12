@@ -1,7 +1,25 @@
 {
   "version": 1,
-  "generated_at": "2026-09-09T17:16:20.000Z",
+  "generated_at": "2026-09-12T22:07:53.000Z",
   "agents": [
+    {
+      "id": "grok-4-6-high-ysqi2d",
+      "name": "Grok 4.6",
+      "rating": 1327.8,
+      "deviation": 100.1,
+      "attempts": 14,
+      "solves": 11,
+      "solve_rate": 0.7857
+    },
+    {
+      "id": "muse-spark-1-3-xcaw72",
+      "name": "Muse Spark 1.3",
+      "rating": 1017.0,
+      "deviation": 126.8,
+      "attempts": 8,
+      "solves": 4,
+      "solve_rate": 0.5
+    },
     {
       "id": "mimo-v2.5",
       "name": "MiMo V2.5",
@@ -32,6 +50,54 @@
   ],
   "puzzles": [
     {
+      "id": "00H1C",
+      "rating": 1276.0,
+      "deviation": 75.0,
+      "attempts": 2,
+      "solves": 1,
+      "solve_rate": 0.5,
+      "popularity": 94,
+      "nb_plays": 3141,
+      "source": "https://lichess.org/GzcjOw0p/black#44",
+      "watch_url": "/p/pz-ViMPABEi1FIlB_KTQ8kxDg"
+    },
+    {
+      "id": "00Tya",
+      "rating": 1159.0,
+      "deviation": 74.0,
+      "attempts": 2,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 96,
+      "nb_plays": 2281,
+      "source": "https://lichess.org/uhMJDCas#49",
+      "watch_url": "/p/pz-S7sRs-hehEaBW-zPQN1W7Q"
+    },
+    {
+      "id": "00G7g",
+      "rating": 1297.0,
+      "deviation": 74.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 89,
+      "nb_plays": 731,
+      "source": "https://lichess.org/Gbq7pxMD/black#54",
+      "watch_url": "/p/pz-RrSrFQBn2YB_ZcrcC58X9A"
+    },
+    {
+      "id": "00X5w",
+      "rating": 1251.0,
+      "deviation": 77.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 93,
+      "nb_plays": 4470,
+      "source": "https://lichess.org/tzCvvvDs#27",
+      "watch_url": "/p/pz-ycS_PDcw9D1loeGh2owNsw"
+    },
+    {
       "id": "00dUW",
       "rating": 1250.0,
       "deviation": 79.0,
@@ -42,6 +108,30 @@
       "nb_plays": 196,
       "source": "https://lichess.org/RnKoYsGf#45",
       "watch_url": "/p/pz-NQcT1OCpPqOK3WC7DWarPA"
+    },
+    {
+      "id": "00Q4v",
+      "rating": 1228.0,
+      "deviation": 81.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 74,
+      "nb_plays": 65,
+      "source": "https://lichess.org/gHKVgDSR#93",
+      "watch_url": "/p/pz-A0MpF9LHR-ip4DTyDGn1-A"
+    },
+    {
+      "id": "00SyL",
+      "rating": 1221.0,
+      "deviation": 78.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 92,
+      "nb_plays": 6075,
+      "source": "https://lichess.org/f988q4eE/black#30",
+      "watch_url": "/p/pz-lpIbOKd6dO31-Ja0f_oOdg"
     },
     {
       "id": "005jJ",
@@ -56,6 +146,30 @@
       "watch_url": "/p/pz-2Qw1Dw0y1oRH8soE6MvU7g"
     },
     {
+      "id": "00ZcN",
+      "rating": 1198.0,
+      "deviation": 78.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 77,
+      "nb_plays": 273,
+      "source": "https://lichess.org/ElT6mnAJ/black#54",
+      "watch_url": "/p/pz-yQ9NpI4TsLIhiqbLpjCrsA"
+    },
+    {
+      "id": "00Y6y",
+      "rating": 1193.0,
+      "deviation": 77.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 92,
+      "nb_plays": 531,
+      "source": "https://lichess.org/Rv29Dipi#95",
+      "watch_url": "/p/pz-jAqCfOSZ-TvPl98155jTdA"
+    },
+    {
       "id": "00Svg",
       "rating": 1182.0,
       "deviation": 78.0,
@@ -66,6 +180,42 @@
       "nb_plays": 102,
       "source": "https://lichess.org/hCcakyYf#99",
       "watch_url": "/p/pz-O6pruJMazlpINA5exW9Ogw"
+    },
+    {
+      "id": "00Nih",
+      "rating": 1178.0,
+      "deviation": 232.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 38,
+      "nb_plays": 18,
+      "source": "https://lichess.org/uGsqUTBh#123",
+      "watch_url": "/p/pz-xU2Dg79iGFryNp0TRGvIIA"
+    },
+    {
+      "id": "00JAo",
+      "rating": 1167.0,
+      "deviation": 79.0,
+      "attempts": 1,
+      "solves": 0,
+      "solve_rate": 0.0,
+      "popularity": 78,
+      "nb_plays": 141,
+      "source": "https://lichess.org/mIuVoEMA/black#116",
+      "watch_url": "/p/pz-GeUw_ehVnbjmZaW9AzXraw"
+    },
+    {
+      "id": "00QBx",
+      "rating": 1163.0,
+      "deviation": 78.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 90,
+      "nb_plays": 443,
+      "source": "https://lichess.org/85qqz7lO#17",
+      "watch_url": "/p/pz-e_XTzIPWfueL_hSybTIYbg"
     },
     {
       "id": "00Gvr",
@@ -80,6 +230,30 @@
       "watch_url": "/p/pz-l0XY0qtt8cBUXHJ0hzObHA"
     },
     {
+      "id": "00Af3",
+      "rating": 1144.0,
+      "deviation": 80.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 95,
+      "nb_plays": 5702,
+      "source": "https://lichess.org/JBQDYKyD/black#100",
+      "watch_url": "/p/pz-P-XjDlb7wpTcIkJRUyRb4A"
+    },
+    {
+      "id": "00X2S",
+      "rating": 1134.0,
+      "deviation": 244.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 30,
+      "nb_plays": 18,
+      "source": "https://lichess.org/4JI17kTq/black#48",
+      "watch_url": "/p/pz-hsHOKvNls1OTwFjZYsmoUA"
+    },
+    {
       "id": "0050w",
       "rating": 1131.0,
       "deviation": 87.0,
@@ -90,6 +264,18 @@
       "nb_plays": 1516,
       "source": "https://lichess.org/QD8pUcTR/black#60",
       "watch_url": "/p/pz-N5Ex9B99g5B0XftcGuYKjw"
+    },
+    {
+      "id": "00Hxb",
+      "rating": 1125.0,
+      "deviation": 81.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 83,
+      "nb_plays": 1196,
+      "source": "https://lichess.org/FW9LwaHK/black#54",
+      "watch_url": "/p/pz-yoxTxg9QVDSCgrySNWDDvg"
     },
     {
       "id": "00LG5",
@@ -140,6 +326,18 @@
       "watch_url": "/p/pz-F7Sj4Z5LhrpQ9EL4XIsIBw"
     },
     {
+      "id": "001wr",
+      "rating": 1068.0,
+      "deviation": 75.0,
+      "attempts": 1,
+      "solves": 1,
+      "solve_rate": 1.0,
+      "popularity": 97,
+      "nb_plays": 2484,
+      "source": "https://lichess.org/KnJ2mojX#35",
+      "watch_url": "/p/pz-vPknps3Op6WEU_jNFup9iQ"
+    },
+    {
       "id": "002O7",
       "rating": 1008.0,
       "deviation": 97.0,
@@ -150,186 +348,6 @@
       "nb_plays": 357,
       "source": "https://lichess.org/dFEPPiEc/black#28",
       "watch_url": "/p/pz-8L0zQWx8_qTWTDLsXDPPng"
-    },
-    {
-      "id": "00SeK",
-      "rating": 995.0,
-      "deviation": 179.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 89,
-      "nb_plays": 29,
-      "source": "https://lichess.org/GRpzFRNZ/black#70",
-      "watch_url": "/p/pz-btyU8gFbHI2emfG2mf3ZmA"
-    },
-    {
-      "id": "0092z",
-      "rating": 991.0,
-      "deviation": 91.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 94,
-      "nb_plays": 442,
-      "source": "https://lichess.org/fjaha7q0/black#52",
-      "watch_url": "/p/pz-j_4ebM-Uafz9YVSWyFsBeA"
-    },
-    {
-      "id": "00fZM",
-      "rating": 989.0,
-      "deviation": 81.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 96,
-      "nb_plays": 2552,
-      "source": "https://lichess.org/F6b275RM/black#60",
-      "watch_url": "/p/pz-TUIbd25uf13oeD0TSOjCPQ"
-    },
-    {
-      "id": "00Ru6",
-      "rating": 974.0,
-      "deviation": 84.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 80,
-      "nb_plays": 72,
-      "source": "https://lichess.org/SA1K2pZD/black#68",
-      "watch_url": "/p/pz-lVOyr7Ep29i0403RxziTqQ"
-    },
-    {
-      "id": "00Lnf",
-      "rating": 970.0,
-      "deviation": 78.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 100,
-      "nb_plays": 170,
-      "source": "https://lichess.org/OtbWtwR2/black#30",
-      "watch_url": "/p/pz-_TwlXFquiMN8pHGuaDbuKw"
-    },
-    {
-      "id": "007bH",
-      "rating": 963.0,
-      "deviation": 101.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 87,
-      "nb_plays": 25,
-      "source": "https://lichess.org/Hoq46gJU/black#30",
-      "watch_url": "/p/pz-G-MvzcMTF36R6Fzl3ItlSw"
-    },
-    {
-      "id": "00fSz",
-      "rating": 907.0,
-      "deviation": 77.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 100,
-      "nb_plays": 130,
-      "source": "https://lichess.org/eA8X6sp6#19",
-      "watch_url": "/p/pz-B9LYnqWWWpAvBYyW5hXLZw"
-    },
-    {
-      "id": "00cJo",
-      "rating": 904.0,
-      "deviation": 78.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 100,
-      "nb_plays": 316,
-      "source": "https://lichess.org/al1h6dlT/black#60",
-      "watch_url": "/p/pz-BojL0vRxtt3w7u8fxxZrZA"
-    },
-    {
-      "id": "00EWi",
-      "rating": 885.0,
-      "deviation": 83.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 94,
-      "nb_plays": 483,
-      "source": "https://lichess.org/RxrVCbwq#95",
-      "watch_url": "/p/pz-u72_WppORoU6FVLqhJhBVg"
-    },
-    {
-      "id": "00dzT",
-      "rating": 881.0,
-      "deviation": 79.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 100,
-      "nb_plays": 484,
-      "source": "https://lichess.org/Kxd5ijdt#51",
-      "watch_url": "/p/pz-FXUaa9DtGUPH9vvslNa1nw"
-    },
-    {
-      "id": "004WZ",
-      "rating": 866.0,
-      "deviation": 100.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 94,
-      "nb_plays": 137,
-      "source": "https://lichess.org/BQIdXPOM#51",
-      "watch_url": "/p/pz-XWT45_o03upHrR8lGaqaMg"
-    },
-    {
-      "id": "00SMl",
-      "rating": 852.0,
-      "deviation": 96.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 94,
-      "nb_plays": 1020,
-      "source": "https://lichess.org/vYCG7ony/black#36",
-      "watch_url": "/p/pz-kxVVeCCBCFbb-aOTDXvMIA"
-    },
-    {
-      "id": "00Enl",
-      "rating": 831.0,
-      "deviation": 77.0,
-      "attempts": 1,
-      "solves": 1,
-      "solve_rate": 1.0,
-      "popularity": 87,
-      "nb_plays": 157,
-      "source": "https://lichess.org/2XZ7QI0F#53",
-      "watch_url": "/p/pz-uqqudiLbedWCtpPkYBFIYw"
-    },
-    {
-      "id": "005Ep",
-      "rating": 752.0,
-      "deviation": 84.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 100,
-      "nb_plays": 389,
-      "source": "https://lichess.org/ttFEoJfQ/black#62",
-      "watch_url": "/p/pz-fa3b69r2GIyZsvQ_b3kkhQ"
-    },
-    {
-      "id": "00XoP",
-      "rating": 679.0,
-      "deviation": 93.0,
-      "attempts": 1,
-      "solves": 0,
-      "solve_rate": 0.0,
-      "popularity": 76,
-      "nb_plays": 73,
-      "source": "https://lichess.org/KLJMqvTZ#73",
-      "watch_url": "/p/pz-3uMmaglI_d-CVaO-CeiiXg"
     }
   ]
 }

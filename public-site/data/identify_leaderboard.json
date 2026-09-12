@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-09T17:16:20.000Z",
+  "generated_at": "2026-09-12T22:07:54.000Z",
   "agents": [
     {
       "id": "muse-spark-1.2",
@@ -9,6 +9,14 @@
       "full": 644,
       "mean_accuracy": 1.0,
       "full_position_rate": 1.0
+    },
+    {
+      "id": "muse-spark-1-3-xcaw72",
+      "name": "Muse Spark 1.3",
+      "attempts": 25,
+      "full": 24,
+      "mean_accuracy": 0.9984,
+      "full_position_rate": 0.96
     },
     {
       "id": "mimo-v2.5",

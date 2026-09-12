@@ -242,8 +242,8 @@ async function main() {
     const bAccLbl = document.getElementById("state-acc-black-label");
     const wPrLbl = document.getElementById("state-pr-white-label");
     const bPrLbl = document.getElementById("state-pr-black-label");
-    if (wAccLbl) wAccLbl.textContent = "White accuracy";
-    if (bAccLbl) bAccLbl.textContent = "Black accuracy";
+    if (wAccLbl) wAccLbl.textContent = "White Accuracy";
+    if (bAccLbl) bAccLbl.textContent = "Black Accuracy";
     if (wPrLbl) {
       wPrLbl.textContent = "White Performance";
       wPrLbl.title = PLAY_RATING_TIP;

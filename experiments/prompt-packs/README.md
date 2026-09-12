@@ -82,8 +82,27 @@ Expect: `legal` on F returns non-empty `legal_moves_uci`; `imagine` on G returns
 
 ## Models used
 
-- Waves 1–5: Composer 2.5 (`composer-2.5`)
-- From wave 6: Auto seats (`inherit`) with harness tag `cursor-auto` (`auto` is not a valid model id)
+- **Composer-only A/B (canonical):** composer-2.5 only. cursor-auto seats were excluded from Ops packing on 2026-09-12 (states keep prompt_pack_original + prompt_test_excluded).
+- Historical Auto A–D games remain on disk for forensics but do **not** count in Ops A/B.
+- F/G/H waves: composer-2.5. New waves stopped 2026-09-12; in-progress F/G/H seats may finish.
+
+## Pause snapshot (Composer-only finished ≠ *)
+
+See also COMPOSER_ONLY_SNAPSHOT.md. Opponent: inverse-sf:exclude-top1-d8.
+
+| Pack | Finished | W–D–L | Mean acc | Notes |
+|------|----------|-------|----------|-------|
+| A | 3 | 0–3–0 | ~61.5 | composer only |
+| B | 3 | 1–2–0 | ~70.4 | composer only |
+| C | 4 | 4–0–0 | ~63.7 | short mates common |
+| D | 4 | 2–2–0 | ~62.1 | composer only |
+| E | 0 | — | — | frozen |
+| F | 8 | 3–3–2 | ~57.4 | legal; open seats may add |
+| G | 8 | 5–1–2 | ~72.7 | imagine; open seats may add |
+| H | 8 | 2–3–3 | ~45.4 | text-only; open seats may add |
+
+Older mixed Auto+Composer tables are obsolete for comparison.
+
 
 ## Pause snapshot (finished ≠ `*`)
 
