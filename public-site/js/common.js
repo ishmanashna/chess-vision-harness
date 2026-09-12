@@ -214,7 +214,7 @@
     "Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental approximation from Composer token mix + AA suite-output scaling + public list prices — not a provider invoice.";
 
   var AA_INDEX_TIP =
-    "Artificial Analysis Intelligence Index — public composite score from artificialanalysis.ai. Values from the harness docs scrape where a clear model match exists; otherwise —.";
+    "Artificial Analysis Intelligence Index (live artificialanalysis.ai, highest reasoning effort). Composer 2.5 set equal to GLM 5.1 by assumption.";
 
   // Experimental API ≈$/game. Only exact SKU matches; gaps stay null (displayed as —).
   // Do not silently map Pro/max/3.8 prices onto free/High/3.6 ladder rows.
@@ -227,6 +227,7 @@
     "grok-4.5-high": 1.52,
     "grok-4-6-high-ysqi2d": 2.31,
     "gemini-3.6-flash-high": 0.8,
+    "gemini-3-8-flash-high-v0up9w": 0.68,
     "glm-5-3-flash-max-euw2qw": 0.15,
     "claude-sonnet-4.5": 1.88,
     "composer-2.5": 0.94,
@@ -240,30 +241,49 @@
     "grok 4.5 high": 1.52,
     "grok 4.6 high": 2.31,
     "gemini 3.6 flash high": 0.8,
+    "gemini 3.8 flash": 0.68,
+    "gemini 3.8 flash high": 0.68,
     "glm 5.3 flash max": 0.15,
     "claude sonnet 4.5": 1.88,
     "composer 2.5": 0.94,
   };
 
-  // AA Intelligence Index from docs/harness_vs_benchmarks.html (AA scrape in that page).
-  // Exact id/name matches only; gaps stay null (displayed as —).
+  // AA Intelligence Index v4.3 from live artificialanalysis.ai model pages (highest reasoning).
+  // Composer 2.5 AA = GLM 5.1 Reasoning (26) by Jordi assumption.
   var AGENT_AA_INDEX_BY_ID = {
-    "gemini-3.6-flash-high": 50,
-    "gpt5.6-luna-max": 51,
-    "gpt-5.6terra-high": 49,
-    "grok-4.5-high": 54,
-    "mimo-v2.5": 37,
+    "muse-spark-1-3-xcaw72": 45,
+    "muse-spark-1.2": 40,
+    "gemini-3-8-flash-high-v0up9w": 41,
+    "gemini-3.6-flash-high": 34,
+    "gpt5.6-luna-max": 38,
+    "gpt-5.6terra-high": 34,
+    "grok-4.5-high": 39,
+    "grok-4-6-high-ysqi2d": 44,
+    "mimo-v2.5": 22,
+    "glm-5-3-flash-max-euw2qw": 42,
+    "claude-sonnet-4.5": 21,
+    "composer-2.5": 26,
   };
   var AGENT_AA_INDEX_BY_NAME = {
-    "gemini 3.6 flash": 50,
-    "gemini 3.6 flash high": 50,
-    "gpt 5.6 luna": 51,
-    "gpt 5.6 luna max": 51,
-    "gpt 5.6 terra": 49,
-    "gpt 5.6 terra high": 49,
-    "grok 4.5": 54,
-    "grok 4.5 high": 54,
-    "mimo v2.5": 37,
+    "muse spark 1.3": 45,
+    "muse spark 1.2": 40,
+    "gemini 3.8 flash": 41,
+    "gemini 3.8 flash high": 41,
+    "gemini 3.6 flash": 34,
+    "gemini 3.6 flash high": 34,
+    "gpt 5.6 luna": 38,
+    "gpt 5.6 luna max": 38,
+    "gpt 5.6 terra": 34,
+    "gpt 5.6 terra high": 34,
+    "grok 4.5": 39,
+    "grok 4.5 high": 39,
+    "grok 4.6": 44,
+    "grok 4.6 high": 44,
+    "mimo v2.5": 22,
+    "glm 5.3 flash": 42,
+    "glm 5.3 flash max": 42,
+    "claude sonnet 4.5": 21,
+    "composer 2.5": 26,
   };
 
   function normalizeCostName(name) {
