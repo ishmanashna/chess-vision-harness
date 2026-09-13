@@ -1682,3 +1682,9 @@ p {
 .leaderboard-table th.col-tip[data-sort="aa_index"] {
   white-space: nowrap;
 }
+
+.leaderboard-table thead th.col-tip[data-sort="aa_index"],
+.leaderboard-table td.aa-index {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

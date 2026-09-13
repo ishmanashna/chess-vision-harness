@@ -231,6 +231,7 @@
     "glm-5-3-flash-max-euw2qw": 0.15,
     "claude-sonnet-4.5": 1.88,
     "composer-2.5": 0.94,
+    "deepseek-v4-1-flash-inferx": 0.21,
   };
   var AGENT_COST_USD_BY_NAME = {
     "muse spark 1.3": 1.04,
@@ -246,6 +247,7 @@
     "glm 5.3 flash max": 0.15,
     "claude sonnet 4.5": 1.88,
     "composer 2.5": 0.94,
+    "deepseek v4.1 flash": 0.21,
   };
 
   // AA Intelligence Index v4.3 from live artificialanalysis.ai model pages (highest reasoning).
@@ -263,6 +265,7 @@
     "glm-5-3-flash-max-euw2qw": 42,
     "claude-sonnet-4.5": 21,
     "composer-2.5": 26,
+    "deepseek-v4-1-flash-inferx": 40,
   };
   var AGENT_AA_INDEX_BY_NAME = {
     "muse spark 1.3": 45,
@@ -284,6 +287,7 @@
     "glm 5.3 flash max": 42,
     "claude sonnet 4.5": 21,
     "composer 2.5": 26,
+    "deepseek v4.1 flash": 40,
   };
 
   function normalizeCostName(name) {
@@ -757,7 +761,7 @@
               "</td>"
             : "";
         var aaCell = homeBenchmark
-          ? '<td class="num">' +
+          ? '<td class="aa-index">' +
             escapeHtml(formatAaIndex(row.aa_index)) +
             "</td>"
           : "";
