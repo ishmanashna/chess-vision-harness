@@ -1595,22 +1595,12 @@ async def get_game_chat(game_id: str, request: Request, since: int = Query(0, ge
 
 @app.get("/api/games/{game_id}/pgn")
 async def get_game_pgn(game_id: str, request: Request, debug: Optional[str] = None):
+    """PGN for the game so far (live games included; Result * while in progress)."""
     state = game_manager.load_state(game_id)
     if state and packed_game_forbidden(request, state):
         raise HTTPException(404, "Game not found")
-    if not debug_state_enabled(debug):
-        state = game_manager.load_state(game_id)
-        if state and state.get("status") == "in_progress":
-            raise HTTPException(
-                403,
-                "PGN available after the game ends. Enable CHESS_HARNESS_DEBUG for operator access.",
-            )
-    pgn_path = game_manager.get_pgn_path(game_id)
-    if pgn_path.exists():
-        return {"pgn": _get_controller()._clean_pgn(pgn_path.read_text(encoding="utf-8"))}
-    result = _get_game_service().export_pgn(
-        game_id, allow_in_progress=debug_state_enabled(debug)
-    )
+    # Always build from live state so mid-game Copy PGN is current (file may lag).
+    result = _get_game_service().export_pgn(game_id, allow_in_progress=True)
     if not result["ok"]:
         raise HTTPException(404, result["error"])
     return {"pgn": result["pgn"]}

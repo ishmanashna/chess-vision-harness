@@ -661,11 +661,16 @@ async function main() {
           applyEvalResponse(evalFromState(s), s);
         }
       }
-      if (s.game_over) {
-        const p = await (
-          await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/pgn")
-        ).json();
-        if (p.pgn) lastPgn = p.pgn;
+      // Mid-game Copy PGN: refresh whenever meta/moves change (and on first load).
+      if (metaChanged || firstLoad || s.game_over) {
+        try {
+          const p = await (
+            await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/pgn")
+          ).json();
+          if (p.pgn) lastPgn = p.pgn;
+        } catch (_) {
+          /* keep prior lastPgn */
+        }
       }
       renderMeta(lastPgn, s);
       if (isAvhGame) await pollChat();
