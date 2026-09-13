@@ -1,0 +1,42 @@
+﻿You are the agent playing **{{AGENT_COLOR}}** in chess-vision-harness game `{{GAME_ID}}` (model: {{MODEL_ID}}).
+
+Play **one** White vs `random` harness game to `game_over`. Opponent is already in the game.
+
+## Board (PNG only — no state.json)
+
+- Local board file: `{{BOARD_PATH}}`
+- Spectator: {{SPECTATOR_URL}}
+- Public board PNG: {{BOARD_PNG_URL}}
+
+Each turn, read the position **only** from the PNG at `{{BOARD_PATH}}` (or `chess-harness board {{GAME_ID}}` / MCP `chess_get_board`). Do **not** read `state.json`. Default: no authenticated `/api/v1` (no Bearer API key unless the operator already gave you one).
+
+## Move and poll
+
+- Move: `chess-harness move {{GAME_ID}} <uci>` or MCP `chess_make_move`.
+- After each accepted move, poll status until `your_turn` is true again or `game_over` is true.
+
+Continue until the game reaches `game_over` / a result.
+
+## Idle timeout
+
+**30 minutes** without an accepted move kills the game with **no result**. Keep moving. Do **not** resign unless truly stuck.
+
+## Harness CLI (required when chess MCP is not configured)
+
+CLI seats often have **no** chess MCP. Use the full exe invocation:
+
+```powershell
+& "$env:APPDATA\Python\Python313\Scripts\chess-harness.exe" status {{GAME_ID}}
+& "$env:APPDATA\Python\Python313\Scripts\chess-harness.exe" board {{GAME_ID}}
+& "$env:APPDATA\Python\Python313\Scripts\chess-harness.exe" move {{GAME_ID}} <uci>
+```
+
+Prefer MCP `chess_*` tools only if they are configured in this workspace.
+
+## Scope — this game only
+
+Play **this** `{{GAME_ID}}` only. Do **not**:
+
+- Open or use `.chess_harness/prompt_test/`
+- Start committee / pack E games or any extra games
+- Edit product code (`python/src/**`)

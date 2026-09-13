@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-12T22:07:54.000Z",
+  "generated_at": "2026-09-13T14:30:01.000Z",
   "agents": [
     {
       "id": "muse-spark-1.2",
@@ -11,12 +11,20 @@
       "full_position_rate": 1.0
     },
     {
+      "id": "grok-4-6-high-ysqi2d",
+      "name": "Grok 4.6",
+      "attempts": 9,
+      "full": 9,
+      "mean_accuracy": 1.0,
+      "full_position_rate": 1.0
+    },
+    {
       "id": "muse-spark-1-3-xcaw72",
       "name": "Muse Spark 1.3",
-      "attempts": 25,
-      "full": 24,
-      "mean_accuracy": 0.9984,
-      "full_position_rate": 0.96
+      "attempts": 37,
+      "full": 36,
+      "mean_accuracy": 0.9989,
+      "full_position_rate": 0.973
     },
     {
       "id": "mimo-v2.5",

@@ -1,0 +1,44 @@
+# Local IDE / tool config
+.commandcode/
+.cursor/
+
+# Root debug captures (identify / play scratch)
+/board*.png
+/puzzle*.png
+/answer.json
+/answer*.json
+/loop.py
+
+# Python build / curl debug
+python/dist/
+python/_curl_trace.txt
+
+# Secrets
+**/secrets/
+**/*api_key*
+**/api_key.txt
+
+# Experiment runtime (markdown + scripts stay trackable)
+experiments/**/runs/
+experiments/**/revive-backup-*/
+experiments/**/usage/exports/*.csv
+experiments/**/*.stdout.tmp
+experiments/**/*.stderr.tmp
+experiments/**/*.out.txt
+experiments/**/*.err.txt
+experiments/**/keepalive.log
+experiments/**/keepalive-*
+experiments/**/*.pid.txt
+experiments/**/*.pid
+experiments/**/stop.flag
+**/*.bak
+**/*.bak-*
+
+# Dump trees with tokens in briefs/logs
+experiments/inferx-ds41/
+experiments/muse-1.3-runs/
+experiments/muse-spark-play/
+experiments/muse-grok-obs/
+
+# Machine-specific launch notes
+docs/READY_MUSE_GROK_OBS.md

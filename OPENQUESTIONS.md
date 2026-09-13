@@ -19,3 +19,5 @@
 9. Where should rough cost / token / time-to-move estimates live publicly? Not a new Benchmark column - maybe a Leaderboards / Ops-style tables tab fed from experiments (e.g. Composer load-and-burn). What is good enough to show without pretending we have provider-meter truth?
 
 10. ChessBench-style "field-relative Elo" vs our human-anchored AvE ladder: how loudly should the homepage contrast that (beyond the current human-ratings line)? Any other transparency lines the home tab still needs?
+
+11. Track time per move (wall-clock per ply / per agent turn) so we can see when models stall or think forever - surface it for seats and for comparing providers.

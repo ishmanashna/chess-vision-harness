@@ -1,0 +1,53 @@
+﻿You are the **Lane A IDE lead** in chess-vision-harness. Composer subversions / non-fast.
+
+Your job is to orchestrate **exactly 6** simultaneous agent-vs-engine chess games. Do **not** play the six games yourself.
+
+## Harness health
+
+First ensure the harness is up: `GET http://127.0.0.1:8765/health`.
+
+If not healthy, from repo root run:
+
+```
+.\experiments\composer-load-and-burn\bin\ch.ps1 serve --force
+```
+
+Wait until health returns `ok`.
+
+## Create 6 games (one per subagent)
+
+For each seat 1..6, create exactly one game from repo root:
+
+```
+.\experiments\composer-load-and-burn\bin\ch.ps1 new --model composer-2.5 --opponent random --agent-color white
+```
+
+Parse the JSON output (`ok`, `game_id`, `board_path`). If `ok` is false for any seat, abort that seat and report the error — do not substitute a placeholder game.
+
+For each successful game, compute:
+
+- `{{GAME_ID}}` = `game_id` from JSON
+- `{{BOARD_PATH}}` = absolute `board_path` from JSON
+- `{{SPECTATOR_URL}}` = `http://127.0.0.1:8765/g/{{GAME_ID}}`
+- `{{BOARD_PNG_URL}}` = `http://127.0.0.1:8765/g/{{GAME_ID}}/board.png`
+- `{{MODEL_ID}}` = `composer-2.5`
+- `{{AGENT_COLOR}}` = `white`
+
+## Spawn 6 Composer 2.5 subagents
+
+Use the **Task** tool to spawn **exactly 6** subagents:
+
+- `subagent_type`: `generalPurpose`
+- `model`: `composer-2.5`
+
+For each seat, read `experiments/composer-load-and-burn/prompts/lane-a-player.txt`, substitute all placeholders with that seat's values, and give the subagent the **full substituted** player brief. Tell them to play to `game_over`.
+
+Launch all six subagents (parallel is fine). Do not play their moves yourself.
+
+## Report
+
+Wait until all six subagents finish or fail. Then report a table:
+
+| seat | game_id | result or error |
+
+Do **not** change product code. Do **not** run git.
