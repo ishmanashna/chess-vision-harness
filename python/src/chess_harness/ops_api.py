@@ -220,8 +220,12 @@ def register_ops_routes(app) -> None:
                 status_code=403,
                 detail="Operator A/B is only available on localhost",
             )
+        family = request.query_params.get("family") or None
+        if family is not None:
+            family = str(family).strip().lower() or None
         return await asyncio.to_thread(
             build_prompt_test_snapshot,
+            family=family,
             base_dir=resolve_base_dir(),
         )
 

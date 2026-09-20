@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from ..agent_http import AgentHttpClient
 from ..agent_http.queue import default_queue_path
 from .activation import slot_is_active
-from .adapters import build_adapter
+from .adapters import build_adapter, build_adapter_for_pack
 from .config import RunnerConfig, SlotConfig, load_runner_config
 from .keys import ensure_harness_key, keys_path
 from .log import RunnerLog, log_path
@@ -115,7 +115,13 @@ class SlotRunner:
                 results.append({"slot": slot.inscribed_id, "ok": False, "reason": "quota"})
                 continue
             client = self._client_for(slot)
-            adapter = build_adapter(slot, self.transport, stub_moves=self.stub_moves)
+            pack_id = getattr(slot, "prompt_pack", None)
+            if pack_id:
+                adapter = build_adapter_for_pack(
+                    slot, self.transport, pack_id, stub_moves=self.stub_moves
+                )
+            else:
+                adapter = build_adapter(slot, self.transport, stub_moves=self.stub_moves)
 
             if slot.kind == "ave":
                 resumed = False

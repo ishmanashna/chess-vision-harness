@@ -232,6 +232,7 @@
     "claude-sonnet-4.5": 1.88,
     "composer-2.5": 0.94,
     "deepseek-v4-1-flash-inferx": 0.21,
+    "jev-latest": 0.01,
   };
   var AGENT_COST_USD_BY_NAME = {
     "muse spark 1.3": 1.04,
@@ -248,6 +249,8 @@
     "claude sonnet 4.5": 1.88,
     "composer 2.5": 0.94,
     "deepseek v4.1 flash": 0.21,
+    "jev (typesafe)": 0.01,
+    "jev (typesafe) text": 0.01,
   };
 
   // AA Intelligence Index v4.3 from live artificialanalysis.ai model pages (highest reasoning).

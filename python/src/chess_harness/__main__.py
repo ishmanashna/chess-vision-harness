@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> None:
         opts = _parse_new_opts(args[1:] if args and args[0] == "new" else args)
         positional = opts.pop("_positional", [])
         game_id = opts.get("id", positional[0] if positional else commands.default_game_id())
-        color = opts.get("color")
+        color = opts.get("color") or opts.get("agent-color")
         skill = int(opts["skill"]) if "skill" in opts else None
         opponent = opts.get("opponent")
         print(

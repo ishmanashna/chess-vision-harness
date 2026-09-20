@@ -1,0 +1,1 @@
+Middlegame, ahead: simplify when safe, stop counterplay, trade pieces not pawns if it kills their attack.

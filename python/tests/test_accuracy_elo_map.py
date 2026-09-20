@@ -27,6 +27,30 @@ from chess_harness.play_rating import (  # noqa: E402
 )
 
 
+def test_fit_accuracy_elo_knots_elo_order_preserves_weak_end():
+    """Accuracy inversions must not lift weak ladder Elo into mid-hundreds."""
+    pairs = [
+        {"accuracy": 44.0, "elo": -200},
+        {"accuracy": 53.9, "elo": 17},
+        {"accuracy": 52.7, "elo": 197},
+        {"accuracy": 56.2, "elo": 409},
+        {"accuracy": 65.5, "elo": 610},
+    ]
+    knots = fit_accuracy_elo_knots(pairs)
+    assert knots
+    for i in range(len(knots) - 1):
+        assert knots[i]["accuracy"] <= knots[i + 1]["accuracy"]
+        assert knots[i]["elo"] <= knots[i + 1]["elo"]
+    # ~44% (inverse-sf band) stays near −200, not 300–400
+    est44 = interpolate_accuracy_elo(knots, 44.0)
+    assert est44 is not None
+    assert est44 == pytest.approx(-200.0, abs=5.0)
+    # ~54% (random-ish) must stay well below the ~409 noise band
+    est54 = interpolate_accuracy_elo(knots, 53.9)
+    assert est54 is not None
+    assert est54 < 250
+
+
 def test_fit_accuracy_elo_knots_monotone():
     pairs = [
         {"accuracy": 60.0, "elo": 900},

@@ -33,6 +33,20 @@ def _finish_live_game(client: AgentHttpClient, game_id: str, logger: RunnerLog, 
         )
 
 
+
+def _classify_move_reject(err: str) -> str:
+    low = (err or "").lower()
+    if "move limit" in low or "rate" in low:
+        return "rate_limit"
+    if "opponent failed" in low:
+        return "opponent_failed"
+    if "not your turn" in low:
+        return "not_your_turn"
+    if "illegal" in low or "failed to make move" in low:
+        return "illegal_move"
+    return "move_rejected"
+
+
 def play_game(
     client: AgentHttpClient,
     adapter: MoveAdapter,
@@ -55,6 +69,7 @@ def play_game(
             opponent=slot.opponent,
             agent_color=slot.agent_color,
             persist=True,
+            prompt_pack=getattr(slot, "prompt_pack", None),
         )
         game_id = str(created.get("game_id") or "")
         obs_mode = created.get("observation") or obs_mode
@@ -125,28 +140,32 @@ def play_game(
         try:
             moved = client.move(game_id, move)
         except AgentHttpError as exc:
+            err = str(exc)
             logger.write(
                 "move_rejected",
                 game_id=game_id,
                 model=slot.inscribed_id,
                 provider=slot.provider,
-                error=str(exc),
+                error=err,
                 extra={"move": move},
             )
             _finish_live_game(client, game_id, logger, slot)
-            return {"ok": False, "reason": "illegal_move", "game_id": game_id, "move": move}
+            reason = _classify_move_reject(err)
+            return {"ok": False, "reason": reason, "game_id": game_id, "move": move, "error": err}
 
         if not moved.get("ok"):
+            err = str(moved.get("error") or "move failed")
             logger.write(
                 "move_rejected",
                 game_id=game_id,
                 model=slot.inscribed_id,
                 provider=slot.provider,
-                error=str(moved.get("error") or "move failed"),
+                error=err,
                 extra={"move": move},
             )
             _finish_live_game(client, game_id, logger, slot)
-            return {"ok": False, "reason": "illegal_move", "game_id": game_id, "move": move}
+            reason = _classify_move_reject(err)
+            return {"ok": False, "reason": reason, "game_id": game_id, "move": move, "error": err}
 
         agent_plies += 1
         if max_agent_plies is not None and agent_plies >= max_agent_plies:

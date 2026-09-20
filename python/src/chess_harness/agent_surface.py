@@ -72,6 +72,9 @@ def agent_safe_status(
     if not in_progress and state.get("last_move_uci"):
         response["last_move"] = state["last_move_uci"]
     response.update(quality_fields_from_state(state))
+    if state.get("prompt_pack"):
+        response["prompt_pack"] = state.get("prompt_pack")
+        response["prompt_pack_kind"] = state.get("prompt_pack_kind")
     return response
 
 
@@ -98,6 +101,9 @@ def agent_safe_board(
     else:
         response["your_turn"] = persp.get("your_turn", False)
         response["game_over"] = False
+    if state.get("prompt_pack"):
+        response["prompt_pack"] = state.get("prompt_pack")
+        response["prompt_pack_kind"] = state.get("prompt_pack_kind")
     return response
 
 

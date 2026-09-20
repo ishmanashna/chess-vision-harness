@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "max_concurrent_games": 1,
+  "harness_base_url": "http://127.0.0.1:8765",
+  "slots": [
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "prompt_pack": "j1",
+      "_comment": "Jeff rebuild seat j1"
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "prompt_pack": "j2",
+      "_comment": "Jeff rebuild seat j2"
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "prompt_pack": "j3",
+      "_comment": "Jeff rebuild seat j3"
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "prompt_pack": "j4",
+      "_comment": "Jeff rebuild seat j4"
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "prompt_pack": "j5",
+      "_comment": "Jeff rebuild seat j5"
+    }
+  ]
+}

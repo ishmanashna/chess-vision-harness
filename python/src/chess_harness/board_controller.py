@@ -115,7 +115,7 @@ class BoardController:
 
     def _perspective(self, board: chess.Board, agent_color_upper: str) -> Dict[str, Any]:
         agent = self._agent_color(agent_color_upper)
-        game_over = board.is_game_over()
+        game_over = board.is_game_over(claim_draw=True)
         your_turn = not game_over and board.turn == agent
         return {
             "agent_color": agent_color_upper,
@@ -638,7 +638,7 @@ class BoardController:
         except Exception as e:
             return self._error(game_id, f"Failed to make move: {e}")
 
-        if board.is_game_over():
+        if board.is_game_over(claim_draw=True):
             self._finish_game(game_id, state, board)
 
         if state["status"] == "in_progress" and board.turn != agent_color:
@@ -650,7 +650,7 @@ class BoardController:
                 state["moves"].append(engine_move.uci())
                 state["last_move_uci"] = engine_move.uci()
                 state["board_fen"] = board.fen()
-                if board.is_game_over():
+                if board.is_game_over(claim_draw=True):
                     self._finish_game(game_id, state, board)
             except Exception as e:
                 return self._error(game_id, f"Opponent failed to move: {e}")
@@ -1250,7 +1250,7 @@ class BoardController:
             matchup = self._matchup_line(state)
             if state["status"] != "in_progress":
                 return f"{matchup} — {state.get('result', 'done')}"
-            if board.is_game_over():
+            if board.is_game_over(claim_draw=True):
                 return f"{matchup} — {board.result()}"
             white, black = BoardController.avaa_display_names(state)
             mover = white if board.turn == chess.WHITE else black
@@ -1265,7 +1265,7 @@ class BoardController:
             matchup = self._matchup_line(state)
             if state["status"] != "in_progress":
                 return f"{matchup} — {state.get('result', 'done')}"
-            if board.is_game_over():
+            if board.is_game_over(claim_draw=True):
                 return f"{matchup} — {board.result()}"
             white, black = human_display_names(state)
             mover = white if board.turn == chess.WHITE else black

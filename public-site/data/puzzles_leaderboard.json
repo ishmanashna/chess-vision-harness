@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-13T14:30:01.000Z",
+  "generated_at": "2026-09-20T04:24:14.000Z",
   "agents": [
     {
       "id": "grok-4-6-high-ysqi2d",
@@ -55,6 +55,15 @@
       "attempts": 13,
       "solves": 2,
       "solve_rate": 0.1538
+    },
+    {
+      "id": "jev-latest",
+      "name": "Jev (TypeSafe)",
+      "rating": 451.0,
+      "deviation": 147.2,
+      "attempts": 10,
+      "solves": 0,
+      "solve_rate": 0.0
     }
   ],
   "puzzles": [

@@ -12,7 +12,7 @@
       "env_key": "",
       "rpm": 60,
       "rpd": 500,
-      "_comment": "Always runnable — no env key. Uses agent_http against localhost serve."
+      "_comment": "Always runnable \u2014 no env key. Uses agent_http against localhost serve."
     },
     {
       "inscribed_id": "runner-openai-text",
@@ -64,6 +64,19 @@
       "identify_rating_min": 1400,
       "identify_rating_max": 1600,
       "_comment": "Grinds /api/v1/identify via agent_http; stub parses board.txt into a placement answer."
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "_comment": "Jev via TypeSafe System One. Omit opponent so harness uses normal ELO-weighted pairing like every other model. Play through web/runner agent HTTP."
     }
   ]
 }

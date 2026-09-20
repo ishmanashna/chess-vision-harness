@@ -1,0 +1,1 @@
+Prefer a solid non-hanging move over a flashy one. Look twice for checks, captures, and threats. If two moves look equal, pick the one that loses less if you misread.

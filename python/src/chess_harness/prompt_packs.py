@@ -21,6 +21,7 @@ __all__ = [
     "pack_title",
     "render_committee_brief",
     "render_overlay_brief",
+    "is_jeff_family",
 ]
 
 
@@ -35,6 +36,8 @@ class PromptPack:
     rules: str = "_rules.txt"
     observation: str = OBSERVATION_VISION
     seat_packs: Optional[Tuple[str, ...]] = None
+    family: str = "composer"
+    duplicate_board: bool = False
 
 
 def _packs_dir() -> Path:
@@ -81,9 +84,14 @@ def load_pack(pack_id: str) -> PromptPack:
                 )
     rules = str(meta.get("rules") or "_rules.txt")
     observation = validate_observation(meta.get("observation"))
+    family = str(meta.get("family") or ("jeff" if pack_id.startswith("j") else "composer"))
+    duplicate_board = bool(meta.get("duplicate_board") or False)
+    kind = str(meta["kind"])
+    if kind not in {"overlay", "committee", "jeff_council", "jeff_phase", "jeff_checklist", "jeff_imagine"}:
+        raise ValueError(f"prompt pack {pack_id}: unknown kind {kind}")
     return PromptPack(
         id=pack_id,
-        kind=str(meta["kind"]),
+        kind=kind,
         seats=seat_count,
         body=body,
         body_hash=body_hash,
@@ -91,6 +99,8 @@ def load_pack(pack_id: str) -> PromptPack:
         rules=rules,
         observation=observation,
         seat_packs=seat_packs,
+        family=family,
+        duplicate_board=duplicate_board,
     )
 
 
@@ -209,6 +219,30 @@ def render_committee_brief(
     sections.append(protocol)
     return "\n\n".join(sections)
 
+
+
+
+def is_jeff_family(pack_or_id) -> bool:
+    """True for Jeff A/B packs (family=jeff or id starts with j)."""
+    if isinstance(pack_or_id, PromptPack):
+        return pack_or_id.family == "jeff" or pack_or_id.id.startswith("j")
+    pid = str(pack_or_id or "")
+    try:
+        return load_pack(pid).family == "jeff"
+    except ValueError:
+        return pid.startswith("j")
+
+
+def is_jeff_council_state(state: Dict[str, Any]) -> bool:
+    """True when a live game uses silent Jeff council (runner votes; normal move API)."""
+    return state.get("prompt_pack_kind") == "jeff_council"
+
+
+def pack_family(pack_id: str) -> str:
+    try:
+        return load_pack(pack_id).family
+    except ValueError:
+        return "jeff" if str(pack_id).startswith("j") else "composer"
 
 def is_packed_state(state: Dict[str, Any]) -> bool:
     """True when a live game state carries a prompt-test pack tag."""

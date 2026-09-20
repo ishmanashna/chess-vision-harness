@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-13T14:30:01.000Z",
+  "generated_at": "2026-09-20T04:24:14.000Z",
   "agents": [
     {
       "id": "muse-spark-1.2",
@@ -41,6 +41,14 @@
       "full": 10,
       "mean_accuracy": 0.8926,
       "full_position_rate": 0.5882
+    },
+    {
+      "id": "jev-latest",
+      "name": "Jev (TypeSafe)",
+      "attempts": 10,
+      "full": 0,
+      "mean_accuracy": 0.444,
+      "full_position_rate": 0.0
     }
   ]
 }

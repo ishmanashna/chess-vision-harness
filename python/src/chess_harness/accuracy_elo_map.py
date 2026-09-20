@@ -23,7 +23,6 @@ from .play_rating import (
     _atomic_write_json,
     _play_rating_lock,
     _read_json_object,
-    fit_map_knots,
     interpolate_map,
     load_samples,
 )
@@ -124,15 +123,58 @@ def collect_engine_pairs(*, root: Optional[Path] = None) -> List[Dict[str, Any]]
 
 
 def fit_accuracy_elo_knots(pairs: Sequence[Dict[str, Any]]) -> List[Dict[str, float]]:
+    """Monotone accuracy→Elo knots via Elo-ordered isotonic accuracy, then invert.
+
+    Stronger engines should not have *lower* mean accuracy than weaker ones.
+    Fitting the other way (sort by accuracy, pool Elo) averages across inversions
+    and warps the low end — e.g. random@54% pooled toward mid-hundreds Elo.
+    Sorting by ladder Elo and making accuracy non-decreasing, then inverting,
+    keeps the map faithful: accuracy typical of −200 play maps near −200.
+    """
     if not pairs:
         return []
-    rows = [
-        {"q": float(p["accuracy"]), "calibration_elo_before": float(p["elo"])} for p in pairs
+
+    # Pool adjacent engines in Elo order whenever mean accuracy decreases.
+    blocks: List[Dict[str, float]] = []
+    for p in sorted(pairs, key=lambda row: (float(row["elo"]), float(row["accuracy"]))):
+        blocks.append(
+            {
+                "sum_w": 1.0,
+                "sum_elo": float(p["elo"]),
+                "sum_acc": float(p["accuracy"]),
+            }
+        )
+
+    i = 0
+    while i < len(blocks) - 1:
+        acc_i = blocks[i]["sum_acc"] / blocks[i]["sum_w"]
+        acc_j = blocks[i + 1]["sum_acc"] / blocks[i + 1]["sum_w"]
+        if acc_i <= acc_j:
+            i += 1
+            continue
+        blocks[i]["sum_w"] += blocks[i + 1]["sum_w"]
+        blocks[i]["sum_elo"] += blocks[i + 1]["sum_elo"]
+        blocks[i]["sum_acc"] += blocks[i + 1]["sum_acc"]
+        del blocks[i + 1]
+        if i > 0:
+            i -= 1
+
+    # Invert: lookup is still accuracy → Elo (monotone both ways).
+    knots = [
+        {
+            "accuracy": round(block["sum_acc"] / block["sum_w"], 4),
+            "elo": round(block["sum_elo"] / block["sum_w"], 2),
+        }
+        for block in blocks
     ]
-    return [
-        {"accuracy": knot["q"], "elo": knot["play_rating"]}
-        for knot in fit_map_knots(rows)
-    ]
+    # Identical accuracies after pooling: keep highest Elo (stable invert).
+    collapsed: List[Dict[str, float]] = []
+    for knot in knots:
+        if collapsed and knot["accuracy"] == collapsed[-1]["accuracy"]:
+            collapsed[-1]["elo"] = max(collapsed[-1]["elo"], knot["elo"])
+        else:
+            collapsed.append(dict(knot))
+    return collapsed
 
 
 def interpolate_accuracy_elo(

@@ -2,7 +2,7 @@
   "engine_count": 61,
   "min_engines": 2,
   "min_games_for_sample": 101,
-  "fitted_at": "2026-08-19T21:34:09.057944+00:00",
+  "fitted_at": "2026-09-20T17:18:45.206684+00:00",
   "pairs": [
     {
       "engine_id": "inverse-sf:abyss",
@@ -441,36 +441,40 @@
       "elo": 922.0
     },
     {
-      "accuracy": 76.2075,
-      "elo": 1000.0
+      "accuracy": 76.17,
+      "elo": 944.0
+    },
+    {
+      "accuracy": 76.22,
+      "elo": 1018.67
     },
     {
       "accuracy": 77.34,
       "elo": 1063.0
     },
     {
-      "accuracy": 78.88,
-      "elo": 1149.0
+      "accuracy": 78.97,
+      "elo": 1144.5
     },
     {
-      "accuracy": 78.99,
-      "elo": 1169.0
+      "accuracy": 79.565,
+      "elo": 1181.5
     },
     {
-      "accuracy": 80.13,
-      "elo": 1191.0
+      "accuracy": 80.05,
+      "elo": 1217.0
     },
     {
       "accuracy": 81.66,
       "elo": 1226.0
     },
     {
-      "accuracy": 84.975,
-      "elo": 1375.5
+      "accuracy": 85.03,
+      "elo": 1320.0
     },
     {
-      "accuracy": 87.44,
-      "elo": 1414.0
+      "accuracy": 86.18,
+      "elo": 1422.5
     },
     {
       "accuracy": 89.14,

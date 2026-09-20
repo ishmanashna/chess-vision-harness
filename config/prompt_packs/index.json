@@ -2,41 +2,144 @@
   "packs": {
     "a": {
       "title": "A Baseline",
-      "kind": "overlay"
+      "kind": "overlay",
+      "family": "composer"
     },
     "b": {
       "title": "B Verify",
-      "kind": "overlay"
+      "kind": "overlay",
+      "family": "composer"
     },
     "c": {
       "title": "C Principles",
-      "kind": "overlay"
+      "kind": "overlay",
+      "family": "composer"
     },
     "d": {
       "title": "D Slow",
-      "kind": "overlay"
+      "kind": "overlay",
+      "family": "composer"
     },
     "e": {
       "title": "E Committee",
       "kind": "committee",
       "seats": 3,
-      "seat_packs": ["b", "c", "d"]
+      "seat_packs": [
+        "b",
+        "c",
+        "d"
+      ],
+      "family": "composer"
     },
     "f": {
       "title": "F Legal",
       "kind": "overlay",
-      "rules": "_rules_f.txt"
+      "rules": "_rules_f.txt",
+      "family": "composer"
     },
     "g": {
       "title": "G Imagine",
       "kind": "overlay",
-      "rules": "_rules_g.txt"
+      "rules": "_rules_g.txt",
+      "family": "composer"
     },
     "h": {
       "title": "H Text",
       "kind": "overlay",
       "rules": "_rules_h.txt",
-      "observation": "text"
+      "observation": "text",
+      "family": "composer"
+    },
+    "ja": {
+      "title": "JA Jeff Baseline",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "jb": {
+      "title": "JB Jeff Verify",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "jc": {
+      "title": "JC Jeff Principles",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "jd": {
+      "title": "JD Jeff Careful",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "ji": {
+      "title": "JI Jeff Endgame",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "j2": {
+      "title": "J2 Careful",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "je": {
+      "title": "JE Jeff Council",
+      "kind": "jeff_council",
+      "family": "jeff",
+      "seats": 3,
+      "seat_packs": [
+        "jb",
+        "jc",
+        "jd"
+      ],
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "j2_double": {
+      "title": "J2 Double Board (legacy)",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "duplicate_board": true,
+      "rules": "_rules_jeff.txt"
+    },
+    "j1": {
+      "title": "J1 Baseline",
+      "kind": "overlay",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "j3": {
+      "title": "J3 Phase+Material",
+      "kind": "jeff_phase",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "j4": {
+      "title": "J4 Checklist Flow",
+      "kind": "jeff_checklist",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
+    },
+    "j5": {
+      "title": "J5 Propose+Imagine",
+      "kind": "jeff_imagine",
+      "family": "jeff",
+      "observation": "text",
+      "rules": "_rules_jeff.txt"
     }
   }
 }

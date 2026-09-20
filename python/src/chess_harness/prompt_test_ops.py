@@ -12,7 +12,7 @@ from .accuracy_elo_map import play_rating_from_accuracy
 from .board_controller import BoardController
 from .game_manager import GameManager
 from .paths import project_root, resolve_base_dir
-from .prompt_packs import is_packed_result_row, is_packed_state, pack_title
+from .prompt_packs import is_packed_result_row, is_packed_state, pack_family, pack_title
 from .results import ResultsManager
 
 __all__ = ["build_prompt_test_snapshot"]
@@ -81,6 +81,7 @@ def _merge_game_row(
         "game_id": game_id,
         "prompt_pack": pack_id,
         "title": pack_title(pack_id),
+                "family": pack_family(pack_id),
         "status": status or existing.get("status") or "unknown",
         "result": result if result is not None else existing.get("result"),
         "outcome": outcome or existing.get("outcome"),
@@ -136,6 +137,7 @@ def _load_committee_chats(
 
 
 def build_prompt_test_snapshot(
+    family: Optional[str] = None,
     *,
     base_dir: Optional[Path] = None,
     cal_root: Optional[Path] = None,
@@ -164,6 +166,8 @@ def build_prompt_test_snapshot(
         if not is_packed_state(state):
             continue
         pack_id = str(state["prompt_pack"])
+        if family and pack_family(pack_id) != family:
+            continue
         agg = bucket(pack_id)
         recency = _parse_ts(state.get("last_activity"))
         game_id = game["game_id"]
@@ -190,6 +194,8 @@ def build_prompt_test_snapshot(
         if not is_packed_result_row(row):
             continue
         pack_id = str(row["prompt_pack"])
+        if family and pack_family(pack_id) != family:
+            continue
         agg = bucket(pack_id)
         result = row.get("result")
         if result and result != "*":
@@ -225,8 +231,28 @@ def build_prompt_test_snapshot(
                 cal_root=cal_root,
             )
 
+
+    # Seed registry packs for the requested family so Ops shows empty Jeff/Composer rows.
+    try:
+        from .prompt_packs import _load_index
+        index_packs = (_load_index().get("packs") or {})
+    except Exception:
+        index_packs = {}
+    for pid, meta in index_packs.items():
+        fam = pack_family(pid)
+        if family and fam != family:
+            continue
+        if not family and fam == 'jeff':
+            # default Ops A/B stays Composer-only so Jeff never mixes in
+            continue
+        bucket(pid)
+
     packs: List[Dict[str, Any]] = []
     for pack_id in sorted(by_pack.keys()):
+        if family and pack_family(pack_id) != family:
+            continue
+        if not family and pack_family(pack_id) == 'jeff':
+            continue
         agg = by_pack[pack_id]
         recent_ids = sorted(
             agg.recent.keys(),
@@ -240,6 +266,7 @@ def build_prompt_test_snapshot(
             {
                 "id": pack_id,
                 "title": pack_title(pack_id),
+                "family": pack_family(pack_id),
                 "in_progress": agg.in_progress,
                 "finished": agg.finished,
                 "wins": agg.wins,

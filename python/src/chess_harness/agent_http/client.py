@@ -102,12 +102,15 @@ class AgentHttpClient(PuzzleHttpMixin, IdentifyHttpMixin):
         opponent: Optional[str] = None,
         agent_color: Optional[str] = None,
         persist: bool = True,
+        prompt_pack: Optional[str] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {}
         if opponent:
             body["opponent"] = opponent
         if agent_color:
             body["agent_color"] = agent_color
+        if prompt_pack:
+            body["prompt_pack"] = prompt_pack
         payload = self._request("POST", "/api/v1/games", json_body=body)
         game_id = str(payload.get("game_id") or "")
         if persist and game_id:

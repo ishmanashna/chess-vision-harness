@@ -136,6 +136,33 @@ def test_cmd_new_prompt_pack_b_stores_state(tmp_path, monkeypatch):
     assert state["prompt_pack_kind"] == "overlay"
 
 
+def test_main_new_accepts_agent_color_alias(tmp_path, monkeypatch, capsys):
+    import json
+
+    from chess_harness.__main__ import main
+
+    harness_dir = _harness_setup(tmp_path, monkeypatch)
+    main(
+        [
+            "new",
+            "--model",
+            "composer-2.5",
+            "--prompt-pack",
+            "a",
+            "--opponent",
+            "random",
+            "--agent-color",
+            "white",
+            "--id",
+            "agent-color-alias",
+        ]
+    )
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is True
+    state = GameManager(str(harness_dir)).load_state("agent-color-alias")
+    assert state["agent_color"] == "WHITE"
+
+
 def test_cmd_new_prompt_pack_f_g_store_state(tmp_path, monkeypatch):
     harness_dir = _harness_setup(tmp_path, monkeypatch)
     for pack_id in ("f", "g"):

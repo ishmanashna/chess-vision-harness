@@ -40,6 +40,10 @@ class SlotConfig:
     puzzle_theme: Optional[str] = None
     identify_rating_min: Optional[int] = None
     identify_rating_max: Optional[int] = None
+    prompt_pack: Optional[str] = None
+    spirit: Optional[str] = None
+    duplicate_board: bool = False
+    council_spirits: Optional[List[str]] = None
 
     @property
     def is_stub(self) -> bool:
@@ -107,6 +111,10 @@ def _parse_slot(raw: Dict[str, Any]) -> SlotConfig:
         puzzle_theme=str(puzzle_theme_raw).strip() if puzzle_theme_raw else None,
         identify_rating_min=int(identify_rating_min) if identify_rating_min is not None else None,
         identify_rating_max=int(identify_rating_max) if identify_rating_max is not None else None,
+        prompt_pack=(str(raw.get("prompt_pack")).strip() if raw.get("prompt_pack") else None),
+        spirit=(str(raw.get("spirit")).strip() if raw.get("spirit") else None),
+        duplicate_board=bool(raw.get("duplicate_board") or False),
+        council_spirits=None,
     )
 
 
