@@ -216,14 +216,21 @@
   var AA_INDEX_TIP =
     "Artificial Analysis Intelligence Index (live artificialanalysis.ai, highest reasoning effort). Composer 2.5 set equal to GLM 5.1 by assumption.";
 
-  // Experimental API ≈$/game. Only exact SKU matches; gaps stay null (displayed as —).
-  // Do not silently map Pro/max/3.8 prices onto free/High/3.6 ladder rows.
+  // Experimental API ~$/game. Looked up by inscribed id only, so a display
+  // rename cannot attach the wrong SKU. Footprint is ~3.7M cache / 82k input /
+  // 64k output tokens; output scales by that SKU's AA "Output tokens from
+  // Intelligence Index" over a 120M peg. Result is public list price, rounded
+  // to cents. Exact SKU only; gaps stay null (displayed as \u2014).
   var AGENT_COST_USD_BY_ID = {
     "muse-spark-1-3-xcaw72": 1.04,
     "muse-spark-1.2": 0.95,
     "mimo-v2.5": 0.036,
+    "mimo-v2.6-flash": 0.06,
+    "mimo-2-6-pro-4ocw6x": 0.11,
     "gpt5.6-luna-max": 0.19,
+    "gpt-6-luna-1figzl": 0.08,
     "gpt-5.6terra-high": 1.12,
+    "gpt-6-sol-b9p1bc": 1.31,
     "grok-4.5-high": 1.52,
     "grok-4-6-high-ysqi2d": 2.31,
     "gemini-3.6-flash-high": 0.8,
@@ -234,81 +241,35 @@
     "deepseek-v4-1-flash-inferx": 0.21,
     "jev-latest": 0.01,
   };
-  var AGENT_COST_USD_BY_NAME = {
-    "muse spark 1.3": 1.04,
-    "muse spark 1.2": 0.95,
-    "mimo v2.5": 0.036,
-    "gpt 5.6 luna max": 0.19,
-    "gpt 5.6 terra high": 1.12,
-    "grok 4.5 high": 1.52,
-    "grok 4.6 high": 2.31,
-    "gemini 3.6 flash high": 0.8,
-    "gemini 3.8 flash": 0.68,
-    "gemini 3.8 flash high": 0.68,
-    "glm 5.3 flash max": 0.15,
-    "claude sonnet 4.5": 1.88,
-    "composer 2.5": 0.94,
-    "deepseek v4.1 flash": 0.21,
-    "jev (typesafe)": 0.01,
-    "jev (typesafe) text": 0.01,
-  };
 
-  // AA Intelligence Index v4.3 from live artificialanalysis.ai model pages (highest reasoning).
+  // AA Intelligence Index from live artificialanalysis.ai (highest reasoning).
   // Composer 2.5 AA = GLM 5.1 Reasoning (26) by Jordi assumption.
+  // Id only, same rule as $/game.
   var AGENT_AA_INDEX_BY_ID = {
     "muse-spark-1-3-xcaw72": 45,
     "muse-spark-1.2": 40,
     "gemini-3-8-flash-high-v0up9w": 41,
     "gemini-3.6-flash-high": 34,
     "gpt5.6-luna-max": 38,
+    "gpt-6-luna-1figzl": 38,
     "gpt-5.6terra-high": 34,
+    "gpt-6-sol-b9p1bc": 48,
     "grok-4.5-high": 39,
     "grok-4-6-high-ysqi2d": 44,
     "mimo-v2.5": 22,
+    "mimo-v2.6-flash": 38,
+    "mimo-2-6-pro-4ocw6x": 46,
     "glm-5-3-flash-max-euw2qw": 42,
     "claude-sonnet-4.5": 21,
     "composer-2.5": 26,
     "deepseek-v4-1-flash-inferx": 40,
   };
-  var AGENT_AA_INDEX_BY_NAME = {
-    "muse spark 1.3": 45,
-    "muse spark 1.2": 40,
-    "gemini 3.8 flash": 41,
-    "gemini 3.8 flash high": 41,
-    "gemini 3.6 flash": 34,
-    "gemini 3.6 flash high": 34,
-    "gpt 5.6 luna": 38,
-    "gpt 5.6 luna max": 38,
-    "gpt 5.6 terra": 34,
-    "gpt 5.6 terra high": 34,
-    "grok 4.5": 39,
-    "grok 4.5 high": 39,
-    "grok 4.6": 44,
-    "grok 4.6 high": 44,
-    "mimo v2.5": 22,
-    "glm 5.3 flash": 42,
-    "glm 5.3 flash max": 42,
-    "claude sonnet 4.5": 21,
-    "composer 2.5": 26,
-    "deepseek v4.1 flash": 40,
-  };
-
-  function normalizeCostName(name) {
-    return String(name || "")
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim();
-  }
 
   function lookupAgentCostUsd(agent) {
     if (!agent) return null;
     var id = String(agent.id || "").trim();
     if (id && Object.prototype.hasOwnProperty.call(AGENT_COST_USD_BY_ID, id)) {
       return AGENT_COST_USD_BY_ID[id];
-    }
-    var key = normalizeCostName(agent.name || "");
-    if (key && Object.prototype.hasOwnProperty.call(AGENT_COST_USD_BY_NAME, key)) {
-      return AGENT_COST_USD_BY_NAME[key];
     }
     return null;
   }
@@ -325,10 +286,6 @@
     var id = String(agent.id || "").trim();
     if (id && Object.prototype.hasOwnProperty.call(AGENT_AA_INDEX_BY_ID, id)) {
       return AGENT_AA_INDEX_BY_ID[id];
-    }
-    var key = normalizeCostName(agent.name || "");
-    if (key && Object.prototype.hasOwnProperty.call(AGENT_AA_INDEX_BY_NAME, key)) {
-      return AGENT_AA_INDEX_BY_NAME[key];
     }
     return null;
   }
@@ -849,12 +806,51 @@
     var sortKey = state.key || "elo";
     var sortDir = state.dir;
     var cache = [];
+    var HOME_PREVIEW_ROWS = 15;
+    var previewExpanded = false;
+    var moreBtn = null;
+    if (homeBenchmark) {
+      moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "benchmark-more";
+      moreBtn.hidden = true;
+      moreBtn.setAttribute("aria-expanded", "false");
+      moreBtn.addEventListener("click", function () {
+        previewExpanded = !previewExpanded;
+        paint();
+      });
+      var metaEl = container.querySelector("[data-snapshot-meta]");
+      if (metaEl && metaEl.parentNode) {
+        metaEl.parentNode.insertBefore(moreBtn, metaEl);
+      } else {
+        container.appendChild(moreBtn);
+      }
+    }
+
+    function rowLimit() {
+      if (homeBenchmark && !previewExpanded) return HOME_PREVIEW_ROWS;
+      return limit;
+    }
+
+    function syncMoreButton() {
+      if (!moreBtn) return;
+      var count = cache.length;
+      if (count <= HOME_PREVIEW_ROWS) {
+        moreBtn.hidden = true;
+        return;
+      }
+      moreBtn.hidden = false;
+      moreBtn.setAttribute("aria-expanded", previewExpanded ? "true" : "false");
+      moreBtn.textContent = previewExpanded
+        ? "Show first 15"
+        : "Show all (" + count + ")";
+    }
 
     function paint() {
       if (!tbody) return;
       tbody.innerHTML = renderLeaderboardRows(
         cache,
-        limit,
+        rowLimit(),
         fullColumns,
         showModelId,
         unified,
@@ -863,6 +859,7 @@
         sortDir
       );
       if (ts) ts.paintHeaders(table, sortKey, sortDir);
+      syncMoreButton();
     }
 
     if (table && ts && !table._cvhSortBound) {

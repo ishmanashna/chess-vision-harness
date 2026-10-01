@@ -28,7 +28,7 @@
     },
     {
       "id": "mimo-v2.5",
-      "name": "MiMo V2.5",
+      "name": "MiMo 2.5",
       "attempts": 9,
       "full": 7,
       "mean_accuracy": 0.9907,
@@ -44,7 +44,7 @@
     },
     {
       "id": "jev-latest",
-      "name": "Jev (TypeSafe)",
+      "name": "Jev",
       "attempts": 10,
       "full": 0,
       "mean_accuracy": 0.444,

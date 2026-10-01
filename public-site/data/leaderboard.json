@@ -3,7 +3,7 @@
   "agents": [
     {
       "id": "deepseek-v4-1-flash-inferx",
-      "name": "DeepSeek V4.1 Flash",
+      "name": "DeepSeek 4.1 Flash",
       "elo": 748,
       "games": 17,
       "provisional": true,
@@ -60,7 +60,7 @@
     },
     {
       "id": "gpt5.6-luna-max",
-      "name": "GPT 5.6 Luna",
+      "name": "GPT-5.6 Luna",
       "elo": 545,
       "games": 7,
       "provisional": true,
@@ -117,7 +117,7 @@
     },
     {
       "id": "mimo-v2.5",
-      "name": "MiMo V2.5",
+      "name": "MiMo 2.5",
       "elo": 517,
       "games": 3,
       "provisional": true,
@@ -155,7 +155,7 @@
     },
     {
       "id": "gpt-5.6terra-high",
-      "name": "GPT 5.6 Terra",
+      "name": "GPT-5.6 Terra",
       "elo": 500,
       "games": 1,
       "provisional": true,
@@ -231,7 +231,7 @@
     },
     {
       "id": "jev-latest",
-      "name": "Jev (TypeSafe)",
+      "name": "Jev",
       "elo": 402,
       "games": 16,
       "provisional": true,

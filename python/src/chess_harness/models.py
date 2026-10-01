@@ -42,6 +42,14 @@ MODEL_ALIASES: Dict[str, str] = {
     "Composer 2.5": "composer-2.5",
     "composer 2.5": "composer-2.5",
     "mimo-v2.5": "mimo-v2.5",
+    # Previous display names, so stored labels still resolve after the rename.
+    "MiMo V2.5": "mimo-v2.5",
+    "MiMo V2.6 Flash": "mimo-v2.6-flash",
+    "DeepSeek V4.1 Flash": "deepseek-v4-1-flash-inferx",
+    "GPT 5.6 Terra": "gpt-5.6terra-high",
+    "GPT 5.6 Luna": "gpt5.6-luna-max",
+    "GPT-6 SOL": "gpt-6-sol-b9p1bc",
+    "Jev (TypeSafe)": "jev-latest",
 }
 
 

@@ -13,7 +13,7 @@
     },
     {
       "id": "deepseek-v4-1-flash-inferx",
-      "name": "DeepSeek V4.1 Flash",
+      "name": "DeepSeek 4.1 Flash",
       "rating": 1215.0,
       "deviation": 149.4,
       "attempts": 5,
@@ -31,7 +31,7 @@
     },
     {
       "id": "mimo-v2.5",
-      "name": "MiMo V2.5",
+      "name": "MiMo 2.5",
       "rating": 885.2,
       "deviation": 231.4,
       "attempts": 2,
@@ -58,7 +58,7 @@
     },
     {
       "id": "jev-latest",
-      "name": "Jev (TypeSafe)",
+      "name": "Jev",
       "rating": 451.0,
       "deviation": 147.2,
       "attempts": 10,
