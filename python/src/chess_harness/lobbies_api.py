@@ -45,7 +45,9 @@ def _model_meta(model_id: str) -> tuple[str, int]:
     if model is None:
         raise ValueError(f"Model '{model_id}' is not inscribed")
     name = str(model.get("name", model_id))
-    elo = int(round(float(model.get("elo", 500))))
+    from .opponents import pairing_strength_for_model
+
+    elo = int(round(pairing_strength_for_model(model_id)))
     return name, elo
 
 

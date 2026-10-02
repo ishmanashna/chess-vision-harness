@@ -9,9 +9,9 @@
     "uci_harness": "UCI engine + play harness (depth, movetime, noise) \u2014 calibrate effective ELO"
   },
   "matching": {
-    "sigma_elo": 400,
+    "sigma_elo": 700,
     "min_weight": 0.01,
-    "max_delta_elo": 600
+    "max_delta_elo": 1200
   },
   "opponents": [
     {

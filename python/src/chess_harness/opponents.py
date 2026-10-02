@@ -26,6 +26,49 @@ def stockfish_skill_to_elo(skill: int) -> int:
     return round(STOCKFISH_ELO_MIN + skill * (STOCKFISH_ELO_MAX - STOCKFISH_ELO_MIN) / STOCKFISH_SKILL_MAX)
 
 
+DEFAULT_PAIRING_STRENGTH = 1000.0
+
+
+def engine_pairing_strengths() -> Dict[str, float]:
+    """Engine id -> Performance. Missing file or rating means the caller uses 1000."""
+    from .play_rating import engine_quality_summary_path
+
+    path = engine_quality_summary_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: Dict[str, float] = {}
+    for row in data.get("engines") or []:
+        eid = row.get("engine_id")
+        rating = row.get("mean_play_rating")
+        if eid and rating is not None:
+            out[str(eid)] = float(rating)
+    return out
+
+
+def pairing_strength_for_opponent(opp, strengths: Optional[Dict[str, float]] = None) -> float:
+    table = engine_pairing_strengths() if strengths is None else strengths
+    rating = table.get(opp.id)
+    if rating is None:
+        return DEFAULT_PAIRING_STRENGTH
+    return float(rating)
+
+
+def pairing_strength_for_model(model_id: str) -> float:
+    """Agent Performance from finished games. No accuracy yet -> 1000."""
+    from .results import ResultsStore
+
+    try:
+        info = ResultsStore().aggregate_quality_by_model().get(model_id) or {}
+    except Exception:
+        return DEFAULT_PAIRING_STRENGTH
+    rating = info.get("mean_play_rating")
+    if rating is None:
+        return DEFAULT_PAIRING_STRENGTH
+    return float(rating)
+
+
 LaunchCommand = Union[str, List[str]]
 
 
@@ -165,31 +208,30 @@ class OpponentCatalog:
         sigma_elo: Optional[float] = None,
         min_weight: Optional[float] = None,
         max_delta_elo: Optional[float] = None,
+        strength_by_id: Optional[Dict[str, float]] = None,
     ) -> Opponent:
-        """Pick opponent weighted toward similar ELO (always, not just early games).
+        """Pick an engine weighted toward similar Performance, not ladder Elo.
 
+        ``agent_elo`` is the agent's Performance (1000 when it has none).
         Opponents farther than ``max_delta_elo`` get zero weight. If none remain
         in-band, fall back to the nearest eligible opponents only.
         """
         if not self.opponents:
             raise ValueError("Opponent catalog is empty")
 
-        from .calibration_view import ladder_elo_for_opponent, merge_calibration_ratings
-
-        sigma = float(sigma_elo if sigma_elo is not None else self.matching.get("sigma_elo", 150))
+        strengths = engine_pairing_strengths() if strength_by_id is None else strength_by_id
+        sigma = float(sigma_elo if sigma_elo is not None else self.matching.get("sigma_elo", 700))
         floor_w = float(
             min_weight if min_weight is not None else self.matching.get("min_weight", 0.05)
         )
         max_delta = max_delta_elo
         if max_delta is None and "max_delta_elo" in self.matching:
             max_delta = float(self.matching["max_delta_elo"])
-        calibration = merge_calibration_ratings()
-
         eligible: List[tuple[Opponent, float]] = []
         for opp in self.opponents:
             if not self.is_eligible(opp):
                 continue
-            delta = abs(ladder_elo_for_opponent(opp, calibration) - agent_elo)
+            delta = abs(pairing_strength_for_opponent(opp, strengths) - agent_elo)
             eligible.append((opp, delta))
 
         if not eligible:
@@ -197,7 +239,7 @@ class OpponentCatalog:
             if not playable:
                 raise RuntimeError("No playable opponents in catalog")
             eligible = [
-                (opp, abs(ladder_elo_for_opponent(opp, calibration) - agent_elo))
+                (opp, abs(pairing_strength_for_opponent(opp, strengths) - agent_elo))
                 for opp in playable
             ]
 
@@ -233,9 +275,9 @@ class OpponentCatalog:
         self,
         opponent_id: Optional[str] = None,
         skill: Optional[int] = None,
-        agent_elo: float = 500,
+        agent_elo: float = 1000,
     ) -> str:
-        """Resolve explicit opponent, legacy skill int, or ELO-weighted default."""
+        """Resolve explicit opponent, legacy skill int, or Performance-weighted default."""
         if opponent_id:
             opp = self.get(opponent_id)
             if not opp.enabled:

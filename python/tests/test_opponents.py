@@ -19,22 +19,23 @@ def test_catalog_loads():
 
 def test_select_by_elo_prefers_similar_rating():
     catalog = get_catalog()
-    opp = catalog.get(LOW_OPPONENT)
-    target = ladder_elo_for_opponent(opp)
-    picks = [catalog.select_by_elo(target).id for _ in range(50)]
+    strengths = {o.id: 2400.0 for o in catalog.opponents}
+    strengths[LOW_OPPONENT] = 1000.0
+    picks = [catalog.select_by_elo(1000, strength_by_id=strengths).id for _ in range(40)]
     assert LOW_OPPONENT in picks
 
 
 def test_select_by_elo_excludes_far_anchors():
-    """Low agents must not draw 3000+ Stockfish via the soft weight floor."""
+    """A 1000-strength agent must not draw engines whose performance is far above."""
     catalog = get_catalog()
-    picks = [catalog.select_by_elo(292).id for _ in range(80)]
-    far = []
-    for oid in picks:
-        opp = catalog.get(oid)
-        elo = ladder_elo_for_opponent(opp)
-        if elo >= 2500:
-            far.append((oid, elo))
+    strengths = {o.id: 1000.0 for o in catalog.opponents}
+    far_ids = set()
+    for opp in catalog.opponents:
+        if opp.elo >= 2500:
+            strengths[opp.id] = 2800.0
+            far_ids.add(opp.id)
+    picks = [catalog.select_by_elo(1000, strength_by_id=strengths).id for _ in range(40)]
+    far = [oid for oid in picks if oid in far_ids]
     assert not far, f"unexpected far pairings: {far[:5]}"
 
 

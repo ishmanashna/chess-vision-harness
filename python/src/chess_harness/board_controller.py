@@ -167,7 +167,9 @@ class BoardController:
         skill: Optional[int] = None,
     ) -> Opponent:
         catalog = get_catalog()
-        agent_elo = self.elo.get_rating(model_id)
+        from .opponents import pairing_strength_for_model
+
+        agent_elo = pairing_strength_for_model(model_id)
         if opponent_id is not None:
             oid = catalog.resolve_opponent_id(opponent_id=opponent_id, agent_elo=agent_elo)
         elif skill is not None:

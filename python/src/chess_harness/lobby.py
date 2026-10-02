@@ -17,7 +17,7 @@ from .paths import resolve_base_dir
 
 __all__ = ["LobbyStore", "ELO_BAND", "LOBBY_TTL_SEC", "assign_colors"]
 
-ELO_BAND = 600
+ELO_BAND = 1200
 LOBBY_TTL_SEC = 1800  # align with idle timeout default
 _LOCK_TIMEOUT = 30
 
@@ -158,7 +158,7 @@ class LobbyStore:
     def find_matchable(
         self, joiner_model_id: str, joiner_elo: int
     ) -> Optional[Dict[str, Any]]:
-        """Oldest waiting lobby within Elo band, not hosted by joiner."""
+        """Oldest waiting lobby within the strength band, not hosted by joiner."""
         with self._store_lock():
             self._data = self._load()
             self._prune_stale_unlocked()

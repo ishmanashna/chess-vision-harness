@@ -219,8 +219,9 @@ def _append_message(
 def _shared_opponent_id(model_id: str, opponent: Optional[str]) -> str:
     if opponent is not None:
         return opponent
-    agent_elo = ELOLadder().get_rating(model_id)
-    return get_catalog().select_by_elo(agent_elo).id
+    from .opponents import pairing_strength_for_model
+
+    return get_catalog().select_by_elo(pairing_strength_for_model(model_id)).id
 
 
 def cmd_prompt_test_thread(game_id: str) -> Dict[str, Any]:
