@@ -59,3 +59,17 @@ def test_opponent_elo_from_result_uses_calibrated_ladder():
     calibrated = ladder_elo_for_opponent(opp)
     resolved = opponent_elo_from_result({"opponent_id": LOW_OPPONENT}, catalog)
     assert resolved == calibrated
+
+
+def test_pairing_strength_for_model_uses_mean_play_rating(monkeypatch):
+    """Performance lookup must use ResultsManager, not a missing ResultsStore."""
+    from chess_harness import results as results_mod
+    from chess_harness.opponents import DEFAULT_PAIRING_STRENGTH, pairing_strength_for_model
+
+    class _FakeResults:
+        def aggregate_quality_by_model(self):
+            return {"agent-a": {"mean_play_rating": 1540}}
+
+    monkeypatch.setattr(results_mod, "ResultsManager", _FakeResults)
+    assert pairing_strength_for_model("agent-a") == 1540.0
+    assert pairing_strength_for_model("nobody") == DEFAULT_PAIRING_STRENGTH

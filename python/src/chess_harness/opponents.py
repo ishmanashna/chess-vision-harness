@@ -57,10 +57,10 @@ def pairing_strength_for_opponent(opp, strengths: Optional[Dict[str, float]] = N
 
 def pairing_strength_for_model(model_id: str) -> float:
     """Agent Performance from finished games. No accuracy yet -> 1000."""
-    from .results import ResultsStore
+    from .results import ResultsManager
 
     try:
-        info = ResultsStore().aggregate_quality_by_model().get(model_id) or {}
+        info = ResultsManager().aggregate_quality_by_model().get(model_id) or {}
     except Exception:
         return DEFAULT_PAIRING_STRENGTH
     rating = info.get("mean_play_rating")
