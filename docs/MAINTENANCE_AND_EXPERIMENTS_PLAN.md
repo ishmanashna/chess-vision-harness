@@ -240,6 +240,7 @@ normal Ops refresh. The shared operation card stays visible across sections.
 
 Status: implemented and verified in an isolated finished-game preview, 2026-10-13.
 The localhost backend restart remains pending under the existing approval-review block.
+Public frontend deployment succeeded: GitHub Actions run 38434166644 (4575101).
 
 
 Dependency boundary: implement versioned annotation storage and a bounded finished-game
