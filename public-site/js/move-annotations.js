@@ -1,4 +1,4 @@
-/* Saved finished-game analysis. Never exposes candidate moves or lines. */
+/* Saved finished-game analysis; alternatives are shown only after the game. */
 const labels = {good: "Good", great: "Great move", brilliant: "Brilliant move", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder"};
 const symbols = {great: "!", brilliant: "!!", inaccuracy: "?!", mistake: "?", blunder: "??"};
 const escape = (text) => String(text).replace(/[&<>"']/g, (c) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
@@ -48,7 +48,11 @@ export function badgeHtml(row) {
   const passes = row.exceptional && row.exceptional.passes || [];
   const verification = passes.length ? ". Verified depths: " + passes.map(pass => pass.depth).join(" / ") : "";
   const discovery = row.exceptional && row.exceptional.discovery;
-  const discovered = discovery && discovery.discovered_depth ? ". Deeper search discovery at depth " + discovery.discovered_depth : "";
+  const discovered = discovery && discovery.discovered_depth
+    ? discovery.root_changed === false
+      ? ". Evaluation clarified through depth " + discovery.stable_through_depth
+      : ". Deeper search discovery at depth " + discovery.discovered_depth
+    : "";
   const positive = row.label === "great" || row.label === "brilliant";
   const preference = row.best_move_san ? ". Best move: " + row.best_move_san : ". Best move not saved yet";
   const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + (positive ? verification + discovered : preference);

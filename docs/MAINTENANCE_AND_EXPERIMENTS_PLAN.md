@@ -578,6 +578,49 @@ Done when:
   one manual restart: automatic approval review had rejected the agent restarting the
   live server. The prior manually started process predates these backend changes.
 
+### Replay layout, model metadata, and annotation audit (policy v4)
+
+- Published `04d1bfa` and `1d8f7d2`: smaller shared header spacing, a larger
+  centered replay board, matching move-panel height, and fixed dark-mode evaluation
+  colors (black above white). Responsive checks cover desktop and narrow screens.
+- Home puts the token joke first, merges the benchmark explanation, removes the
+  obsolete Playground reference and trims the rating discussion. Benchmark freshness
+  is now heading hover text. Historical model display names omit reasoning effort;
+  stored identities and ratings remain intact.
+- GPT-6.1 Sol uses AA index 52 and the existing estimated cost convention ($0.89
+  per typical game), not metered billing. Sources:
+  https://artificialanalysis.ai/models/releases/gpt-6-1-sol/ and
+  https://developers.openai.com/api/docs/models/gpt-6.1-sol .
+- Policy v4 supersedes the preceding v3 refresh rules: all moves, including old
+  positive labels, are reverified. Verification gets 0.35/1.0 seconds with target
+  depths 18/22 and minimum completed depths 14/18. Cold depth-4 discovery traces
+  can identify stable later choices or substantial deeper value refinement.
+  Quiet exceptional moves need no sacrifice. Routine captures need a genuinely
+  changed, later engine choice; simply taking a hung piece is insufficient.
+  Material disposal that merely preserves an already drawn position is rejected.
+- An 811-position pilot included every old positive plus sampled quiet moves and
+  captures. It exposed many old critical-gap capture false positives, including
+  11...dxe4 in `game-5c-eqcCF2tSm_lDiSlPxlw`. Desired 2x/4x positive counts are
+  diagnostic goals, never quotas. Reviewed evidence takes precedence over counts.
+- Negative annotation hover text uses the engine's preferred SAN move instead of
+  percentage loss. When deeper verification prefers the played move, a conflicting
+  shallow error label is suppressed; its original score and label remain recorded.
+  Neither this nor positive-label refresh changes Accuracy, Performance or Elo.
+- The cited game's final zero score is reproducible with full move history:
+  White could claim a threefold draw but resigned instead. Display a contextual
+  `=` with that explanation rather than a misleading winning-side `??`. Preserve
+  the engine score and the actual result. Apply the same history-based rule to
+  future analysis and historical refreshes; never replace a real draw score merely
+  because the game ended with a decisive result.
+- Full refresh launched for all 686 games, prioritizing the cited game and the two
+  GPT-6.1 Sol games. Runtime progress and backups follow the existing backfill
+  contract. The stronger authoritative evaluation and Performance-map migration
+  remain Batch 8 work.
+- Validation: 63 targeted Python tests passed, one environment-specific test skipped;
+  eight annotation UI tests and seven Home benchmark tests passed. Both public-site
+  deployment runs succeeded. New best-move and terminal-context API fields still
+  need one manual activation restart under the existing approval-review block.
+
 ## Delivery rules
 
 - Implement one batch at a time; split a batch further if it cannot be reviewed cleanly.

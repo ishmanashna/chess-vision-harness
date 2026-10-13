@@ -57,6 +57,12 @@ test("an unclaimed draw after resignation uses contextual equality rather than a
   assert.doesNotMatch(badge, />\?\?</);
 });
 
+test("value refinement is distinguished from discovering a different best move", () => {
+  const positive = {...row,label:"brilliant",exceptional:{passes:[{depth:18},{depth:22}],discovery:{root_changed:false,discovered_depth:1,stable_through_depth:18}}};
+  assert.match(badgeHtml(positive), /Evaluation clarified through depth 18/);
+  assert.doesNotMatch(badgeHtml(positive), /Best move:|discovery at depth 1/);
+});
+
 test("a hung analysis response body times out and aborts", async () => {
   let signal;
   await assert.rejects(fetchSavedAnalysis("/annotations", 15, async (_url, options) => {

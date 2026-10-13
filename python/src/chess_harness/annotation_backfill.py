@@ -61,7 +61,7 @@ def pgn_from_state(state):
 
 
 def refresh_labels(state, artifact):
-    """Reuse saved evals; screen discounted moves for deeper discoveries."""
+    """Reuse saved evals and reverify every move, including prior positives."""
     from .engine import EvalEngineAdapter
     from .exceptional_moves import PROFILE, classify_exceptional
     engine = None
