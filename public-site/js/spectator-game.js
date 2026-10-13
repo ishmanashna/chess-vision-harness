@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=5";
+import { annotationAt, badgeHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=6";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -38,6 +38,16 @@ function abbreviateName(value) {
     return window.CVH.abbreviateListName(value);
   }
   return String(value || "");
+}
+
+function normalizeGameText(value, state) {
+  let text = String(value || "");
+  const normalize = window.CVH && window.CVH.normalizeModelDisplayName;
+  if (!normalize) return text;
+  [state.model_display_name, state.white_display_name, state.black_display_name].filter(Boolean).forEach(name => {
+    text = text.split(name).join(normalize(name));
+  });
+  return text;
 }
 
 function syncHeights() {
@@ -136,8 +146,7 @@ async function main() {
       row.className = "spec-chat-msg is-" + kind;
       const who = document.createElement("span");
       who.className = "spec-chat-who";
-      who.textContent =
-        msg.from_label || (kind === "agent" ? "Agent" : "Human");
+      who.textContent = kind === "agent" ? abbreviateName(msg.from_label || "Agent") : (msg.from_label || "Human");
       const text = document.createElement("span");
       text.className = "spec-chat-text";
       text.textContent = msg.text || "";
@@ -326,32 +335,27 @@ async function main() {
     if (eloLabel) eloLabel.hidden = !showElo;
     if (eloEl) eloEl.hidden = !showElo;
     if (result) result.textContent = s.game_over ? s.result || "—" : "In progress";
-    if (term) term.textContent = s.end_reason_label || "—";
+    if (term) term.textContent = normalizeGameText(s.end_reason_label || "—", s);
     if (evalEl && showEval) {
       const t = ev && ev.text && ev.text !== "—" ? ev.text : "—";
       evalEl.textContent = t;
     }
-    if (eloEl && showElo) eloEl.textContent = (s.elo_change || "—").replace(/\s*\([+-]\d+\)/g, "");
+    if (eloEl && showElo) eloEl.textContent = normalizeGameText(s.elo_change || "—", s).replace(/\s*\([+-]\d+\)/g, "");
   }
 
   function setLabels(ev, s) {
     const showEval = s.show_eval !== false;
     if (ev && showEval) {
       document.getElementById("lbl-black").textContent = abbreviateName(
-        ev.top_label || ev.black_label || "Black"
+        ev.black_label || ev.top_label || "Black"
       );
       document.getElementById("lbl-white").textContent = abbreviateName(
-        ev.bottom_label || ev.white_label || "White"
+        ev.white_label || ev.bottom_label || "White"
       );
       const bar = document.getElementById("eval-black");
       bar.style.height = ev.black_pct || "50%";
-      if (ev.black_at_bottom) {
-        bar.style.top = "auto";
-        bar.style.bottom = "0";
-      } else {
-        bar.style.top = "0";
-        bar.style.bottom = "auto";
-      }
+      bar.style.top = "0";
+      bar.style.bottom = "auto";
     } else if (s.white_display_name || s.black_display_name) {
       document.getElementById("lbl-black").textContent = abbreviateName(
         s.black_display_name || "Black"
@@ -481,8 +485,13 @@ async function main() {
     if (evalDebounceTimer) { clearTimeout(evalDebounceTimer); evalDebounceTimer = null; }
     const cp = score.mate != null ? (score.winner === "white" ? 10000 : -10000) : score.cp;
     const bar = document.getElementById("eval-black");
-    if (bar) bar.style.height = Math.max(4, Math.min(96, 50 - cp / 25)) + "%";
-    renderGameState(lastState, {text: scoreText(score)});
+    if (bar) {
+      bar.style.height = Math.max(4, Math.min(96, 50 - cp / 25)) + "%";
+      bar.style.top = "0";
+      bar.style.bottom = "auto";
+    }
+    const context = (annotationAt(moveAnalysis, ply) || {}).terminal_context;
+    renderGameState(lastState, {text: scoreText(score) + (context && context.kind === "unclaimed_draw" ? " · draw claim available" : "")});
     return true;
   }
 

@@ -791,7 +791,7 @@
 
 .game-view .eval-track-v {
   width: 18px;
-  background: var(--surface);
+  background: #fff;
   position: relative;
   flex-shrink: 0;
   border: 1px solid var(--border-strong);
@@ -806,8 +806,20 @@
   top: 0;
   left: 0;
   right: 0;
-  background: var(--text);
+  background: #17191d;
   transition: height 0.5s ease;
+}
+
+.game-view .spec-board-wrap {
+  width: min(
+    680px,
+    max(240px, calc(100vh - 260px)),
+    max(240px, calc(100vw - 560px))
+  );
+}
+
+@media (min-width: 1281px) {
+  .game-view .layout { grid-template-columns: minmax(260px, 330px) max-content minmax(260px, 330px); }
 }
 
 .puzzle-view #state-outcome,
@@ -837,10 +849,12 @@
 [data-theme="dark"] .move-quality.is-brilliant { color: #5eead4; }
 .move-quality { display: inline-block; margin-left: .32em; margin-right: .12em; font-size: 1.24em; line-height: 1; font-weight: 900; vertical-align: -.04em; }
 .move-quality.is-good { color: var(--faint); }
-.move-quality.is-inaccuracy { color: #ac7400; }
+.move-quality.is-inaccuracy { color: #6558bd; }
+.move-quality.is-draw-claim { color: #506fa0; }
+[data-theme="dark"] .move-quality.is-draw-claim { color: #9db7e6; }
 .move-quality.is-mistake { color: #c75a16; }
 .move-quality.is-blunder { color: #d04444; }
-[data-theme="dark"] .move-quality.is-inaccuracy { color: #e6bd55; }
+[data-theme="dark"] .move-quality.is-inaccuracy { color: #b5a9ff; }
 [data-theme="dark"] .move-quality.is-mistake { color: #f39d66; }
 [data-theme="dark"] .move-quality.is-blunder { color: #ff9696; }
 
@@ -849,4 +863,5 @@
   .game-view .layout > .col { min-width: 0; }
   .game-view .board-row { width: 100%; }
   .game-view .spec-board-wrap { min-width: 0; }
+  .game-view .spec-board-wrap { width: min(100%, 560px); }
 }

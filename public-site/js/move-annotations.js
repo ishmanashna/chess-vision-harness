@@ -39,12 +39,19 @@ export function scoreText(score) {
 }
 
 export function badgeHtml(row) {
+  if (row && row.terminal_context && row.terminal_context.kind === "unclaimed_draw") {
+    const context = row.terminal_context;
+    const title = "Draw claim available by " + context.reason + ". The opponent resigned instead (" + context.game_result + ")." + (row.best_move_san ? " Best move: " + row.best_move_san + "." : "");
+    return '<span class="move-quality is-draw-claim" aria-label="Draw claim available" title="' + escape(title) + '">=</span>';
+  }
   if (!row || !symbols[row.label]) return "";
   const passes = row.exceptional && row.exceptional.passes || [];
   const verification = passes.length ? ". Verified depths: " + passes.map(pass => pass.depth).join(" / ") : "";
   const discovery = row.exceptional && row.exceptional.discovery;
   const discovered = discovery && discovery.discovered_depth ? ". Deeper search discovery at depth " + discovery.discovered_depth : "";
-  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points" + verification + discovered;
+  const positive = row.label === "great" || row.label === "brilliant";
+  const preference = row.best_move_san ? ". Best move: " + row.best_move_san : ". Best move not saved yet";
+  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + (positive ? verification + discovered : preference);
   return '<span class="move-quality is-' + row.label + '" aria-label="' + labels[row.label] + '" title="' + escape(title) + '">' + symbols[row.label] + '</span>';
 }
 

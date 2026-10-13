@@ -26,7 +26,7 @@ function mount({ home = true, saved, live, rows = agents, inline = true, fail = 
   const heading = { appendChild(btn) { this.button = btn; } };
   const root = {
     hasAttribute: (key) => key === "data-leaderboard-full" || (home && key === "data-show-home-benchmark"),
-    querySelector: (sel) => ({ table, tbody, "[data-snapshot-meta]": meta, "[data-benchmark-heading]": heading })[sel],
+    querySelector: (sel) => ({ table, tbody, "[data-snapshot-meta]": meta, "[data-benchmark-heading]": heading, "[data-benchmark-heading] h2": heading })[sel],
   };
   const ctx = {
     window: {
@@ -106,7 +106,8 @@ test("live upgrade keeps Performance order and eight-cell Home rendering", async
   const view = mount({ live: [{ id: "new", name: "New live agent", elo: 543, mean_play_rating: 2345 }] });
   await flush();
   assert.deepEqual(names(view), ["New live agent"]);
-  assert.match(view.meta.textContent, /Live ladder/);
+  assert.match(view.heading.title, /Live ladder/);
+  assert.equal(view.meta.textContent, "");
   assert.doesNotMatch(view.tbody.innerHTML, /543/);
 });
 

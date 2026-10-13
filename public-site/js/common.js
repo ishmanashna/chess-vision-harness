@@ -211,7 +211,7 @@
 
 
   var COST_PER_GAME_TIP =
-    "Widely / very loosely estimated API dollars for one typical harness chess game (~50 ply). Does not account for subscriptions or included token pools. Experimental approximation from Composer token mix + AA suite-output scaling + public list prices — not a provider invoice.";
+    "Rough estimated API dollars for one typical harness chess game (~50 ply), using public list prices and an assumed token mix. Not metered usage or a provider invoice; excludes subscriptions and included token pools.";
 
   var AA_INDEX_TIP =
     "Artificial Analysis Intelligence Index (live artificialanalysis.ai, highest reasoning effort). Composer 2.5 set equal to GLM 5.1 by assumption.";
@@ -231,6 +231,12 @@
     "gpt-6-luna-1figzl": 0.08,
     "gpt-5.6terra-high": 1.12,
     "gpt-6-sol-b9p1bc": 1.31,
+    // Estimated with the same fixed token footprint as other entries. AA lists
+    // 67M output tokens for GPT-6.1 Sol (Max): $0.37 cached input + $0.164
+    // input + ($0.64 * 67M / 120M) output = $0.89 at OpenAI standard prices.
+    // Sources: https://artificialanalysis.ai/models/releases/gpt-6-1-sol/
+    // and https://developers.openai.com/api/docs/models/gpt-6.1-sol
+    "gpt-6-1-sol-4otlbn": 0.89,
     "grok-4.5-high": 1.52,
     "grok-4-6-high-ysqi2d": 2.31,
     "gemini-3.6-flash-high": 0.8,
@@ -254,6 +260,10 @@
     "gpt-6-luna-1figzl": 38,
     "gpt-5.6terra-high": 34,
     "gpt-6-sol-b9p1bc": 48,
+    // Highest published reasoning effort, matching this map's convention.
+    // Registry currently has no effort metadata for this model ID.
+    // Source: https://artificialanalysis.ai/models/releases/gpt-6-1-sol/
+    "gpt-6-1-sol-4otlbn": 52,
     "grok-4.5-high": 39,
     "grok-4-6-high-ysqi2d": 44,
     "mimo-v2.5": 22,
@@ -318,7 +328,7 @@
   function normalizeAgentRow(agent) {
     return {
       id: agent.id || "",
-      name: agent.name || agent.id || "—",
+      name: normalizeModelDisplayName(agent.name || agent.id || "—", agent.id),
       elo: agent.elo,
       mean_accuracy: agent.mean_accuracy,
       mean_play_rating: agent.mean_play_rating,
@@ -892,6 +902,16 @@
     }
 
     function updateLeaderboardMeta(data) {
+      if (homeBenchmark) {
+        var heading = container.querySelector("[data-benchmark-heading] h2");
+        if (heading) {
+          var homeWhen = formatGeneratedAt(data.generated_at);
+          heading.title = data.live
+            ? (homeWhen ? "Live ladder · updated " + homeWhen + "." : "Live ladder.")
+            : (homeWhen ? "Benchmark snapshot from " + homeWhen + "." : "Benchmark snapshot.");
+        }
+        return;
+      }
       if (!showMeta) return;
       var meta = container.querySelector("[data-snapshot-meta]");
       if (!meta) return;
@@ -914,6 +934,14 @@
     }
 
     function showLiveUpgradeError() {
+      if (homeBenchmark) {
+        var heading = container.querySelector("[data-benchmark-heading] h2");
+        if (heading) {
+          heading.title =
+            "Live ladder update failed — puzzle and identify cells may be stale. Refresh or try again.";
+        }
+        return;
+      }
       if (!showMeta) return;
       var meta = container.querySelector("[data-snapshot-meta]");
       if (!meta) return;
@@ -1275,7 +1303,49 @@
   }
 
   function nameWithoutElo(value) {
-    return String(value || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+    return normalizeModelDisplayName(
+      String(value || "").replace(/\s*\(\d+\)\s*$/, "").trim()
+    );
+  }
+
+  /** Normalize historical effort-bearing model labels for display only. */
+  function normalizeModelDisplayName(value, modelId) {
+    var raw = String(value || "").trim();
+    if (!raw) return raw;
+
+    var rating = "";
+    var ratingMatch = raw.match(/\s*(\(\s*\d+(?:\.\d+)?\s*\))\s*$/);
+    if (ratingMatch) {
+      rating = ratingMatch[1];
+      raw = raw.slice(0, ratingMatch.index).trim();
+    }
+
+    var byId = {
+      "gemini-3-8-flash-high-v0up9w": "Gemini 3.8 Flash",
+      "gpt5.6-luna-max": "GPT-5.6 Luna",
+      "gpt-6-1-sol-4otlbn": "GPT-6.1 Sol",
+    };
+    var canonical = modelId && byId[String(modelId).trim()];
+    if (!canonical) {
+      var compact = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+      var aliases = {
+        gemini38flashhigh: "Gemini 3.8 Flash",
+        gemini38flash: "Gemini 3.8 Flash",
+        gpt56lunamax: "GPT-5.6 Luna",
+        gpt56luna: "GPT-5.6 Luna",
+        gpt61sol: "GPT-6.1 Sol",
+      };
+      canonical = aliases[compact];
+    }
+
+    if (!canonical && /^(?:gpt|gemini|grok|claude|deepseek|mimo|kimi|muse|composer|qwen|llama|o[134])(?:\b|[-\s\d])/i.test(raw)) {
+      raw = raw
+        .replace(/\s*\(\s*(?:low|medium|high|xhigh|max)\s*\)\s*$/i, "")
+        .replace(/[\s-]+(?:low|medium|high|xhigh|max)\s*$/i, "")
+        .trim();
+    }
+
+    return (canonical || raw) + (rating ? " " + rating : "");
   }
 
   /** Shorten Stockfish catalog tag inside parentheses; leave other tags alone. */
@@ -1294,7 +1364,7 @@
 
   /** Shorten Stockfish catalog labels for lists and /g/; leave agent names alone. */
   function abbreviateListName(value) {
-    var s = nameWithoutElo(value);
+    var s = normalizeModelDisplayName(nameWithoutElo(value));
     var tagged = s.match(/^Stockfish\s+\d+(?:\.\d+)?\s*\((.+)\)$/i);
     if (tagged) return shortenEngineTag(tagged[1]);
     var bare = s.match(/^Stockfish\s+(\d+(?:\.\d+)?)$/i);
@@ -1316,7 +1386,10 @@
     var ref = (stack && stack.offsetHeight) ? stack : wrap;
     if (ref && ref.offsetHeight) {
       var h = ref.offsetHeight + "px";
-      if (movesCol) movesCol.style.maxHeight = h;
+      if (movesCol) {
+        movesCol.style.height = h;
+        movesCol.style.maxHeight = h;
+      }
       if (infoCol) infoCol.style.height = h;
     }
   }
@@ -1348,6 +1421,7 @@
   window.CVH.isProvisional = isProvisional;
   window.CVH.formatAgentNameCell = formatAgentNameCell;
   window.CVH.nameWithoutElo = nameWithoutElo;
+  window.CVH.normalizeModelDisplayName = normalizeModelDisplayName;
   window.CVH.abbreviateListName = abbreviateListName;
   window.CVH.syncWatchHeights = syncWatchHeights;
   window.CVH.showWatchPollError = showWatchPollError;

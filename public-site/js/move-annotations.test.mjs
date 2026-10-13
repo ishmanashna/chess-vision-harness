@@ -4,7 +4,7 @@ import test from "node:test";
 
 const source = fs.readFileSync(new URL("move-annotations.js", import.meta.url), "utf8");
 const {annotationAt, badgeHtml, scoreText, detailText, savedScore, analysisSummary, analysisFailure, fetchSavedAnalysis} = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
-const row = {ply: 1, color: "black", label: "mistake", before: {cp: -20}, after: {cp: 100}, loss_percent: 10.7};
+const row = {ply: 1, color: "black", label: "mistake", before: {cp: -20}, after: {cp: 100}, loss_percent: 10.7, best_move_san:"Nf6"};
 const analysis = {status: "complete", plies: [row], profile: {engine: "Fixture engine", depth: 8}};
 
 test("annotations use exact one-based plies and do not attach unavailable data", () => {
@@ -20,7 +20,8 @@ test("evaluation changes stay White-relative while labels identify the mover", (
   assert.match(detailText(row), /White eval: -0.20 → \+1.00.*Δ \+1.20/);
   assert.match(badgeHtml(row), />\?</);
   assert.match(badgeHtml(row), /aria-label="Mistake"/);
-  assert.match(badgeHtml(row), /10.7 percentage points/);
+  assert.match(badgeHtml(row), /Best move: Nf6/);
+  assert.doesNotMatch(badgeHtml(row), /percentage points/);
 });
 
 test("mate scores preserve winner and do not claim a numeric delta", () => {
@@ -39,7 +40,7 @@ test("labels have text and an explicit unvalidated-budget explanation", () => {
   assert.match(badgeHtml({...row,label:"blunder"}), />\?\?</);
   assert.match(badgeHtml({...row,label:"great"}), />!</);
   assert.match(badgeHtml({...row,label:"brilliant"}), />!!</);
-  assert.match(badgeHtml({...row,loss_percent:'"><script>'}), /&quot;&gt;&lt;script&gt;/);
+  assert.match(badgeHtml({...row,best_move_san:'"><script>'}), /&quot;&gt;&lt;script&gt;/);
 });
 
 test("the move list renders symbols without numeric evaluations", () => {
