@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–3 implemented locally (2026-10-13); Batches 4–7 planned. Batch 3 backend activation pending localhost restart. Not published.
+Status: Batches 1–3 implemented (2026-10-13); Batches 4–7 planned. Public frontend published through 232da64; Batch 3 backend activation still pending localhost restart.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -94,7 +94,9 @@ Verification: 15 targeted Python tests and 22 JavaScript tests passed. Browser c
 at 1768, 1440, 1280, 1024, 768, and 390 CSS pixels covered light/dark themes and
 expansion/collapse. No page-wide horizontal overflow; the table scrolls internally
 when needed. The layout stacks at 1500px and below. Desktop and stacked preview
-screenshots were saved with this chat's artifacts. Public deployment remains pending.
+screenshots were saved with this chat's artifacts. Public deployment succeeded on
+2026-10-13: GitHub Actions run 38403378869 deployed source commit 232da64. Public
+Home was checked in the browser and localhost/tunnel/Pages health probes passed.
 
 ## Batch 2 — Archive inactive experiments and add basic scaffolding
 
@@ -148,6 +150,9 @@ The shared game store, results, ratings, and finished-games SQLite were not move
 Status: implemented and verified in an isolated read-only preview, 2026-10-13.
 Automatic approval review blocked restarting the serving process ("blocked by policy");
 the running server remains unchanged. Restart localhost to activate the new backend.
+The restart was attempted again after Jordi explicitly authorized it on 2026-10-13;
+automatic approval review again returned only "blocked by policy". All four maintenance
+commits were pushed to origin/main and the public frontend deployment succeeded.
 
 Work:
 
