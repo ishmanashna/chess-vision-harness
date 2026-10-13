@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, evaluationHtml, analysisSummary, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=3";
+import { annotationAt, badgeHtml, evaluationHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=4";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -493,8 +493,9 @@ async function main() {
     try {
       moveAnalysis = await fetchSavedAnalysis("/api/games/" + encodeURIComponent(GAME_ID) + "/annotations");
       analysisQualityAt = s.quality_at;
-    } catch (_) {
-      moveAnalysis = {status: "unavailable", reason: "Saved move analysis unavailable"};
+    } catch (error) {
+      moveAnalysis = {status: "unavailable", reason: analysisFailure(error)};
+      analysisQualityAt = s.quality_at;
     } finally {
       analysisLoading = false;
     }

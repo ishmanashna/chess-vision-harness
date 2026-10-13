@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 const source = fs.readFileSync(new URL("move-annotations.js", import.meta.url), "utf8");
-const {annotationAt, badgeHtml, evaluationHtml, scoreText, detailText, savedScore, analysisSummary, fetchSavedAnalysis} = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+const {annotationAt, badgeHtml, evaluationHtml, scoreText, detailText, savedScore, analysisSummary, analysisFailure, fetchSavedAnalysis} = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
 const row = {ply: 1, color: "black", label: "mistake", before: {cp: -20}, after: {cp: 100}, loss_percent: 10.7};
 const analysis = {status: "complete", plies: [row], profile: {engine: "Fixture engine", depth: 8}};
 
@@ -58,5 +58,11 @@ test("a hung analysis response body times out and aborts", async () => {
 });
 
 test("missing analysis is rejected without manufacturing scores", async () => {
-  await assert.rejects(fetchSavedAnalysis("/annotations", 100, async () => ({ok:false})), /unavailable/);
+  await assert.rejects(fetchSavedAnalysis("/annotations", 100, async () => ({ok:false,status:404})), error => {
+    assert.equal(error.status,404);
+    assert.match(analysisFailure(error), /updated game server.*restart/);
+    return true;
+  });
+  assert.match(analysisFailure(new Error("Saved analysis timed out")), /took too long/);
+  assert.match(analysisFailure(new TypeError("Failed to fetch")), /Could not load/);
 });

@@ -11,9 +11,18 @@ export async function fetchSavedAnalysis(url, timeoutMs = 4000, fetcher = fetch)
   });
   try {
     const operation = Promise.resolve().then(() => fetcher(url, {signal: controller.signal, cache: "no-store"}))
-      .then((response) => { if (!response.ok) throw new Error("Saved analysis unavailable"); return response.json(); });
+      .then((response) => {
+        if (!response.ok) throw Object.assign(new Error("Saved analysis HTTP " + response.status), {status: response.status});
+        return response.json();
+      });
     return await Promise.race([operation, deadline]);
   } finally { clearTimeout(timer); }
+}
+
+export function analysisFailure(error) {
+  if (error && error.status === 404) return "Move annotations require an updated game server. The operator needs to restart the server.";
+  if (error && /timed out/i.test(error.message)) return "Saved move analysis took too long to load. Replay is still available; reload to retry.";
+  return "Could not load saved move analysis from the game server. Replay is still available; reload to retry.";
 }
 
 export function annotationAt(analysis, ply) {
