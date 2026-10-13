@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–3 implemented (2026-10-13); Batches 4–7 planned. Public frontend published through 232da64; Batch 3 backend activation still pending localhost restart.
+Status: Batches 1–4 implemented (2026-10-13); Batches 5–7 planned. Public frontend published through 232da64; Batch 3 backend activation still pending localhost restart.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -191,6 +191,10 @@ The A/B UI detects the old running backend and explains the required restart.
 
 ## Batch 4 — Ops health and shared Go Online status
 
+Status: implemented and verified in an isolated read-only preview, 2026-10-13.
+Backend activation still requires the localhost restart already noted in Batch 3.
+
+
 Work:
 
 - Report actual local, tunnel, and Pages health checks with timestamps, timeouts, and
@@ -207,6 +211,29 @@ Done when:
 - Saved stale files cannot produce a healthy tunnel indicator.
 - Validate failure handling with fakes/local fixtures; schedule any live Sleep/recovery
   smoke so it does not interrupt an active game or experiment.
+
+Verification: 42 targeted Python tests and five Ops JavaScript tests passed, along
+with the existing offline GitHub retry regression script. Windows PowerShell and
+Python exercised the same exclusive lock, live desktop record, interrupted operation,
+launcher success and GitHub failure, and persistence across fresh Ops instances.
+No real recovery, Sleep, server restart, or paid provider call was used in validation.
+Health checks cover bounded reads/timeouts, offline payloads, invalid saved URLs,
+stale PIDs, cached/single-flight refresh, and loopback access. Sleep checks verify
+process identity, preserve tracking on a failed stop, and clear stale URL files.
+The Machine preview was checked at 1440px and 390px with no page-wide overflow;
+a screenshot shows a clearly labeled offline desktop failure fixture. Actual localhost
+and public Pages edge-health both reported healthy during read-only checks.
+
+Desktop and panel operations now share logs/go-online-status.json and an OS-held
+logs/go-online.lock; a crashed process releases the lock automatically. The bounded
+log view reads the last 16 KiB / 40 lines of go-online-transcript.log. Operations
+respect CHESS_HARNESS_DIR, and Ops reports runtime/log paths. Actual reachability
+probes have four-second socket timeouts, refresh independently in the background,
+and expose unknown/stale results without blocking the main snapshot. The probe
+identifies itself as ChessVisionHarness-Ops/1.0; the default Python user agent was
+rejected by the public edge during validation. Operational POSTs and status polling
+now use the bounded request helper, and desktop operations are discovered on every
+normal Ops refresh. The shared operation card stays visible across sections.
 
 ## Batch 5 — Spectator move annotations
 

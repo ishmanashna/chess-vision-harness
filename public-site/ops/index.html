@@ -72,6 +72,12 @@
 
         <p class="form-message is-error" data-ops-error hidden></p>
 
+          <article class="card ops-go-online-card" data-ops-go-online-panel hidden>
+            <h3 class="ops-card-title">Go Online</h3>
+            <p class="ops-go-online-phase" data-ops-go-online-phase></p>
+            <pre class="ops-go-online-log" data-ops-go-online-log></pre>
+          </article>
+
         <section class="ops-section" data-ops-section="overview">
           <div class="ops-kpis">
             <article class="card ops-kpi">
@@ -95,11 +101,6 @@
               <div class="ops-kpi-hint" data-kpi-disk-detail></div>
             </article>
           </div>
-          <article class="card ops-go-online-card" data-ops-go-online-panel hidden>
-            <h3 class="ops-card-title">Go Online</h3>
-            <p class="ops-go-online-phase" data-ops-go-online-phase></p>
-            <pre class="ops-go-online-log" data-ops-go-online-log></pre>
-          </article>
           <div class="ops-row two">
             <article class="card">
               <h3 class="ops-card-title">Origin requests (24h)</h3>
@@ -243,8 +244,14 @@
             </article>
             <article class="card ops-machine-card">
               <h3 class="ops-card-title">Health</h3>
-              <p class="ops-machine-line">Local /health <span data-health-local>—</span></p>
-              <p class="ops-machine-line">Tunnel URL file <span data-health-tunnel-file>—</span></p>
+              <p class="ops-machine-line">Local /health <span data-health-local>unknown</span></p>
+              <p class="snapshot-meta" data-health-local-detail></p>
+              <p class="ops-machine-line">Tunnel /health <span data-health-tunnel>unknown</span></p>
+              <p class="snapshot-meta" data-health-tunnel-detail></p>
+              <p class="ops-machine-line">Pages edge health <span data-health-pages>unknown</span></p>
+              <p class="snapshot-meta" data-health-pages-detail></p>
+              <p class="snapshot-meta" data-health-status>Checks load when Machine is opened.</p>
+              <p class="ops-machine-line">Saved tunnel URL <span data-health-tunnel-file>unknown</span></p>
             </article>
           </div>
         </section>
@@ -321,8 +328,8 @@
   </div>
 
   <script src="/js/common.js?v=29"></script>
-  <script src="/js/ops-requests.js?v=1"></script>
+  <script src="/js/ops-requests.js?v=2"></script>
   <script src="/js/ops-experiments.js?v=1"></script>
-  <script src="/js/ops.js?v=4"></script>
+  <script src="/js/ops.js?v=5"></script>
 </body>
 </html>

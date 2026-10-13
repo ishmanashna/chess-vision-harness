@@ -209,6 +209,14 @@ def register_ops_routes(app) -> None:
         )
         return payload
 
+    @router.get("/api/ops/health")
+    async def ops_health(request: Request):
+        _require_loopback(request)
+        from .ops_health import health_snapshot
+        # Port comes from the trusted loopback request; never accept a remote probe target.
+        port = request.url.port or 8765
+        return health_snapshot(resolve_base_dir(), f"http://127.0.0.1:{port}")
+
     @router.get("/api/ops/audience")
     async def ops_audience(request: Request):
         _require_loopback(request)

@@ -71,27 +71,22 @@
     var status = job.status || "idle";
     var showPanel = status === "running" || status === "ok" || status === "fail";
     setHidden("[data-ops-go-online-panel]", !showPanel);
-    setText("[data-ops-go-online-phase]", job.phase || (status === "running" ? "Running…" : ""));
+    setText("[data-ops-go-online-phase]", [job.job_id, job.source, status, job.phase, job.failure_reason, job.updated_at ? fmtTime(job.updated_at) : ""].filter(Boolean).join(" - "));
     var logEl = root() && root().querySelector("[data-ops-go-online-log]");
     if (logEl) {
       var tail = job.log_tail || [];
       logEl.textContent = tail.length ? tail.join("\n") : "";
     }
     setDisabled("[data-ops-go-online]", status === "running");
+    setDisabled("[data-ops-sleep-public]", status === "running");
     if (status === "ok" && window.CVH && typeof window.CVH.checkEdgeHealth === "function") {
       window.CVH.checkEdgeHealth({ force: true });
     }
   }
 
   function pollGoOnlineJob() {
-    return fetch("/api/ops/go-online", {
-      headers: LOOPBACK_HEADERS,
-      cache: "no-store",
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error("Go Online status HTTP " + res.status);
-        return res.json();
-      })
+    if (document.hidden) return Promise.resolve();
+    return window.CVH.opsRequest("go-online-status", "/api/ops/go-online")
       .then(function (job) {
         renderGoOnlineJob(job);
         if (job.status === "running") {
@@ -119,19 +114,7 @@
   function startGoOnlineJob() {
     setDisabled("[data-ops-go-online]", true);
     showError("");
-    fetch("/api/ops/go-online", {
-      method: "POST",
-      headers: LOOPBACK_HEADERS,
-    })
-      .then(function (res) {
-        if (res.status === 409) {
-          return res.json().then(function (body) {
-            throw new Error((body && body.detail) || "Go Online already running");
-          });
-        }
-        if (!res.ok) throw new Error("Go Online HTTP " + res.status);
-        return res.json();
-      })
+    window.CVH.opsRequest("go-online-start", "/api/ops/go-online", 12000, { method: "POST" })
       .then(function () {
         setHidden("[data-ops-go-online-panel]", false);
         return pollGoOnlineJob();
@@ -144,14 +127,7 @@
 
   function sleepPublic() {
     showError("");
-    fetch("/api/ops/sleep-public", {
-      method: "POST",
-      headers: LOOPBACK_HEADERS,
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error("Sleep public HTTP " + res.status);
-        return res.json();
-      })
+    window.CVH.opsRequest("sleep-public", "/api/ops/sleep-public", 12000, { method: "POST" })
       .then(function () {
         if (window.CVH && typeof window.CVH.checkEdgeHealth === "function") {
           window.CVH.checkEdgeHealth({ force: true });
@@ -538,7 +514,7 @@
     renderMetrics(metrics);
 
     setText("[data-machine-serve]", health.ok ? "up" : "down");
-    setText("[data-machine-tunnel]", tunnel.pid ? "pid " + tunnel.pid : "none");
+
     setText("[data-machine-tunnel-url]", tunnel.url || "No quick-tunnel.url yet");
     setText("[data-machine-harness-size]", fmtBytes(harness.size_bytes));
     setText("[data-machine-harness-path]", harness.path || "");
@@ -561,9 +537,7 @@
       bar.style.width = usedPct + "%";
     }
     setText("[data-harness-size]", fmtBytes(harness.size_bytes));
-    setText("[data-health-local]", health.ok ? "ok" : "fail");
     setText("[data-health-tunnel-file]", tunnel.url ? "set" : "empty");
-    setText("[data-tunnel-status]", tunnel.pid ? "tracked" : "none");
 
     var serveChip = root() && root().querySelector("[data-ops-serve-chip]");
     if (serveChip) {
@@ -584,6 +558,24 @@
       showError("");
       applySnapshot(data);
     }, function (err) { showError("Snapshot: " + err.message); });
+    pollGoOnlineJob();
+    if (activeTab === "machine") {
+      refreshSection("health", "/api/ops/health", function (data) {
+        ["local", "tunnel", "pages"].forEach(function (key) {
+          var check = data[key] || {};
+          setText("[data-health-" + key + "]", (data.stale ? "stale / " : "") + (check.state || "unknown"));
+          setText("[data-health-" + key + "-detail]", [check.url, check.checked_at ? fmtTime(check.checked_at) : "Not checked yet", check.reason, check.timeout_seconds ? "Timeout " + check.timeout_seconds + "s" : ""].filter(Boolean).join("  -  "));
+        });
+        setText("[data-tunnel-status]", data.process ? (data.stale ? "stale / " : "") + data.process.state + " (PID " + (data.process.pid || "none") + ")" : "unknown");
+        setText("[data-machine-tunnel]", data.process ? (data.stale ? "stale / " : "") + data.process.state : "unknown");
+        setText("[data-health-status]", (data.refreshing ? "Checks refreshing. " : "") + "Runtime: " + data.runtime_dir + "  -  Logs: " + data.logs_dir);
+      }, function (err) {
+        ["local", "tunnel", "pages"].forEach(function (key) { setText("[data-health-" + key + "]", "unknown / stale"); });
+        setText("[data-tunnel-status]", "unknown / stale");
+        setText("[data-machine-tunnel]", "unknown / stale");
+        setText("[data-health-status]", "Health checks unavailable: " + err.message);
+      });
+    }
     if (activeTab === "inbox") {
       refreshSection("inbox", "/api/contact/inbox", function (data) {
         setText("[data-inbox-status]", "Updated " + fmtTime(new Date().toISOString()));

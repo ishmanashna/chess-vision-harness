@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   var pending = new Map();
-  function request(key, url, timeoutMs) {
+  function request(key, url, timeoutMs, options) {
     var identity = key + ":" + url;
     if (pending.has(identity)) return pending.get(identity);
     var controller = new AbortController();
@@ -14,7 +14,7 @@
       }, timeoutMs || 12000);
     });
     var operation = Promise.resolve().then(function () {
-      return fetch(url, { cache: "no-store", signal: controller.signal });
+      return fetch(url, Object.assign({}, options, { cache: "no-store", signal: controller.signal }));
     }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status + "; last successful data may be stale.");
       return res.json();

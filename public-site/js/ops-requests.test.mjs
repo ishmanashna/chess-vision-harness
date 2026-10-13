@@ -45,10 +45,22 @@ test("failed sections do not reject independent snapshot requests", async () => 
   await failed;
 });
 
+test("operational POST requests are bounded and preserve their method", async () => {
+  let options;
+  const request = requests(async (_url, supplied) => {
+    options = supplied;
+    return { ok: true, json: async () => ({ status: "running" }) };
+  });
+  await request("start", "/go-online", 100, { method: "POST" });
+  assert.equal(options.method, "POST");
+  assert.equal(options.cache, "no-store");
+  assert.ok(options.signal);
+});
+
 test("Ops lazily loads hidden sections and updates Overview during a hung audience request", async () => {
   const calls = [], listeners = {}, buttons = {}, fields = {};
   let tick, experimentRefreshes = 0;
-  const ids = ["overview", "traffic", "prompt-test", "inbox"];
+  const ids = ["overview", "traffic", "prompt-test", "inbox", "machine"];
   const node = (id) => ({ hidden: id !== "overview", classList: { toggle() {} },
     getAttribute: () => id, setAttribute() {}, addEventListener(_name, cb) { this.click = cb; } });
   ids.forEach((id) => { buttons[id] = node(id); });
@@ -88,6 +100,10 @@ test("Ops lazily loads hidden sections and updates Overview during a hung audien
   assert.equal(experimentRefreshes, 1);
   buttons.inbox.click(); await flush();
   assert.ok(calls.includes("/api/contact/inbox"));
+  assert.ok(!calls.includes("/api/ops/health"));
+  buttons.machine.click(); await flush();
+  assert.ok(calls.includes("/api/ops/health"));
+  assert.ok(calls.filter((url) => url === "/api/ops/go-online").length > 1);
   const before = calls.length;
   context.document.hidden = true; tick(); await flush();
   assert.equal(calls.length, before);

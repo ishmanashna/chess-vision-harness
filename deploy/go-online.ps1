@@ -31,22 +31,27 @@ param(
     [switch]$SkipDeploy,
     [switch]$SkipVerify,
     [switch]$InstallShortcut,
-    [switch]$NoPanel
+    [switch]$NoPanel,
+    [string]$OperationId = "",
+    [string]$OperationSource = "desktop"
 )
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "github-retry.ps1")
+. (Join-Path $PSScriptRoot "online-operation.ps1")
 
 if (-not $RepoRoot) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
 }
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 
+$RuntimeRoot = if ($env:CHESS_HARNESS_DIR) { [IO.Path]::GetFullPath($env:CHESS_HARNESS_DIR) } else { Join-Path $RepoRoot ".chess_harness" }
+$OperationLogs = Join-Path $RuntimeRoot "logs"
 if (-not $TunnelLogPath) {
-    $TunnelLogPath = Join-Path $RepoRoot ".chess_harness\logs\quick-tunnel.log"
+    $TunnelLogPath = Join-Path $RuntimeRoot "logs\quick-tunnel.log"
 }
-$TunnelPidPath = Join-Path $RepoRoot ".chess_harness\logs\quick-tunnel.pid"
-$TunnelUrlPath = Join-Path $RepoRoot ".chess_harness\logs\quick-tunnel.url"
+$TunnelPidPath = Join-Path $RuntimeRoot "logs\quick-tunnel.pid"
+$TunnelUrlPath = Join-Path $RuntimeRoot "logs\quick-tunnel.url"
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TunnelLogPath) | Out-Null
 
@@ -145,8 +150,8 @@ function Start-ManualHarness {
     if (-not $ExePath) {
         throw "chess-harness.exe not found and service '$ServiceName' missing."
     }
-    $serveOut = Join-Path $RepoRoot ".chess_harness\logs\harness-manual.log.out"
-    $serveErr = Join-Path $RepoRoot ".chess_harness\logs\harness-manual.log.err"
+    $serveOut = Join-Path $RuntimeRoot "logs\harness-manual.log.out"
+    $serveErr = Join-Path $RuntimeRoot "logs\harness-manual.log.err"
     foreach ($f in @($serveOut, $serveErr)) {
         if (Test-Path -LiteralPath $f) {
             Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
@@ -202,6 +207,7 @@ function Stop-TrackedQuickTunnel {
 function Start-QuickTunnel {
     param([string]$CfPath, [string]$OriginUrl, [int]$WaitSec)
     Stop-TrackedQuickTunnel
+    Remove-Item -LiteralPath $TunnelUrlPath -Force -ErrorAction SilentlyContinue
     $outLog = "$TunnelLogPath.out"
     $errLog = "$TunnelLogPath.err"
     foreach ($f in @($TunnelLogPath, $outLog, $errLog)) {
@@ -270,6 +276,14 @@ if ($InstallShortcut) {
     return
 }
 
+Open-OnlineOperation -Logs $OperationLogs -OperationId $OperationId -Source $OperationSource
+$operationCode = 1
+$operationReason = 'Go Online interrupted before completion'
+$transcribing = $false
+try {
+Start-Transcript -LiteralPath (Join-Path $OperationLogs 'go-online-transcript.log') -Force | Out-Null
+$transcribing = $true
+Set-OnlinePhase 'Checking localhost harness'
 Ensure-Harness -BaseUrl $HarnessUrl -SvcName $ServiceName -WaitSec $HarnessWaitSec
 
 if (-not $NoPanel) {
@@ -278,24 +292,29 @@ if (-not $NoPanel) {
     Start-Process $panelUrl
 }
 
+Set-OnlinePhase 'Starting Quick Tunnel'
 $cf = Resolve-Cloudflared -Candidate $CloudflaredPath
 $origin = Start-QuickTunnel -CfPath $cf -OriginUrl $HarnessUrl -WaitSec $TunnelWaitSec
 
+Set-OnlinePhase 'Checking tunnel health'
 if (-not (Wait-OriginHealth -Origin $origin -TimeoutSec 60)) {
     throw "Tunnel URL up but $origin/health did not respond in time"
 }
 Write-Host "Origin /health OK via tunnel."
 
+Set-OnlinePhase 'Setting GitHub GAME_ORIGIN (with retries)'
 Write-Host "Setting GitHub secret GAME_ORIGIN..."
 Invoke-GitHubWithRetry -Arguments @("secret", "set", "GAME_ORIGIN", "-b", $origin) -Operation "Setting GAME_ORIGIN"
 
 if (-not $SkipDeploy) {
+    Set-OnlinePhase 'Requesting Pages deployment'
     Write-Host "Triggering Pages deploy..."
     Invoke-GitHubWithRetry -Arguments @("workflow", "run", "Deploy public site") -Operation "Triggering Pages deploy"
     Write-Host "Deploy requested. If edge-health stays Sleeping, run once more: gh workflow run `"Deploy public site`""
 }
 
 if (-not $SkipVerify) {
+    Set-OnlinePhase 'Waiting for Pages edge health'
     Write-Host "Waiting for Pages edge-health (up to ${EdgeWaitSec}s)..."
     $verify = Join-Path $PSScriptRoot "verify-online.ps1"
     $deadline = (Get-Date).AddSeconds($EdgeWaitSec)
@@ -317,7 +336,7 @@ if (-not $SkipVerify) {
     }
     if ($exit -ne 0) {
         Write-Host "verify-online exited $exit — see deploy/home-pc.md Sleeping runbook." -ForegroundColor Yellow
-        exit $exit
+        throw "Pages verification failed (exit $exit)"
     }
 }
 
@@ -328,3 +347,14 @@ Write-Host "  Pages:       $PagesUrl"
 Write-Host "  Agent briefs: $($PagesUrl.TrimEnd('/'))"
 Write-Host "  Tunnel pid:  $(Get-Content $TunnelPidPath -ErrorAction SilentlyContinue)"
 Write-Host "After next reboot: harness should auto-start (logon Startup / HKCU Run); run this script again for Online."
+
+$operationCode = 0
+$operationReason = ''
+} catch {
+    $operationReason = $_.Exception.Message
+    Write-Host $operationReason -ForegroundColor Red
+    throw
+} finally {
+    try { if ($transcribing) { Stop-Transcript | Out-Null } }
+    finally { Close-OnlineOperation -Code $operationCode -Reason $operationReason }
+}

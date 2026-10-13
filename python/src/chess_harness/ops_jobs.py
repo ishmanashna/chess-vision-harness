@@ -13,11 +13,11 @@ from typing import Any, Callable, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request
 
 from .calibration_auth import host_is_loopback
+from .ops_online_state import log_tail, operation_lock, shared_snapshot, tunnel_process
 from .paths import project_root, resolve_base_dir
 
 __all__ = ["register_ops_job_routes", "stop_tracked_quick_tunnel"]
 
-_LOG_TAIL_LINES = 40
 _JOB_LOG_NAME = "go-online-job.log"
 
 _spawn_go_online: Optional[Callable[[Path, Path], subprocess.Popen]] = None
@@ -28,7 +28,7 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def _default_spawn_go_online(repo_root: Path, log_path: Path) -> subprocess.Popen:
+def _default_spawn_go_online(repo_root: Path, log_path: Path, operation_id: str = "") -> subprocess.Popen:
     script = repo_root / "deploy" / "go-online.ps1"
     if not script.is_file():
         raise FileNotFoundError(f"go-online.ps1 not found at {script}")
@@ -44,12 +44,14 @@ def _default_spawn_go_online(repo_root: Path, log_path: Path) -> subprocess.Pope
         "-RepoRoot",
         str(repo_root),
     ]
-    return subprocess.Popen(
-        cmd,
-        cwd=str(repo_root),
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-    )
+    import os
+    env = dict(os.environ, CHESS_HARNESS_DIR=str(log_path.parent.parent))
+    try:
+        return subprocess.Popen(cmd + ["-OperationSource", "panel", "-OperationId", operation_id], cwd=str(repo_root),
+                                stdout=log_handle, stderr=subprocess.STDOUT, env=env,
+                                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+    finally:
+        log_handle.close()
 
 
 def _kill_pid(pid: int) -> bool:
@@ -85,11 +87,17 @@ def stop_tracked_quick_tunnel(base_dir: Optional[Path] = None) -> Dict[str, Any]
         first = raw.splitlines()[0].strip() if raw else ""
         if first.isdigit():
             pid = int(first)
-            stopped = _kill_pid(pid)
+            identity = tunnel_process(pid)
+            if identity == "unknown":
+                raise HTTPException(status_code=409, detail="Tunnel identity could not be verified; nothing stopped")
+            stopped = identity == "running" and _kill_pid(pid)
+            if identity == "running" and not stopped:
+                raise HTTPException(status_code=500, detail="Tunnel stop failed; tracking retained")
         try:
             pid_path.unlink()
         except OSError:
             pass
+    (root / "logs" / "quick-tunnel.url").unlink(missing_ok=True)
     return {"ok": True, "stopped": stopped, "pid": pid}
 
 
@@ -102,6 +110,7 @@ class GoOnlineJobState:
         self.started_at: Optional[str] = None
         self.finished_at: Optional[str] = None
         self.exit_code: Optional[int] = None
+        self._last_shared = None
         self._proc: Optional[subprocess.Popen] = None
         self._log_path: Optional[Path] = None
 
@@ -113,17 +122,19 @@ class GoOnlineJobState:
     def _read_log_tail(self) -> List[str]:
         if not self._log_path or not self._log_path.is_file():
             return []
-        try:
-            text = self._log_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            return []
-        lines = [line.rstrip() for line in text.splitlines() if line.strip()]
-        return lines[-_LOG_TAIL_LINES:]
+        return log_tail(self._log_path)
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self, base_dir: Optional[Path] = None) -> Dict[str, Any]:
+        shared = shared_snapshot(base_dir) if base_dir is not None else None
+        if shared:
+            self._last_shared = shared
+        else:
+            shared = self._last_shared
+        if shared and (self.status != "running" or shared.get("started_at", "") >= (self.started_at or "")):
+            return shared
         with self._lock:
             tail = self._read_log_tail()
-            phase = self.phase or (tail[-1] if tail else "")
+            phase = tail[-1] if tail and self.status == "running" else self.phase
             payload: Dict[str, Any] = {
                 "ok": True,
                 "status": self.status,
@@ -141,6 +152,11 @@ class GoOnlineJobState:
             return payload
 
     def start(self, *, base_dir: Path, repo_root: Path) -> Dict[str, Any]:
+        try:
+            with operation_lock(base_dir):
+                pass
+        except BlockingIOError:
+            raise HTTPException(status_code=409, detail="Go Online or Sleep already running")
         with self._lock:
             if self.status == "running":
                 raise HTTPException(status_code=409, detail="Go Online job already running")
@@ -157,7 +173,7 @@ class GoOnlineJobState:
                 pass
             spawn = _spawn_go_online or _default_spawn_go_online
             try:
-                self._proc = spawn(repo_root, self._log_path)
+                self._proc = spawn(repo_root, self._log_path) if _spawn_go_online else _default_spawn_go_online(repo_root, self._log_path, self.job_id)
             except Exception as exc:
                 self.status = "fail"
                 self.phase = str(exc)
@@ -195,7 +211,7 @@ def register_ops_job_routes(app) -> None:
             raise HTTPException(status_code=404)
 
     @router.post("/api/ops/go-online")
-    async def ops_go_online_start(request: Request):
+    def ops_go_online_start(request: Request):
         _require_loopback(request)
         return _go_online_job.start(
             base_dir=resolve_base_dir(),
@@ -203,13 +219,19 @@ def register_ops_job_routes(app) -> None:
         )
 
     @router.get("/api/ops/go-online")
-    async def ops_go_online_status(request: Request):
+    def ops_go_online_status(request: Request):
         _require_loopback(request)
-        return _go_online_job.snapshot()
+        return _go_online_job.snapshot(resolve_base_dir())
 
     @router.post("/api/ops/sleep-public")
-    async def ops_sleep_public(request: Request):
+    def ops_sleep_public(request: Request):
         _require_loopback(request)
-        return stop_tracked_quick_tunnel(resolve_base_dir())
+        if _go_online_job.status == "running":
+            raise HTTPException(status_code=409, detail="Go Online already running")
+        try:
+            with operation_lock(resolve_base_dir()):
+                return stop_tracked_quick_tunnel(resolve_base_dir())
+        except BlockingIOError:
+            raise HTTPException(status_code=409, detail="Go Online or Sleep already running")
 
     app.include_router(router)
