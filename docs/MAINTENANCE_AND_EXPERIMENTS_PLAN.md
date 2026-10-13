@@ -617,11 +617,24 @@ Done when:
   the engine score and the actual result. Apply the same history-based rule to
   future analysis and historical refreshes; never replace a real draw score merely
   because the game ended with a decisive result.
-- Full refresh launched for all 686 games, prioritizing the cited game and the two
+- Full refresh completed for all 686 games without failures, prioritizing the cited game and the two
   GPT-6.1 Sol games. Runtime progress and backups follow the existing backfill
   contract. The stronger authoritative evaluation and Performance-map migration
   remain Batch 8 work.
-- Validation: 63 targeted Python tests passed, one environment-specific test skipped;
+- Final v5 artifact verification: **686/686** complete, **369/369** local completed-game
+  annotation endpoints complete, and every negative annotation has a saved preferred
+  move. All **39,887** before/after evaluations and saved losses match their pre-refresh
+  artifacts; all **742** protected state/PGN/results/model/database files are unchanged.
+  The evidence-only refinement removed 55 routine check-evasion positives.
+- Final counts: **49 `!`, 12 `!!`, 1,121 `?!`, 3,910 `?`, 4,011 `??`** and
+  30,784 unmarked moves. Agents account for **12 `!` and 7 `!!`**. Positive labels
+  include quiet discoveries and value refinements, such as 102...Be4 in
+  `game-JJXR5SOc41jXTLsAnlLrzA` (stable deeper choice from depth 16).
+  The requested approximate 2x/4x multipliers were not met: removing the preceding
+  policy's false positives reduced the `!` count significantly. Do not undo those
+  exclusions merely to hit counts. Revisit budget sufficiency and heuristic
+  calibration with Batch 8's stronger authoritative analysis.
+- Validation: 64 targeted Python tests passed, one environment-specific test skipped;
   nine annotation UI tests and seven Home benchmark tests passed. Public-site
   deployment runs succeeded. New best-move and terminal-context API fields still
   need one manual activation restart under the existing approval-review block.

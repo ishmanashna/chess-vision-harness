@@ -49,7 +49,7 @@ export function badgeHtml(row) {
   const verification = passes.length ? ". Verified depths: " + passes.map(pass => pass.depth).join(" / ") : "";
   const discovery = row.exceptional && row.exceptional.discovery;
   const discovered = discovery && discovery.discovered_depth
-    ? discovery.root_changed === false
+    ? discovery.root_changed === false || discovery.discovered_depth <= discovery.shallow_depth
       ? ". Evaluation clarified through depth " + discovery.stable_through_depth
       : ". Deeper search discovery at depth " + discovery.discovered_depth
     : "";

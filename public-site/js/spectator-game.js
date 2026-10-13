@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=7";
+import { annotationAt, badgeHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=8";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =

@@ -61,6 +61,8 @@ test("value refinement is distinguished from discovering a different best move",
   const positive = {...row,label:"brilliant",exceptional:{passes:[{depth:18},{depth:22}],discovery:{root_changed:false,discovered_depth:1,stable_through_depth:18}}};
   assert.match(badgeHtml(positive), /Evaluation clarified through depth 18/);
   assert.doesNotMatch(badgeHtml(positive), /Best move:|discovery at depth 1/);
+  positive.exceptional.discovery = {shallow_depth:4,discovered_depth:1,stable_through_depth:18};
+  assert.match(badgeHtml(positive), /Evaluation clarified through depth 18/);
 });
 
 test("a hung analysis response body times out and aborts", async () => {
