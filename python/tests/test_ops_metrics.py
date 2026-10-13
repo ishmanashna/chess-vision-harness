@@ -40,8 +40,11 @@ def test_classify_route_families():
     assert classify_route_family("/g/game-1") == "watch"
     assert classify_route_family("/p/attempt-1") == "watch"
     assert classify_route_family("/spectator/") == "watch"
-    assert classify_route_family("/health") == "other"
-    assert classify_route_family("/ops/") == "other"
+    assert classify_route_family("/health") == "health"
+    assert classify_route_family("/api/edge-health") == "health"
+    assert classify_route_family("/ops/") == "operator"
+    assert classify_route_family("/api/ops/snapshot") == "operator"
+    assert classify_route_family("/api/contact/inbox") == "operator"
 
 
 def test_routine_client_error_classification():

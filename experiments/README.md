@@ -23,7 +23,13 @@ Events join a run to its seats/games and record progress and failure reasons.
 See the [event contract](template/EVENTS.md) and [example manifest](template/manifest.example.json).
 
 Keep provider-specific launchers small. There is no Cursor/OpenCode integration or
-experiment executor in this foundation. Ops monitoring/filtering is a later batch.
+experiment executor in this foundation. Localhost **Ops → A/B** lists version-1 run
+records and filters packed-game evidence by family, run, model, pack, opponent, and
+status. Game IDs in compatible run events connect results to their recorded run.
+Records without that metadata remain explicitly **Legacy / unassigned**.
+Run links show allowlisted operational reports and event fields; they do not expose
+raw report.md, prompts, provider payloads, or archived private logs. Research reports
+remain local reviewed artifacts.
 The native runner's existing `ts`, `event`, `game_id`, `model`, and `provider` log keys
 are retained in the shared event shape; do not build a second game database.
 

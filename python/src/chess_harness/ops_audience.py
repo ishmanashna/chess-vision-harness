@@ -30,6 +30,7 @@ _UNCONFIGURED_MESSAGE = (
 _cache: Optional[Dict[str, Any]] = None
 _cache_at: float = 0.0
 _cache_lock = threading.Lock()
+_refresh_lock = threading.Lock()
 
 
 def _env_config() -> Tuple[Optional[str], Optional[str], str]:
@@ -72,7 +73,7 @@ def _metric_value(entry: Any) -> int:
         return 0
 
 
-def _fetch_json(url: str, token: str, *, timeout: float = 15.0) -> Any:
+def _fetch_json(url: str, token: str, *, timeout: float = 2.5) -> Any:
     req = urllib.request.Request(
         url,
         headers={
@@ -211,30 +212,39 @@ def audience_snapshot(*, force: bool = False, now: Optional[float] = None) -> Di
             payload["cached"] = True
             return payload
 
+    if not _refresh_lock.acquire(blocking=False):
+        with _cache_lock:
+            if _cache is not None:
+                return dict(_cache, stale=True, refreshing=True)
+        return dict(_unconfigured_payload(), configured=True, ok=False,
+                    message="Audience refresh is already in progress; retry shortly.", refreshing=True)
     try:
-        payload = fetch_audience_from_umami(
-            token=token,
-            website_id=website_id,
-            api_base=api_base,
-            now_ms=int(ts * 1000),
-        )
-        payload["cached"] = False
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
-        payload = {
-            "ok": False,
-            "configured": True,
-            "message": f"Umami request failed: {exc}",
-            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
-            "pageviews": None,
-            "visitors": None,
-            "referrers": [],
-            "pages": [],
-            "countries": [],
-            "source": "umami",
-            "cached": False,
-        }
+        try:
+            payload = fetch_audience_from_umami(
+                token=token,
+                website_id=website_id,
+                api_base=api_base,
+                now_ms=int(ts * 1000),
+            )
+            payload["cached"] = False
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            payload = {
+                "ok": False,
+                "configured": True,
+                "message": f"Umami request failed ({type(exc).__name__}). Check operator configuration and connectivity.",
+                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                "pageviews": None,
+                "visitors": None,
+                "referrers": [],
+                "pages": [],
+                "countries": [],
+                "source": "umami",
+                "cached": False,
+            }
 
-    with _cache_lock:
-        _cache = payload
-        _cache_at = ts
-    return payload
+        with _cache_lock:
+            _cache = payload
+            _cache_at = ts
+        return payload
+    finally:
+        _refresh_lock.release()

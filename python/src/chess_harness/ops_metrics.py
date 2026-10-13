@@ -29,7 +29,7 @@ BUCKET_COUNT = 24 * 60
 MAX_ERROR_EVENTS = 100
 MAX_LATENCY_SAMPLES = 8000
 
-ROUTE_FAMILIES = ("static", "api_v1", "watch", "other")
+ROUTE_FAMILIES = ("operator", "health", "static", "api_v1", "watch", "other")
 
 _GAME_MOVE_PATH = re.compile(r"^/api/v1/games/[^/]+/move(?:/|$)")
 _PLAY_MOVE_PATH = re.compile(r"^/api/play/[^/]+/move(?:/|$)")
@@ -40,6 +40,10 @@ _IDENTIFY_ANSWER_PATH = re.compile(r"^/api/v1/identify/[^/]+/answer(?:/|$)")
 
 
 def classify_route_family(path: str) -> str:
+    if path in {"/health", "/api/edge-health"}:
+        return "health"
+    if path.startswith(("/ops", "/api/ops", "/api/contact/inbox", "/calibration", "/api/calibration", "/puzzle-set")):
+        return "operator"
     if path.startswith("/css/") or path.startswith("/js/") or path in {
         "/favicon.ico",
         "/favicon.svg",
@@ -202,7 +206,8 @@ class MetricsRing:
                 route_rows.append(
                     {
                         "family": family,
-                        "requests": self._route_totals.get(family, 0),
+                        "requests": sum(bucket.routes.get(family, 0) for minute, bucket in self._buckets.items()
+                                        if start_minute <= minute <= now_minute),
                     }
                 )
 
@@ -224,6 +229,8 @@ class MetricsRing:
 
         return {
             "origin_requests_24h": total_requests,
+            "product_requests_24h": sum(row["requests"] for row in route_rows
+                                         if row["family"] in {"api_v1", "watch", "other"}),
             "error_rate": error_rate,
             "p95_ms": p95,
             "routine_4xx_24h": total_routine,

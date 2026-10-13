@@ -8,7 +8,7 @@
   <meta name="description" content="Localhost operator desk — health, disk, inbox, activity (127.0.0.1 only)."/>
   <title>Operator panel — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
-  <link rel="stylesheet" href="/css/site.css?v=21"/>
+  <link rel="stylesheet" href="/css/site.css?v=29"/>
 </head>
 <body class="ops-body">
   <div class="wrap ops-wrap">
@@ -124,6 +124,8 @@
         <section class="ops-section hidden" data-ops-section="traffic" hidden>
           <p class="lead">Two traffic stories: <strong>Origin requests</strong> are HTTP that reached this serve process; <strong>Site visitors</strong> are Umami pageviews on the public Pages host (including while this PC was Sleeping).</p>
           <p class="snapshot-meta" data-metrics-note-traffic></p>
+          <p class="snapshot-meta" data-traffic-product></p>
+          <p class="snapshot-meta" data-audience-status>Site visitors load when Traffic is opened.</p>
           <div class="ops-kpis">
             <article class="card ops-kpi"><div class="ops-kpi-label">Origin requests (24h)</div><div class="ops-kpi-value" data-traffic-requests>0</div></article>
             <article class="card ops-kpi"><div class="ops-kpi-label">Site visitors (24h)</div><div class="ops-kpi-value" data-traffic-visitors>—</div></article>
@@ -139,7 +141,7 @@
             </article>
             <article class="card">
               <h3 class="ops-card-title">Route families</h3>
-              <p class="snapshot-meta">static · /css, /js · api_v1 · /api/v1 · watch · /g/, /p/, /i/, /spectator · other · everything else</p>
+              <p class="snapshot-meta">operator · Ops/inbox/calibration · health · probes · static · CSS/JS · api_v1 · agents · watch · spectators · other · remaining product routes</p>
               <table class="leaderboard-table" data-route-table aria-label="Origin requests by route family">
                 <thead><tr><th>Family</th><th>Requests (24h)</th></tr></thead>
                 <tbody data-route-table-body></tbody>
@@ -251,6 +253,7 @@
           <article class="card">
             <h3 class="ops-card-title">Contact inbox</h3>
             <p class="lead">Messages from the public Contact tab. Read and delete use the existing localhost inbox API.</p>
+            <p class="snapshot-meta" data-inbox-status>Inbox loads when opened.</p>
             <div class="ops-inbox-list" data-inbox-full></div>
           </article>
         </section>
@@ -273,33 +276,53 @@
 
         <section class="ops-section hidden" data-ops-section="prompt-test" hidden>
           <article class="card">
-            <h3 class="ops-card-title">A/B packs</h3>
-            <p class="lead">Local prompt-pack comparison — unrated tagged games on this PC.</p>
-            <table class="leaderboard-table" data-prompt-test-table aria-label="A/B packs">
-              <thead><tr><th>Pack</th><th>Live</th><th>Finished</th><th>W-D-L</th><th>Accuracy</th><th>Performance</th><th>Recent</th></tr></thead>
-              <tbody data-prompt-test-body></tbody>
-            </table>
+            <h3 class="ops-card-title">Experiment evidence</h3>
+            <div class="ops-experiment-filters">
+              <label for="ops-filter-family">Family<select id="ops-filter-family" data-experiment-filter="family"><option value="composer">Composer</option><option value="jeff">Jeff</option><option value="all">All families</option></select></label>
+              <label for="ops-filter-run_id">Run<select id="ops-filter-run_id" data-experiment-filter="run_id"><option value="">All</option></select></label>
+              <label for="ops-filter-model">Model<select id="ops-filter-model" data-experiment-filter="model"><option value="">All</option></select></label>
+              <label for="ops-filter-pack">Pack<select id="ops-filter-pack" data-experiment-filter="pack"><option value="">All</option></select></label>
+              <label for="ops-filter-opponent">Opponent<select id="ops-filter-opponent" data-experiment-filter="opponent"><option value="">All</option></select></label>
+              <label for="ops-filter-status">Status<select id="ops-filter-status" data-experiment-filter="status"><option value="">All</option></select></label>
+            </div>
+            <p class="snapshot-meta" data-experiment-status role="status">Opens on demand.</p>
+            <p class="snapshot-meta" data-experiment-scope></p>
             <p class="snapshot-meta" data-prompt-test-meta></p>
+            <div class="ops-table-scroll"><table class="leaderboard-table" aria-label="A/B packs">
+              <thead><tr><th>Pack</th><th>Sample</th><th>Live</th><th>Finished</th><th>Abandoned</th><th>Failed</th><th>Excluded</th><th>W-D-L</th><th>Accuracy</th><th>Performance</th></tr></thead>
+              <tbody data-prompt-test-body></tbody>
+            </table></div>
           </article>
           <article class="card">
             <h3 class="ops-card-title">A/B games</h3>
-            <p class="lead">Per-game result, accuracy, and performance.</p>
-            <table class="leaderboard-table" data-prompt-test-games-table aria-label="A/B games">
-              <thead><tr><th>Pack</th><th>Game</th><th>Color</th><th>Opponent</th><th>Result</th><th>Accuracy</th><th>Performance</th></tr></thead>
+            <p class="lead">Matching games. Pack totals cover the full selection; this table is paginated.</p>
+            <div class="ops-pagination"><button type="button" class="btn-secondary" data-experiment-prev disabled>Previous</button><span data-experiment-page></span><button type="button" class="btn-secondary" data-experiment-next disabled>Next</button></div>
+            <div class="ops-table-scroll"><table class="leaderboard-table" data-prompt-test-games-table aria-label="A/B games">
+              <thead><tr><th>Pack</th><th>Run</th><th>Model</th><th>Game</th><th>Color</th><th>Opponent</th><th>Status</th><th>Result</th><th>Accuracy</th><th>Performance</th></tr></thead>
               <tbody data-prompt-test-games></tbody>
-            </table>
+            </table></div>
           </article>
           <article class="card">
             <h3 class="ops-card-title">Committee chat</h3>
-            <p class="lead">Live conversation for committee (E) games on this PC.</p>
+            <p class="lead">Committee messages for the selected family/filters and displayed game page; latest 50 messages per game.</p>
             <div data-prompt-test-chats></div>
+          </article>
+          <article class="card">
+            <h3 class="ops-card-title">Run records</h3>
+            <p class="snapshot-meta" data-experiment-runs-status></p>
+            <div class="ops-table-scroll"><table class="leaderboard-table" aria-label="Run records">
+              <thead><tr><th>Run</th><th>Model</th><th>Status</th><th>Last progress</th><th>Evidence</th></tr></thead>
+              <tbody data-experiment-runs></tbody>
+            </table></div>
           </article>
         </section>
       </main>
     </div>
   </div>
 
-  <script src="/js/common.js?v=16"></script>
-  <script src="/js/ops.js?v=3"></script>
+  <script src="/js/common.js?v=29"></script>
+  <script src="/js/ops-requests.js?v=1"></script>
+  <script src="/js/ops-experiments.js?v=1"></script>
+  <script src="/js/ops.js?v=4"></script>
 </body>
 </html>

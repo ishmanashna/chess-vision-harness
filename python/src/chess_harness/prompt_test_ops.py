@@ -1,293 +1,153 @@
-"""Ops snapshot for local prompt-test pack comparison."""
-
+"""Filtered, deduplicated prompt-pack evidence for the localhost Ops desk."""
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .accuracy_elo_map import play_rating_from_accuracy
 from .board_controller import BoardController
 from .game_manager import GameManager
 from .paths import project_root, resolve_base_dir
-from .prompt_packs import is_packed_result_row, is_packed_state, pack_family, pack_title
+from .prompt_packs import pack_family, pack_title
 from .results import ResultsManager
+from .ops_experiment_runs import run_game_links
 
-__all__ = ["build_prompt_test_snapshot"]
-
-_RECENT_GAME_LIMIT = 5
-_GAME_LIST_LIMIT = 40
+STATUSES = ("finished", "in_progress", "failed", "abandoned", "excluded", "no_result")
+SCORED = {"1-0", "0-1", "1/2-1/2"}
 
 
-def _parse_ts(ts: Optional[str]) -> float:
-    if not ts:
-        return 0.0
+def _number(value):
     try:
-        dt = datetime.fromisoformat(ts)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.timestamp()
-    except ValueError:
-        return 0.0
-
-
-@dataclass
-class _PackAgg:
-    in_progress: int = 0
-    finished: int = 0
-    wins: int = 0
-    draws: int = 0
-    losses: int = 0
-    accuracy_values: List[float] = field(default_factory=list)
-    recent: Dict[str, float] = field(default_factory=dict)
-
-
-def _mean(values: List[float]) -> Optional[float]:
-    if not values:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError):
         return None
-    return sum(values) / len(values)
 
 
-def _mapped_play_rating(
-    accuracy: Optional[float], cal_root: Optional[Path]
-) -> Optional[float]:
-    if accuracy is None:
+def _row(game_id, state, result, cal_root):
+    data = dict(result)
+    data.update({key: value for key, value in state.items() if value is not None})
+    pack = str(data.get("prompt_pack") or data.get("prompt_pack_original") or "")
+    if not pack:
         return None
-    return play_rating_from_accuracy(float(accuracy), root=cal_root)
-
-
-def _merge_game_row(
-    games_by_id: Dict[str, Dict[str, Any]],
-    game_id: str,
-    *,
-    pack_id: str,
-    recency: float,
-    status: str,
-    result: Optional[str] = None,
-    agent_color: Optional[str] = None,
-    opponent_id: Optional[str] = None,
-    plies: Optional[int] = None,
-    accuracy: Optional[float] = None,
-    cal_root: Optional[Path] = None,
-) -> None:
-    existing = games_by_id.get(game_id) or {}
-    outcome = None
-    if result and result != "*" and agent_color:
-        outcome = BoardController.agent_outcome(agent_color, result).get("outcome")
-    play_rating = _mapped_play_rating(accuracy, cal_root)
-    merged = {
-        "game_id": game_id,
-        "prompt_pack": pack_id,
-        "title": pack_title(pack_id),
-                "family": pack_family(pack_id),
-        "status": status or existing.get("status") or "unknown",
-        "result": result if result is not None else existing.get("result"),
-        "outcome": outcome or existing.get("outcome"),
-        "agent_color": agent_color or existing.get("agent_color"),
-        "opponent_id": opponent_id or existing.get("opponent_id"),
-        "plies": plies if plies is not None else existing.get("plies"),
-        "accuracy": (
-            round(float(accuracy), 2) if accuracy is not None else existing.get("accuracy")
-        ),
-        "play_rating": (
-            play_rating if play_rating is not None else existing.get("play_rating")
-        ),
-        "_recency": max(float(existing.get("_recency") or 0.0), recency),
+    score = state.get("result") if state.get("result") in SCORED else result.get("result")
+    excluded = bool(data.get("prompt_test_excluded"))
+    raw_status = str(data.get("status") or "")
+    if excluded:
+        status = "excluded"
+    elif score in SCORED:
+        status = "finished"
+    elif raw_status == "in_progress":
+        status = "in_progress"
+    elif raw_status == "failed" or data.get("error"):
+        status = "failed"
+    elif raw_status == "abandoned" or data.get("end_reason") in {"idle_timeout", "timeout", "abandoned"}:
+        status = "abandoned"
+    else:
+        status = "no_result"
+    accuracy = _number(data.get("agent_accuracy", data.get("accuracy")))
+    performance = play_rating_from_accuracy(accuracy, root=cal_root) if accuracy is not None else None
+    metric_reason = None
+    if status != "finished":
+        metric_reason = "Not a scored, included finish; omitted from pack means."
+    elif accuracy is None:
+        metric_reason = "Analysis pending or unavailable."
+    elif performance is None:
+        metric_reason = "Calibration map unavailable."
+    return {
+        "game_id": game_id, "prompt_pack": pack, "title": pack_title(pack),
+        "family": pack_family(pack), "model_id": str(data.get("model_name") or data.get("model_id") or "unknown"),
+        "run_id": str(data.get("experiment_run_id") or data.get("run_id") or data.get("prompt_test_run_id") or "legacy-unassigned"),
+        "status": status, "result": score if score in SCORED else "*",
+        "outcome": BoardController.agent_outcome(data.get("agent_color", ""), score).get("outcome") if score in SCORED else None,
+        "agent_color": data.get("agent_color"), "opponent_id": str(data.get("opponent_id") or "unknown"),
+        "plies": len(state["moves"]) if "moves" in state else result.get("plies"),
+        "accuracy": round(accuracy, 2) if accuracy is not None else None,
+        "play_rating": performance, "metric_reason": metric_reason,
+        "updated_at": str(data.get("last_activity") or data.get("ts") or ""),
     }
-    if existing.get("status") == "in_progress":
-        merged["status"] = "in_progress"
-    games_by_id[game_id] = merged
 
 
-def _load_committee_chats(
-    root: Path, games_by_id: Dict[str, Dict[str, Any]]
-) -> List[Dict[str, Any]]:
-    chats: List[Dict[str, Any]] = []
-    prompt_root = root / "prompt_test"
-    if not prompt_root.is_dir():
-        return chats
-    for game_dir in prompt_root.iterdir():
-        if not game_dir.is_dir():
-            continue
-        thread_path = game_dir / "thread.json"
-        if not thread_path.is_file():
+def _chats(root, selected):
+    chats = []
+    for game in selected:
+        path = root / "prompt_test" / game["game_id"] / "thread.json"
+        if not path.resolve().is_relative_to((root / "prompt_test").resolve()):
             continue
         try:
-            data = json.loads(thread_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            if path.stat().st_size > 2_000_000:
+                continue
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
             continue
-        messages = data.get("messages") or data.get("notes") or []
-        game_id = game_dir.name
-        info = games_by_id.get(game_id) or {}
-        chats.append(
-            {
-                "game_id": game_id,
-                "prompt_pack": info.get("prompt_pack"),
-                "title": info.get("title") or game_id,
-                "turn": int(data.get("turn") or data.get("ply") or 0),
-                "status": data.get("status") or "open",
-                "messages": messages,
-                "votes": data.get("votes") or [],
-            }
-        )
-    chats.sort(key=lambda row: row.get("game_id") or "")
+        chats.append({"game_id": game["game_id"], "prompt_pack": game["prompt_pack"],
+                      "title": game["title"], "status": data.get("status", "open"),
+                      "messages": (data.get("messages") or data.get("notes") or [])[-50:]})
     return chats
 
 
-def build_prompt_test_snapshot(
-    family: Optional[str] = None,
-    *,
-    base_dir: Optional[Path] = None,
-    cal_root: Optional[Path] = None,
-) -> Dict[str, Any]:
-    """Aggregate packed prompt-test games per pack id for the Ops tab.
+def _counts(games):
+    counts = {status: sum(row["status"] == status for row in games) for status in STATUSES}
+    counts["total"] = len(games)
+    counts["analysed"] = sum(row["status"] == "finished" and row["accuracy"] is not None for row in games)
+    return counts
 
-    mean_play_rating is play_rating_from_accuracy(mean_accuracy) via the current
-    accuracy→Elo map — not a mean of per-game stored play_rating.
+
+def build_prompt_test_snapshot(family=None, *, base_dir=None, cal_root=None,
+                               run_id=None, model=None, pack=None, opponent=None,
+                               status=None, offset=0, limit=100) -> dict[str, Any]:
+    """All pack means and counts use exactly the selected, deduplicated games.
+
+    Games are explicitly paginated; totals include every matching game, not just
+    the page. Old records without a run ID are descriptive legacy evidence.
     """
+    family = family or "composer"
+    if family not in {"composer", "jeff", "all"} or (status and status not in STATUSES):
+        raise ValueError("Invalid experiment family or status")
+    if offset < 0 or not 1 <= limit <= 200:
+        raise ValueError("Invalid experiment pagination")
     root = Path(base_dir) if base_dir is not None else resolve_base_dir()
-    if cal_root is None:
-        cal_root = project_root() / "elo_calibration" / "results"
-    gm = GameManager(str(root))
-    rm = ResultsManager(base_dir=str(root))
-
-    by_pack: Dict[str, _PackAgg] = {}
-    games_by_id: Dict[str, Dict[str, Any]] = {}
-
-    def bucket(pack_id: str) -> _PackAgg:
-        if pack_id not in by_pack:
-            by_pack[pack_id] = _PackAgg()
-        return by_pack[pack_id]
-
-    for game in gm.list_games():
-        state = game["state"]
-        if not is_packed_state(state):
-            continue
-        pack_id = str(state["prompt_pack"])
-        if family and pack_family(pack_id) != family:
-            continue
-        agg = bucket(pack_id)
-        recency = _parse_ts(state.get("last_activity"))
-        game_id = game["game_id"]
-        agg.recent[game_id] = max(agg.recent.get(game_id, 0.0), recency)
-        status = str(state.get("status") or "unknown")
-        if status == "in_progress":
-            agg.in_progress += 1
-        accuracy = state.get("agent_accuracy")
-        _merge_game_row(
-            games_by_id,
-            game_id,
-            pack_id=pack_id,
-            recency=recency,
-            status=status,
-            result=state.get("result"),
-            agent_color=state.get("agent_color"),
-            opponent_id=state.get("opponent_id"),
-            plies=len(state.get("moves") or []),
-            accuracy=float(accuracy) if accuracy is not None else None,
-            cal_root=cal_root,
-        )
-
-    for row in rm.load_results():
-        if not is_packed_result_row(row):
-            continue
-        pack_id = str(row["prompt_pack"])
-        if family and pack_family(pack_id) != family:
-            continue
-        agg = bucket(pack_id)
-        result = row.get("result")
-        if result and result != "*":
-            agg.finished += 1
-            agent_color = row.get("agent_color") or ""
-            outcome = BoardController.agent_outcome(agent_color, result)
-            oc = outcome.get("outcome")
-            if oc == "win":
-                agg.wins += 1
-            elif oc == "draw":
-                agg.draws += 1
-            elif oc == "loss":
-                agg.losses += 1
-            accuracy = row.get("accuracy")
-            if accuracy is not None:
-                agg.accuracy_values.append(float(accuracy))
-        game_id = row.get("game_id")
-        if game_id:
-            recency = _parse_ts(row.get("ts"))
-            gid = str(game_id)
-            agg.recent[gid] = max(agg.recent.get(gid, 0.0), recency)
-            _merge_game_row(
-                games_by_id,
-                gid,
-                pack_id=pack_id,
-                recency=recency,
-                status="finished" if result and result != "*" else "unknown",
-                result=result,
-                agent_color=row.get("agent_color"),
-                opponent_id=row.get("opponent_id"),
-                plies=row.get("plies"),
-                accuracy=float(row["accuracy"]) if row.get("accuracy") is not None else None,
-                cal_root=cal_root,
-            )
-
-
-    # Seed registry packs for the requested family so Ops shows empty Jeff/Composer rows.
-    try:
-        from .prompt_packs import _load_index
-        index_packs = (_load_index().get("packs") or {})
-    except Exception:
-        index_packs = {}
-    for pid, meta in index_packs.items():
-        fam = pack_family(pid)
-        if family and fam != family:
-            continue
-        if not family and fam == 'jeff':
-            # default Ops A/B stays Composer-only so Jeff never mixes in
-            continue
-        bucket(pid)
-
-    packs: List[Dict[str, Any]] = []
-    for pack_id in sorted(by_pack.keys()):
-        if family and pack_family(pack_id) != family:
-            continue
-        if not family and pack_family(pack_id) == 'jeff':
-            continue
-        agg = by_pack[pack_id]
-        recent_ids = sorted(
-            agg.recent.keys(),
-            key=lambda gid: agg.recent[gid],
-            reverse=True,
-        )[:_RECENT_GAME_LIMIT]
-        mean_accuracy = (
-            round(_mean(agg.accuracy_values), 2) if agg.accuracy_values else None
-        )
-        packs.append(
-            {
-                "id": pack_id,
-                "title": pack_title(pack_id),
-                "family": pack_family(pack_id),
-                "in_progress": agg.in_progress,
-                "finished": agg.finished,
-                "wins": agg.wins,
-                "draws": agg.draws,
-                "losses": agg.losses,
-                "mean_accuracy": mean_accuracy,
-                "mean_play_rating": (
-                    play_rating_from_accuracy(mean_accuracy, root=cal_root)
-                    if mean_accuracy is not None
-                    else None
-                ),
-                "recent_game_ids": recent_ids,
-            }
-        )
-
-    games = list(games_by_id.values())
-    games.sort(key=lambda row: float(row.get("_recency") or 0.0), reverse=True)
-    public_games: List[Dict[str, Any]] = []
-    for row in games[:_GAME_LIST_LIMIT]:
-        public_games.append({k: v for k, v in row.items() if not k.startswith("_")})
-
-    chats = _load_committee_chats(root, games_by_id)
-
-    return {"ok": True, "packs": packs, "games": public_games, "chats": chats}
+    cal_root = cal_root or project_root() / "elo_calibration" / "results"
+    states = {game["game_id"]: game["state"] for game in GameManager(str(root)).list_games()}
+    results = {}
+    for result in ResultsManager(base_dir=str(root)).load_results():
+        gid = result.get("game_id")
+        if gid and str(result.get("ts") or "") >= str(results.get(gid, {}).get("ts") or ""):
+            results[gid] = result
+    rows = []
+    for gid in states.keys() | results.keys():
+        row = _row(gid, states.get(gid, {}), results.get(gid, {}), cal_root)
+        if row and (family == "all" or row["family"] == family):
+            rows.append(row)
+    rows.sort(key=lambda row: (row["updated_at"], row["game_id"]), reverse=True)
+    links = run_game_links()
+    for row in rows:
+        if row["run_id"] == "legacy-unassigned":
+            row["run_id"] = links.get(row["game_id"], "legacy-unassigned")
+    mapping = {"run_id": run_id, "model_id": model, "prompt_pack": pack,
+               "opponent_id": opponent, "status": status}
+    options = {key: sorted({row[key] for row in rows}) for key in mapping}
+    selected = [row for row in rows if all(not value or row[key] == value for key, value in mapping.items())]
+    packs = []
+    for pid in sorted({row["prompt_pack"] for row in selected}):
+        games = [row for row in selected if row["prompt_pack"] == pid]
+        scored = [row for row in games if row["status"] == "finished"]
+        accuracies = [row["accuracy"] for row in scored if row["accuracy"] is not None]
+        mean = round(sum(accuracies) / len(accuracies), 2) if accuracies else None
+        packs.append({"id": pid, "title": pack_title(pid), "family": pack_family(pid),
+                      **_counts(games), "wins": sum(row["outcome"] == "win" for row in scored),
+                      "draws": sum(row["outcome"] == "draw" for row in scored),
+                      "losses": sum(row["outcome"] == "loss" for row in scored),
+                      "mean_accuracy": mean,
+                      "mean_play_rating": play_rating_from_accuracy(mean, root=cal_root) if mean is not None else None,
+                      "recent_game_ids": [row["game_id"] for row in games[:5]]})
+    page = selected[offset:offset + limit]
+    return {"ok": True, "generated_at": datetime.now(timezone.utc).isoformat(),
+            "family": family, "filters": mapping, "options": options,
+            "summary": _counts(selected), "packs": packs, "games": page,
+            "chats": _chats(root, page), "total": len(selected), "offset": offset,
+            "limit": limit, "has_more": offset + len(page) < len(selected),
+            "scope_note": "Descriptive aggregates of matching games, not a controlled study. Legacy/unassigned means no recorded run ID. Chat follows the displayed game page."}

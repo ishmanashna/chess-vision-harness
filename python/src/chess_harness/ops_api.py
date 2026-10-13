@@ -25,6 +25,7 @@ from .ops_jobs import register_ops_job_routes
 from .ops_metrics import metrics_snapshot
 from .puzzle_observer import public_attempt_row as puzzle_public_row
 from .prompt_test_ops import build_prompt_test_snapshot
+from .ops_experiment_runs import list_experiment_runs, run_artifact_view
 
 __all__ = ["build_ops_snapshot", "register_ops_routes"]
 
@@ -223,11 +224,30 @@ def register_ops_routes(app) -> None:
         family = request.query_params.get("family") or None
         if family is not None:
             family = str(family).strip().lower() or None
-        return await asyncio.to_thread(
-            build_prompt_test_snapshot,
-            family=family,
-            base_dir=resolve_base_dir(),
-        )
+        try:
+            return await asyncio.to_thread(
+                build_prompt_test_snapshot, family=family, base_dir=resolve_base_dir(),
+                **{key: request.query_params.get(key) or None for key in ("run_id", "model", "pack", "opponent", "status")},
+                offset=int(request.query_params.get("offset", "0")),
+                limit=int(request.query_params.get("limit", "100")),
+            )
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid experiment filters or pagination")
+
+    @router.get("/api/ops/experiments")
+    async def experiment_runs(request: Request):
+        _require_loopback(request)
+        return await asyncio.to_thread(list_experiment_runs)
+
+    @router.get("/api/ops/experiments/{key}/{kind}")
+    async def experiment_artifact(request: Request, key: str, kind: str):
+        _require_loopback(request)
+        if kind not in {"report", "events"}:
+            raise HTTPException(status_code=404)
+        try:
+            return await asyncio.to_thread(run_artifact_view, key, kind)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404)
 
     app.include_router(router)
     register_ops_job_routes(app)

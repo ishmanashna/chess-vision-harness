@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–2 complete locally (2026-10-13); Batches 3–7 planned. Not published.
+Status: Batches 1–3 implemented locally (2026-10-13); Batches 4–7 planned. Batch 3 backend activation pending localhost restart. Not published.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -145,6 +145,10 @@ The shared game store, results, ratings, and finished-games SQLite were not move
 
 ## Batch 3 — Ops experiment results and loading
 
+Status: implemented and verified in an isolated read-only preview, 2026-10-13.
+Automatic approval review blocked restarting the serving process ("blocked by policy");
+the running server remains unchanged. Restart localhost to activate the new backend.
+
 Work:
 
 - Make family filtering consistent across packs, games, and related chat/results.
@@ -169,6 +173,16 @@ Done when:
   reachable from the UI. Filtering does not cross-contaminate experiments.
 - A slow or failed audience/A/B endpoint does not prevent Overview from updating.
 - Ops remains useful with Umami unset and when no runs are active.
+
+Verification: 85 targeted Python tests (including proxy protection) and 17 JavaScript
+tests passed. The preview's Composer selection contains 75 games; Jeff contains 135
+with explicit 100-game pagination. Selecting J1 produces one pack and 15 matching
+games, including 14 analysed finishes; summary and game selections agree. Tests cover
+deduplication, stale live states, exclusions/missing metrics, filtering, pagination,
+safe artifact fields, loopback locks, and overlapping/hung requests. A/B, audience,
+and full inbox load on demand; snapshot updates independently. New run links expose
+allowlisted operational reports/events only, not raw report.md or private logs.
+The A/B UI detects the old running backend and explains the required restart.
 
 ## Batch 4 — Ops health and shared Go Online status
 

@@ -1736,3 +1736,16 @@ p {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* Ops evidence controls and wide result tables stay inside the main column. */
+.ops-main { min-width: 0; }
+.ops-section[data-ops-section="prompt-test"] > .card { max-width: none; }
+.ops-experiment-filters { display: flex; flex-wrap: wrap; gap: 12px; }
+.ops-experiment-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; min-width: 120px; max-width: 100%; }
+.ops-experiment-filters select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 5px; padding: 6px; max-width: 240px; }
+.ops-table-scroll { overflow-x: auto; }
+.ops-table-scroll .leaderboard-table { min-width: 700px; }
+.ops-table-scroll th, .ops-table-scroll td { white-space: nowrap; font-size: 0.85rem; padding: 8px 10px; }
+.ops-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.ops-pagination button, .ops-top-actions button { font: inherit; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 5px; cursor: pointer; }
+.ops-pagination button:disabled { opacity: 0.45; cursor: default; }

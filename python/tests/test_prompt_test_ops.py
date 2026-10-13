@@ -191,13 +191,15 @@ def test_prompt_test_snapshot_five_pack_ids(tmp_path, monkeypatch):
     assert titles["b"] == "B Verify"
     assert titles["c"] == "C Principles"
     assert titles["d"] == "D Slow"
-    assert titles["f"] == "f"
+    assert titles["f"] == "F Legal"
 
 
 def test_prompt_test_snapshot_empty(tmp_path, monkeypatch):
     harness_dir = _harness_setup(tmp_path, monkeypatch)
     payload = build_prompt_test_snapshot(base_dir=harness_dir)
-    assert payload == {"ok": True, "packs": [], "games": [], "chats": []}
+    assert payload["ok"] is True
+    assert payload["packs"] == payload["games"] == payload["chats"] == []
+    assert payload["total"] == payload["summary"]["total"] == 0
 
 
 def test_prompt_test_api_loopback_only(spectator_client):

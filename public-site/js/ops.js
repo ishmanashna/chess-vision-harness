@@ -7,6 +7,8 @@
   var POLL_MS = 10000;
   var GO_ONLINE_POLL_MS = 2000;
   var LOOPBACK_HEADERS = {};
+  var activeTab = "overview";
+  var sectionPending = {};
   var TAB_COPY = {
     overview: ["Overview", "Live snapshot from this PC · polls every 10s"],
     traffic: ["Traffic", "Origin requests on this PC · site visitors from Umami (Pages host)"],
@@ -437,26 +439,16 @@
   }
 
   function fetchAudience() {
-    return fetch("/api/ops/audience", {
-      headers: LOOPBACK_HEADERS,
-      cache: "no-store",
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error("Audience HTTP " + res.status);
-        return res.json();
-      })
-      .then(function (body) {
-        renderAudience(body);
-        return body;
-      })
-      .catch(function () {
-        renderAudience({
-          configured: false,
-          message:
-            "Could not load Umami audience data from this PC. The Umami Cloud web dashboard still works when serve is off.",
-        });
-        return null;
-      });
+    if (sectionPending.audience) return sectionPending.audience;
+    setText("[data-audience-status]", "Loading site visitors…");
+    return refreshSection("audience", "/api/ops/audience", function (body) {
+      renderAudience(body);
+      setText("[data-audience-status]", body.refreshing ? "Audience refresh in progress; cached data may be stale." : body.configured
+        ? (body.ok ? "Updated " + fmtTime(body.generated_at) : "Audience provider error; data unavailable.")
+        : "Audience is not configured for this serve process. Follow the setup message below.");
+    }, function (err) {
+      setText("[data-audience-status]", "Audience: " + err.message);
+    });
   }
 
   function renderMetrics(metrics) {
@@ -471,6 +463,7 @@
       metrics.error_rate != null ? metrics.error_rate + "%" : "0%"
     );
     setText("[data-traffic-requests]", String(metrics.origin_requests_24h || 0));
+    setText("[data-traffic-product]", "Product/agent requests: " + (metrics.product_requests_24h != null ? String(metrics.product_requests_24h) : "unavailable until server restart") + " (excludes operator, health, and static requests)");
     setText("[data-errors-5xx]", String((metrics.errors && metrics.errors.events_5xx) || 0));
     setText(
       "[data-errors-unexpected]",
@@ -488,166 +481,6 @@
     renderBarChart("[data-chart-errors-outages]", buckets, "outage_errors", { maxBars: 180 });
     renderRouteTable(metrics.routes || []);
     renderErrorEvents((metrics.errors && metrics.errors.recent) || []);
-  }
-
-  function fmtMean(value, digits) {
-    if (value == null || isNaN(value)) return "—";
-    return Number(value).toFixed(digits != null ? digits : 1);
-  }
-
-  function renderPromptTest(payload, errorMessage) {
-    var packs = (payload && payload.packs) || [];
-    var games = (payload && payload.games) || [];
-    var chats = (payload && payload.chats) || [];
-    var body = root() && root().querySelector("[data-prompt-test-body]");
-    if (!body) return;
-    body.innerHTML = "";
-    if (errorMessage) {
-      body.innerHTML = '<tr><td colspan="7"></td></tr>';
-      body.querySelector("td").textContent = errorMessage;
-      setText("[data-prompt-test-meta]", errorMessage);
-    } else if (!packs.length) {
-      body.innerHTML = '<tr><td colspan="7">No A/B games yet.</td></tr>';
-      setText("[data-prompt-test-meta]", "0 packs");
-    } else {
-      packs.forEach(function (row) {
-        var tr = document.createElement("tr");
-        tr.innerHTML =
-          "<td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
-        tr.children[0].textContent = row.title || row.id || "—";
-        tr.children[1].textContent = String(row.in_progress != null ? row.in_progress : 0);
-        tr.children[2].textContent = String(row.finished != null ? row.finished : 0);
-        var w = row.wins != null ? row.wins : 0;
-        var d = row.draws != null ? row.draws : 0;
-        var l = row.losses != null ? row.losses : 0;
-        tr.children[3].textContent = w + "-" + d + "-" + l;
-        tr.children[4].textContent = fmtMean(row.mean_accuracy, 1);
-        tr.children[5].textContent = fmtMean(row.mean_play_rating, 0);
-        var linksCell = tr.children[6];
-        var ids = row.recent_game_ids || [];
-        if (!ids.length) {
-          linksCell.textContent = "—";
-        } else {
-          ids.forEach(function (gid, idx) {
-            var link = document.createElement("a");
-            link.href = "/g/" + encodeURIComponent(gid);
-            link.textContent = shortId(gid);
-            linksCell.appendChild(link);
-            if (idx < ids.length - 1) {
-              linksCell.appendChild(document.createTextNode(" "));
-            }
-          });
-        }
-        body.appendChild(tr);
-      });
-      setText("[data-prompt-test-meta]", packs.length + " pack" + (packs.length === 1 ? "" : "s"));
-    }
-    renderPromptTestGames(games);
-    renderPromptTestChats(chats);
-  }
-
-  function renderPromptTestGames(games) {
-    var body = root() && root().querySelector("[data-prompt-test-games]");
-    if (!body) return;
-    body.innerHTML = "";
-    if (!games || !games.length) {
-      body.innerHTML = '<tr><td colspan="7">No packed games on this PC.</td></tr>';
-      return;
-    }
-    games.forEach(function (row) {
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
-      tr.children[0].textContent = row.title || row.prompt_pack || "—";
-      var gid = row.game_id || "";
-      if (gid) {
-        var link = document.createElement("a");
-        link.href = "/g/" + encodeURIComponent(gid);
-        link.textContent = shortId(gid);
-        tr.children[1].appendChild(link);
-      } else {
-        tr.children[1].textContent = "—";
-      }
-      tr.children[2].textContent = row.agent_color || "—";
-      tr.children[3].textContent = row.opponent_id || "—";
-      var resultBits = [];
-      if (row.outcome) resultBits.push(row.outcome);
-      if (row.result && row.result !== "*") resultBits.push(row.result);
-      tr.children[4].textContent = resultBits.length ? resultBits.join(" · ") : (row.status || "—");
-      tr.children[5].textContent = fmtMean(row.accuracy, 1);
-      tr.children[6].textContent = fmtMean(row.play_rating, 0);
-      body.appendChild(tr);
-    });
-  }
-
-  function renderPromptTestChats(chats) {
-    var rootEl = root() && root().querySelector("[data-prompt-test-chats]");
-    if (!rootEl) return;
-    rootEl.innerHTML = "";
-    rootEl.className = "ops-ab-chat-list";
-    if (!chats || !chats.length) {
-      var empty = document.createElement("p");
-      empty.className = "snapshot-meta";
-      empty.textContent = "No committee chat yet.";
-      rootEl.appendChild(empty);
-      return;
-    }
-    chats.forEach(function (chat) {
-      var card = document.createElement("div");
-      card.className = "ops-ab-chat-card";
-      var heading = document.createElement("h4");
-      var title = chat.title || "Committee";
-      var gid = chat.game_id ? shortId(chat.game_id) : "";
-      heading.textContent = title + (gid ? " · " + gid : "");
-      card.appendChild(heading);
-      var box = document.createElement("div");
-      box.className = "ops-ab-chat";
-      var messages = chat.messages || [];
-      if (!messages.length) {
-        var none = document.createElement("p");
-        none.className = "snapshot-meta";
-        none.textContent = "No messages yet.";
-        box.appendChild(none);
-      } else {
-        messages.forEach(function (msg) {
-          var line = document.createElement("p");
-          line.className = "ops-ab-chat-line";
-          line.setAttribute("data-kind", msg.kind || "say");
-          var seat = document.createElement("span");
-          seat.className = "ops-ab-chat-seat";
-          if (msg.kind === "system") {
-            seat.textContent = "harness";
-          } else {
-            seat.textContent = "seat " + (msg.seat != null ? msg.seat : "?");
-          }
-          line.appendChild(seat);
-          line.appendChild(document.createTextNode(msg.text || msg.uci || ""));
-          box.appendChild(line);
-        });
-      }
-      card.appendChild(box);
-      rootEl.appendChild(card);
-    });
-  }
-
-  function fetchPromptTest() {
-    return fetch("/api/ops/prompt-test", {
-      headers: LOOPBACK_HEADERS,
-      cache: "no-store",
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error("A/B HTTP " + res.status);
-        return res.json();
-      })
-      .then(function (body) {
-        renderPromptTest(body);
-        return body;
-      })
-      .catch(function (err) {
-        var message = err && err.message ? err.message : "Could not load A/B";
-        renderPromptTest({ packs: [], games: [], chats: [] }, message);
-        return null;
-      });
   }
 
   function renderActivity(rows) {
@@ -738,39 +571,31 @@
     }
   }
 
+  function refreshSection(key, url, onSuccess, onError) {
+    if (sectionPending[key]) return sectionPending[key];
+    sectionPending[key] = window.CVH.opsRequest(key, url).then(onSuccess).catch(onError)
+      .finally(function () { delete sectionPending[key]; });
+    return sectionPending[key];
+  }
+
   function refresh() {
-    var snapshotReq = fetch("/api/ops/snapshot", {
-      headers: LOOPBACK_HEADERS,
-      cache: "no-store",
-    }).then(function (res) {
-      if (!res.ok) throw new Error("Snapshot HTTP " + res.status);
-      return res.json();
-    });
-    var inboxReq = fetch("/api/contact/inbox", {
-      headers: LOOPBACK_HEADERS,
-      cache: "no-store",
-    })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .catch(function () {
-        return null;
-      });
-    return Promise.all([snapshotReq, inboxReq, fetchAudience(), fetchPromptTest()])
-      .then(function (results) {
-        showError("");
-        applySnapshot(results[0]);
-        if (results[1] && results[1].messages) {
-          renderInboxList("[data-inbox-full]", results[1].messages, true);
-        }
-      })
-      .catch(function (err) {
-        showError(err && err.message ? err.message : "Could not load snapshot");
-      });
+    if (document.hidden) return;
+    refreshSection("snapshot", "/api/ops/snapshot", function (data) {
+      showError("");
+      applySnapshot(data);
+    }, function (err) { showError("Snapshot: " + err.message); });
+    if (activeTab === "inbox") {
+      refreshSection("inbox", "/api/contact/inbox", function (data) {
+        setText("[data-inbox-status]", "Updated " + fmtTime(new Date().toISOString()));
+        renderInboxList("[data-inbox-full]", data.messages || [], true);
+      }, function (err) { setText("[data-inbox-status]", "Inbox: " + err.message); });
+    }
+    if (activeTab === "traffic") fetchAudience();
+    if (activeTab === "prompt-test" && window.CVH.refreshOpsExperiments) window.CVH.refreshOpsExperiments();
   }
 
   function activateTab(id) {
+    activeTab = id;
     var panel = root();
     if (!panel) return;
     panel.querySelectorAll("[data-ops-tab]").forEach(function (btn) {
@@ -785,6 +610,7 @@
     var copy = TAB_COPY[id] || TAB_COPY.overview;
     setText("[data-ops-title]", copy[0]);
     setText("[data-ops-subtitle]", copy[1]);
+    refresh();
   }
 
   function initTabs() {
@@ -801,7 +627,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     initTabs();
     initGoOnlineControls();
-    refresh();
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
     setInterval(refresh, POLL_MS);
   });
 })();
