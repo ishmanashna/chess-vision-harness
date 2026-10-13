@@ -4,7 +4,21 @@ import chess
 import chess.engine
 import pytest
 
-from chess_harness.exceptional_moves import classify_exceptional, sacrifice_cost
+from chess_harness.exceptional_moves import classify_exceptional, sacrifice_cost, routine_check_evasion
+
+
+def test_routine_check_block_needs_difficulty_evidence_beyond_a_unique_best_move():
+    board = chess.Board("rnb1k1nr/p1p1q1pp/3b4/1p6/2B5/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 7")
+    assert board.is_check()
+    evidence = {"sacrifice_cp":0,"discovery":{"root_changed":False,"discovered_depth":1},
+                "passes":[{"best_chance":.74,"second_chance":.23,"discovery_gain_pp":-2}] * 2}
+    assert routine_check_evasion(board, evidence)
+    # A genuinely deeper tactical refinement or verified material offer remains eligible.
+    evidence["passes"] = [{"best_chance":.74,"second_chance":.23,"discovery_gain_pp":8}] * 2
+    assert not routine_check_evasion(board, evidence)
+    evidence["discovery"] = None
+    evidence["sacrifice_cp"] = 300
+    assert not routine_check_evasion(board, evidence)
 
 
 class Engine:
@@ -99,7 +113,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v4")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v5")
 
 
 def test_nearly_best_sound_sacrifice_can_be_brilliant():

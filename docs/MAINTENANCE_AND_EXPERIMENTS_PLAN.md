@@ -578,7 +578,7 @@ Done when:
   one manual restart: automatic approval review had rejected the agent restarting the
   live server. The prior manually started process predates these backend changes.
 
-### Replay layout, model metadata, and annotation audit (policy v4)
+### Replay layout, model metadata, and annotation audit (policies v4/v5)
 
 - Published `04d1bfa` and `1d8f7d2`: smaller shared header spacing, a larger
   centered replay board, matching move-panel height, and fixed dark-mode evaluation
@@ -598,6 +598,11 @@ Done when:
   Quiet exceptional moves need no sacrifice. Routine captures need a genuinely
   changed, later engine choice; simply taking a hung piece is insufficient.
   Material disposal that merely preserves an already drawn position is rejected.
+- Review during the full refresh found an additional false positive: an ordinary
+  bishop check block received `!` solely from the gap to inferior alternatives.
+  Policy v5 excludes routine check evasions unless both saved verification passes
+  show deeper difficulty evidence or a sound material offer. This exclusion can
+  be applied directly to v4's saved evidence without repeating engine searches.
 - An 811-position pilot included every old positive plus sampled quiet moves and
   captures. It exposed many old critical-gap capture false positives, including
   11...dxe4 in `game-5c-eqcCF2tSm_lDiSlPxlw`. Desired 2x/4x positive counts are
@@ -617,7 +622,7 @@ Done when:
   contract. The stronger authoritative evaluation and Performance-map migration
   remain Batch 8 work.
 - Validation: 63 targeted Python tests passed, one environment-specific test skipped;
-  eight annotation UI tests and seven Home benchmark tests passed. Both public-site
+  nine annotation UI tests and seven Home benchmark tests passed. Public-site
   deployment runs succeeded. New best-move and terminal-context API fields still
   need one manual activation restart under the existing approval-review block.
 

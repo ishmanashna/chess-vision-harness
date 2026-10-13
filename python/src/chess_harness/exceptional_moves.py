@@ -12,12 +12,13 @@ import chess.engine
 
 VERSION = "critical-sound-sacrifice-v1"
 # VERSION identifies the evidence structure; policy revisions are separate.
-POLICY_VERSION = "critical-discovery-sacrifice-policy-v4"
+POLICY_VERSION = "critical-discovery-sacrifice-policy-v5"
 PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .35, "minimum_depth": 14},
                                            {"depth": 22, "seconds": 1.0, "minimum_depth": 18}],
            "multipv": 2, "critical_gap_pp": 7.5, "critical_alternative_ceiling": .75,
            "minimum_chance": .25, "brilliant_minimum_chance": .40,
            "alternative_winning_chance": .85, "sacrifice_min_cp": 100, "near_best_loss_pp": 3.0,
+           "routine_check_evasion_requires_difficulty": True,
            "verification_cache": "position-history reuse", "discovery_cache": "cleared before trace",
            "discovery": {"shallow_depth": 4, "stable_depths": 3,
                          "great_depth": 6, "great_gain_pp": 3.0,
@@ -104,6 +105,27 @@ def sacrifice_cost(board: chess.Board, move: chess.Move):
     return None if exchange is None else max(0, exchange - gain)
 
 
+def routine_check_evasion(board, evidence):
+    """A unique check block alone is insufficient evidence of difficulty.
+
+    Uses the saved verification evidence too, so this stricter exclusion can
+    be applied to historical artifacts without repeating engine searches.
+    """
+    if not board.is_check() or (evidence.get("sacrifice_cp") or 0) >= PROFILE["sacrifice_min_cp"]:
+        return False
+    discovery = evidence.get("discovery") or {}
+    if not discovery or len(evidence.get("passes", [])) != 2:
+        return True
+    settings = PROFILE["discovery"]
+    for item in evidence["passes"]:
+        gain = item.get("discovery_gain_pp", 0)
+        late = discovery.get("root_changed") and discovery.get("discovered_depth", 0) >= settings["great_depth"]
+        gap = (item["best_chance"] - item["second_chance"]) * 100
+        if gap < 5 or not ((late and gain >= settings["great_gain_pp"]) or gain >= settings["refinement_great_gain_pp"]):
+            return True
+    return False
+
+
 def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=None) -> dict | None:
     if engine is None or not getattr(engine, "engine", None):
         return None
@@ -186,6 +208,10 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=Non
         for item in evidence:
             item["search_label"] = item["label"]
             item["label"] = label
-        return {"label": label, "evidence": {"version": VERSION, "policy_version": POLICY_VERSION, "passes": evidence, "sacrifice_cp": sacrifice, "discovery": discovery}}
+        saved = {"version": VERSION, "policy_version": POLICY_VERSION, "passes": evidence, "sacrifice_cp": sacrifice, "discovery": discovery}
+        if routine_check_evasion(board, saved):
+            if audit is not None: audit["rejection"] = "routine check evasion without deeper difficulty evidence"
+            return None
+        return {"label": label, "evidence": saved}
     except (chess.engine.EngineError, chess.engine.EngineTerminatedError, KeyError, TypeError, ValueError, AttributeError, TimeoutError, OSError):
         return None
