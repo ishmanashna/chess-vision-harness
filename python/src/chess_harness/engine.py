@@ -164,7 +164,8 @@ class UciEngineAdapter:
             return None
         try:
             info = self.engine.analyse(board, chess.engine.Limit(depth=depth))
-            self.last_evaluation = {"mate": info["score"].white().mate(), "depth": info.get("depth")}
+            self.last_evaluation = {"mate": info["score"].white().mate(), "depth": info.get("depth"),
+                                    "best_move_uci": info["pv"][0].uci() if info.get("pv") else None}
             return info["score"].white().score(mate_score=10000)
         except Exception:
             return None

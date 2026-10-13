@@ -50,6 +50,13 @@ test("the move list renders symbols without numeric evaluations", () => {
   assert.match(badgeHtml(row), />\?</);
 });
 
+test("an unclaimed draw after resignation uses contextual equality rather than a misleading blunder badge", () => {
+  const badge = badgeHtml({...row,label:"blunder",terminal_context:{kind:"unclaimed_draw",reason:"threefold repetition",game_result:"0-1"}});
+  assert.match(badge, />=</);
+  assert.match(badge, /opponent resigned instead/);
+  assert.doesNotMatch(badge, />\?\?</);
+});
+
 test("a hung analysis response body times out and aborts", async () => {
   let signal;
   await assert.rejects(fetchSavedAnalysis("/annotations", 15, async (_url, options) => {

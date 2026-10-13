@@ -243,7 +243,8 @@ def run_game_quality(
                 return False
             if quality.move_analysis is not None:
                 from .move_annotations import save_analysis
-                save_analysis(gm.get_game_dir(game_id), quality.move_analysis)
+                from .annotation_context import apply_terminal_context
+                save_analysis(gm.get_game_dir(game_id), apply_terminal_context(state, quality.move_analysis))
             _patch_state_quality(
                 state,
                 quality,

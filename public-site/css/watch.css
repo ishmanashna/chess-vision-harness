@@ -814,7 +814,7 @@
   width: min(
     680px,
     max(240px, calc(100vh - 260px)),
-    max(240px, calc(100vw - 560px))
+    max(240px, calc(100vw - 672px))
   );
 }
 

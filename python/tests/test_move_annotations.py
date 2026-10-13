@@ -41,6 +41,14 @@ def test_label_boundaries(loss, label):
     assert move_label(loss) == label
 
 
+def test_preferred_move_is_not_a_shallow_search_error_and_scores_are_preserved():
+    from chess_harness.move_annotations import apply_preference
+    row = {"uci":"e2e4","label":"mistake","before":{"cp":100},"after":{"cp":-100},"loss_percent":17.0}
+    apply_preference(row,{"best_move_uci":"e2e4","best_move_san":"e4","best_move_depth":14})
+    assert row["label"] == "good" and row["shallow_label"] == "mistake"
+    assert row["before"]["cp"] == 100 and row["after"]["cp"] == -100 and row["loss_percent"] == 17.0
+
+
 def test_checkmate_is_typed_not_a_fake_centipawn_delta():
     moves = ["f2f3", "e7e5", "g2g4", "d8h4"]
     analysis = analyse_game(moves, eval_fn=lambda board: -500).move_analysis

@@ -28,7 +28,7 @@ import chess
 import chess.pgn
 
 from .engine import EvalEngineAdapter
-from .move_annotations import make_analysis, move_label, position_score
+from .move_annotations import apply_preference, make_analysis, move_label, position_score
 
 WIN_PROB_COEFF = 0.00368208
 WIN_PROB_CP_CAP = 1000
@@ -312,6 +312,13 @@ def analyse_game(
             if cp_white_before is None:
                 break
             before = position_score(board, cp_white_before, owned_engine)
+            preference = {}
+            evaluated = getattr(owned_engine, "last_evaluation", None) or {}
+            best_uci = evaluated.get("best_move_uci")
+            if best_uci:
+                best_move = chess.Move.from_uci(best_uci)
+                if best_move in board.legal_moves:
+                    preference = {"best_move_uci": best_uci, "best_move_san": board.san(best_move), "best_move_depth": evaluated.get("depth")}
             score_before = cp_white_before if mover == chess.WHITE else -cp_white_before
 
             board.push(chess.Move.from_uci(uci))
@@ -337,7 +344,7 @@ def analyse_game(
                 "ply": ply_idx + 1, "uci": uci,
                 "color": "white" if mover else "black", "before": before, "after": after,
                 "loss_cp": cp_loss if before["mate"] is None and after["mate"] is None else None,
-                "loss_percent": round(swing, 4), "label": move_label(swing),
+                "loss_percent": round(swing, 4), "label": move_label(swing), **preference,
             })
             skip_accuracy = cp_loss >= MATE_MISS_THRESHOLD
             accuracy = None if skip_accuracy else _move_accuracy(wp_before, wp_after)
@@ -367,9 +374,11 @@ def analyse_game(
             for row in annotation_rows:
                 move = chess.Move.from_uci(row["uci"])
                 if row["label"] == "good" or row["loss_percent"] >= 3:
-                    exceptional = classify_exceptional(replay, move, owned_engine)
+                    audit = {}
+                    exceptional = classify_exceptional(replay, move, owned_engine, audit=audit)
                     if exceptional:
                         row.update(label=exceptional["label"], exceptional=exceptional["evidence"])
+                    apply_preference(row, audit)
                 replay.push(move)
 
         return GameQuality(

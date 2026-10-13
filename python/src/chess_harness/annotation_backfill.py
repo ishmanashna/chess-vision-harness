@@ -22,7 +22,7 @@ from filelock import FileLock
 
 from .game_manager import GameManager
 from .game_quality import analyse_game, default_quality_depth
-from .move_annotations import LABEL_VERSION, THRESHOLDS, annotations_payload, make_analysis, move_label, moves_hash, save_analysis
+from .move_annotations import LABEL_VERSION, THRESHOLDS, annotations_payload, apply_preference, make_analysis, move_label, moves_hash, save_analysis
 from .ops_online_state import operation_lock
 from .paths import resolve_base_dir, resolve_finished_games_db
 
@@ -63,21 +63,20 @@ def pgn_from_state(state):
 def refresh_labels(state, artifact):
     """Reuse saved evals; screen discounted moves for deeper discoveries."""
     from .engine import EvalEngineAdapter
-    from .exceptional_moves import PROFILE, classify_exceptional, sacrifice_cost
+    from .exceptional_moves import PROFILE, classify_exceptional
     engine = None
     board = chess.Board(state.get("start_fen") or chess.STARTING_FEN)
     try:
         for row in artifact["plies"]:
             move = chess.Move.from_uci(row["uci"])
-            if row["label"] not in {"great", "brilliant"}:
-                row["label"] = move_label(row["loss_percent"])
-                cost = sacrifice_cost(board, move)
-                candidate = row["loss_percent"] >= PROFILE["discovery"]["refresh_screen_loss_pp"] or (cost is not None and cost >= PROFILE["sacrifice_min_cp"])
-                if candidate:
-                    if engine is None: engine = EvalEngineAdapter()
-                    exceptional = classify_exceptional(board, move, engine)
-                    if exceptional:
-                        row.update(label=exceptional["label"], exceptional=exceptional["evidence"])
+            row["label"] = move_label(row["loss_percent"])
+            row.pop("exceptional", None)
+            if engine is None: engine = EvalEngineAdapter()
+            audit = {}
+            exceptional = classify_exceptional(board, move, engine, audit=audit)
+            if exceptional:
+                row.update(label=exceptional["label"], exceptional=exceptional["evidence"])
+            apply_preference(row, audit)
             board.push(move)
     finally:
         if engine: engine.quit()
@@ -85,7 +84,9 @@ def refresh_labels(state, artifact):
     artifact["thresholds"] = dict(THRESHOLDS)
     artifact["exceptional_profile"] = dict(PROFILE, enabled=True)
     artifact["labels_refreshed_at"] = datetime.now(timezone.utc).isoformat()
-    artifact["label_refresh_scope"] = "Negative thresholds; cold-search discovery for shallow-discounted moves or piece offers; existing verified positives retained"
+    artifact["label_refresh_scope"] = "All moves reverified for critical, tactical-refinement, discovery and sacrifice criteria; old positives not grandfathered"
+    from .annotation_context import apply_terminal_context
+    apply_terminal_context(state, artifact)
     return artifact
 
 
@@ -141,7 +142,7 @@ def write_progress(path, data):
         Path(name).unlink(missing_ok=True)
 
 
-def run(root, database, workers=4, depth=None, refresh=False):
+def run(root, database, workers=4, depth=None, refresh=False, priority=None):
     depth = depth or default_quality_depth()
     root.mkdir(parents=True, exist_ok=True)
     (root / "logs").mkdir(exist_ok=True)
@@ -169,7 +170,8 @@ def run(root, database, workers=4, depth=None, refresh=False):
             shutil.copy2(path, root / "logs" / ("annotation-backfill-before-" + run_id + ".json"))
         write_progress(path, progress)
         # Short games first: make useful saved annotations available quickly.
-        ordered = sorted(games.items(), key=lambda pair: len(pair[1][0].get("moves") or []))
+        priority = priority or []
+        ordered = sorted(games.items(), key=lambda pair: (0 if pair[0] in priority else 1, len(pair[1][0].get("moves") or [])))
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(backfill_game, state, directory, run_id, depth, refresh=refresh): game_id
                        for game_id, (state, directory, source) in ordered}
@@ -199,8 +201,9 @@ if __name__ == "__main__":
     parser.add_argument("--database", type=Path, default=resolve_finished_games_db())
     parser.add_argument("--workers", type=int, choices=range(1, 5), default=4)
     parser.add_argument("--depth", type=int)
-    parser.add_argument("--refresh-labels", action="store_true", help="Reuse saved evaluations; refresh display labels and sacrifice verification only")
+    parser.add_argument("--refresh-labels", action="store_true", help="Reuse saved evaluations; reverify move annotations")
+    parser.add_argument("--priority-game", action="append", default=[], help="Refresh a cited game before the rest of the archive")
     args = parser.parse_args()
     if args.depth is not None and not 1 <= args.depth <= 40: parser.error("depth must be between 1 and 40")
-    result = run(args.root, args.database, args.workers, args.depth, args.refresh_labels)
+    result = run(args.root, args.database, args.workers, args.depth, args.refresh_labels, args.priority_game)
     print(json.dumps({key: result[key] for key in ("status", "total", "written", "existing", "failed")}))

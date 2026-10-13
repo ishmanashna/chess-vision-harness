@@ -12,15 +12,18 @@ import chess.engine
 
 VERSION = "critical-sound-sacrifice-v1"
 # VERSION identifies the evidence structure; policy revisions are separate.
-POLICY_VERSION = "critical-discovery-sacrifice-policy-v3"
-PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .2, "minimum_depth": 14},
-                                           {"depth": 22, "seconds": .8, "minimum_depth": 18}],
-           "multipv": 2, "critical_gap_pp": 10, "minimum_chance": .45,
-           "alternative_winning_chance": .85, "sacrifice_min_cp": 150, "near_best_loss_pp": 3.0,
-           "discovery": {"shallow_depth": 8, "stable_depths": 3,
-                         "great_depth": 10, "great_gain_pp": 5.0,
-                         "brilliant_depth": 14, "brilliant_gain_pp": 8.0,
-                         "refresh_screen_loss_pp": 3.0}}
+POLICY_VERSION = "critical-discovery-sacrifice-policy-v4"
+PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .35, "minimum_depth": 14},
+                                           {"depth": 22, "seconds": 1.0, "minimum_depth": 18}],
+           "multipv": 2, "critical_gap_pp": 7.5, "critical_alternative_ceiling": .75,
+           "minimum_chance": .25, "brilliant_minimum_chance": .40,
+           "alternative_winning_chance": .85, "sacrifice_min_cp": 100, "near_best_loss_pp": 3.0,
+           "verification_cache": "position-history reuse", "discovery_cache": "cleared before trace",
+           "discovery": {"shallow_depth": 4, "stable_depths": 3,
+                         "great_depth": 6, "great_gain_pp": 3.0,
+                         "brilliant_depth": 10, "brilliant_gain_pp": 6.0,
+                         "refinement_great_gain_pp": 6.0, "refinement_brilliant_gain_pp": 10.0,
+                         "refresh_screen_loss_pp": 0.0}}
 VALUES = {chess.PAWN: 100, chess.KNIGHT: 300, chess.BISHOP: 300,
           chess.ROOK: 500, chess.QUEEN: 900, chess.KING: 20000}
 
@@ -47,17 +50,18 @@ def _search(engine, board, settings, trace=False):
 def discovery_evidence(frames, move):
     settings = PROFILE["discovery"]
     shallow = frames.get(settings["shallow_depth"])
-    if not shallow or shallow["move"] == move or not frames:
+    if not shallow or not frames:
         return None
     end = max(frames)
     start = end
     while start in frames and frames[start]["move"] == move:
         start -= 1
     start += 1
-    if end - start + 1 < settings["stable_depths"] or start < settings["great_depth"]:
+    if end - start + 1 < settings["stable_depths"]:
         return None
     return {"shallow_depth": settings["shallow_depth"], "discovered_depth": start,
-            "stable_through_depth": end, "shallow_chance": round(shallow["chance"], 5)}
+            "stable_through_depth": end, "shallow_chance": round(shallow["chance"], 5),
+            "root_changed": shallow["move"] != move}
 
 
 def _exchange_gain(board, square, budget, depth=10):
@@ -100,19 +104,26 @@ def sacrifice_cost(board: chess.Board, move: chess.Move):
     return None if exchange is None else max(0, exchange - gain)
 
 
-def classify_exceptional(board: chess.Board, move: chess.Move, engine) -> dict | None:
-    if engine is None or not getattr(engine, "engine", None) or board.legal_moves.count() < 2:
+def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=None) -> dict | None:
+    if engine is None or not getattr(engine, "engine", None):
+        return None
+    if board.legal_moves.count() < 2:
+        if audit is not None and board.legal_moves.count() == 1:
+            forced = next(iter(board.legal_moves))
+            audit.update(best_move_uci=forced.uci(),best_move_san=board.san(forced),best_move_depth=0,forced_choice=True)
         return None
     evidence = []
     sacrifice = sacrifice_cost(board, move)
     try:
         native = engine.engine
         cold_trace = hasattr(native, "analysis") and "Clear Hash" in getattr(native, "options", {})
-        if cold_trace:
-            native.configure({"Clear Hash": None})
         discovery = None
         for settings in PROFILE["passes"]:
-            lines, frames = _search(native, board, settings, trace=cold_trace and not evidence)
+            lines, frames = _search(native, board, settings)
+            if audit is not None and lines and lines[0].get("pv") and lines[0].get("depth", 0) >= 8:
+                preference = lines[0]["pv"][0]
+                if preference in board.legal_moves:
+                    audit.update(best_move_uci=preference.uci(), best_move_san=board.san(preference), best_move_depth=lines[0]["depth"])
             if frames:
                 discovery = discovery_evidence(frames, move)
             if len(lines) < 2 or any(line.get("depth", 0) < settings["minimum_depth"] or not line.get("pv") or line.get("upperbound") or line.get("lowerbound") for line in lines[:2]):
@@ -124,6 +135,12 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine) -> dict |
             played_is_best = lines[0]["pv"][0] == move
             played = best
             alternative = second
+            if cold_trace and not evidence and played_is_best:
+                # Verification can reuse adjacent-position work; human-difficulty
+                # evidence must come from a separate cold iterative search.
+                native.configure({"Clear Hash": None})
+                _, cold_frames = _search(native, board, settings, trace=True)
+                discovery = discovery_evidence(cold_frames, move)
             if not played_is_best:
                 if sacrifice is None or sacrifice < PROFILE["sacrifice_min_cp"]:
                     return None
@@ -140,19 +157,35 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine) -> dict |
                     return None
             if played < PROFILE["minimum_chance"] or alternative >= PROFILE["alternative_winning_chance"]:
                 return None
-            brilliant = sacrifice is not None and sacrifice >= PROFILE["sacrifice_min_cp"]
-            great = played_is_best and (best - second) * 100 >= PROFILE["critical_gap_pp"] and second < .70
+            if all(abs(chance - .5) <= .02 for chance in (best, played, alternative)):
+                # Discarding material in an already drawn / claimable position
+                # is not brilliant merely because the engine still reports a draw.
+                return None
+            brilliant = played >= PROFILE["brilliant_minimum_chance"] and sacrifice is not None and sacrifice >= PROFILE["sacrifice_min_cp"]
+            great = played_is_best and (best - second) * 100 >= PROFILE["critical_gap_pp"] and second < PROFILE["critical_alternative_ceiling"]
             discovery_gain = (played - discovery["shallow_chance"]) * 100 if discovery else 0
+            hard = False
             if discovery and played_is_best and (best - second) * 100 >= 5:
-                brilliant = brilliant or (discovery["discovered_depth"] >= PROFILE["discovery"]["brilliant_depth"] and discovery_gain >= PROFILE["discovery"]["brilliant_gain_pp"])
-                great = great or discovery_gain >= PROFILE["discovery"]["great_gain_pp"]
+                late = discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["great_depth"]
+                hard = (late and discovery_gain >= PROFILE["discovery"]["great_gain_pp"]) or discovery_gain >= PROFILE["discovery"]["refinement_great_gain_pp"]
+                brilliant = brilliant or (played >= PROFILE["brilliant_minimum_chance"] and ((discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["brilliant_depth"] and discovery_gain >= PROFILE["discovery"]["brilliant_gain_pp"]) or discovery_gain >= PROFILE["discovery"]["refinement_brilliant_gain_pp"]))
+                great = great or hard
+            # Taking a hung piece / making an ordinary recapture is not exceptional
+            # just because every non-capture is worse. Require deeper tactical value.
+            nonobvious_capture = discovery and discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["great_depth"] and hard
+            sound_offer = sacrifice is not None and sacrifice >= PROFILE["sacrifice_min_cp"]
+            if board.is_capture(move) and not sound_offer and not nonobvious_capture:
+                if audit is not None: audit["rejection"] = "routine capture without a deeper tactical discovery"
+                return None
             if not brilliant and not great:
                 return None
             evidence.append({"depth": verified_depth,
                              "best_chance": round(best, 4), "second_chance": round(second, 4), "played_chance": round(played, 4),
                              "discovery_gain_pp": round(discovery_gain, 4), "label": "brilliant" if brilliant else "great"})
-        if evidence[0]["label"] != evidence[1]["label"]:
-            return None
-        return {"label": evidence[-1]["label"], "evidence": {"version": VERSION, "policy_version": POLICY_VERSION, "passes": evidence, "sacrifice_cp": sacrifice, "discovery": discovery}}
+        label = "brilliant" if all(item["label"] == "brilliant" for item in evidence) else "great"
+        for item in evidence:
+            item["search_label"] = item["label"]
+            item["label"] = label
+        return {"label": label, "evidence": {"version": VERSION, "policy_version": POLICY_VERSION, "passes": evidence, "sacrifice_cp": sacrifice, "discovery": discovery}}
     except (chess.engine.EngineError, chess.engine.EngineTerminatedError, KeyError, TypeError, ValueError, AttributeError, TimeoutError, OSError):
         return None

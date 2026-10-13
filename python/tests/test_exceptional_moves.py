@@ -14,7 +14,7 @@ class Engine:
         self.depths, self.unstable, self.calls = depths, unstable, 0
 
     def analyse(self, board, limit, multipv):
-        assert multipv == 2 and limit.time <= .8
+        assert multipv == 2 and limit.time <= 1.0
         depth = self.depths[self.calls]
         alternate = next(move for move in board.legal_moves if move != self.move)
         top = alternate if self.unstable and self.calls else self.move
@@ -43,7 +43,7 @@ def test_sound_piece_offer_earns_brilliant_and_exchange_is_not_a_sacrifice():
     assert sacrifice_cost(traded,chess.Move.from_uci("f4d5")) == 0
 
 
-@pytest.mark.parametrize("options", [dict(best=-200,second=-500), dict(best=900,second=600),
+@pytest.mark.parametrize("options", [dict(best=-400,second=-700), dict(best=900,second=600),
                                   dict(best=50,second=40), dict(depths=(13,22)),
                                   dict(depths=(18,17)), dict(unstable=True)])
 def test_no_positive_symbol_for_losing_easy_shallow_or_unstable_choices(options):
@@ -88,7 +88,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
             return 0
         def quit(self): pass
     monkeypatch.setattr(game_quality,"EvalEngineAdapter",QualityEngine)
-    def exceptional(board,move,engine):
+    def exceptional(board,move,engine,audit=None):
         assert calls.count("quality") == 4
         calls.append("exceptional")
         return {"label":"great", "evidence":{"version":"fixture"}}
@@ -99,7 +99,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v3")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v4")
 
 
 def test_nearly_best_sound_sacrifice_can_be_brilliant():
@@ -130,11 +130,11 @@ def test_late_stable_quiet_discovery_can_be_brilliant_without_sacrifice(monkeypa
     assert sacrifice_cost(board,move) == 0
     assert result["label"] == "brilliant"
     assert result["evidence"]["discovery"]["discovered_depth"] == 14
-    # A move already preferred at shallow depth is not a hidden discovery.
-    frames[8]["move"] = move
-    assert classify_exceptional(board,move,Engine(move))["label"] == "great"
-    frames[8]["move"] = alternate
-    frames[8]["chance"] = .55
+    # Value refinement may be hidden even when the root was already preferred.
+    frames[4]["move"] = move
+    assert classify_exceptional(board,move,Engine(move))["label"] == "brilliant"
+    frames[4]["move"] = alternate
+    frames[4]["chance"] = .55
     assert classify_exceptional(board,move,Engine(move))["label"] == "great"
 
 
@@ -142,5 +142,22 @@ def test_discovery_requires_consecutive_stability_and_a_recorded_shallow_search(
     from chess_harness.exceptional_moves import discovery_evidence
     move = chess.Move.from_uci("e2e4")
     other = chess.Move.from_uci("d2d4")
-    assert discovery_evidence({8:{"move":other,"chance":.3},18:{"move":move,"chance":.6}},move) is None
+    assert discovery_evidence({4:{"move":other,"chance":.3},18:{"move":move,"chance":.6}},move) is None
     assert discovery_evidence({14:{"move":move,"chance":.6},15:{"move":move,"chance":.6},16:{"move":move,"chance":.6}},move) is None
+
+
+def test_taking_a_hung_knight_is_not_great_merely_because_quiet_moves_are_worse():
+    board = chess.Board("6k1/8/8/3p4/4N3/8/8/6K1 b - - 0 1")
+    move = chess.Move.from_uci("d5e4")
+    assert classify_exceptional(board,move,Engine(move,best=450,second=0)) is None
+
+
+def test_critical_quiet_defense_can_be_great_while_somewhat_worse():
+    move = chess.Move.from_uci("e2e4")
+    assert classify_exceptional(chess.Board(),move,Engine(move,best=-150,second=-400))["label"] == "great"
+
+
+def test_unnecessary_queen_offer_in_an_already_drawn_position_is_not_brilliant():
+    board = chess.Board("6k1/8/8/3p4/8/4Q3/8/6K1 w - - 0 1")
+    move = chess.Move.from_uci("e3e4")
+    assert classify_exceptional(board,move,Engine(move,best=0,second=0)) is None

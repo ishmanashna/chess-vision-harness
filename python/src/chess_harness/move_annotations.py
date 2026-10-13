@@ -13,7 +13,7 @@ from pathlib import Path
 import chess
 
 SCHEMA_VERSION = 1
-LABEL_VERSION = "win-chance-loss-exceptional-v3"
+LABEL_VERSION = "win-chance-loss-exceptional-v4"
 # Mover's win-chance loss, in percentage points; not centipawn thresholds.
 THRESHOLDS = {"inaccuracy": 8.0, "mistake": 10.0, "blunder": 30.0}
 
@@ -32,6 +32,18 @@ def move_label(loss: float) -> str:
     if loss >= THRESHOLDS["inaccuracy"]:
         return "inaccuracy"
     return "good"
+
+
+def apply_preference(row, audit):
+    """Do not call a deeper engine's preferred move a shallow-search error."""
+    row.update({key: value for key, value in audit.items() if key.startswith("best_move_")})
+    if (row.get("label") in {"inaccuracy", "mistake", "blunder"}
+            and audit.get("best_move_uci") == row.get("uci")
+            and (audit.get("best_move_depth", 0) >= 8 or audit.get("forced_choice"))):
+        row["shallow_label"] = row["label"]
+        row["label"] = "good"
+        row["label_note"] = "The engine preferred the played move; a shallow evaluation swing is not a move error"
+    return row
 
 
 def position_score(board: chess.Board, cp: int, engine=None) -> dict:
@@ -123,7 +135,9 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
             color = "white" if board.turn else "black"
             if row.get("ply") != index + 1 or row.get("uci") != state["moves"][index] or row.get("color") != color or row.get("label") not in {"good", "great", "brilliant", "inaccuracy", "mistake", "blunder"}:
                 raise ValueError("Misaligned move analysis")
-            projected = {key: row.get(key) for key in ("ply", "uci", "color", "loss_cp", "loss_percent", "label")}
+            projected = {key: row.get(key) for key in ("ply", "uci", "color", "loss_cp", "loss_percent", "label", "best_move_uci", "best_move_san", "best_move_depth")}
+            if row.get("terminal_context"):
+                projected["terminal_context"] = {key: row["terminal_context"].get(key) for key in ("kind", "reason", "game_result", "display_symbol")}
             if row["label"] in {"great", "brilliant"}:
                 from .exceptional_moves import PROFILE, VERSION
                 evidence = row.get("exceptional") or {}
@@ -138,7 +152,7 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
             if row.get("exceptional"):
                 evidence = row["exceptional"]
                 projected["exceptional"] = {"version": evidence.get("version"), "policy_version": evidence.get("policy_version"), "sacrifice_cp": evidence.get("sacrifice_cp"),
-                    "discovery": {key: (evidence.get("discovery") or {}).get(key) for key in ("shallow_depth", "discovered_depth", "stable_through_depth", "shallow_chance")},
+                    "discovery": {key: (evidence.get("discovery") or {}).get(key) for key in ("shallow_depth", "discovered_depth", "stable_through_depth", "shallow_chance", "root_changed")},
                     "passes": [{key: item.get(key) for key in ("depth", "best_chance", "second_chance", "played_chance", "discovery_gain_pp", "label")} for item in evidence.get("passes", [])]}
             rows.append(projected)
             board.push_uci(row["uci"])

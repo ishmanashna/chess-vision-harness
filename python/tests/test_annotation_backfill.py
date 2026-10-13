@@ -84,7 +84,7 @@ def test_label_refresh_reuses_saved_evaluations_and_preserves_prior_analysis(tmp
     import chess_harness.engine as engine_module
     monkeypatch.setattr(engine_module,"EvalEngineAdapter",lambda:SimpleNamespace(quit=lambda:None))
     monkeypatch.setattr(exceptional,"sacrifice_cost",lambda *a:0)
-    monkeypatch.setattr(exceptional,"classify_exceptional",lambda *a:None)
+    monkeypatch.setattr(exceptional,"classify_exceptional",lambda *a,**kw:None)
     assert backfill.backfill_game(saved,tmp_path,"refresh",8,lambda *a,**kw:pytest.fail("must reuse scores"),refresh=True) == "written"
     new = json.loads(path.read_text())
     assert new["plies"][0]["label"] == "good"
