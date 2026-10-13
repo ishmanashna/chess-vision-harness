@@ -17,7 +17,7 @@
   var PROVISIONAL_HINT =
     "Provisional — K has not returned to the stable factor (24) yet. Ratings stabilize after 100 rated games.";
   var PERFORMANCE_TIP =
-    "A strength estimate on the Elo scale derived from mean Accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo and never changes it — useful when game count is still low.";
+    "Performance estimates playing strength from mean Accuracy using the engine calibration table. It is separate from game Elo, never changes it, and is not an official human rating.";
   var OBSERVATION_TEXT_TIP =
     "Text-only agent — plays from the board.txt grid, not the PNG image.";
   var ENGINES_JS_VERSION = "4";
@@ -355,10 +355,20 @@
         })
       ).map(normalizeAgentRow);
     }
-    return ts.sortRows(rows, key, dir, {
+    var sorted = ts.sortRows(rows, key, dir, {
       numericKeys: AGENT_NUMERIC_KEYS,
       tieKey: "id",
     });
+    // Missing Performance is unavailable, not a very weak score; keep it last
+    // in either direction (zero and negative ratings are valid).
+    if (key === "mean_play_rating") {
+      return sorted.filter(function (row) {
+        return ts.firstNumber(row[key]) != null;
+      }).concat(sorted.filter(function (row) {
+        return ts.firstNumber(row[key]) == null;
+      }));
+    }
+    return sorted;
   }
 
   function defaultAgentSortDir(key) {
@@ -560,8 +570,9 @@
     return (n * 100).toFixed(2) + "%";
   }
   function leaderboardColCount(fullColumns, showModelId, unified, homeBenchmark) {
-    // Home base: # Agent Elo Accuracy Strength Puzzles Games (=7). Leaderboards full base (=6).
-    var n = fullColumns ? (homeBenchmark ? 7 : 6) : 4;
+    // Full base: # Agent Accuracy Performance Games (+ Elo outside Home).
+    // Home substitutes Puzzles for Elo; both bases have six columns.
+    var n = fullColumns ? 6 : 4;
     if (unified) n += 5;
     if (showModelId) n += 1;
     // ≈$/game on Leaderboards (unified) and Home benchmark.
@@ -646,15 +657,13 @@
         var name = row.name || "—";
         var games = row.games;
         var provisional = isProvisional(agent);
-        var eloClass = homeBenchmark
-          ? ""
-          : provisional
-            ? "elo provisional"
-            : "elo";
+        var eloClass = provisional ? "elo provisional" : "elo";
         var titleAttr =
           !homeBenchmark && provisional
             ? ' title="' + escapeHtml(PROVISIONAL_HINT) + '"'
             : "";
+        var eloCell = homeBenchmark ? "" : "<td class=\"" + eloClass + "\"" +
+          titleAttr + ">" + escapeHtml(formatElo(agent)) + "</td>";
         var accCell = fullColumns
           ? "<td class=\"num\">" +
             escapeHtml(formatQualityMean(agent.mean_accuracy, "%")) +
@@ -733,12 +742,7 @@
           "<td class=\"agent\">" +
           formatAgentNameCell(name, agent.observation) +
           "</td>" +
-          "<td" +
-          (eloClass ? ' class="' + eloClass + '"' : "") +
-          titleAttr +
-          ">" +
-          escapeHtml(formatElo(agent)) +
-          "</td>" +
+          eloCell +
           accCell +
           playCell +
           gamesCell +
@@ -794,10 +798,15 @@
     var table = container.querySelector("table");
     var tbody = container.querySelector("tbody");
     var ts = window.CVH && window.CVH.tableSort;
-    var storageKey = showModelId ? AGENTS_SORT_KEY : HOME_SORT_KEY;
+    var storageKey = homeBenchmark ? HOME_SORT_KEY : AGENTS_SORT_KEY;
+    var defaultSort = homeBenchmark ? "mean_play_rating" : "elo";
     var state = ts
-      ? ts.loadState(storageKey, { key: "elo", dir: "desc" }, { estimatedElo: "mean_play_rating" })
-      : { key: "elo", dir: "desc" };
+      ? ts.loadState(storageKey, { key: defaultSort, dir: "desc" }, { estimatedElo: "mean_play_rating" })
+      : { key: defaultSort, dir: "desc" };
+    if (homeBenchmark && state.key === "elo") {
+      state = { key: "mean_play_rating", dir: "desc" };
+      if (ts) ts.saveState(storageKey, state.key, state.dir);
+    }
     // Map legacy Performance key name if someone stored "performance".
     if (state.key === "performance" || state.key === "estimatedElo") {
       state.key = "mean_play_rating";
@@ -815,13 +824,14 @@
       moreBtn.className = "benchmark-more";
       moreBtn.hidden = true;
       moreBtn.setAttribute("aria-expanded", "false");
+      if (table && table.id) moreBtn.setAttribute("aria-controls", table.id);
       moreBtn.addEventListener("click", function () {
         previewExpanded = !previewExpanded;
         paint();
       });
-      var metaEl = container.querySelector("[data-snapshot-meta]");
-      if (metaEl && metaEl.parentNode) {
-        metaEl.parentNode.insertBefore(moreBtn, metaEl);
+      var headingRow = container.querySelector("[data-benchmark-heading]");
+      if (headingRow) {
+        headingRow.appendChild(moreBtn);
       } else {
         container.appendChild(moreBtn);
       }

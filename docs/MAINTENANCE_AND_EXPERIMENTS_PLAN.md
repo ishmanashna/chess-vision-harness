@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: planned; implementation has not started.
+Status: Batch 1 complete locally (2026-10-13); Batches 2–7 planned. Not published.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -61,6 +61,8 @@ reopened by this plan.
 
 ## Batch 1 — Home and metric naming
 
+Status: complete locally, 2026-10-13.
+
 Work:
 
 - Give Benchmark a heading/control row. Keep the 15-row preview and the dynamic total;
@@ -87,6 +89,12 @@ Done when:
   768, and 390 CSS-pixel widths in light/dark themes, collapsed and expanded.
 - Snapshot-first and live-upgrade paths render the same columns and sorting behavior;
   legacy saved sorts and missing metrics behave correctly.
+
+Verification: 15 targeted Python tests and 22 JavaScript tests passed. Browser checks
+at 1768, 1440, 1280, 1024, 768, and 390 CSS pixels covered light/dark themes and
+expansion/collapse. No page-wide horizontal overflow; the table scrolls internally
+when needed. The layout stacks at 1500px and below. Desktop and stacked preview
+screenshots were saved with this chat's artifacts. Public deployment remains pending.
 
 ## Batch 2 — Archive inactive experiments and add basic scaffolding
 

@@ -28,7 +28,7 @@ def test_leaderboard_performance_labels(create_client):
     assert "Est. Elo (play)" not in html
     assert "Rebuild that table on the local Calibration page" not in html
     assert 'script src="/js/engines.js"' not in html
-    assert 'title="Estimated strength from move accuracy' in html
+    assert 'data-tip="Estimated strength from move accuracy' in html
     assert "leaderboard-layout-stack" in html
     assert 'class="leaderboard-copy"' in html
     assert 'class="leaderboard-tables"' in html
@@ -42,11 +42,13 @@ def test_leaderboard_performance_labels(create_client):
 def test_home_mini_ladder_full_columns(create_client):
     client, _ = create_client
     html = client.get("/").text
-    # Flavor Benchmark labels only on Home — not a fork of Leaderboards naming.
-    assert ">Strength</th>" in html
+    assert ">Strength</th>" not in html
     assert ">Eyesight</th>" not in html
     assert ">% pieces</th>" not in html
-    assert ">Performance</th>" not in html
+    assert ">Performance</th>" in html
+    assert 'data-sort="elo"' not in html
+    assert "100 rated games" in html
+    assert "not an official human rating" in html
     assert "Estimated Elo" not in html
     assert "Est. Elo (play)" not in html
     assert "data-leaderboard-full" in html
@@ -57,12 +59,12 @@ def test_home_mini_ladder_full_columns(create_client):
     assert "Scale check" not in html
     assert "Model id" not in html
     assert "data-show-model-id" not in html
-    assert 'colspan="9"' in html
+    assert 'colspan="8"' in html
     assert 'data-sort="puzzle_rating"' in html
     assert 'data-sort="identify_mean_accuracy"' not in html
     assert 'data-sort="cost_usd"' in html
     assert 'data-sort="aa_index"' in html
-    assert ">≈ $/game</th>" in html or ">≈ $/game<" in html or "≈ $/game" in html
+    assert ">$/game</th>" in html
     assert ">AA Index</th>" in html
     assert "Does not account for subscriptions" in html
     assert "Artificial Analysis Intelligence Index" in html
@@ -70,7 +72,7 @@ def test_home_mini_ladder_full_columns(create_client):
     assert 'data-sort="games"' in html
     assert ">Benchmark</h2>" in html
     assert "collaborative public benchmark" in html
-    assert "these guys really suck at chess" in html
+    assert "These guys used to really suck at chess" in html
     assert "normal intelligence indexes" in html
     assert "flavor snapshot" not in html
     assert "casual shorthand" not in html
@@ -116,15 +118,16 @@ def test_common_js_provisional_ignores_display_games():
     assert 'toFixed(2) + "%"' in js
     assert '!homeBenchmark && provisional' in js
     assert 'homeBenchmark' in js
-    assert '? "elo provisional"' in js
+    assert '"elo provisional"' in js
 
 
-def test_home_benchmark_elo_matches_other_cells():
-    js = _read_public("js/common.js")
-    # Home Elo is a plain cell (asterisk only) — no muted/underline provisional styling.
-    assert 'eloClass = homeBenchmark' in js or "eloClass = homeBenchmark" in js
-    css = _read_public("css/site.css")
-    assert ".home-ladder .leaderboard-table .provisional" not in css
+def test_home_benchmark_heading_and_scroll_region():
+    html = _read_public("index.html")
+    assert 'data-benchmark-heading' in html
+    assert 'id="home-benchmark-table"' in html
+    assert 'class="benchmark-table-scroll" role="region"' in html
+    assert "Â·" not in html
+    assert "â€¦" not in html
 
 
 def test_calibration_html_performance_label():
@@ -200,4 +203,4 @@ def test_home_benchmark_cost_and_aa_index_in_common_js():
     assert "Widely / very loosely estimated" in js
     assert "Does not account for subscriptions" in js
     assert "formatRatePctWhole" not in js
-    assert "homeBenchmark ? 7" in js
+    assert "homeBenchmark ? 7" not in js
