@@ -280,7 +280,8 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
     ensure_port_available(host, port, force=force)
     from .engine_cleanup import kill_orphaned_harness_processes
 
-    killed = kill_orphaned_harness_processes()
+    import os
+    killed = {} if os.environ.pop("CHESS_HARNESS_RESTART_HANDOFF", "") == "1" else kill_orphaned_harness_processes()
     if killed:
         parts = ", ".join(f"{name}={count}" for name, count in killed.items())
         print(f"Cleaned up leftover processes from a previous session ({parts})")
@@ -293,8 +294,12 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8765, force: bool = False) ->
     print(f"Agent briefs use {public_base_url()}")
     print("Stop with Ctrl+C, or run: chess-harness serve stop")
     try:
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="info"))
+        app.state.serve_address = (host, port)
+        app.state.request_server_shutdown = lambda: setattr(server, "should_exit", True)
+        server.run()
     finally:
+        app.state.request_server_shutdown = None
         remove_spectator_meta()
 
 

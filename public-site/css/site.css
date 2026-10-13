@@ -1407,6 +1407,13 @@ p {
   gap: 6px;
 }
 
+.ops-server-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .ops-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

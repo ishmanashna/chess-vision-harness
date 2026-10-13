@@ -99,7 +99,7 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
     path = game_dir / "move-analysis.json"
     if not path.is_file():
         pending = (not state.get("quality_at") or state.get("quality_provisional")) and state.get("result") not in {None, "*"}
-        return {"status": "pending" if pending else "unavailable", "reason": "Analysis pending" if pending else "No saved move analysis; historical backfill is deferred"}
+        return {"status": "pending" if pending else "unavailable", "reason": "Analysis pending" if pending else "No saved move analysis yet"}
     try:
         if path.stat().st_size > 2_000_000:
             raise ValueError("Analysis file too large")

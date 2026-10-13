@@ -259,3 +259,5 @@ def register_ops_routes(app) -> None:
 
     app.include_router(router)
     register_ops_job_routes(app)
+    from .ops_restart import register_restart_routes
+    register_restart_routes(app)

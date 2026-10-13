@@ -8,7 +8,7 @@
   <meta name="description" content="Localhost operator desk — health, disk, inbox, activity (127.0.0.1 only)."/>
   <title>Operator panel — Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
-  <link rel="stylesheet" href="/css/site.css?v=29"/>
+  <link rel="stylesheet" href="/css/site.css?v=30"/>
 </head>
 <body class="ops-body">
   <div class="wrap ops-wrap">
@@ -64,13 +64,17 @@
             <p class="lead ops-subtitle" data-ops-subtitle>Live snapshot from this PC · polls every 10s</p>
           </div>
           <div class="ops-top-actions">
+            <div class="ops-server-actions">
             <button type="button" class="btn-primary" data-ops-go-online>Go Online</button>
             <button type="button" class="btn-secondary" data-ops-sleep-public>Sleep public</button>
+            <button type="button" class="btn-secondary" data-ops-restart>Restart server</button>
+            </div>
             <span class="snapshot-meta" data-ops-updated></span>
           </div>
         </div>
 
         <p class="form-message is-error" data-ops-error hidden></p>
+        <p class="snapshot-meta" data-ops-restart-status role="status"></p>
 
           <article class="card ops-go-online-card" data-ops-go-online-panel hidden>
             <h3 class="ops-card-title">Go Online</h3>
@@ -328,8 +332,9 @@
   </div>
 
   <script src="/js/common.js?v=29"></script>
-  <script src="/js/ops-requests.js?v=2"></script>
+  <script src="/js/ops-requests.js?v=3"></script>
   <script src="/js/ops-experiments.js?v=1"></script>
-  <script src="/js/ops.js?v=5"></script>
+  <script src="/js/ops.js?v=6"></script>
+  <script src="/js/ops-restart.js?v=1"></script>
 </body>
 </html>

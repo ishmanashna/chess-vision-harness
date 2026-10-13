@@ -16,7 +16,9 @@
     var operation = Promise.resolve().then(function () {
       return fetch(url, Object.assign({}, options, { cache: "no-store", signal: controller.signal }));
     }).then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status + "; last successful data may be stale.");
+      if (!res.ok) return res.json().catch(function () { return {}; }).then(function (body) {
+        throw Object.assign(new Error(body.detail || "HTTP " + res.status + "; last successful data may be stale."), {status: res.status});
+      });
       return res.json();
     });
     var result = Promise.race([operation, deadline]).finally(function () {

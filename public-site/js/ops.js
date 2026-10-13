@@ -77,8 +77,8 @@
       var tail = job.log_tail || [];
       logEl.textContent = tail.length ? tail.join("\n") : "";
     }
-    setDisabled("[data-ops-go-online]", status === "running");
-    setDisabled("[data-ops-sleep-public]", status === "running");
+    setDisabled("[data-ops-go-online]", status === "running" || window.CVH.restartPending);
+    setDisabled("[data-ops-sleep-public]", status === "running" || window.CVH.restartPending);
     if (status === "ok" && window.CVH && typeof window.CVH.checkEdgeHealth === "function") {
       window.CVH.checkEdgeHealth({ force: true });
     }

@@ -492,6 +492,41 @@ Done when:
 - Published data identifies its analysis and map versions, original values can be
   recovered, and no outcome-based Elo or agent-facing payload changes occur.
 
+## Follow-up: Ops restart and historical annotations (2026-10-13)
+
+- Added **Restart server** beside Go Online / Sleep public. The managed CLI requests
+  graceful Uvicorn shutdown only after a detached helper acknowledges the handoff.
+  The helper waits for the old process to exit, refuses an occupied port, starts
+  the updated server without `--force`, and verifies both the replacement PID and
+  health before declaring success. The browser reconnects across downtime.
+- Restart is local and same-origin only. Active games, puzzle/identification
+  attempts, calibration, post-game analysis, historical annotation backfill,
+  concurrent mutations, and Go Online / Sleep operations prevent restart.
+  New mutations are refused while the handoff is pending. A backend already running
+  older code needs one manual restart to activate this new endpoint.
+- User explicitly requested annotation backfill for **all agent games**. Inventory
+  includes finished filesystem games plus archive-only records in the permanent
+  SQLite store; filesystem state takes precedence for duplicate game IDs.
+- `python -m chess_harness.annotation_backfill --workers 4` performs an annotation-only
+  pass. It retains the existing v1 depth-8 evaluation profile and the separate
+  deeper exceptional-move verification from Batch 5. This is not Batch 8's stronger
+  authoritative evaluation or Performance-map migration.
+- Saves validated `move-analysis.json` atomically, skips already complete matching
+  artifacts on rerun, and preserves replaced artifacts under `analysis-history/`.
+  Archive-only annotations live under runtime `archived-move-analysis/<game_id>/`;
+  deleted game directories are not restored. Empty games receive an empty artifact.
+  Invalid saved moves fail explicitly without replacing existing artifacts.
+- Does not write state, PGNs, results, permanent SQLite records, model ratings, maps,
+  or leaderboards. A SHA-256 preservation baseline is stored in runtime logs.
+  Progress and per-game failures: `logs/annotation-backfill.json`; single-job lock
+  prevents duplicate backfills, and four workers bound CPU use.
+- Initial inventory: **686 games = 369 local + 317 archive-only** (including historical
+  test records). Started as a detached local worker; record final coverage below
+  after completion. Archive-only records keep their existing visibility behavior.
+- Verification: Python restart/backfill/quality checks and JavaScript request,
+  restart-reconnection/refusal, and annotation checks pass. The real server was
+  not restarted by the agent; replacement-process behavior is covered with fakes.
+
 ## Delivery rules
 
 - Implement one batch at a time; split a batch further if it cannot be reviewed cleanly.
