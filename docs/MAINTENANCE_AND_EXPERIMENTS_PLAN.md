@@ -298,9 +298,52 @@ incomplete analysis is reported honestly; legacy games await the later backfill.
 Existing right-click board arrows remain separate and unchanged. Follow-up presentation
 correction: use conventional inline ?!, ?, and ?? suffixes for inaccuracies, mistakes,
 and blunders. Ordinary good moves are unmarked. Remove the visible annotation legend;
-keep classification/provenance in hover text and a compact selected-move evaluation.
-Do not assign ! or !! from low evaluation loss alone; identifying exceptional moves
-requires criteria to be validated with the stronger analysis work in Batch 8.
+keep classification/provenance in hover text. On the next follow-up, replace the
+selected-move evaluation paragraph with a small after-move number beside each move
+(White's perspective). Implement positive annotations now using the explicit policy
+below; broader analysis/calibration migration remains Batch 8.
+
+Positive annotations follow-up (2026-10-13): use the publicly documented concepts
+from [Chess.com's move classifications](https://support.chess.com/en/articles/8572705-how-are-moves-classified-what-is-a-blunder-or-brilliant-etc):
+critical continuations for !, and sound piece sacrifices for !!. Its complete
+classification algorithm is not published. The following thresholds are our own
+conservative, rating-independent policy, not a reproduction of proprietary code.
+
+- Inspect legal captures and recaptures on the offered piece's square. A bounded
+  material-exchange tree (pawn 100, minor 300, rook 500, queen 900) must find a net
+  offer of at least 150 cp for !!. Pawn offers, equal trades and illegal pinned
+  captures do not qualify; an exhausted exchange-tree budget is unknown.
+- Compare the engine's two strongest continuations privately, in two bounded passes:
+  target depth 18 / 0.2s and depth 22 / 0.8s per candidate. Require actual depths at
+  least 14 and 18 respectively, no bound-only scores, and the played move must remain
+  first in both passes. Lower-depth/time-limited or unstable evidence produces no
+  positive symbol. No candidate moves or variations are published.
+- Both passes must leave the mover at least 45% on the documented evaluation-to-chance
+  scale, while the second continuation is below 85%. This rejects unsound sacrifices
+  and positions where alternatives already clearly win. For !, also require a gap
+  of at least 10 percentage points, with the alternative below 70%. For !!, require
+  the verified material sacrifice instead. Both passes must agree on the category.
+  Positions with only one legal move are excluded. These chance values are analysis
+  heuristics, not claims about a particular human player's actual winning probability.
+- Positive review runs only in finished-game jobs, after the complete legacy quality
+  evaluation pass. It cannot warm engine hashes during Accuracy computation; existing
+  Accuracy/Performance formulas and map inputs stay unchanged. Calibration and live
+  provisional analysis do not request the extra searches. Additional work is bounded
+  per candidate; CPU cost still belongs in Batch 8's resource/stability benchmark.
+- Persist detector version, search budgets and actual verification depths, score-gap
+  evidence and estimated sacrifice value. Publish only projected numeric evidence;
+  preserve old analysis artifacts and wait for explicit historical backfill.
+
+Verification of this follow-up: 54 targeted Python tests passed, one existing test
+skipped, and seven JavaScript tests passed. Tests include both colors, sound/unsound
+criteria, equal trades, pinned captures, forced moves, insufficient depths, unstable
+choices, engine timeouts, no variation disclosure, and separation from quality
+calculation. A real Stockfish smothered-mate position confirmed that a queen offer is
+not automatically brilliant when another continuation is also a forced win. The
+seven-ply offline game also completed the full real-engine positive-review path while
+retaining the same 93.98% / 96.32% Accuracy values. Finished games with provisional
+quality remain pending until their saved final annotations arrive; polling stays
+bounded and replay loading remains independent.
 
 ## Batch 6 — Active backlog, parity, and useful validation
 

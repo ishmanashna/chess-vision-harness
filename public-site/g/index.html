@@ -9,7 +9,7 @@
   <title>Game · Chess Vision Harness</title>
   <script>(function(){try{var t=localStorage.getItem("chess-harness-theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
   <link rel="stylesheet" href="/css/site.css?v=21"/>
-  <link rel="stylesheet" href="/css/watch.css?v=13"/>
+  <link rel="stylesheet" href="/css/watch.css?v=14"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/chessboard.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/markers/markers.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.2/assets/extensions/arrows/arrows.css"/>
@@ -97,9 +97,8 @@
         </div>
         <aside class="col moves-col" id="moves-col">
           <div class="panel">
-            <h2>Moves</h2>
+            <h2 id="moves-heading">Moves</h2>
             <p class="move-analysis-status" id="move-analysis-status">Finished-game move analysis loads when available.</p>
-            <p class="move-analysis-detail" id="move-analysis-detail" aria-live="polite"></p>
             <div class="moves-scroll" id="mv"></div>
           </div>
         </aside>
@@ -110,6 +109,6 @@
     </footer>
   </div>
   <script src="/js/common.js?v=16"></script>
-  <script type="module" src="/js/spectator-game.js?v=12"></script>
+  <script type="module" src="/js/spectator-game.js?v=13"></script>
 </body>
 </html>

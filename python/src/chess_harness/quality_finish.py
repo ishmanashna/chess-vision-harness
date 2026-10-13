@@ -226,7 +226,7 @@ def run_game_quality(
 
     try:
         pgn_text = pgn_path.read_text(encoding="utf-8")
-        quality = analyse_game(pgn_text)
+        quality = analyse_game(pgn_text, include_exceptional=True)
     except Exception:
         _log.exception("quality analysis failed for %s", game_id)
         return False

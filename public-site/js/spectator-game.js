@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, analysisSummary, detailText, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=2";
+import { annotationAt, badgeHtml, evaluationHtml, analysisSummary, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=3";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -299,8 +299,9 @@ async function main() {
 
   function shouldKeepPolling(s) {
     if (!s.game_over) return true;
-    if (s.quality_at) return false;
     if (s.result === "*") return false;
+    if (analysisLoading || (moveAnalysis && moveAnalysis.status === "pending")) return qualityWaitAttempts < QUALITY_POLL_MAX;
+    if (s.quality_at) return false;
     return qualityWaitAttempts < QUALITY_POLL_MAX;
   }
 
@@ -475,8 +476,6 @@ async function main() {
 
   function applySavedEval(ply) {
     const score = savedScore(moveAnalysis, ply);
-    const detail = document.getElementById("move-analysis-detail");
-    if (detail) detail.textContent = detailText(annotationAt(moveAnalysis, ply));
     if (!score || !lastState || lastState.show_eval === false) return false;
     evalFetchGen++;
     if (evalDebounceTimer) { clearTimeout(evalDebounceTimer); evalDebounceTimer = null; }
@@ -591,7 +590,7 @@ async function main() {
           '" data-ply="' +
           wPly +
           '">' +
-          escHtml(r.white || "") + badgeHtml(annotationAt(moveAnalysis, wPly)) +
+          escHtml(r.white || "") + badgeHtml(annotationAt(moveAnalysis, wPly)) + evaluationHtml(annotationAt(moveAnalysis, wPly)) +
           "</span>" +
           (black
             ? '<span class="b' +
@@ -599,7 +598,7 @@ async function main() {
               '" data-ply="' +
               bPly +
               '">' +
-              escHtml(black) + badgeHtml(annotationAt(moveAnalysis, bPly)) +
+              escHtml(black) + badgeHtml(annotationAt(moveAnalysis, bPly)) + evaluationHtml(annotationAt(moveAnalysis, bPly)) +
               "</span>"
             : '<span class="b"></span>') +
           "</div>"
@@ -723,7 +722,7 @@ async function main() {
       pinMovesIfAtTip();
       if (
         s.game_over &&
-        !s.quality_at &&
+        (!s.quality_at || analysisLoading || (moveAnalysis && moveAnalysis.status === "pending")) &&
         s.result !== "*" &&
         qualityWaitAttempts < QUALITY_POLL_MAX
       ) {

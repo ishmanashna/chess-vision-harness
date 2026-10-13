@@ -90,11 +90,29 @@ def test_saved_analysis_is_validated_and_projection_excludes_lines(tmp_path):
     assert annotations_payload(tmp_path, state())["status"] == "unavailable"
 
 
+def test_positive_labels_need_saved_verification_and_never_publish_candidate_lines(tmp_path):
+    from chess_harness.exceptional_moves import VERSION
+    analysis = fixture_analysis()
+    row = analysis["plies"][0]
+    row["label"] = "brilliant"
+    save_analysis(tmp_path, analysis)
+    assert annotations_payload(tmp_path,state())["status"] == "unavailable"
+    row["exceptional"] = {"version": VERSION, "sacrifice_cp": 200, "pv":["private"],
+                          "passes":[{"depth":18,"label":"brilliant","best_chance":.6,"second_chance":.5,"pv":["private"]},
+                                    {"depth":22,"label":"brilliant","best_chance":.6,"second_chance":.5}]}
+    save_analysis(tmp_path,analysis)
+    payload = annotations_payload(tmp_path,state())
+    assert payload["status"] == "complete"
+    assert payload["plies"][0]["exceptional"]["sacrifice_cp"] == 200
+    assert "private" not in json.dumps(payload) and '"pv"' not in json.dumps(payload)
+
+
 def test_missing_and_bad_artifacts_are_honest(tmp_path):
     assert annotations_payload(tmp_path, state())["status"] == "unavailable"
     pending = state()
     pending.pop("quality_at")
     assert annotations_payload(tmp_path, pending)["status"] == "pending"
+    assert annotations_payload(tmp_path, dict(state(),quality_provisional=True))["status"] == "pending"
     (tmp_path / "move-analysis.json").write_text("broken")
     assert annotations_payload(tmp_path, pending)["status"] == "unavailable"
 
@@ -107,7 +125,7 @@ def test_finish_persists_annotations_without_agent_surface_changes(tmp_path, mon
     gm.save_state("fixture", saved)
     gm.get_pgn_path("fixture").write_text("1. e4 e5 2. Nf3 Nc6 1-0")
     quality = analyse_game(MOVES, eval_fn=lambda board: 0)
-    monkeypatch.setattr(quality_finish, "analyse_game", lambda pgn: quality)
+    monkeypatch.setattr(quality_finish, "analyse_game", lambda pgn, **kwargs: quality)
     before = moves_payload(saved)
     assert quality_finish.run_game_quality("fixture", base_dir=str(tmp_path))
     after_state = gm.load_state("fixture")

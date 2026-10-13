@@ -1,6 +1,6 @@
 /* Saved finished-game analysis. Never exposes candidate moves or lines. */
-const labels = {good: "Good", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder"};
-const symbols = {inaccuracy: "?!", mistake: "?", blunder: "??"};
+const labels = {good: "Good", great: "Great move", brilliant: "Brilliant move", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder"};
+const symbols = {great: "!", brilliant: "!!", inaccuracy: "?!", mistake: "?", blunder: "??"};
 const escape = (text) => String(text).replace(/[&<>"']/g, (c) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
 
 export async function fetchSavedAnalysis(url, timeoutMs = 4000, fetcher = fetch) {
@@ -31,8 +31,18 @@ export function scoreText(score) {
 
 export function badgeHtml(row) {
   if (!row || !symbols[row.label]) return "";
-  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points";
+  const passes = row.exceptional && row.exceptional.passes || [];
+  const verification = passes.length ? ". Verified depths: " + passes.map(pass => pass.depth).join(" / ") : "";
+  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points" + verification;
   return '<span class="move-quality is-' + row.label + '" aria-label="' + labels[row.label] + '" title="' + escape(title) + '">' + symbols[row.label] + '</span>';
+}
+
+export function evaluationHtml(row) {
+  if (!row || !row.after) return "";
+  const score = row.after;
+  if (score.mate == null && !Number.isFinite(score.cp)) return "";
+  const value = score.mate === 0 ? (score.winner === "white" ? "+M0" : "-M0") : scoreText(score);
+  return '<span class="move-evaluation" title="Evaluation after this move, from White’s perspective">' + escape(value) + '</span>';
 }
 
 export function analysisSummary(analysis) {

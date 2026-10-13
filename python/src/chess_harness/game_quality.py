@@ -280,6 +280,7 @@ def analyse_game(
     pgn_or_moves: PgnOrMoves,
     depth: Optional[int] = None,
     eval_fn: Optional[EvalFn] = None,
+    include_exceptional: bool = False,
 ) -> GameQuality:
     """Replay a finished game; ``eval_fn`` injects white cp (for tests)."""
     quality_depth = depth if depth is not None else default_quality_depth()
@@ -358,13 +359,26 @@ def analyse_game(
         white_moves = (len(uci_moves) + (1 if start_color else 0)) // 2
         black_moves = len(uci_moves) - white_moves
 
+        # Run only after all quality scores are collected: deeper searches must not
+        # warm the engine hash during the legacy Accuracy/Performance pass.
+        if include_exceptional and owned_engine is not None:
+            from .exceptional_moves import classify_exceptional
+            replay = chess.Board(start_fen)
+            for row in annotation_rows:
+                move = chess.Move.from_uci(row["uci"])
+                if row["label"] == "good":
+                    exceptional = classify_exceptional(replay, move, owned_engine)
+                    if exceptional:
+                        row.update(label=exceptional["label"], exceptional=exceptional["evidence"])
+                replay.push(move)
+
         return GameQuality(
             quality_depth=quality_depth,
             quality_thin=white_moves < THIN_MOVES_PER_SIDE or black_moves < THIN_MOVES_PER_SIDE,
             white=_finalize_side(white_data),
             black=_finalize_side(black_data),
             start_color=start_color,
-            move_analysis=make_analysis(start_fen, uci_moves, annotation_rows, quality_depth, owned_engine),
+            move_analysis=make_analysis(start_fen, uci_moves, annotation_rows, quality_depth, owned_engine, include_exceptional and owned_engine is not None),
         )
     finally:
         if owned_engine is not None:

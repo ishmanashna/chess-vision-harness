@@ -12,7 +12,7 @@ from pathlib import Path
 import chess
 
 SCHEMA_VERSION = 1
-LABEL_VERSION = "win-chance-loss-v1"
+LABEL_VERSION = "win-chance-loss-exceptional-v2"
 # Mover's win-chance loss, in percentage points; not centipawn thresholds.
 THRESHOLDS = {"inaccuracy": 5.0, "mistake": 10.0, "blunder": 30.0}
 
@@ -49,7 +49,8 @@ def moves_hash(start_fen: str, moves: list[str]) -> str:
     return hashlib.sha256(json.dumps([start_fen, moves], separators=(",", ":")).encode()).hexdigest()
 
 
-def make_analysis(start_fen, moves, rows, depth, engine=None) -> dict:
+def make_analysis(start_fen, moves, rows, depth, engine=None, exceptional_enabled=False) -> dict:
+    from .exceptional_moves import PROFILE
     uci = getattr(engine, "engine", None)
     identity = getattr(uci, "id", {}) or {}
     options = getattr(uci, "options", {}) or {}
@@ -76,6 +77,7 @@ def make_analysis(start_fen, moves, rows, depth, engine=None) -> dict:
                     "hash_mb": getattr(options.get("Hash"), "default", None),
                     "limit_strength": False, "score_perspective": "white",
                     "budget_validated": False},
+        "exceptional_profile": dict(PROFILE, enabled=exceptional_enabled),
         "thresholds": dict(THRESHOLDS), "plies": rows,
     }
 
@@ -96,7 +98,7 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
         return {"status": "unavailable", "reason": "Annotations are available for finished games only"}
     path = game_dir / "move-analysis.json"
     if not path.is_file():
-        pending = not state.get("quality_at") and state.get("result") not in {None, "*"}
+        pending = (not state.get("quality_at") or state.get("quality_provisional")) and state.get("result") not in {None, "*"}
         return {"status": "pending" if pending else "unavailable", "reason": "Analysis pending" if pending else "No saved move analysis; historical backfill is deferred"}
     try:
         if path.stat().st_size > 2_000_000:
@@ -112,14 +114,28 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
         board = chess.Board(state.get("start_fen") or chess.STARTING_FEN)
         for index, row in enumerate(analysis["plies"]):
             color = "white" if board.turn else "black"
-            if row.get("ply") != index + 1 or row.get("uci") != state["moves"][index] or row.get("color") != color or row.get("label") not in {"good", "inaccuracy", "mistake", "blunder"}:
+            if row.get("ply") != index + 1 or row.get("uci") != state["moves"][index] or row.get("color") != color or row.get("label") not in {"good", "great", "brilliant", "inaccuracy", "mistake", "blunder"}:
                 raise ValueError("Misaligned move analysis")
             projected = {key: row.get(key) for key in ("ply", "uci", "color", "loss_cp", "loss_percent", "label")}
+            if row["label"] in {"great", "brilliant"}:
+                from .exceptional_moves import PROFILE, VERSION
+                evidence = row.get("exceptional") or {}
+                passes = evidence.get("passes") or []
+                if evidence.get("version") != VERSION or len(passes) != 2:
+                    raise ValueError("Missing exceptional-move verification")
+                for item, settings in zip(passes, PROFILE["passes"]):
+                    if item.get("depth", 0) < settings["minimum_depth"] or item.get("label") != row["label"]:
+                        raise ValueError("Insufficient exceptional-move verification")
             for position in ("before", "after"):
                 projected[position] = {key: row[position].get(key) for key in ("cp", "mate", "winner")}
+            if row.get("exceptional"):
+                evidence = row["exceptional"]
+                projected["exceptional"] = {"version": evidence.get("version"), "sacrifice_cp": evidence.get("sacrifice_cp"),
+                    "passes": [{key: item.get(key) for key in ("depth", "best_chance", "second_chance", "label")} for item in evidence.get("passes", [])]}
             rows.append(projected)
             board.push_uci(row["uci"])
         profile = {key: analysis.get("profile", {}).get(key) for key in ("engine", "author", "engine_sha256", "network", "depth", "threads", "hash_mb", "limit_strength", "score_perspective", "quality_version", "label_version", "budget_validated")}
-        return {"status": "complete", "schema_version": SCHEMA_VERSION, "analysed_at": analysis.get("analysed_at"), "profile": profile, "thresholds": THRESHOLDS, "plies": rows}
+        exceptional = {key: analysis.get("exceptional_profile", {}).get(key) for key in ("version", "enabled", "multipv", "critical_gap_pp", "minimum_chance", "alternative_winning_chance", "sacrifice_min_cp")}
+        return {"status": "complete", "schema_version": SCHEMA_VERSION, "analysed_at": analysis.get("analysed_at"), "profile": profile, "exceptional_profile": exceptional, "thresholds": THRESHOLDS, "plies": rows}
     except (OSError, ValueError, TypeError, AttributeError, KeyError):
         return {"status": "unavailable", "reason": "Saved analysis could not be read"}
