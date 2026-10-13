@@ -42,16 +42,10 @@ export function badgeHtml(row) {
   if (!row || !symbols[row.label]) return "";
   const passes = row.exceptional && row.exceptional.passes || [];
   const verification = passes.length ? ". Verified depths: " + passes.map(pass => pass.depth).join(" / ") : "";
-  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points" + verification;
+  const discovery = row.exceptional && row.exceptional.discovery;
+  const discovered = discovery && discovery.discovered_depth ? ". Deeper search discovery at depth " + discovery.discovered_depth : "";
+  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points" + verification + discovered;
   return '<span class="move-quality is-' + row.label + '" aria-label="' + labels[row.label] + '" title="' + escape(title) + '">' + symbols[row.label] + '</span>';
-}
-
-export function evaluationHtml(row) {
-  if (!row || !row.after) return "";
-  const score = row.after;
-  if (score.mate == null && !Number.isFinite(score.cp)) return "";
-  const value = score.mate === 0 ? (score.winner === "white" ? "+M0" : "-M0") : scoreText(score);
-  return '<span class="move-evaluation" title="Evaluation after this move, from White’s perspective">' + escape(value) + '</span>';
 }
 
 export function analysisSummary(analysis) {

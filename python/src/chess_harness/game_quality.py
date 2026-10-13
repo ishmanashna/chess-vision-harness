@@ -366,7 +366,7 @@ def analyse_game(
             replay = chess.Board(start_fen)
             for row in annotation_rows:
                 move = chess.Move.from_uci(row["uci"])
-                if row["label"] == "good":
+                if row["label"] == "good" or row["loss_percent"] >= 3:
                     exceptional = classify_exceptional(replay, move, owned_engine)
                     if exceptional:
                         row.update(label=exceptional["label"], exceptional=exceptional["evidence"])

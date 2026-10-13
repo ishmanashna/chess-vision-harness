@@ -70,3 +70,25 @@ def test_inventory_prefers_live_state_and_retains_archive_only(tmp_path):
     assert rows["game-old"][0]["moves"] == live["moves"]
     assert rows["game-archived"][1] == root/"archived-move-analysis/game-archived"
     assert database.read_bytes() == before
+
+
+def test_label_refresh_reuses_saved_evaluations_and_preserves_prior_analysis(tmp_path, monkeypatch):
+    saved = state()
+    backfill.backfill_game(saved,tmp_path,"first",8,fake_analysis)
+    path = tmp_path/"move-analysis.json"
+    old = json.loads(path.read_text())
+    old["profile"]["label_version"] = "win-chance-loss-exceptional-v2"
+    old["plies"][0].update(loss_percent=6,label="inaccuracy")
+    path.write_text(json.dumps(old))
+    import chess_harness.exceptional_moves as exceptional
+    import chess_harness.engine as engine_module
+    monkeypatch.setattr(engine_module,"EvalEngineAdapter",lambda:SimpleNamespace(quit=lambda:None))
+    monkeypatch.setattr(exceptional,"sacrifice_cost",lambda *a:0)
+    monkeypatch.setattr(exceptional,"classify_exceptional",lambda *a:None)
+    assert backfill.backfill_game(saved,tmp_path,"refresh",8,lambda *a,**kw:pytest.fail("must reuse scores"),refresh=True) == "written"
+    new = json.loads(path.read_text())
+    assert new["plies"][0]["label"] == "good"
+    assert new["plies"][0]["before"] == old["plies"][0]["before"]
+    assert new["plies"][0]["after"] == old["plies"][0]["after"]
+    assert new["profile"]["engine_sha256"] == old["profile"]["engine_sha256"]
+    assert (tmp_path/"analysis-history/refresh/move-analysis.json").exists()

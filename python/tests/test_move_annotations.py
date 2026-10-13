@@ -36,7 +36,7 @@ def test_each_ply_has_mover_relative_loss_but_white_relative_scores():
     assert not any(key in json.dumps(analysis) for key in ['"pv"', '"best_move"', '"alternatives"'])
 
 
-@pytest.mark.parametrize("loss,label", [(0,"good"), (4.99,"good"), (5,"inaccuracy"), (9.99,"inaccuracy"), (10,"mistake"), (30,"mistake"), (30.01,"blunder")])
+@pytest.mark.parametrize("loss,label", [(0,"good"), (5,"good"), (7.99,"good"), (8,"inaccuracy"), (9.99,"inaccuracy"), (10,"mistake"), (30,"mistake"), (30.01,"blunder")])
 def test_label_boundaries(loss, label):
     assert move_label(loss) == label
 

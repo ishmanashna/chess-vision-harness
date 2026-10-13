@@ -11,10 +11,16 @@ import chess
 import chess.engine
 
 VERSION = "critical-sound-sacrifice-v1"
-PROFILE = {"version": VERSION, "passes": [{"depth": 18, "seconds": .2, "minimum_depth": 14},
+# VERSION identifies the evidence structure; policy revisions are separate.
+POLICY_VERSION = "critical-discovery-sacrifice-policy-v3"
+PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .2, "minimum_depth": 14},
                                            {"depth": 22, "seconds": .8, "minimum_depth": 18}],
            "multipv": 2, "critical_gap_pp": 10, "minimum_chance": .45,
-           "alternative_winning_chance": .85, "sacrifice_min_cp": 150}
+           "alternative_winning_chance": .85, "sacrifice_min_cp": 150, "near_best_loss_pp": 3.0,
+           "discovery": {"shallow_depth": 8, "stable_depths": 3,
+                         "great_depth": 10, "great_gain_pp": 5.0,
+                         "brilliant_depth": 14, "brilliant_gain_pp": 8.0,
+                         "refresh_screen_loss_pp": 3.0}}
 VALUES = {chess.PAWN: 100, chess.KNIGHT: 300, chess.BISHOP: 300,
           chess.ROOK: 500, chess.QUEEN: 900, chess.KING: 20000}
 
@@ -22,6 +28,36 @@ VALUES = {chess.PAWN: 100, chess.KNIGHT: 300, chess.BISHOP: 300,
 def _chance(score):
     cp = score.score(mate_score=10000)
     return 1 / (1 + math.exp(-.00368208 * max(-1000, min(1000, cp))))
+
+
+def _search(engine, board, settings, trace=False):
+    limit = chess.engine.Limit(depth=settings["depth"], time=settings["seconds"])
+    frames = {}
+    if not trace:
+        return engine.analyse(board, limit, multipv=2), frames
+    with engine.analysis(board, limit, multipv=2) as search:
+        for info in search:
+            if (info.get("multipv", 1) == 1 and info.get("depth") and info.get("score")
+                    and info.get("pv") and not info.get("upperbound") and not info.get("lowerbound")):
+                frames[info["depth"]] = {"move": info["pv"][0], "chance": _chance(info["score"].pov(board.turn))}
+        lines = [dict(line) for line in search.multipv]
+    return lines, frames
+
+
+def discovery_evidence(frames, move):
+    settings = PROFILE["discovery"]
+    shallow = frames.get(settings["shallow_depth"])
+    if not shallow or shallow["move"] == move or not frames:
+        return None
+    end = max(frames)
+    start = end
+    while start in frames and frames[start]["move"] == move:
+        start -= 1
+    start += 1
+    if end - start + 1 < settings["stable_depths"] or start < settings["great_depth"]:
+        return None
+    return {"shallow_depth": settings["shallow_depth"], "discovered_depth": start,
+            "stable_through_depth": end, "shallow_chance": round(shallow["chance"], 5)}
 
 
 def _exchange_gain(board, square, budget, depth=10):
@@ -70,26 +106,53 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine) -> dict |
     evidence = []
     sacrifice = sacrifice_cost(board, move)
     try:
+        native = engine.engine
+        cold_trace = hasattr(native, "analysis") and "Clear Hash" in getattr(native, "options", {})
+        if cold_trace:
+            native.configure({"Clear Hash": None})
+        discovery = None
         for settings in PROFILE["passes"]:
-            lines = engine.engine.analyse(board, chess.engine.Limit(depth=settings["depth"], time=settings["seconds"]), multipv=2)
+            lines, frames = _search(native, board, settings, trace=cold_trace and not evidence)
+            if frames:
+                discovery = discovery_evidence(frames, move)
             if len(lines) < 2 or any(line.get("depth", 0) < settings["minimum_depth"] or not line.get("pv") or line.get("upperbound") or line.get("lowerbound") for line in lines[:2]):
                 return None
             if lines[0]["pv"][0] == lines[1]["pv"][0]:
                 return None
-            if lines[0]["pv"][0] != move:
-                return None
             best, second = [_chance(line["score"].pov(board.turn)) for line in lines[:2]]
-            if best < PROFILE["minimum_chance"] or second >= PROFILE["alternative_winning_chance"]:
+            verified_depth = min(line["depth"] for line in lines[:2])
+            played_is_best = lines[0]["pv"][0] == move
+            played = best
+            alternative = second
+            if not played_is_best:
+                if sacrifice is None or sacrifice < PROFILE["sacrifice_min_cp"]:
+                    return None
+                if lines[1]["pv"][0] == move:
+                    played = second
+                else:
+                    forced = engine.engine.analyse(board, chess.engine.Limit(depth=settings["depth"], time=settings["seconds"]), root_moves=[move])
+                    if forced.get("depth", 0) < settings["minimum_depth"] or forced.get("upperbound") or forced.get("lowerbound") or not forced.get("pv") or forced["pv"][0] != move:
+                        return None
+                    verified_depth = min(verified_depth, forced["depth"])
+                    played = _chance(forced["score"].pov(board.turn))
+                alternative = best
+                if (best - played) * 100 > PROFILE["near_best_loss_pp"]:
+                    return None
+            if played < PROFILE["minimum_chance"] or alternative >= PROFILE["alternative_winning_chance"]:
                 return None
             brilliant = sacrifice is not None and sacrifice >= PROFILE["sacrifice_min_cp"]
-            great = (best - second) * 100 >= PROFILE["critical_gap_pp"] and second < .70
+            great = played_is_best and (best - second) * 100 >= PROFILE["critical_gap_pp"] and second < .70
+            discovery_gain = (played - discovery["shallow_chance"]) * 100 if discovery else 0
+            if discovery and played_is_best and (best - second) * 100 >= 5:
+                brilliant = brilliant or (discovery["discovered_depth"] >= PROFILE["discovery"]["brilliant_depth"] and discovery_gain >= PROFILE["discovery"]["brilliant_gain_pp"])
+                great = great or discovery_gain >= PROFILE["discovery"]["great_gain_pp"]
             if not brilliant and not great:
                 return None
-            evidence.append({"depth": min(line["depth"] for line in lines[:2]),
-                             "best_chance": round(best, 4), "second_chance": round(second, 4),
-                             "label": "brilliant" if brilliant else "great"})
+            evidence.append({"depth": verified_depth,
+                             "best_chance": round(best, 4), "second_chance": round(second, 4), "played_chance": round(played, 4),
+                             "discovery_gain_pp": round(discovery_gain, 4), "label": "brilliant" if brilliant else "great"})
         if evidence[0]["label"] != evidence[1]["label"]:
             return None
-        return {"label": evidence[-1]["label"], "evidence": {"version": VERSION, "passes": evidence, "sacrifice_cp": sacrifice}}
+        return {"label": evidence[-1]["label"], "evidence": {"version": VERSION, "policy_version": POLICY_VERSION, "passes": evidence, "sacrifice_cp": sacrifice, "discovery": discovery}}
     except (chess.engine.EngineError, chess.engine.EngineTerminatedError, KeyError, TypeError, ValueError, AttributeError, TimeoutError, OSError):
         return None

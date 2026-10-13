@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 const source = fs.readFileSync(new URL("move-annotations.js", import.meta.url), "utf8");
-const {annotationAt, badgeHtml, evaluationHtml, scoreText, detailText, savedScore, analysisSummary, analysisFailure, fetchSavedAnalysis} = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+const {annotationAt, badgeHtml, scoreText, detailText, savedScore, analysisSummary, analysisFailure, fetchSavedAnalysis} = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
 const row = {ply: 1, color: "black", label: "mistake", before: {cp: -20}, after: {cp: 100}, loss_percent: 10.7};
 const analysis = {status: "complete", plies: [row], profile: {engine: "Fixture engine", depth: 8}};
 
@@ -42,10 +42,11 @@ test("labels have text and an explicit unvalidated-budget explanation", () => {
   assert.match(badgeHtml({...row,loss_percent:'"><script>'}), /&quot;&gt;&lt;script&gt;/);
 });
 
-test("each move has its saved numeric evaluation, including signed mate scores", () => {
-  assert.match(evaluationHtml(row), />\+1.00</);
-  assert.match(evaluationHtml({...row,after:{cp:null,mate:0,winner:"black"}}), />-M0</);
-  assert.equal(evaluationHtml(null), "");
+test("the move list renders symbols without numeric evaluations", () => {
+  const game = fs.readFileSync(new URL("spectator-game.js", import.meta.url), "utf8");
+  assert.doesNotMatch(game, /evaluationHtml/);
+  assert.doesNotMatch(badgeHtml(row), /move-evaluation/);
+  assert.match(badgeHtml(row), />\?</);
 });
 
 test("a hung analysis response body times out and aborts", async () => {

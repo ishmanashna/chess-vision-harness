@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from functools import lru_cache
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,9 +13,9 @@ from pathlib import Path
 import chess
 
 SCHEMA_VERSION = 1
-LABEL_VERSION = "win-chance-loss-exceptional-v2"
+LABEL_VERSION = "win-chance-loss-exceptional-v3"
 # Mover's win-chance loss, in percentage points; not centipawn thresholds.
-THRESHOLDS = {"inaccuracy": 5.0, "mistake": 10.0, "blunder": 30.0}
+THRESHOLDS = {"inaccuracy": 8.0, "mistake": 10.0, "blunder": 30.0}
 
 
 @lru_cache(maxsize=8)
@@ -88,7 +89,13 @@ def save_analysis(game_dir: Path, analysis: dict) -> None:
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump(analysis, stream)
-        os.replace(temporary, game_dir / "move-analysis.json")
+        for attempt in range(50):
+            try:
+                os.replace(temporary, game_dir / "move-analysis.json")
+                break
+            except PermissionError:
+                if attempt == 49: raise
+                time.sleep(.02)
     finally:
         Path(temporary).unlink(missing_ok=True)
 
@@ -130,12 +137,13 @@ def annotations_payload(game_dir: Path, state: dict) -> dict:
                 projected[position] = {key: row[position].get(key) for key in ("cp", "mate", "winner")}
             if row.get("exceptional"):
                 evidence = row["exceptional"]
-                projected["exceptional"] = {"version": evidence.get("version"), "sacrifice_cp": evidence.get("sacrifice_cp"),
-                    "passes": [{key: item.get(key) for key in ("depth", "best_chance", "second_chance", "label")} for item in evidence.get("passes", [])]}
+                projected["exceptional"] = {"version": evidence.get("version"), "policy_version": evidence.get("policy_version"), "sacrifice_cp": evidence.get("sacrifice_cp"),
+                    "discovery": {key: (evidence.get("discovery") or {}).get(key) for key in ("shallow_depth", "discovered_depth", "stable_through_depth", "shallow_chance")},
+                    "passes": [{key: item.get(key) for key in ("depth", "best_chance", "second_chance", "played_chance", "discovery_gain_pp", "label")} for item in evidence.get("passes", [])]}
             rows.append(projected)
             board.push_uci(row["uci"])
         profile = {key: analysis.get("profile", {}).get(key) for key in ("engine", "author", "engine_sha256", "network", "depth", "threads", "hash_mb", "limit_strength", "score_perspective", "quality_version", "label_version", "budget_validated")}
-        exceptional = {key: analysis.get("exceptional_profile", {}).get(key) for key in ("version", "enabled", "multipv", "critical_gap_pp", "minimum_chance", "alternative_winning_chance", "sacrifice_min_cp")}
-        return {"status": "complete", "schema_version": SCHEMA_VERSION, "analysed_at": analysis.get("analysed_at"), "profile": profile, "exceptional_profile": exceptional, "thresholds": THRESHOLDS, "plies": rows}
+        exceptional = {key: analysis.get("exceptional_profile", {}).get(key) for key in ("version", "evidence_version", "enabled", "multipv", "critical_gap_pp", "minimum_chance", "alternative_winning_chance", "sacrifice_min_cp", "near_best_loss_pp", "discovery")}
+        return {"status": "complete", "schema_version": SCHEMA_VERSION, "analysed_at": analysis.get("analysed_at"), "profile": profile, "exceptional_profile": exceptional, "thresholds": analysis.get("thresholds", THRESHOLDS), "plies": rows}
     except (OSError, ValueError, TypeError, AttributeError, KeyError):
         return {"status": "unavailable", "reason": "Saved analysis could not be read"}

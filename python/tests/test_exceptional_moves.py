@@ -99,4 +99,48 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v2")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v3")
+
+
+def test_nearly_best_sound_sacrifice_can_be_brilliant():
+    board = chess.Board("6k1/8/8/3p4/8/4Q3/8/6K1 w - - 0 1")
+    move = chess.Move.from_uci("e3e4")
+    class NearlyBest(Engine):
+        def analyse(self, board, limit, multipv):
+            lines = super().analyse(board, limit, multipv)
+            lines[0]["pv"], lines[1]["pv"] = lines[1]["pv"], lines[0]["pv"]
+            return lines
+    result = classify_exceptional(board,move,NearlyBest(move,best=50,second=40))
+    assert result["label"] == "brilliant"
+    assert all(p["played_chance"] < p["best_chance"] for p in result["evidence"]["passes"])
+    assert classify_exceptional(board,move,NearlyBest(move,best=50,second=-100)) is None
+
+
+def test_late_stable_quiet_discovery_can_be_brilliant_without_sacrifice(monkeypatch):
+    from chess_harness import exceptional_moves as module
+    board = chess.Board()
+    move = chess.Move.from_uci("e2e4")
+    alternate = chess.Move.from_uci("d2d4")
+    frames = {depth:{"move":alternate if depth<14 else move,"chance":.30 if depth<14 else .55} for depth in range(1,19)}
+    def search(engine, board, settings, trace=False):
+        lines = engine.analyse(board,chess.engine.Limit(time=.2),multipv=2)
+        return lines, frames if engine.calls == 1 else {}
+    monkeypatch.setattr(module,"_search",search)
+    result = classify_exceptional(board,move,Engine(move))
+    assert sacrifice_cost(board,move) == 0
+    assert result["label"] == "brilliant"
+    assert result["evidence"]["discovery"]["discovered_depth"] == 14
+    # A move already preferred at shallow depth is not a hidden discovery.
+    frames[8]["move"] = move
+    assert classify_exceptional(board,move,Engine(move))["label"] == "great"
+    frames[8]["move"] = alternate
+    frames[8]["chance"] = .55
+    assert classify_exceptional(board,move,Engine(move))["label"] == "great"
+
+
+def test_discovery_requires_consecutive_stability_and_a_recorded_shallow_search():
+    from chess_harness.exceptional_moves import discovery_evidence
+    move = chess.Move.from_uci("e2e4")
+    other = chess.Move.from_uci("d2d4")
+    assert discovery_evidence({8:{"move":other,"chance":.3},18:{"move":move,"chance":.6}},move) is None
+    assert discovery_evidence({14:{"move":move,"chance":.6},15:{"move":move,"chance":.6},16:{"move":move,"chance":.6}},move) is None

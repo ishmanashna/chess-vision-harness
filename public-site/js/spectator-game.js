@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, evaluationHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=4";
+import { annotationAt, badgeHtml, analysisSummary, analysisFailure, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=5";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -331,7 +331,7 @@ async function main() {
       const t = ev && ev.text && ev.text !== "—" ? ev.text : "—";
       evalEl.textContent = t;
     }
-    if (eloEl && showElo) eloEl.textContent = s.elo_change || "—";
+    if (eloEl && showElo) eloEl.textContent = (s.elo_change || "—").replace(/\s*\([+-]\d+\)/g, "");
   }
 
   function setLabels(ev, s) {
@@ -591,7 +591,7 @@ async function main() {
           '" data-ply="' +
           wPly +
           '">' +
-          escHtml(r.white || "") + badgeHtml(annotationAt(moveAnalysis, wPly)) + evaluationHtml(annotationAt(moveAnalysis, wPly)) +
+          escHtml(r.white || "") + badgeHtml(annotationAt(moveAnalysis, wPly)) +
           "</span>" +
           (black
             ? '<span class="b' +
@@ -599,7 +599,7 @@ async function main() {
               '" data-ply="' +
               bPly +
               '">' +
-              escHtml(black) + badgeHtml(annotationAt(moveAnalysis, bPly)) + evaluationHtml(annotationAt(moveAnalysis, bPly)) +
+              escHtml(black) + badgeHtml(annotationAt(moveAnalysis, bPly)) +
               "</span>"
             : '<span class="b"></span>') +
           "</div>"

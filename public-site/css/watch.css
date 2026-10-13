@@ -831,10 +831,11 @@
 
 /* Finished-game quality labels remain readable without color. */
 .move-analysis-status { color: var(--faint); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
-.move-evaluation { display: inline; margin-left: .45em; color: var(--faint); font-size: .82em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .move-quality.is-great, .move-quality.is-brilliant { color: #287b56; }
 [data-theme="dark"] .move-quality.is-great, [data-theme="dark"] .move-quality.is-brilliant { color: #80d6af; }
-.move-quality { display: inline; margin-left: .08em; font-size: .95em; line-height: 1; font-weight: 800; }
+.move-quality.is-brilliant { color: #087f8c; }
+[data-theme="dark"] .move-quality.is-brilliant { color: #5eead4; }
+.move-quality { display: inline-block; margin-left: .32em; margin-right: .12em; font-size: 1.24em; line-height: 1; font-weight: 900; vertical-align: -.04em; }
 .move-quality.is-good { color: var(--faint); }
 .move-quality.is-inaccuracy { color: #ac7400; }
 .move-quality.is-mistake { color: #c75a16; }
