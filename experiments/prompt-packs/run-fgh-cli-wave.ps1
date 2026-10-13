@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Prep launcher for F/G/H prompt-pack CLI seats (does not auto-score a wave).
 
@@ -33,6 +33,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# CRITICAL: agent CLI model must be specified. Omitting --model uses product default (auto),
+# which can route to Composer Fast and burn included usage. Never use composer-2.5-fast here.
+if ([string]::IsNullOrWhiteSpace($Model)) { throw "Model is required (use composer-2.5, not -fast)." }
+if ($Model -match '(?i)fast') { throw "Refusing Fast model '$Model'. Use composer-2.5 (non-fast)." }
 
 if ($Waves -lt 1) {
     throw "Waves must be >= 1"
@@ -110,8 +115,10 @@ $($game.brief)
 
             $worktreeName = "fgh-w{0}-{1}-{2}" -f $WaveNumber, $pack, ($game.game_id -replace '[^a-zA-Z0-9_-]', '-')
             Write-Host "Launch seat pack=$pack game=$($game.game_id) worktree=$worktreeName"
+            # Model MUST be passed to agent CLI (harness --model alone does not bill the seat).
             Start-Process -FilePath "agent" -ArgumentList @(
                 "-p", "--trust",
+                "--model", $Model,
                 "--worktree", $worktreeName,
                 (Get-Content $promptPath -Raw)
             ) -WorkingDirectory $RepoRoot
@@ -139,3 +146,4 @@ else {
 
 Write-Host "Done. Briefs and manifests are under $runDir"
 Write-Host "This script does not start a scored wave automatically."
+

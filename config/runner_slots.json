@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "max_concurrent_games": 2,
+  "harness_base_url": "http://127.0.0.1:8765",
+  "slots": [
+    {
+      "inscribed_id": "runner-openai-text",
+      "provider": "openai",
+      "observation": "text",
+      "provider_model": "gpt-4o-mini",
+      "base_url": "https://api.openai.com/v1",
+      "env_key": "OPENAI_API_KEY",
+      "rpm": 30,
+      "rpd": 200,
+      "_comment": "Skipped until OPENAI_API_KEY is set and runner probe succeeds."
+    },
+    {
+      "inscribed_id": "runner-openai-vision",
+      "provider": "openai",
+      "observation": "vision",
+      "provider_model": "gpt-4o-mini",
+      "base_url": "https://api.openai.com/v1",
+      "env_key": "OPENAI_API_KEY",
+      "rpm": 20,
+      "rpd": 100,
+      "jpeg_max_side": 384,
+      "_comment": "Vision sends a JPEG data URL to the provider; harness board.png unchanged."
+    },
+    {
+      "inscribed_id": "jev-latest",
+      "provider": "typesafe",
+      "observation": "text",
+      "provider_model": "jev-latest",
+      "base_url": "https://api.typesafe.ai/v1",
+      "env_key": "TYPESAFE_API_KEY",
+      "rpm": 60,
+      "rpd": 5000,
+      "kind": "ave",
+      "agent_color": "white",
+      "_comment": "Jev via TypeSafe System One. Omit opponent so harness uses normal ELO-weighted pairing like every other model. Play through web/runner agent HTTP."
+    }
+  ]
+}

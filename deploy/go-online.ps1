@@ -35,6 +35,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "github-retry.ps1")
 
 if (-not $RepoRoot) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -286,13 +287,11 @@ if (-not (Wait-OriginHealth -Origin $origin -TimeoutSec 60)) {
 Write-Host "Origin /health OK via tunnel."
 
 Write-Host "Setting GitHub secret GAME_ORIGIN..."
-& gh secret set GAME_ORIGIN -b $origin
-if ($LASTEXITCODE -ne 0) { throw "gh secret set GAME_ORIGIN failed (exit $LASTEXITCODE)" }
+Invoke-GitHubWithRetry -Arguments @("secret", "set", "GAME_ORIGIN", "-b", $origin) -Operation "Setting GAME_ORIGIN"
 
 if (-not $SkipDeploy) {
     Write-Host "Triggering Pages deploy..."
-    & gh workflow run "Deploy public site"
-    if ($LASTEXITCODE -ne 0) { throw "gh workflow run failed (exit $LASTEXITCODE)" }
+    Invoke-GitHubWithRetry -Arguments @("workflow", "run", "Deploy public site") -Operation "Triggering Pages deploy"
     Write-Host "Deploy requested. If edge-health stays Sleeping, run once more: gh workflow run `"Deploy public site`""
 }
 
@@ -311,7 +310,7 @@ if (-not $SkipVerify) {
     }
     if ($exit -eq 3) {
         Write-Host "Edge still not online — redeploying once more (secret race)..."
-        & gh workflow run "Deploy public site"
+        Invoke-GitHubWithRetry -Arguments @("workflow", "run", "Deploy public site") -Operation "Redeploying Pages"
         Start-Sleep -Seconds 25
         & $verify -GameOrigin $origin -PagesUrl $PagesUrl
         $exit = $LASTEXITCODE

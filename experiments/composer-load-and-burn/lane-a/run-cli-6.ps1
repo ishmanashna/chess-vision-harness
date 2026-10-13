@@ -1,4 +1,4 @@
-# Lane A CLI - baseline sampler, then N parallel agent seats with hot sampler.
+﻿# Lane A CLI - baseline sampler, then N parallel agent seats with hot sampler.
 # From repo root: .\experiments\composer-load-and-burn\lane-a\run-cli-6.ps1 [-Seats 6]
 # Games run to completion (agent exits). No default kill timeout - use -TimeoutSec only for wedged debugging.
 
@@ -248,13 +248,19 @@ foreach ($rec in $gameRecords) {
 
     Set-Content -LiteralPath $promptPath -Value $prompt -Encoding UTF8
 
+    # CRITICAL: always pass --model explicitly to agent CLI.
+    # Omitting it falls through to auto and can bill Composer Fast / other expensive SKUs.
+    # Pin non-fast Composer for these chess load-and-burn seats.
+    $AgentModel = 'composer-2.5'
     $wrapperLines = @(
         '$ErrorActionPreference = ''Stop'''
         ('$AgentCmd = ''{0}''' -f ($AgentCmd.Replace("'", "''")))
         ('$WorktreeName = ''{0}''' -f $worktreeName)
         ('$PromptPath = ''{0}''' -f ($promptPath.Replace("'", "''")))
+        ('$AgentModel = ''{0}''' -f $AgentModel)
         '$Prompt = Get-Content -LiteralPath $PromptPath -Raw'
-        '& $AgentCmd -p --trust --force --worktree $WorktreeName $Prompt'
+        '# Model MUST be set here â€” never omit --model on agent CLI (avoid auto/Fast).'
+        '& $AgentCmd -p --trust --force --model $AgentModel --worktree $WorktreeName $Prompt'
         'exit $LASTEXITCODE'
     )
     Set-Content -LiteralPath $wrapperPath -Value ($wrapperLines -join "`n") -Encoding UTF8
@@ -405,7 +411,7 @@ $summaryLines = @(
     "- **run_dir:** $RunDir"
     "- **repo_root:** $RepoRoot"
     "- **agent:** $AgentCmd"
-    '- **model flag:** omitted (agent default; run `agent --list-models` to confirm Composer id)'
+    '- **model flag:** ``composer-2.5`` (non-fast; MUST be explicit on agent CLI â€” omit = auto/Fast risk)
     '- **mode:** agent (no `--mode ask`; no `--workspace`; `--worktree` only)'
     "- **os.csv data rows:** $csvRows (baseline: $baselineRows, hot: $hotRows)"
     ""
@@ -457,3 +463,4 @@ if ($failed.Count -gt 0) {
 }
 
 exit 0
+

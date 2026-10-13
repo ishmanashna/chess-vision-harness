@@ -73,6 +73,7 @@ Creates **`Chess Vision Harness Go Online.lnk`** on your Desktop pointing at `de
 
 **Quick Tunnel + deploy**
 
+- GitHub secret updates and deploy requests retry temporary network/API failures up to four attempts (2, 4, then 8 seconds between attempts). Authentication and permission errors stop immediately. If retries are exhausted, localhost and the tunnel remain running; restore GitHub connectivity and run Go Online again.
 - Each run starts a fresh Quick Tunnel; the URL changes → updates GitHub secret `GAME_ORIGIN` and may trigger **Deploy public site** **twice** (secret/deploy race — see verify step in the script).
 - Target **under ~15 minutes**. **Not** zero-touch across reboots — run Go Online again after reboot or when Pages shows Sleeping.
 

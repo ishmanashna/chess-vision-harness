@@ -19,6 +19,10 @@ python/_curl_trace.txt
 **/api_key.txt
 
 # Experiment runtime (markdown + scripts stay trackable)
+**/__pycache__/
+experiments/mimo-v26-flash-play/*
+!experiments/mimo-v26-flash-play/*.py
+!experiments/mimo-v26-flash-play/*.ps1
 experiments/**/runs/
 experiments/**/revive-backup-*/
 experiments/**/usage/exports/*.csv

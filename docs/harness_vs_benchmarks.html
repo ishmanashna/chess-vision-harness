@@ -98,8 +98,11 @@
             <th>Est. Elo</th>
             <th>AA match</th>
             <th>AA Index</th>
+            <th>AA $/task</th>
+            <th>API $/M in·out</th>
             <th>LLM Stats</th>
             <th>Quality games</th>
+            <th>Notes</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -108,7 +111,7 @@
         Sources: harness <code>public-site/data/leaderboard.json</code> (generated_at 2026-08-01);
         AA leaderboard table (Intelligence Index column);
         LLM Stats homepage snippets for Terra / Grok where named.
-        Matching is by closest public product name (e.g. <em>gpt-5.6terra-high</em> → GPT-5.6 Terra (high)).
+        MiMo V2.6 Flash watch: fill AA Index + AA $/task when Artificial Analysis publishes; then add harness $/game from token logs. Matching is by closest public product name (e.g. <em>gpt-5.6terra-high</em> → GPT-5.6 Terra (high)).
       </p>
     </div>
   </main>
@@ -125,7 +128,10 @@
         qualityGames: 1,
         aaName: "Gemini 3.6 Flash",
         aaIndex: 50,
+        aaCostPerTask: null,
+        apiPrice: null,
         llmStats: null,
+        notes: "",
       },
       {
         id: "gpt5.6-luna-max",
@@ -133,8 +139,11 @@
         estElo: 706,
         qualityGames: 1,
         aaName: "GPT-5.6 Luna (max)",
-        aaIndex: 51,
+        aaIndex: 38,
+        aaCostPerTask: 0.18,
+        apiPrice: "$0.20 / $1.20",
         llmStats: null,
+        notes: "Bulk OpenAI tier; already shipping (not a tomorrow rumor).",
       },
       {
         id: "gpt-5.6terra-high",
@@ -143,7 +152,10 @@
         qualityGames: 1,
         aaName: "GPT-5.6 Terra (high)",
         aaIndex: 49,
+        aaCostPerTask: null,
+        apiPrice: null,
         llmStats: 53.3,
+        notes: "",
       },
       {
         id: "grok-4.5-high",
@@ -152,7 +164,22 @@
         qualityGames: 1,
         aaName: "Grok 4.5 (high)",
         aaIndex: 54,
+        aaCostPerTask: null,
+        apiPrice: null,
         llmStats: 49.5,
+        notes: "",
+      },
+      {
+        id: "grok-4.7-xhigh",
+        name: "Grok 4.7 xhigh",
+        estElo: null,
+        qualityGames: 0,
+        aaName: "Grok 4.7 (xhigh)",
+        aaIndex: 46,
+        aaCostPerTask: 3.74,
+        apiPrice: "$2 / $6 (same as 4.6)",
+        llmStats: null,
+        notes: "AA: ~81k out tok/task vs ~38k on 4.6 xhigh — same sticker price, worse $/work. Coding-agent better; intelligence only +2.",
       },
       {
         id: "mimo-v2.5",
@@ -161,7 +188,34 @@
         qualityGames: 1,
         aaName: "MiMo-V2.5",
         aaIndex: 37,
+        aaCostPerTask: null,
+        apiPrice: null,
         llmStats: null,
+        notes: "",
+      },
+      {
+        id: "mimo-v2.6-pro",
+        name: "MiMo V2.6 Pro",
+        estElo: null,
+        qualityGames: 0,
+        aaName: "MiMo-V2.6-Pro",
+        aaIndex: 46.32,
+        aaCostPerTask: 0.13,
+        apiPrice: "$0.435 / $0.87",
+        llmStats: null,
+        notes: "Smashes AA intelligence-vs-cost Pareto (~$0.13/task at ~46 index). Harness Elo TBD.",
+      },
+      {
+        id: "mimo-v2.6-flash",
+        name: "MiMo V2.6 Flash",
+        estElo: null,
+        qualityGames: 0,
+        aaName: "MiMo-V2.6-Flash",
+        aaIndex: null,
+        aaCostPerTask: null,
+        apiPrice: "$0.14 / $0.28",
+        llmStats: null,
+        notes: "WATCH: AA Index + $/task not published yet. Token price known. Re-scrape AA; then estimate $/chess-game from harness token logs.",
       },
       {
         id: "composer-2.5",
@@ -170,7 +224,10 @@
         qualityGames: 6,
         aaName: null,
         aaIndex: null,
+        aaCostPerTask: null,
+        apiPrice: null,
         llmStats: null,
+        notes: "No AA listing.",
       },
     ];
 
@@ -179,15 +236,18 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${m.name}<span class="tag">${m.id}</span></td>
-        <td class="num">${m.estElo}</td>
+        <td class="num">${m.estElo ?? "—"}</td>
         <td>${m.aaName ?? "—"}</td>
         <td class="num">${m.aaIndex ?? "—"}</td>
+        <td class="num">${m.aaCostPerTask != null ? "$" + m.aaCostPerTask.toFixed(2) : "—"}</td>
+        <td class="num">${m.apiPrice ?? "—"}</td>
         <td class="num">${m.llmStats ?? "—"}</td>
-        <td class="num">${m.qualityGames}</td>`;
+        <td class="num">${m.qualityGames}</td>
+        <td>${m.notes ?? ""}</td>`;
       tbody.appendChild(tr);
     }
 
-    const withAA = models.filter((m) => m.aaIndex != null);
+    const withAA = models.filter((m) => m.aaIndex != null && m.estElo != null);
     const colors = ["#c4a35a", "#7eb6ff", "#9ddea8", "#e29b84", "#c9a0dc"];
 
     new Chart(document.getElementById("scatter"), {

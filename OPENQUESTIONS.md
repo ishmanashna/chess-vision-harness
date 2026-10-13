@@ -21,3 +21,7 @@
 10. ChessBench-style "field-relative Elo" vs our human-anchored AvE ladder: how loudly should the homepage contrast that (beyond the current human-ratings line)? Any other transparency lines the home tab still needs?
 
 11. Track time per move (wall-clock per ply / per agent turn) so we can see when models stall or think forever - surface it for seats and for comparing providers.
+
+12. Annotations in the moves in spectator.
+
+13. (idea for another app) some models are quite good at chess. we could make a chess tutor that explains why certain moves are good, comments on moves and games real-time, has access to engines, makes annotations... or even across different games. it knows your style, openings... can draw over the board, not just chat functionality... not only static positions but deep plans and ideas... some documents and analysis are static or generated once, some things are an agent working in the background and talking. access to a database... overall, a combination of frontier intelligence with stockfish engines that outcomes as a multimodal and complete chess tutor with a visual interface and communication surface.

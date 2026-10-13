@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Prep launcher for overlay prompt-pack waves (no committee E).
 
@@ -31,6 +31,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# CRITICAL: agent CLI model must be specified. Omitting --model uses product default (auto),
+# which can route to Composer Fast and burn included usage. Never use composer-2.5-fast here.
+if ([string]::IsNullOrWhiteSpace($Model)) { throw "Model is required (use composer-2.5, not -fast)." }
+if ($Model -match '(?i)fast') { throw "Refusing Fast model '$Model'. Use composer-2.5 (non-fast)." }
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $here = $PSScriptRoot
@@ -110,8 +115,10 @@ $($game.brief)
         $outerPrompt | Set-Content -Path $promptPath -Encoding utf8
         $worktreeName = "overlay-{0}-{1}" -f $pack, ($game.game_id -replace '[^a-zA-Z0-9_-]', '-')
         Write-Host "Launch seat pack=$pack game=$($game.game_id) worktree=$worktreeName"
+        # Model MUST be passed to agent CLI (harness --model alone does not bill the seat).
         Start-Process -FilePath "agent" -ArgumentList @(
             "-p", "--trust", "--force",
+            "--model", $Model,
             "--worktree", $worktreeName,
             (Get-Content $promptPath -Raw)
         ) -WorkingDirectory $RepoRoot
@@ -121,3 +128,4 @@ $($game.brief)
 $manifest | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $runDir "manifest.json") -Encoding utf8
 Write-Host "Done. Briefs are under $runDir"
 Write-Host "Paste each brief into one Composer overlay seat, or re-run with -LaunchSeats."
+
