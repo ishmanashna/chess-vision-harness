@@ -828,3 +828,22 @@
     width: 100%;
   }
 }
+
+/* Finished-game quality labels remain readable without color. */
+.move-analysis-status, .move-analysis-detail { color: var(--faint); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+.move-analysis-detail { color: var(--text); }
+.move-quality { display: block; font-size: .65rem; line-height: 1.5; font-weight: 600; }
+.move-quality.is-good { color: var(--faint); }
+.move-quality.is-inaccuracy { color: #ac7400; }
+.move-quality.is-mistake { color: #c75a16; }
+.move-quality.is-blunder { color: #d04444; }
+[data-theme="dark"] .move-quality.is-inaccuracy { color: #e6bd55; }
+[data-theme="dark"] .move-quality.is-mistake { color: #f39d66; }
+[data-theme="dark"] .move-quality.is-blunder { color: #ff9696; }
+
+@media (max-width: 1280px) {
+  .game-view .layout { grid-template-columns: minmax(0, 1fr); }
+  .game-view .layout > .col { min-width: 0; }
+  .game-view .board-row { width: 100%; }
+  .game-view .spec-board-wrap { min-width: 0; }
+}

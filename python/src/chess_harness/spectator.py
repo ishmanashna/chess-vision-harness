@@ -1574,6 +1574,16 @@ async def get_game_moves(game_id: str, request: Request):
     return spectator_moves_payload(state)
 
 
+@app.get("/api/games/{game_id}/annotations")
+async def get_game_annotations(game_id: str, request: Request):
+    """Saved finished-game analysis only; never starts an engine or queues work."""
+    state = game_manager.load_state(game_id)
+    if not state or packed_game_forbidden(request, state):
+        raise HTTPException(404, "Game not found")
+    from .move_annotations import annotations_payload
+    return await asyncio.to_thread(annotations_payload, game_manager.get_game_dir(game_id), state)
+
+
 @app.get("/api/games/{game_id}/chat")
 async def get_game_chat(game_id: str, request: Request, since: int = Query(0, ge=0)):
     """Public read-only chat for spectators of human-vs-agent games."""

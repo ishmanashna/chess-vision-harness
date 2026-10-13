@@ -159,10 +159,12 @@ class UciEngineAdapter:
         return self.engine.play(board, chess.engine.Limit(time=time_limit))
 
     def evaluate(self, board, depth: int = 10):
+        self.last_evaluation = None
         if self.engine is None or board.is_game_over():
             return None
         try:
             info = self.engine.analyse(board, chess.engine.Limit(depth=depth))
+            self.last_evaluation = {"mate": info["score"].white().mate(), "depth": info.get("depth")}
             return info["score"].white().score(mate_score=10000)
         except Exception:
             return None

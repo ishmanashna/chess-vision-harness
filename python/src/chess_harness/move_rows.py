@@ -80,4 +80,14 @@ def spectator_moves_payload(state: dict[str, Any]) -> dict[str, Any]:
     """
     payload = moves_payload(state)
     payload["start_fen"] = state.get("start_fen") or chess.STARTING_FEN
+    board = chess.Board(payload["start_fen"])
+    rows = []
+    for ply, uci in enumerate(state.get("moves") or [], start=1):
+        if not rows or rows[-1]["num"] != board.fullmove_number:
+            rows.append({"num": board.fullmove_number, "white": "", "black": "", "white_ply": None, "black_ply": None})
+        color = "white" if board.turn else "black"
+        rows[-1][color] = board.san(chess.Move.from_uci(uci))
+        rows[-1][color + "_ply"] = ply
+        board.push_uci(uci)
+    payload["move_rows"] = rows
     return payload

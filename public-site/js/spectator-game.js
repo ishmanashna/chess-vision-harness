@@ -7,6 +7,8 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
+import { annotationAt, badgeHtml, analysisSummary, detailText, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=1";
+
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
   "Move-by-move strength on the Elo scale, from mean accuracy via the calibration accuracy-to-Elo table. Separate from ladder Elo; never changes it.";
@@ -91,6 +93,9 @@ async function main() {
   let lastPgn = "";
   let lastMoveRows = null;
   let lastState = null;
+  let moveAnalysis = null;
+  let analysisQualityAt = null;
+  let analysisLoading = false;
   let selectedPly = 0;
   let qualityWaitAttempts = 0;
   let chatSince = 0;
@@ -468,7 +473,40 @@ async function main() {
     return { ok: true, eval_ui: s.eval_ui, show_eval: s.show_eval };
   }
 
+  function applySavedEval(ply) {
+    const score = savedScore(moveAnalysis, ply);
+    const detail = document.getElementById("move-analysis-detail");
+    if (detail) detail.textContent = detailText(annotationAt(moveAnalysis, ply));
+    if (!score || !lastState || lastState.show_eval === false) return false;
+    evalFetchGen++;
+    if (evalDebounceTimer) { clearTimeout(evalDebounceTimer); evalDebounceTimer = null; }
+    const cp = score.mate != null ? (score.winner === "white" ? 10000 : -10000) : score.cp;
+    const bar = document.getElementById("eval-black");
+    if (bar) bar.style.height = Math.max(4, Math.min(96, 50 - cp / 25)) + "%";
+    renderGameState(lastState, {text: scoreText(score)});
+    return true;
+  }
+
+  async function loadMoveAnalysis(s) {
+    if (!s.game_over || analysisLoading) return;
+    if (moveAnalysis && moveAnalysis.status !== "pending" && analysisQualityAt === s.quality_at) return;
+    analysisLoading = true;
+    try {
+      moveAnalysis = await fetchSavedAnalysis("/api/games/" + encodeURIComponent(GAME_ID) + "/annotations");
+      analysisQualityAt = s.quality_at;
+    } catch (_) {
+      moveAnalysis = {status: "unavailable", reason: "Saved move analysis unavailable"};
+    } finally {
+      analysisLoading = false;
+    }
+    const status = document.getElementById("move-analysis-status");
+    if (status) status.textContent = analysisSummary(moveAnalysis);
+    if (lastMoveRows) renderMoves(lastMoveRows, selectedPly);
+    applySavedEval(selectedPly);
+  }
+
   function fetchEvalForPly(ply, immediate) {
+    if (applySavedEval(Number(ply) || 0)) { evalFetchGen++; return; }
     const tipPly = board.getTipPly();
     const n = Math.max(0, Math.min(Number(ply) || 0, tipPly));
     const atTip = n >= tipPly;
@@ -535,8 +573,8 @@ async function main() {
     const tipPly = board.getTipPly();
     el.innerHTML = rows
       .map((r) => {
-        const wPly = r.num * 2 - 1;
-        const bPly = r.num * 2;
+        const wPly = "white_ply" in r ? r.white_ply : r.num * 2 - 1;
+        const bPly = "black_ply" in r ? r.black_ply : r.num * 2;
         const wOn = wPly === sel;
         const bOn = bPly === sel;
         const black = r.black || "";
@@ -548,7 +586,7 @@ async function main() {
           '" data-ply="' +
           wPly +
           '">' +
-          escHtml(r.white) +
+          escHtml(r.white || "") + badgeHtml(annotationAt(moveAnalysis, wPly)) +
           "</span>" +
           (black
             ? '<span class="b' +
@@ -556,7 +594,7 @@ async function main() {
               '" data-ply="' +
               bPly +
               '">' +
-              escHtml(black) +
+              escHtml(black) + badgeHtml(annotationAt(moveAnalysis, bPly)) +
               "</span>"
             : '<span class="b"></span>') +
           "</div>"
@@ -611,6 +649,7 @@ async function main() {
         await fetch("/api/games/" + encodeURIComponent(GAME_ID) + "/state")
       ).json();
       lastState = s;
+      loadMoveAnalysis(s);
       syncAvhChatUi(s);
       const rev = s.revision || "";
       const stateMoveCount =
@@ -673,6 +712,7 @@ async function main() {
         }
       }
       renderMeta(lastPgn, s);
+      applySavedEval(selectedPly);
       if (isAvhGame) await pollChat();
       syncHeights();
       pinMovesIfAtTip();

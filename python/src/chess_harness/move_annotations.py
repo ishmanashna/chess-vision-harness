@@ -1,0 +1,125 @@
+"""Versioned spectator-only annotations, derived from the existing quality pass."""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import tempfile
+from functools import lru_cache
+from datetime import datetime, timezone
+from pathlib import Path
+
+import chess
+
+SCHEMA_VERSION = 1
+LABEL_VERSION = "win-chance-loss-v1"
+# Mover's win-chance loss, in percentage points; not centipawn thresholds.
+THRESHOLDS = {"inaccuracy": 5.0, "mistake": 10.0, "blunder": 30.0}
+
+
+@lru_cache(maxsize=8)
+def _binary_hash(path: str, size: int, mtime_ns: int) -> str:
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def move_label(loss: float) -> str:
+    if loss > THRESHOLDS["blunder"]:
+        return "blunder"
+    if loss >= THRESHOLDS["mistake"]:
+        return "mistake"
+    if loss >= THRESHOLDS["inaccuracy"]:
+        return "inaccuracy"
+    return "good"
+
+
+def position_score(board: chess.Board, cp: int, engine=None) -> dict:
+    if board.is_checkmate():
+        return {"cp": None, "mate": 0, "winner": "black" if board.turn else "white"}
+    if board.is_game_over():
+        return {"cp": 0, "mate": None}
+    detail = getattr(engine, "last_evaluation", None) if engine else None
+    if detail and detail.get("mate") is not None:
+        mate = detail["mate"]
+        return {"cp": None, "mate": mate, "winner": "white" if mate > 0 else "black"}
+    return {"cp": cp, "mate": None}
+
+
+def moves_hash(start_fen: str, moves: list[str]) -> str:
+    return hashlib.sha256(json.dumps([start_fen, moves], separators=(",", ":")).encode()).hexdigest()
+
+
+def make_analysis(start_fen, moves, rows, depth, engine=None) -> dict:
+    uci = getattr(engine, "engine", None)
+    identity = getattr(uci, "id", {}) or {}
+    options = getattr(uci, "options", {}) or {}
+    binary_hash = None
+    launch = getattr(engine, "launch_command", None)
+    if isinstance(launch, str):
+        try:
+            path = Path(launch).resolve()
+            stat = path.stat()
+            binary_hash = _binary_hash(str(path), stat.st_size, stat.st_mtime_ns)
+        except OSError:
+            pass
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "status": "complete" if len(rows) == len(moves) else "incomplete",
+        "analysed_at": datetime.now(timezone.utc).isoformat(),
+        "moves_hash": moves_hash(start_fen, moves),
+        "profile": {"quality_version": "quality-v1", "label_version": LABEL_VERSION,
+                    "engine": identity.get("name", "Injected evaluator" if engine is None else "Unknown engine"),
+                    "author": identity.get("author"), "depth": depth,
+                    "engine_sha256": binary_hash,
+                    "network": getattr(options.get("EvalFile"), "default", None),
+                    "threads": getattr(options.get("Threads"), "default", None),
+                    "hash_mb": getattr(options.get("Hash"), "default", None),
+                    "limit_strength": False, "score_perspective": "white",
+                    "budget_validated": False},
+        "thresholds": dict(THRESHOLDS), "plies": rows,
+    }
+
+
+def save_analysis(game_dir: Path, analysis: dict) -> None:
+    game_dir.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix="move-analysis-", suffix=".tmp", dir=game_dir)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(analysis, stream)
+        os.replace(temporary, game_dir / "move-analysis.json")
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def annotations_payload(game_dir: Path, state: dict) -> dict:
+    if state.get("status") != "finished":
+        return {"status": "unavailable", "reason": "Annotations are available for finished games only"}
+    path = game_dir / "move-analysis.json"
+    if not path.is_file():
+        pending = not state.get("quality_at") and state.get("result") not in {None, "*"}
+        return {"status": "pending" if pending else "unavailable", "reason": "Analysis pending" if pending else "No saved move analysis; historical backfill is deferred"}
+    try:
+        if path.stat().st_size > 2_000_000:
+            raise ValueError("Analysis file too large")
+        analysis = json.loads(path.read_text(encoding="utf-8"))
+        expected = moves_hash(chess.Board(state.get("start_fen") or chess.STARTING_FEN).fen(), state.get("moves") or [])
+        if analysis.get("schema_version") != SCHEMA_VERSION or analysis.get("moves_hash") != expected:
+            return {"status": "unavailable", "reason": "Saved analysis does not match this game/version"}
+        if analysis.get("status") != "complete" or len(analysis.get("plies", [])) != len(state.get("moves") or []):
+            return {"status": "unavailable", "reason": "Saved analysis is incomplete"}
+        # Explicit projection: never publish engine PVs or arbitrary artifact fields.
+        rows = []
+        board = chess.Board(state.get("start_fen") or chess.STARTING_FEN)
+        for index, row in enumerate(analysis["plies"]):
+            color = "white" if board.turn else "black"
+            if row.get("ply") != index + 1 or row.get("uci") != state["moves"][index] or row.get("color") != color or row.get("label") not in {"good", "inaccuracy", "mistake", "blunder"}:
+                raise ValueError("Misaligned move analysis")
+            projected = {key: row.get(key) for key in ("ply", "uci", "color", "loss_cp", "loss_percent", "label")}
+            for position in ("before", "after"):
+                projected[position] = {key: row[position].get(key) for key in ("cp", "mate", "winner")}
+            rows.append(projected)
+            board.push_uci(row["uci"])
+        profile = {key: analysis.get("profile", {}).get(key) for key in ("engine", "author", "engine_sha256", "network", "depth", "threads", "hash_mb", "limit_strength", "score_perspective", "quality_version", "label_version", "budget_validated")}
+        return {"status": "complete", "schema_version": SCHEMA_VERSION, "analysed_at": analysis.get("analysed_at"), "profile": profile, "thresholds": THRESHOLDS, "plies": rows}
+    except (OSError, ValueError, TypeError, AttributeError, KeyError):
+        return {"status": "unavailable", "reason": "Saved analysis could not be read"}

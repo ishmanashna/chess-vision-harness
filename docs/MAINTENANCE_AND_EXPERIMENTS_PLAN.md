@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–4 implemented (2026-10-13); Batches 5–8 planned. Public frontend published through 4470b0e; Batches 3–4 backend activation still pending localhost restart.
+Status: Batches 1–5 implemented (2026-10-13); Batches 6–8 planned. Frontend deployment evidence is recorded per batch below; Batches 3–5 backend activation still pending localhost restart.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -238,6 +238,10 @@ normal Ops refresh. The shared operation card stays visible across sections.
 
 ## Batch 5 — Spectator move annotations
 
+Status: implemented and verified in an isolated finished-game preview, 2026-10-13.
+The localhost backend restart remains pending under the existing approval-review block.
+
+
 Dependency boundary: implement versioned annotation storage and a bounded finished-game
 example here. Batch 8 owns analysis-budget validation, broad historical reanalysis,
 and migration of published Accuracy/Performance. Avoid an unversioned bulk backfill
@@ -263,6 +267,34 @@ Done when:
   scrubbing; missing analysis is handled without blocking replay.
 - Focused tests cover move-to-ply alignment, mate scores, both colors, and missing data.
 - No alternative lines appear and agent API payloads remain unchanged.
+
+Verification: 52 targeted Python tests passed and one pre-existing Stockfish test
+was skipped because its test-specific binary path was absent. Six JavaScript tests
+passed, including hung response-body timeout and missing-data handling. The actual
+repository Stockfish 17.1 binary analysed a seven-ply offline Scholar's Mate example
+in an isolated temporary directory; no production game, calibration map, or ladder
+was reanalysed or updated. Browser checks covered replay selection, typed mate scores,
+text/color labels, 1768px desktop and 390px narrow layouts. Narrow-screen grid overflow
+was corrected within the game view. The preview produced no browser runtime errors.
+
+The existing quality pass now captures before/after scores and mover win-chance loss
+without another engine search. Finished-game jobs atomically save move-analysis.json
+with schema/formula/label versions, a move-sequence fingerprint, engine identity and
+binary hash, network identifier, configured depth, default threads/hash settings,
+strength-limit flag, timestamp and completion status. Per-move labels use mover
+win-chance loss: Good below 5 pp, Inaccuracy from 5 pp, Mistake from 10 pp, Blunder
+above 30 pp. These are estimated labels under an explicitly unvalidated analysis
+budget; changing the evaluator or formula remains Batch 8 work.
+
+The spectator-only annotations endpoint validates the schema, exact move alignment,
+starting position and completion, and projects allowlisted fields without engine PVs
+or candidate moves. Live games receive no annotations. Packed-game visibility is
+preserved. Saved analysis stays outside agent state/payloads. The move list uses
+explicit ply identifiers, including black-to-move setup positions; scrubbing uses the
+saved evaluations locally and cancels stale network-evaluation updates. Annotation
+loading is independent of board loading with a four-second deadline. Missing or
+incomplete analysis is reported honestly; legacy games await the later backfill.
+Existing right-click board arrows remain separate and unchanged.
 
 ## Batch 6 — Active backlog, parity, and useful validation
 
@@ -312,7 +344,9 @@ Done when:
 
 ## Batch 8 — Spectator speed, analysis reliability, and historical reanalysis
 
-Status: planned, added at Jordi's request on 2026-10-13. Investigation and migration
+Status: planned, added at Jordi's request on 2026-10-13. Treat depth 8 as a legacy
+unvalidated analysis profile; stronger-model comparisons require a stronger reference
+benchmark and a reviewed replacement budget, rather than assuming depth 8 is sufficient. Investigation and migration
 work are deferred; adding this batch does not start reanalysis or change ratings.
 
 Problem and evidence:
@@ -328,6 +362,12 @@ Problem and evidence:
   rather than a configured per-position search-time budget. A stronger playing model
   does not itself prove the evaluator is inadequate, but shallow search reliability
   and resolution among high-accuracy games need validation.
+- The current Accuracy formula skips moves whose centipawn loss crosses the
+  mate-miss sentinel threshold. Batch 5's isolated Scholar's Mate example therefore
+  gave Black roughly 96% Accuracy despite a correctly labelled mating blunder.
+  Audit mate transitions and excluded-move coverage as part of formula validation;
+  increasing search depth alone does not resolve this scoring behavior. Any formula
+  change needs its own version and the same calibration/backfill comparison.
 - `analyse_game` requests before/after evaluations for every ply, including adjacent
   repeated positions. Provisional and final jobs share an in-process queue with up
   to four concurrent quality slots. Reanalysis cost and contention with live play,

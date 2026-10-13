@@ -28,6 +28,7 @@ import chess
 import chess.pgn
 
 from .engine import EvalEngineAdapter
+from .move_annotations import make_analysis, move_label, position_score
 
 WIN_PROB_COEFF = 0.00368208
 WIN_PROB_CP_CAP = 1000
@@ -77,6 +78,7 @@ class GameQuality:
     white: SideQuality
     black: SideQuality
     start_color: chess.Color = chess.WHITE
+    move_analysis: Optional[dict] = None
 
 
 def default_quality_depth() -> int:
@@ -283,6 +285,13 @@ def analyse_game(
     quality_depth = depth if depth is not None else default_quality_depth()
     uci_moves = _parse_moves(pgn_or_moves)
     board = chess.Board()
+    if isinstance(pgn_or_moves, str):
+        parsed = chess.pgn.read_game(StringIO(pgn_or_moves))
+        if parsed is not None:
+            board = parsed.board()
+    start_fen = board.fen()
+    start_color = board.turn
+    annotation_rows = []
     owned_engine: Optional[EvalEngineAdapter] = None
 
     if eval_fn is None:
@@ -301,6 +310,7 @@ def analyse_game(
             cp_white_before = _position_cp(board, eval_fn)
             if cp_white_before is None:
                 break
+            before = position_score(board, cp_white_before, owned_engine)
             score_before = cp_white_before if mover == chess.WHITE else -cp_white_before
 
             board.push(chess.Move.from_uci(uci))
@@ -308,6 +318,7 @@ def analyse_game(
             cp_white_after = _position_cp(board, eval_fn)
             if cp_white_after is None:
                 break
+            after = position_score(board, cp_white_after, owned_engine)
             score_after = cp_white_after if mover == chess.WHITE else -cp_white_after
 
             all_wps.append(
@@ -321,6 +332,12 @@ def analyse_game(
             swing = max(0.0, wp_before - wp_after)
             is_blunder = swing / 100.0 > BLUNDER_WIN_PROB_LOSS
             cp_loss = max(0, score_before - score_after)
+            annotation_rows.append({
+                "ply": ply_idx + 1, "uci": uci,
+                "color": "white" if mover else "black", "before": before, "after": after,
+                "loss_cp": cp_loss if before["mate"] is None and after["mate"] is None else None,
+                "loss_percent": round(swing, 4), "label": move_label(swing),
+            })
             skip_accuracy = cp_loss >= MATE_MISS_THRESHOLD
             accuracy = None if skip_accuracy else _move_accuracy(wp_before, wp_after)
 
@@ -338,14 +355,16 @@ def analyse_game(
                 ply_weights[i] if i < len(ply_weights) else 1.0 for i in data.ply_idxs
             ]
 
-        white_moves = (len(uci_moves) + 1) // 2
-        black_moves = len(uci_moves) // 2
+        white_moves = (len(uci_moves) + (1 if start_color else 0)) // 2
+        black_moves = len(uci_moves) - white_moves
 
         return GameQuality(
             quality_depth=quality_depth,
             quality_thin=white_moves < THIN_MOVES_PER_SIDE or black_moves < THIN_MOVES_PER_SIDE,
             white=_finalize_side(white_data),
             black=_finalize_side(black_data),
+            start_color=start_color,
+            move_analysis=make_analysis(start_fen, uci_moves, annotation_rows, quality_depth, owned_engine),
         )
     finally:
         if owned_engine is not None:

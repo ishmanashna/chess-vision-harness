@@ -241,6 +241,9 @@ def run_game_quality(
                 return False
             if state.get("quality_at") and not force and not state.get("quality_provisional"):
                 return False
+            if quality.move_analysis is not None:
+                from .move_annotations import save_analysis
+                save_analysis(gm.get_game_dir(game_id), quality.move_analysis)
             _patch_state_quality(
                 state,
                 quality,
