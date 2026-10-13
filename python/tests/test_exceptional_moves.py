@@ -191,3 +191,16 @@ def test_smaller_quiet_value_refinement_can_be_brilliant(monkeypatch):
         return engine.analyse(board,chess.engine.Limit(time=.2),multipv=2),frames
     monkeypatch.setattr(module,"_search",search)
     assert classify_exceptional(chess.Board(),move,Engine(move,best=50,second=0))["label"] == "brilliant"
+
+
+@pytest.mark.parametrize("best,second", [(0,0),(50,40)])
+def test_ineligible_positions_do_not_spend_a_cold_difficulty_search(best,second):
+    move=chess.Move.from_uci("e2e4")
+    engine=Engine(move,best=best,second=second)
+    engine.options={"Clear Hash":None}
+    engine.analysis=lambda *args,**kwargs: pytest.fail("no cold trace needed")
+    engine.configure=lambda *args,**kwargs: pytest.fail("no hash reset needed")
+    audit={}
+    assert classify_exceptional(chess.Board(),move,engine,audit=audit) is None
+    assert engine.calls==1
+    assert audit["best_move_uci"]==move.uci()

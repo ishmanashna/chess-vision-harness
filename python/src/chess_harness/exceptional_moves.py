@@ -167,6 +167,16 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=Non
             played_is_best = lines[0]["pv"][0] == move
             played = best
             alternative = second
+            # These outcomes cannot qualify regardless of a cold difficulty trace.
+            # Preserve the preferred-move audit, but avoid redundant engine work.
+            if played_is_best and (
+                best < PROFILE["minimum_chance"]
+                or second >= PROFILE["alternative_winning_chance"]
+                or all(abs(chance - .5) <= .02 for chance in (best, second))
+                or ((sacrifice is None or sacrifice < PROFILE["sacrifice_min_cp"])
+                    and (best - second) * 100 < min(PROFILE["critical_gap_pp"], PROFILE["discovery"]["minimum_gap_pp"]))
+            ):
+                return None
             if cold_trace and not evidence and played_is_best:
                 # Verification can reuse adjacent-position work; human-difficulty
                 # evidence must come from a separate cold iterative search.

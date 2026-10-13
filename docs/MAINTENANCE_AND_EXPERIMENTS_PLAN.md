@@ -664,6 +664,15 @@ Done when:
 - Full annotation-only v6 refresh and final counts are recorded below after
   verification. Future-game v6 activation requires restarting the backend;
   the existing Ops restart button is now available after the user's activation.
+- Avoid cold difficulty searches when the first verified scores already exclude
+  both symbols (drawn/too-losing positions, already-winning alternatives, or an
+  insufficient gap without a sacrifice). This preserves the grading conditions
+  and preferred-move audit while removing redundant engine work. The owned
+  annotation job was resumed with this optimization; valid completed artifacts
+  are retained. Targeted Python verification: 78 passed, one environment skip.
+- Batch 8 follow-up: persist private verification/rejection evidence for screened
+  candidates so future threshold changes can reuse searches instead of repeating
+  the archive pass. Continue excluding private variations from public responses.
 
 ## Delivery rules
 
