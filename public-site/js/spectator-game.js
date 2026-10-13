@@ -7,7 +7,7 @@ import { pinScrollToBottom } from "./moves-scroll.js";
 import { bindLiveHealthGate } from "./live-health-gate.js";
 import { createLivePollLoop } from "./live-poll-loop.js";
 
-import { annotationAt, badgeHtml, analysisSummary, detailText, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=1";
+import { annotationAt, badgeHtml, analysisSummary, detailText, savedScore, scoreText, fetchSavedAnalysis } from "./move-annotations.js?v=2";
 
 const QUALITY_POLL_MAX = 40;
 const PLAY_RATING_TIP =
@@ -500,7 +500,12 @@ async function main() {
       analysisLoading = false;
     }
     const status = document.getElementById("move-analysis-status");
-    if (status) status.textContent = analysisSummary(moveAnalysis);
+    if (status) {
+      status.textContent = analysisSummary(moveAnalysis);
+      status.hidden = moveAnalysis.status === "complete";
+      const heading = status.parentElement.querySelector("h2");
+      if (heading) heading.title = analysisSummary(moveAnalysis);
+    }
     if (lastMoveRows) renderMoves(lastMoveRows, selectedPly);
     applySavedEval(selectedPly);
   }

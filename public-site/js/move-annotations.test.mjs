@@ -17,15 +17,16 @@ test("annotations use exact one-based plies and do not attach unavailable data",
 });
 
 test("evaluation changes stay White-relative while labels identify the mover", () => {
-  assert.match(detailText(row), /black.*Mistake.*-0.20 to \+1.00.*Change \+1.20.*10.7 pp/);
-  assert.match(badgeHtml(row), />Mistake</);
+  assert.match(detailText(row), /White eval: -0.20 → \+1.00.*Δ \+1.20/);
+  assert.match(badgeHtml(row), />\?</);
+  assert.match(badgeHtml(row), /aria-label="Mistake"/);
   assert.match(badgeHtml(row), /10.7 percentage points/);
 });
 
 test("mate scores preserve winner and do not claim a numeric delta", () => {
   assert.equal(scoreText({cp:null, mate:-3, winner:"black"}), "-M3");
   assert.equal(scoreText({cp:null, mate:0, winner:"white"}), "Checkmate (white)");
-  assert.doesNotMatch(detailText({...row, after:{cp:null,mate:2,winner:"white"}}), /Change/);
+  assert.doesNotMatch(detailText({...row, after:{cp:null,mate:2,winner:"white"}}), /Δ/);
   assert.equal(scoreText(null), "Unavailable");
 });
 
@@ -33,6 +34,9 @@ test("labels have text and an explicit unvalidated-budget explanation", () => {
   assert.match(analysisSummary(analysis), /Fixture engine, depth 8.*not yet validated/);
   assert.equal(analysisSummary({status:"unavailable", reason:"Historical backfill deferred"}), "Historical backfill deferred");
   assert.equal(badgeHtml({...row,label:"<script>"}), "");
+  assert.equal(badgeHtml({...row,label:"good"}), "");
+  assert.match(badgeHtml({...row,label:"inaccuracy"}), />\?!</);
+  assert.match(badgeHtml({...row,label:"blunder"}), />\?\?</);
   assert.match(badgeHtml({...row,loss_percent:'"><script>'}), /&quot;&gt;&lt;script&gt;/);
 });
 

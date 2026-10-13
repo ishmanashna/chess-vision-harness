@@ -295,7 +295,12 @@ explicit ply identifiers, including black-to-move setup positions; scrubbing use
 saved evaluations locally and cancels stale network-evaluation updates. Annotation
 loading is independent of board loading with a four-second deadline. Missing or
 incomplete analysis is reported honestly; legacy games await the later backfill.
-Existing right-click board arrows remain separate and unchanged.
+Existing right-click board arrows remain separate and unchanged. Follow-up presentation
+correction: use conventional inline ?!, ?, and ?? suffixes for inaccuracies, mistakes,
+and blunders. Ordinary good moves are unmarked. Remove the visible annotation legend;
+keep classification/provenance in hover text and a compact selected-move evaluation.
+Do not assign ! or !! from low evaluation loss alone; identifying exceptional moves
+requires criteria to be validated with the stronger analysis work in Batch 8.
 
 ## Batch 6 — Active backlog, parity, and useful validation
 

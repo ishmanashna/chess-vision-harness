@@ -832,7 +832,7 @@
 /* Finished-game quality labels remain readable without color. */
 .move-analysis-status, .move-analysis-detail { color: var(--faint); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
 .move-analysis-detail { color: var(--text); }
-.move-quality { display: block; font-size: .65rem; line-height: 1.5; font-weight: 600; }
+.move-quality { display: inline; margin-left: .08em; font-size: .95em; line-height: 1; font-weight: 800; }
 .move-quality.is-good { color: var(--faint); }
 .move-quality.is-inaccuracy { color: #ac7400; }
 .move-quality.is-mistake { color: #c75a16; }

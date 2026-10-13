@@ -1,5 +1,6 @@
 /* Saved finished-game analysis. Never exposes candidate moves or lines. */
 const labels = {good: "Good", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder"};
+const symbols = {inaccuracy: "?!", mistake: "?", blunder: "??"};
 const escape = (text) => String(text).replace(/[&<>"']/g, (c) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
 
 export async function fetchSavedAnalysis(url, timeoutMs = 4000, fetcher = fetch) {
@@ -29,8 +30,9 @@ export function scoreText(score) {
 }
 
 export function badgeHtml(row) {
-  if (!row || !labels[row.label]) return "";
-  return '<small class="move-quality is-' + row.label + '" title="Estimated mover win-chance loss: ' + escape(row.loss_percent) + ' percentage points">' + labels[row.label] + '</small>';
+  if (!row || !symbols[row.label]) return "";
+  const title = labels[row.label] + ": " + scoreText(row.before) + " to " + scoreText(row.after) + ". Estimated mover win-chance loss: " + row.loss_percent + " percentage points";
+  return '<span class="move-quality is-' + row.label + '" aria-label="' + labels[row.label] + '" title="' + escape(title) + '">' + symbols[row.label] + '</span>';
 }
 
 export function analysisSummary(analysis) {
@@ -40,10 +42,10 @@ export function analysisSummary(analysis) {
 }
 
 export function detailText(row) {
-  if (!row) return "Select a move to inspect its saved evaluation. Scores are from White's perspective.";
+  if (!row) return "";
   const delta = row.before && row.after && Number.isFinite(row.before.cp) && Number.isFinite(row.after.cp)
-    ? " | Change " + scoreText({cp: row.after.cp - row.before.cp}) : "";
-  return "Ply " + row.ply + " (" + row.color + "): " + (labels[row.label] || "Unavailable") + " | White eval " + scoreText(row.before) + " to " + scoreText(row.after) + delta + " | Mover win-chance loss " + Number(row.loss_percent).toFixed(1) + " pp";
+    ? " (Δ " + scoreText({cp: row.after.cp - row.before.cp}) + ")" : "";
+  return "White eval: " + scoreText(row.before) + " → " + scoreText(row.after) + delta;
 }
 
 export function savedScore(analysis, ply) {
