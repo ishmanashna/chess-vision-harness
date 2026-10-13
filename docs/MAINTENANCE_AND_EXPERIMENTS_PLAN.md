@@ -661,8 +661,15 @@ Done when:
   14+. Current preferred moves, material offers, prior positives and missing or
   shallow preferences still receive fresh verification. The artifact records
   which scope was reused. State, stored evaluations, losses and ratings are retained.
-- Full annotation-only v6 refresh and final counts are recorded below after
-  verification. Future-game v6 activation requires restarting the backend;
+- Full annotation-only v6 refresh completed for **686/686** games without failures.
+  Final counts: **55 `!`, 31 `!!`, 1,123 `?!`, 3,912 `?`, 4,019 `??`**, and
+  30,747 unmarked moves. Agents account for **16 `!` and 21 `!!`**, previously
+  12/7: positive agent annotations rise from 19 to 37, with triple the `!!` count.
+  All 369 local completed-game annotation endpoints return complete; every negative
+  annotation has a saved best move. All 39,887 saved evaluations/losses and all
+  742 protected files remain unchanged. The public API serves the v6 criteria,
+  and known ordinary-capture, check-block and pointless-sacrifice controls stay
+  unmarked. Future-game v6 activation requires restarting the backend;
   the existing Ops restart button is now available after the user's activation.
 - Avoid cold difficulty searches when the first verified scores already exclude
   both symbols (drawn/too-losing positions, already-winning alternatives, or an
