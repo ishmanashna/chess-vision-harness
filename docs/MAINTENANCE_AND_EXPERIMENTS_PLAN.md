@@ -639,6 +639,32 @@ Done when:
   deployment runs succeeded. New best-move and terminal-context API fields still
   need one manual activation restart under the existing approval-review block.
 
+### Less restrictive exceptional-move policy (v6, 2026-10-14)
+
+- User explicitly requested substantially less restrictive `!`/`!!` criteria.
+  Critical gap changes from 7.5 to 3 percentage points. Quiet deeper refinements
+  require 2.5 points for `!` and 5 for `!!`, previously 6/10. Late discoveries
+  require depth 5 with 1.5-point gain for `!`, or depth 8 with 3-point gain for `!!`.
+  Quiet discovery needs two consecutive depths and a 3-point runner-up gap.
+  Resourceful moves can qualify from 15% estimated mover chance (`!!`: 30%).
+- Engine verification remains unchanged: target depths 18/22, completed depths
+  at least 14/18, and two agreeing passes. Routine captures and check evasions
+  retain the stronger previous discovery, gap and three-depth stability guards.
+  Forced moves and pointless sacrifices in drawn positions remain excluded.
+- A 1,009-move pilot includes all 61 current positives, prior positive candidates,
+  sampled engine-preferred quiet moves/captures, and three explicit negative
+  controls. New rules add 8 previously unmarked `!`, one previously unmarked `!!`,
+  one shallow-discounted `!!`, and upgrade five `!` to `!!` in this sample.
+  All three known false-positive controls remain unmarked. Counts are not quotas.
+- Optional `--reuse-preferences` avoids repeating searches for non-positive,
+  non-sacrificial moves when a legal alternative was already preferred at depth
+  14+. Current preferred moves, material offers, prior positives and missing or
+  shallow preferences still receive fresh verification. The artifact records
+  which scope was reused. State, stored evaluations, losses and ratings are retained.
+- Full annotation-only v6 refresh and final counts are recorded below after
+  verification. Future-game v6 activation requires restarting the backend;
+  the existing Ops restart button is now available after the user's activation.
+
 ## Delivery rules
 
 - Implement one batch at a time; split a batch further if it cannot be reviewed cleanly.

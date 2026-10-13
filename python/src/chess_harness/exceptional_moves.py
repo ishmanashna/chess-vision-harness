@@ -12,19 +12,21 @@ import chess.engine
 
 VERSION = "critical-sound-sacrifice-v1"
 # VERSION identifies the evidence structure; policy revisions are separate.
-POLICY_VERSION = "critical-discovery-sacrifice-policy-v5"
+POLICY_VERSION = "critical-discovery-sacrifice-policy-v6"
 PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .35, "minimum_depth": 14},
                                            {"depth": 22, "seconds": 1.0, "minimum_depth": 18}],
-           "multipv": 2, "critical_gap_pp": 7.5, "critical_alternative_ceiling": .75,
-           "minimum_chance": .25, "brilliant_minimum_chance": .40,
-           "alternative_winning_chance": .85, "sacrifice_min_cp": 100, "near_best_loss_pp": 3.0,
+           "multipv": 2, "critical_gap_pp": 3.0, "critical_alternative_ceiling": .85,
+           "minimum_chance": .15, "brilliant_minimum_chance": .30,
+           "alternative_winning_chance": .90, "sacrifice_min_cp": 100, "near_best_loss_pp": 3.0,
            "routine_check_evasion_requires_difficulty": True,
            "verification_cache": "position-history reuse", "discovery_cache": "cleared before trace",
-           "discovery": {"shallow_depth": 4, "stable_depths": 3,
-                         "great_depth": 6, "great_gain_pp": 3.0,
-                         "brilliant_depth": 10, "brilliant_gain_pp": 6.0,
-                         "refinement_great_gain_pp": 6.0, "refinement_brilliant_gain_pp": 10.0,
-                         "refresh_screen_loss_pp": 0.0}}
+           "discovery": {"shallow_depth": 4, "stable_depths": 2, "minimum_gap_pp": 3.0,
+                         "great_depth": 5, "great_gain_pp": 1.5,
+                         "brilliant_depth": 8, "brilliant_gain_pp": 3.0,
+                         "refinement_great_gain_pp": 2.5, "refinement_brilliant_gain_pp": 5.0,
+                         "refresh_screen_loss_pp": 0.0},
+           "routine_guard": {"minimum_gap_pp": 5.0, "great_depth": 6, "stable_depths": 3,
+                             "great_gain_pp": 3.0, "refinement_great_gain_pp": 6.0}}
 VALUES = {chess.PAWN: 100, chess.KNIGHT: 300, chess.BISHOP: 300,
           chess.ROOK: 500, chess.QUEEN: 900, chess.KING: 20000}
 
@@ -105,6 +107,13 @@ def sacrifice_cost(board: chess.Board, move: chess.Move):
     return None if exchange is None else max(0, exchange - gain)
 
 
+def difficult(discovery, gain, gap, settings):
+    if not discovery or gap < settings["minimum_gap_pp"]:
+        return False
+    late = discovery.get("root_changed") and discovery.get("discovered_depth", 0) >= settings["great_depth"]
+    return (late and gain >= settings["great_gain_pp"]) or gain >= settings["refinement_great_gain_pp"]
+
+
 def routine_check_evasion(board, evidence):
     """A unique check block alone is insufficient evidence of difficulty.
 
@@ -116,12 +125,13 @@ def routine_check_evasion(board, evidence):
     discovery = evidence.get("discovery") or {}
     if not discovery or len(evidence.get("passes", [])) != 2:
         return True
-    settings = PROFILE["discovery"]
+    settings = PROFILE["routine_guard"]
+    if discovery.get("stable_through_depth", 0) - discovery.get("discovered_depth", 0) + 1 < settings["stable_depths"]:
+        return True
     for item in evidence["passes"]:
         gain = item.get("discovery_gain_pp", 0)
-        late = discovery.get("root_changed") and discovery.get("discovered_depth", 0) >= settings["great_depth"]
         gap = (item["best_chance"] - item["second_chance"]) * 100
-        if gap < 5 or not ((late and gain >= settings["great_gain_pp"]) or gain >= settings["refinement_great_gain_pp"]):
+        if not difficult(discovery, gain, gap, settings):
             return True
     return False
 
@@ -187,14 +197,13 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=Non
             great = played_is_best and (best - second) * 100 >= PROFILE["critical_gap_pp"] and second < PROFILE["critical_alternative_ceiling"]
             discovery_gain = (played - discovery["shallow_chance"]) * 100 if discovery else 0
             hard = False
-            if discovery and played_is_best and (best - second) * 100 >= 5:
-                late = discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["great_depth"]
-                hard = (late and discovery_gain >= PROFILE["discovery"]["great_gain_pp"]) or discovery_gain >= PROFILE["discovery"]["refinement_great_gain_pp"]
+            if discovery and played_is_best and (best - second) * 100 >= PROFILE["discovery"]["minimum_gap_pp"]:
+                hard = difficult(discovery, discovery_gain, (best - second) * 100, PROFILE["discovery"])
                 brilliant = brilliant or (played >= PROFILE["brilliant_minimum_chance"] and ((discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["brilliant_depth"] and discovery_gain >= PROFILE["discovery"]["brilliant_gain_pp"]) or discovery_gain >= PROFILE["discovery"]["refinement_brilliant_gain_pp"]))
                 great = great or hard
             # Taking a hung piece / making an ordinary recapture is not exceptional
             # just because every non-capture is worse. Require deeper tactical value.
-            nonobvious_capture = discovery and discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["discovery"]["great_depth"] and hard
+            nonobvious_capture = discovery and discovery["root_changed"] and discovery["discovered_depth"] >= PROFILE["routine_guard"]["great_depth"] and discovery["stable_through_depth"] - discovery["discovered_depth"] + 1 >= PROFILE["routine_guard"]["stable_depths"] and difficult(discovery, discovery_gain, (best - second) * 100, PROFILE["routine_guard"])
             sound_offer = sacrifice is not None and sacrifice >= PROFILE["sacrifice_min_cp"]
             if board.is_capture(move) and not sound_offer and not nonobvious_capture:
                 if audit is not None: audit["rejection"] = "routine capture without a deeper tactical discovery"

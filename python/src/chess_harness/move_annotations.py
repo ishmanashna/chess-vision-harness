@@ -13,7 +13,7 @@ from pathlib import Path
 import chess
 
 SCHEMA_VERSION = 1
-LABEL_VERSION = "win-chance-loss-exceptional-v5"
+LABEL_VERSION = "win-chance-loss-exceptional-v6"
 # Mover's win-chance loss, in percentage points; not centipawn thresholds.
 THRESHOLDS = {"inaccuracy": 8.0, "mistake": 10.0, "blunder": 30.0}
 

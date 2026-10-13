@@ -10,7 +10,7 @@ from chess_harness.exceptional_moves import classify_exceptional, sacrifice_cost
 def test_routine_check_block_needs_difficulty_evidence_beyond_a_unique_best_move():
     board = chess.Board("rnb1k1nr/p1p1q1pp/3b4/1p6/2B5/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 7")
     assert board.is_check()
-    evidence = {"sacrifice_cp":0,"discovery":{"root_changed":False,"discovered_depth":1},
+    evidence = {"sacrifice_cp":0,"discovery":{"root_changed":False,"discovered_depth":1,"stable_through_depth":18},
                 "passes":[{"best_chance":.74,"second_chance":.23,"discovery_gain_pp":-2}] * 2}
     assert routine_check_evasion(board, evidence)
     # A genuinely deeper tactical refinement or verified material offer remains eligible.
@@ -57,7 +57,7 @@ def test_sound_piece_offer_earns_brilliant_and_exchange_is_not_a_sacrifice():
     assert sacrifice_cost(traded,chess.Move.from_uci("f4d5")) == 0
 
 
-@pytest.mark.parametrize("options", [dict(best=-400,second=-700), dict(best=900,second=600),
+@pytest.mark.parametrize("options", [dict(best=-650,second=-900), dict(best=900,second=600),
                                   dict(best=50,second=40), dict(depths=(13,22)),
                                   dict(depths=(18,17)), dict(unstable=True)])
 def test_no_positive_symbol_for_losing_easy_shallow_or_unstable_choices(options):
@@ -113,7 +113,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v5")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v6")
 
 
 def test_nearly_best_sound_sacrifice_can_be_brilliant():
@@ -175,3 +175,19 @@ def test_unnecessary_queen_offer_in_an_already_drawn_position_is_not_brilliant()
     board = chess.Board("6k1/8/8/3p4/8/4Q3/8/6K1 w - - 0 1")
     move = chess.Move.from_uci("e3e4")
     assert classify_exceptional(board,move,Engine(move,best=0,second=0)) is None
+
+
+def test_useful_quiet_move_no_longer_needs_an_extreme_alternative_gap():
+    move = chess.Move.from_uci("e2e4")
+    # Approximately 4.5 points better: useful, without an enormous only-move gap.
+    assert classify_exceptional(chess.Board(),move,Engine(move,best=50,second=0))["label"] == "great"
+
+
+def test_smaller_quiet_value_refinement_can_be_brilliant(monkeypatch):
+    from chess_harness import exceptional_moves as module
+    move = chess.Move.from_uci("e2e4")
+    frames={d:{"move":move,"chance":.48 if d<=4 else .55} for d in range(1,19)}
+    def search(engine,board,settings,trace=False):
+        return engine.analyse(board,chess.engine.Limit(time=.2),multipv=2),frames
+    monkeypatch.setattr(module,"_search",search)
+    assert classify_exceptional(chess.Board(),move,Engine(move,best=50,second=0))["label"] == "brilliant"
