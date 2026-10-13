@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–4 implemented (2026-10-13); Batches 5–7 planned. Public frontend published through 232da64; Batch 3 backend activation still pending localhost restart.
+Status: Batches 1–4 implemented (2026-10-13); Batches 5–7 planned. Public frontend published through 4470b0e; Batches 3–4 backend activation still pending localhost restart.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -193,6 +193,7 @@ The A/B UI detects the old running backend and explains the required restart.
 
 Status: implemented and verified in an isolated read-only preview, 2026-10-13.
 Backend activation still requires the localhost restart already noted in Batch 3.
+Public frontend deployment succeeded: GitHub Actions run 38430379130 (4470b0e).
 
 
 Work:
