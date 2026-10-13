@@ -521,11 +521,62 @@ Done when:
   Progress and per-game failures: `logs/annotation-backfill.json`; single-job lock
   prevents duplicate backfills, and four workers bound CPU use.
 - Initial inventory: **686 games = 369 local + 317 archive-only** (including historical
-  test records). Started as a detached local worker; record final coverage below
-  after completion. Archive-only records keep their existing visibility behavior.
+  test records). The original backfill completed all 686 without failures, covering
+  39,887 plies. Initial counts: 138 `!`, one `!!`, 3,823 `?!`, 3,931 `?`, and 4,126 `??`.
+  Archive-only records keep their existing visibility behavior.
 - Verification: Python restart/backfill/quality checks and JavaScript request,
   restart-reconnection/refusal, and annotation checks pass. The real server was
   not restarted by the agent; replacement-process behavior is covered with fakes.
+- CI follow-up: the new Python tests pass on Windows and Ubuntu. Full CI retains
+  the preceding commit's failures (Home/leaderboard assertions, prompt-pack fixture,
+  move-row assertions, invalid game-ID handling, puzzle UI assertions, runner event
+  naming, calibration confirmation on Windows, and MCP idle-pruning parity).
+  Fix or update these in the maintenance work; do not treat this release as a
+  fully green repository-wide test run.
+
+### Annotation presentation and discovery follow-up
+
+- User requested no evaluations beside moves, larger/more separated symbols, and
+  `ELO` with just the before/after values. Published in `1f5eaa8`; verified the public
+  GPT-6.1 Sol game displays `GPT-6.1 Sol 500 → 537` and no move-evaluation spans.
+- Narrowed `?!` to 8–10 percentage points of estimated mover win-chance loss;
+  `?` starts at 10 and `??` remains above 30. This changes annotation labels only.
+- `!` does not require a sacrifice. The existing critical-only-move rule remains.
+  `!!` now also supports quiet discoveries, rather than relying exclusively on
+  material offers. Sacrifices may be nearly best (within 3 percentage points),
+  provided the position remains sound and other choices are not already winning.
+- Discovery is a benchmark heuristic, not a measure of human difficulty. Clear the
+  Stockfish hash before tracing the first search; record its best root at every
+  reported depth. Depth 8 must prefer another move. The played move must become
+  best at depth 10+ for `!`, or 14+ for `!!`, stay best for at least three consecutive
+  reported depths, and reveal at least a 5/8 percentage-point evaluation gain over
+  the shallow best score. Require a meaningful deep gap to the runner-up and both
+  subsequent depth checks to agree. A jump without a late, stable move discovery
+  does not qualify. Bounded/shallow/incomplete evidence produces no discovery label.
+- Evidence format remains backward compatible; policy version, discovery depths,
+  evaluation gains, and actual verification depths are saved separately. The updated
+  API projects numeric discovery evidence without alternative moves or variations.
+- `--refresh-labels` reuses saved scores, preserves the previous artifact, changes
+  negative thresholds, and checks shallow-discounted moves (loss >=3 points) plus
+  material offers for positive labels. Existing verified positive labels are retained.
+  Accuracy, Performance, outcome-based Elo, states and SQLite rows remain untouched.
+- Fixed atomic file replacement to retry transient Windows reader-sharing collisions.
+  A regression test covers progress-file retry. The first refresh worker continued
+  processing after its progress writer failed with WinError 5; a resumable pass
+  reconciled all 686 existing current-version artifacts and completed without failures.
+- Final verification: **686/686** artifacts valid in a fresh Python process,
+  **369/369** local game annotation endpoints return complete, and SHA-256 checks
+  confirm all **742** protected state/PGN/results/model/database files unchanged.
+- Final labels across 39,887 plies: **207 `!`, 4 `!!`, 1,134 `?!`, 3,931 `?`,
+  4,059 `??`**. Agent moves account for **53 `!` and all four `!!`**. The archive
+  produced no qualifying late-search discovery under the conservative new thresholds;
+  tests cover quiet/non-sacrifice discoveries, unstable search and missing evidence.
+  Do not fabricate extra brilliant moves to meet a target count.
+- Public frontend changes are deployed and verified. Saved finished-game labels are
+  already served by the existing backend. Activating new analysis criteria for future
+  games, discovery-detail projection, and the new Ops restart endpoint still requires
+  one manual restart: automatic approval review had rejected the agent restarting the
+  live server. The prior manually started process predates these backend changes.
 
 ## Delivery rules
 

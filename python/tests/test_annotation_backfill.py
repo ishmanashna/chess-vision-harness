@@ -92,3 +92,18 @@ def test_label_refresh_reuses_saved_evaluations_and_preserves_prior_analysis(tmp
     assert new["plies"][0]["after"] == old["plies"][0]["after"]
     assert new["profile"]["engine_sha256"] == old["profile"]["engine_sha256"]
     assert (tmp_path/"analysis-history/refresh/move-analysis.json").exists()
+
+
+def test_progress_retries_a_windows_reader_sharing_collision(tmp_path, monkeypatch):
+    original = backfill.os.replace
+    calls = []
+    def replace(source, target):
+        calls.append(True)
+        if len(calls) == 1: raise PermissionError("file open by a reader")
+        return original(source,target)
+    monkeypatch.setattr(backfill.os,"replace",replace)
+    monkeypatch.setattr(backfill.time,"sleep",lambda seconds:None)
+    path = tmp_path/"progress.json"
+    backfill.write_progress(path,{"done":1})
+    assert json.loads(path.read_text()) == {"done":1}
+    assert len(calls) == 2
