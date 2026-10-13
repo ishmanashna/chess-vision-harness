@@ -1,0 +1,12 @@
+{
+  "experiment_id": "scaffold-demo",
+  "hypothesis": "Record one synthetic seat without provider calls or harness mutations.",
+  "synthetic": true,
+  "provider": "offline-fixture",
+  "model": "none",
+  "effort": null,
+  "observation": "none",
+  "opponents": [],
+  "colors": [],
+  "seed": 0
+}

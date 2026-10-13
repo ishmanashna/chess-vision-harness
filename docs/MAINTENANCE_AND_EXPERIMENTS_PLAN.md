@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batch 1 complete locally (2026-10-13); Batches 2–7 planned. Not published.
+Status: Batches 1–2 complete locally (2026-10-13); Batches 3–7 planned. Not published.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -98,6 +98,8 @@ screenshots were saved with this chat's artifacts. Public deployment remains pen
 
 ## Batch 2 — Archive inactive experiments and add basic scaffolding
 
+Status: complete locally, 2026-10-13.
+
 Work:
 
 - Inventory the eight experiment directories, current processes/seats, durable game
@@ -130,6 +132,16 @@ Done when:
   the future template. Inactive runs no longer appear as unfinished active projects.
 - One offline dummy run produces valid metadata, a short event stream, and a report
   through the template. No paid API calls or external agent applications are required.
+
+Verification: no matching launcher/keepalive processes, scheduled experiment tasks,
+or in-progress harness game states were found. All eight folders moved to
+`experiments/archive/2026-10-13/`; all 1,575 original files passed SHA-256 checks.
+The 41 previously tracked source/doc files remain trackable and 1,534 private/runtime
+originals remain ignored. Machine-specific launch notes were separately preserved.
+Twelve focused tests passed, covering metadata/hashes, progress, terminal states,
+path isolation, duplicate IDs, and the offline example. The ignored demonstration
+run produced manifest.json, events.jsonl, and report.md without provider calls.
+The shared game store, results, ratings, and finished-games SQLite were not moved.
 
 ## Batch 3 — Ops experiment results and loading
 

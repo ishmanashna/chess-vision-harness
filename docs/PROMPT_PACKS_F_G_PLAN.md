@@ -24,7 +24,7 @@ Both are **overlay** (one seat). Not committee.
 - Separate rules files so A–E keep “no legal / no imagine.”
 - CLI + MCP for `legal` and text `imagine`, gated to the matching pack (or an explicit capability flag on the game derived from the pack).
 - Ops A/B already rows-by-pack-id — F/G must appear when they have games. No Ops start button work.
-- Update `experiments/prompt-packs/README.md` and a short delta section in `PROMPT_TEST_PLAN.md` (do not rewrite the whole parent).
+- Update `experiments/archive/2026-10-13/prompt-packs/README.md` and a short delta section in `PROMPT_TEST_PLAN.md` (do not rewrite the whole parent).
 
 ## Out of scope
 
@@ -154,7 +154,7 @@ Each turn, until the game is over:
 - Gate helper used by CLI + MCP
 - Tests next to existing prompt-test / CLI tests
 - `docs/PROMPT_TEST_PLAN.md` — short “Packs F/G” delta pointing here
-- `experiments/prompt-packs/README.md` — roster + pause note
+- `experiments/archive/2026-10-13/prompt-packs/README.md` — roster + pause note
 
 Reuse: `board_text.format_board_text`, existing move parse path used by `move`. Do not implement PNG imagine.
 
@@ -211,7 +211,7 @@ Reuse: `board_text.format_board_text`, existing move parse path used by `move`. 
 **Work**
 
 - Short delta in `PROMPT_TEST_PLAN.md` (roster includes f/g; forbidden-extras carve-out; link here).
-- Update `experiments/prompt-packs/README.md`: table rows F/G; note A–D pause still stands; E frozen; how to `start --packs a,f,g` or `f,g` alone.
+- Update `experiments/archive/2026-10-13/prompt-packs/README.md`: table rows F/G; note A–D pause still stands; E frozen; how to `start --packs a,f,g` or `f,g` alone.
 - Smoke from `python/`: start f and g, run `legal` / `imagine` once each, resign or one-move smoke — no need for a full wave.
 
 **Done when:** README + parent plan mention F/G; smoke commands documented and run once on this PC.

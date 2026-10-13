@@ -39,7 +39,7 @@ Prefer: pack meta `"observation": "text"` in index.json, read in `load_pack` / s
 Inspect existing text brief helpers (`agent_brief_text.py`, `agent_board_text.py`) and reuse patterns. Do not break vision packs.
 
 ### 4. Docs
-- Update `experiments/prompt-packs/README.md`: row H; how to `start --packs f,g,h`; note A–D still paused; wave policy: CLI seats, prefer wave size 3 (one of each), stack waves rather than 9-wide by default.
+- Update `experiments/archive/2026-10-13/prompt-packs/README.md`: row H; how to `start --packs f,g,h`; note A–D still paused; wave policy: CLI seats, prefer wave size 3 (one of each), stack waves rather than 9-wide by default.
 - Short delta in `docs/PROMPT_TEST_PLAN.md` if it lists packs.
 - Optional: `docs/PROMPT_PACK_H_PLAN.md` can stay as the ticket; mark Done when when finished.
 
@@ -58,7 +58,7 @@ Then:
 Use a real inscribed model id already on this machine (composer-2.5 or whatever `models list` shows).
 
 ### 6. Wave launcher (prep, do not start scored wave)
-Add `experiments/prompt-packs/run-fgh-cli-wave.ps1` (or similar) that:
+Add `experiments/archive/2026-10-13/prompt-packs/run-fgh-cli-wave.ps1` (or similar) that:
 - starts `prompt-test start --packs f,g,h`
 - writes each brief to a run folder
 - launches 3 Cursor CLI `agent -p --trust` seats (one per game) with `--worktree` isolation (same lesson as load-and-burn: not `--workspace` on live repo)

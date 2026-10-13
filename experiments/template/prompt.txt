@@ -1,0 +1,1 @@
+Offline fixture only. No model receives this text. It exists to demonstrate prompt hashing.

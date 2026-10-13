@@ -7,6 +7,7 @@
 | [`PRODUCT.md`](../PRODUCT.md) | Maintainers / agents | Product (non-technical) |
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Maintainers / agents | System architecture + coding conventions |
 | [`MAINTENANCE_AND_EXPERIMENTS_PLAN.md`](MAINTENANCE_AND_EXPERIMENTS_PLAN.md) | Maintainers | Planned maintenance batches: Home Performance, Ops, experiment archive/scaffolding, spectator annotations, and backlog cleanup |
+| [`experiments/README.md`](../experiments/README.md) | Maintainers | Future experiment template, shared run records, and archived historical runs |
 | [`docs/roadmap/`](roadmap/README.md) | Maintainers | **Product roadmap** — Plan 0–4 (serial) |
 | [`PUBLIC_SITE_PLAN.md`](PUBLIC_SITE_PLAN.md) | Maintainers | Public site implementation plan (done) |
 | [`OAUTH_PLAN.md`](OAUTH_PLAN.md) | Maintainers | Cosmetic Google sign-in + light no-auth activity audit (**done**) |

@@ -20,9 +20,6 @@ python/_curl_trace.txt
 
 # Experiment runtime (markdown + scripts stay trackable)
 **/__pycache__/
-experiments/mimo-v26-flash-play/*
-!experiments/mimo-v26-flash-play/*.py
-!experiments/mimo-v26-flash-play/*.ps1
 experiments/**/runs/
 experiments/**/revive-backup-*/
 experiments/**/usage/exports/*.csv
@@ -38,11 +35,4 @@ experiments/**/stop.flag
 **/*.bak
 **/*.bak-*
 
-# Dump trees with tokens in briefs/logs
-experiments/inferx-ds41/
-experiments/muse-1.3-runs/
-experiments/muse-spark-play/
-experiments/muse-grok-obs/
-
-# Machine-specific launch notes
-docs/READY_MUSE_GROK_OBS.md
+# Historical runtime is protected by experiments/archive/2026-10-13/.gitignore.
