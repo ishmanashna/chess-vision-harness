@@ -1,6 +1,6 @@
 # Maintenance, Ops, and future experiments
 
-Status: Batches 1–4 implemented (2026-10-13); Batches 5–7 planned. Public frontend published through 4470b0e; Batches 3–4 backend activation still pending localhost restart.
+Status: Batches 1–4 implemented (2026-10-13); Batches 5–8 planned. Public frontend published through 4470b0e; Batches 3–4 backend activation still pending localhost restart.
 Decisions: Jordi, 2026-10-13, following the repository audit and questionnaire.
 
 ## Outcome
@@ -238,6 +238,11 @@ normal Ops refresh. The shared operation card stays visible across sections.
 
 ## Batch 5 — Spectator move annotations
 
+Dependency boundary: implement versioned annotation storage and a bounded finished-game
+example here. Batch 8 owns analysis-budget validation, broad historical reanalysis,
+and migration of published Accuracy/Performance. Avoid an unversioned bulk backfill
+here that would have to be repeated after the analysis profile changes.
+
 Work:
 
 - Persist per-ply engine analysis sufficient for move-quality labels and evaluation
@@ -304,6 +309,99 @@ Done when:
 - A dummy or existing-run fixture demonstrates a stall, failure, and successful finish
   with timings. Missing usage stays visibly unavailable.
 - A restore drill has recorded evidence, and backup/snapshot responsibilities are clear.
+
+## Batch 8 — Spectator speed, analysis reliability, and historical reanalysis
+
+Status: planned, added at Jordi's request on 2026-10-13. Investigation and migration
+work are deferred; adding this batch does not start reanalysis or change ratings.
+
+Problem and evidence:
+
+- Completed Spectator currently requests `/api/games?status=finished&limit=100`.
+  It does not download the entire archive in that response. However,
+  `_build_games_list` calls `game_manager.list_games()`, which reads every game
+  state and sorts the entire collection before filtering and slicing. List discovery
+  also calls idle-game pruning. These are confirmed scaling risks, not a measured
+  attribution of all the reported latency to one cause.
+- Quality analysis uses unrestricted-strength Stockfish with a default depth of 8,
+  configurable through `QUALITY_STOCKFISH_DEPTH`. `evaluate` uses a depth limit,
+  rather than a configured per-position search-time budget. A stronger playing model
+  does not itself prove the evaluator is inadequate, but shallow search reliability
+  and resolution among high-accuracy games need validation.
+- `analyse_game` requests before/after evaluations for every ply, including adjacent
+  repeated positions. Provisional and final jobs share an in-process queue with up
+  to four concurrent quality slots. Reanalysis cost and contention with live play,
+  calibration, public requests, and storage must be measured before increasing work.
+- Accuracy-to-Performance is a separately rebuilt monotone calibration map. Quality
+  recomputation can change saved Accuracy and Performance; rebuilding the map alone
+  must not be assumed to refresh every stored game, result, and published aggregate.
+  The map is distinct from outcome-based game Elo and engine calibration Elo.
+
+Work:
+
+- Profile completed-list discovery and opening an individual completed game
+  separately: browser waterfall, tunnel/Pages overhead, origin latency, disk reads,
+  enrichment, payload size, rendering, cold/warm caches, and concurrent requests.
+  Record median/p95 latency on the current archive and a larger offline fixture;
+  choose explicit acceptance targets from that baseline.
+- Implement bounded, indexed discovery using the existing durable game store where
+  practical. Filter/order/page before loading full states or enriching rows. Preserve
+  public-versus-packed visibility, ordering, accurate counts, filters, and access to
+  games beyond the first 100. Add real navigation rather than silently truncating.
+- Audit repeated scans and result/rating reads, idle-pruning on reads, browser polling
+  and overlapping requests, replay/evaluation fetches while scrubbing, immutable
+  finished-game caching, engine startup costs, and full-history aggregate rebuilds.
+  Fix measured bottlenecks; do not assume every suspected issue is an outage.
+- Benchmark evaluation stability on a frozen representative sample, including strong
+  models, tactical positions, quiet play, long games, mates and endgames, plus the
+  engine games used to calibrate the Performance map. Compare increasing budgets
+  against a substantially stronger reference pass. Measure evaluation, label,
+  Accuracy, and ranking changes alongside runtime, CPU/RAM, and queue age. Do not
+  choose a new depth solely because it sounds stronger or promises a human Elo.
+- Define a reproducible analysis profile: engine binary/version/hash and network
+  identity where applicable, settings, threads/hash, search limits and actual depth/
+  nodes/time, score perspective and mate handling, quality-formula version, and
+  annotation thresholds. Distinguish a quick provisional profile from authoritative
+  final analysis; keep the agents' play/observation contract free of analysis data.
+- Persist per-position/per-ply results once and reuse them for Accuracy, move labels,
+  replay evaluations, and reports. Evaluate reuse of adjacent/shared positions with
+  cache keys covering the complete position/history requirements and analysis profile.
+  Record incomplete/failed searches honestly, rather than accepting partial analysis
+  as a full authoritative game. Do not analyse again on every spectator request.
+- Use a durable, resumable, deduplicated backfill queue with progress, last activity,
+  failures/retries, cancellation, and configurable CPU/RAM/concurrency limits. Protect
+  live play responsiveness, limit provisional recomputation, and avoid spawning an
+  unbounded number of waiting workers. Estimate the whole backfill cost from a pilot.
+- Inventory historical PGNs, current analysis settings/coverage, and missing artifacts.
+  Select a consistent eligible cohort for agent games and calibration reference games;
+  annotate old games using Batch 5's schema without alternative moves or lines.
+  Keep original results and analysis available for comparison and rollback.
+- Reanalyse the calibration reference cohort with the same authoritative profile as
+  the agent cohort, then fit a new version of the Accuracy-to-Performance map using
+  frozen, documented reference Elo labels. Validate coverage near the strong-model
+  end, held-out calibration behavior, uncertainty, and mapping sensitivity. Do not
+  fit the conversion to make selected models obtain desired scores.
+- Produce an old/new comparison of per-game metrics, per-model aggregates/rankings,
+  annotations, and map knots. Separate effects of stronger analysis from effects of
+  refitting the map. Accuracy and Performance may rise or fall; rankings may change.
+  Preserve game outcomes, outcome-based ladder Elo, and calibrated engine Elo.
+- Stage the migration separately from production. Carry analysis/profile/map versions
+  through saved states, result records, leaderboards, reports and public snapshots;
+  avoid silently mixing old/new samples or comparing unlike versions. Recompute all
+  dependent aggregates, validate counts/links, then publish a coherent release with
+  a change note and rollback path. Reanalysis alone must not replay Elo updates.
+
+Done when:
+
+- Completed lists and game opening meet the recorded latency targets as history grows;
+  accessing a page does not read all historical states or trigger engine analysis.
+- The chosen authoritative profile has measured stability and resource-cost evidence,
+  with visible pending/unavailable states and bounded background work.
+- A pilot backfill survives interruption/restart, produces historical annotations, and
+  demonstrates complete propagation into a separately versioned candidate map and
+  model aggregates. Broad migration follows only after reviewing that evidence.
+- Published data identifies its analysis and map versions, original values can be
+  recovered, and no outcome-based Elo or agent-facing payload changes occur.
 
 ## Delivery rules
 
