@@ -10,6 +10,8 @@ from chess_harness.finished_games_db import (
 )
 from chess_harness.game_manager import GameManager
 from chess_harness.game_types import DEFAULT_GAME_TYPE
+from chess_harness.game_quality import analyse_game
+from chess_harness.move_annotations import annotations_payload, save_analysis
 from chess_harness.results import ResultsManager
 
 
@@ -32,6 +34,10 @@ def _scored_state(game_id: str, result: str = "1-0") -> dict:
         "elo_after": 1516,
         "elo_delta": 16,
     }
+
+
+def _analysis_for(state: dict) -> dict:
+    return analyse_game(state["moves"], eval_fn=lambda board: 0).move_analysis
 
 
 def test_list_and_restore_after_live_delete(tmp_path, monkeypatch):
@@ -139,8 +145,84 @@ def test_restore_skips_results_when_already_present(tmp_path, monkeypatch):
         game_id, db_path=db_path, game_manager=gm, results_manager=rm
     )
     assert summary["results_merged"] == 0
+    assert summary["analysis_restored"] is False
     assert gm.game_exists(game_id)
     assert len([r for r in rm.load_results() if r.get("game_id") == game_id]) == 1
+
+
+def test_restore_copies_valid_archived_analysis(tmp_path):
+    db_path = tmp_path / "finished_games.sqlite"
+    harness = tmp_path / "harness"
+    harness.mkdir()
+    gm = GameManager(str(harness))
+    rm = ResultsManager(base_dir=str(harness))
+    game_id = "restore-analysis"
+    state = _scored_state(game_id)
+    assert record_scored_finish(
+        game_id, state, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+    archive_dir = harness / "archived-move-analysis" / game_id
+    save_analysis(archive_dir, _analysis_for(state))
+
+    summary = restore_finished_game(
+        game_id, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+
+    assert summary["analysis_restored"] is True
+    assert annotations_payload(gm.get_game_dir(game_id), state)["status"] == "complete"
+
+
+def test_restore_skips_mismatched_archived_analysis(tmp_path):
+    db_path = tmp_path / "finished_games.sqlite"
+    harness = tmp_path / "harness"
+    harness.mkdir()
+    gm = GameManager(str(harness))
+    rm = ResultsManager(base_dir=str(harness))
+    game_id = "restore-mismatch"
+    state = _scored_state(game_id)
+    assert record_scored_finish(
+        game_id, state, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+    different = dict(state, moves=["d2d4", "d7d5"])
+    save_analysis(
+        harness / "archived-move-analysis" / game_id, _analysis_for(different)
+    )
+
+    summary = restore_finished_game(
+        game_id, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+
+    assert summary["analysis_restored"] is False
+    assert not (gm.get_game_dir(game_id) / "move-analysis.json").exists()
+    assert gm.load_state(game_id)["result"] == state["result"]
+
+
+def test_restore_preserves_valid_local_analysis(tmp_path):
+    db_path = tmp_path / "finished_games.sqlite"
+    harness = tmp_path / "harness"
+    harness.mkdir()
+    gm = GameManager(str(harness))
+    rm = ResultsManager(base_dir=str(harness))
+    game_id = "restore-keep-local"
+    state = _scored_state(game_id)
+    assert record_scored_finish(
+        game_id, state, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+    local_dir = gm.get_game_dir(game_id)
+    save_analysis(local_dir, _analysis_for(state))
+    local_path = local_dir / "move-analysis.json"
+    local_before = local_path.read_bytes()
+    save_analysis(
+        harness / "archived-move-analysis" / game_id,
+        _analysis_for(dict(state, moves=["d2d4", "d7d5"])),
+    )
+
+    summary = restore_finished_game(
+        game_id, db_path=db_path, game_manager=gm, results_manager=rm
+    )
+
+    assert summary["analysis_restored"] is False
+    assert local_path.read_bytes() == local_before
 
 
 def test_restore_missing_game_id(tmp_path, monkeypatch, capsys):

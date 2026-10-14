@@ -173,6 +173,28 @@ def restore_finished_game(
     if pgn_text:
         gm.get_pgn_path(game_id).write_text(pgn_text, encoding="utf-8")
 
+    analysis_restored = False
+    try:
+        from .move_annotations import annotations_payload, save_analysis
+
+        game_dir = gm.get_game_dir(game_id)
+        archive_dir = Path(gm.base_dir) / "archived-move-analysis" / game_id
+        local_analysis = annotations_payload(game_dir, state)
+        archived_analysis = annotations_payload(archive_dir, state)
+        if (
+            local_analysis.get("status") != "complete"
+            and archived_analysis.get("status") == "complete"
+        ):
+            artifact_path = archive_dir / "move-analysis.json"
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+            save_analysis(game_dir, artifact)
+            analysis_restored = (
+                annotations_payload(game_dir, state).get("status") == "complete"
+            )
+    except Exception as exc:
+        # An unavailable archive sidecar must not prevent state/PGN/results restore.
+        _log.warning("Could not restore move analysis for %s: %s", game_id, exc)
+
     results_merged = 0
     existing = [r for r in rm.load_results() if r.get("game_id") == game_id]
     if not existing and row.get("results_json"):
@@ -184,6 +206,7 @@ def restore_finished_game(
         "game_id": game_id,
         "results_merged": results_merged,
         "had_pgn": bool(pgn_text),
+        "analysis_restored": analysis_restored,
         "db_path": str(Path(db_path) if db_path else resolve_finished_games_db()),
     }
 

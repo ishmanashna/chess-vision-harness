@@ -721,6 +721,25 @@ Done when:
   faster mates remain eligible. Targeted Python checks: 102 passed, one skip.
 - Historical counts and final verification are recorded after the archive refresh.
 
+### Repetition and draw claims — investigation, implementation deferred
+
+- Live AvE, AvA and human-vs-agent paths rebuild the board from the current FEN,
+  losing repetition history. Agents currently have no draw-claim action. Random
+  and Stockfish opponents have no explicit harness claim policy either.
+- AvE uses `is_game_over(claim_draw=True)` while other modes use automatic-only
+  checks, creating inconsistent optional-claim handling. Restore full move history
+  before engine searches and repetition adjudication; retain automatic fivefold
+  and 75-move rules, distinguish optional threefold/50-move claims.
+- Decide whether claim recognition is tested: an explicit claim action is needed
+  either way. Surfacing availability makes the decision discoverable; withholding
+  availability requires agents to recognize repetition and claim correctly from
+  accessible history. Document a stable opponent draw policy and symmetric rules.
+- Offline annotation already replays history correctly. In game
+  `game-5c-eqcCF2tSm_lDiSlPxlw`, White could claim by declaring Ke3 after Black's
+  last move, but resigned. Keep the result; show the unclaimed-draw context.
+- No gameplay changes were made in this investigation. References: FIDE Laws,
+  articles 9.2/9.3/9.6, and python-chess core game-over/claim documentation.
+
 ## Delivery rules
 
 - Implement one batch at a time; split a batch further if it cannot be reviewed cleanly.
