@@ -492,6 +492,71 @@ Done when:
 - Published data identifies its analysis and map versions, original values can be
   recovered, and no outcome-based Elo or agent-facing payload changes occur.
 
+### Additional requirements — deferred, requested 2026-10-14
+
+These additions belong to the final batch. Record and plan them now; do not change
+runtime behavior, annotation thresholds, worker counts, or website copy yet.
+
+- **Automatic annotations for future games:** final scored-game analysis already
+  calls `analyse_game(..., include_exceptional=True)` and saves move analysis.
+  Spectator currently loads annotation badges after the game ends, rather than
+  computing them live per move. Validate this end to end for every supported game
+  mode, including server activation, queue delays, failures and restarts. Make the
+  post-game transition reliable without manual backfills or page reloads; the
+  browser currently stops waiting after 40 quality polls. A failed or missing
+  annotation artifact must be recoverable even when quality fields already exist.
+  Keep analysis independent of whether anyone is watching. Decide explicitly if
+  live per-move badges are wanted later; do not accidentally expose analysis to
+  playing agents or turn spectator requests into engine jobs.
+- **Incremental work rather than repeated full-archive passes:** persist and reuse
+  compatible evidence, regrade cached results when only thresholds change, and
+  queue only new, missing, failed or incompatible analysis. Use a complete archive
+  rerun only when the changed analysis profile requires it. Distinguish automatic
+  generation for new games from deliberate historical migrations.
+- **More effective parallelism:** the completed refresh used four parallel workers;
+  that fixed cap was conservative and not a measured optimum. Benchmark 2/4/6/8
+  workers where supported, engine threads per worker, memory/hash allocation,
+  throughput, depth completion, CPU contention and live-play/API responsiveness.
+  Make the useful concurrency configurable/adaptive within resource limits. Report
+  progress using remaining plies/work and meaningful ETA, not game count alone
+  when empty games and hundreds-of-plies games differ greatly in cost.
+- **Important moves in decided positions:** review win-chance saturation and the
+  positive-label guards that suppress annotations when alternatives already win,
+  the mover is losing, or mate scores appear equivalent. Recognize meaningful
+  tactical, defensive and conversion moves late in games without rewarding
+  routine recaptures, automatic finishes or search noise. Include reported
+  examples such as +8 to +4, +4 to a substantially stronger continuation, both
+  colors, forced mates, narrowing winning paths and losing-side resources. Compare
+  the played move with the best available continuation using consistent analysis;
+  a raw before/after swing alone must not condemn a genuinely best move. Determine
+  when centipawn loss, winning chances, mate distance and conversion difficulty
+  each convey useful information. Treat display-label changes separately from
+  Accuracy/Performance formula or map changes, and version any real metric change.
+- **Useful good-move hover text:** revise positive annotation tooltips and any
+  good-move help to explain what matters about the move using supported evidence.
+  Raw verification depths, generic evaluation transitions and internal search
+  details should not be the main explanation. Prefer concise chess meaning when
+  established; do not fabricate a strategic story from engine depth alone. Keep
+  best-move alternatives useful on negative annotations and avoid clutter.
+- **Public copy cleanup across every tab:** audit visible text, tooltips, help,
+  dialogs, empty states and navigation for stale or irrelevant implementation and
+  contributor terminology. Remove Cursor/OpenCode jargon, contributor-tier
+  messaging, repeated 'does not affect Elo' boilerplate and other copy that does
+  not help a visitor use or understand the site. Keep needed metric explanations
+  concise and in the relevant place. Internal development documentation may retain
+  technical context; it should not leak into the product interface.
+
+Additional acceptance checks:
+
+- A newly finished scored game obtains and displays saved annotations automatically;
+  waiting spectators see completion reliably, and ordinary operation needs no
+  recurring full-history backfill. Interrupted/missing work has an explicit retry.
+- Worker sizing has measured throughput/resource evidence and a configurable limit.
+- A reviewed late-game sample demonstrates meaningful annotations at high positive
+  and negative evaluations without reintroducing known false positives. Do not
+  enforce annotation-frequency quotas or assume every large score swing is an error.
+- Positive hover text is useful, and the public-copy audit covers every tab and theme.
+
 ## Follow-up: Ops restart and historical annotations (2026-10-13)
 
 - Added **Restart server** beside Go Online / Sleep public. The managed CLI requests
