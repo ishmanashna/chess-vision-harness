@@ -30,8 +30,11 @@ reopened by this plan.
 - Ops is for monitoring, filters, results, and log links. Experiment execution remains
   outside the panel. Existing Go Online/Sleep controls remain operational controls.
 - Share run metadata and tracking while allowing provider-specific launchers.
-- Spectator annotations: engine move labels and evaluation changes, without best-move
-  alternatives or suggested lines.
+- Spectator annotations must appear during play and reuse the same shared position
+  analysis as the evaluation bar and metrics. Persist that evidence as each ply is
+  analysed; a separate post-game annotation pass is not the intended workflow.
+  Historical reanalysis repairs missing evidence from older games. Later tooltip
+  decisions permit saved best-move names on negative annotations.
 - Maintain one active backlog; archive superseded plans while preserving history.
 - Keep existing model/effort/observation identities for now.
 - No priority preference between workstreams. The sequence below is a practical
@@ -398,6 +401,16 @@ unvalidated analysis profile; stronger-model comparisons require a stronger refe
 benchmark and a reviewed replacement budget, rather than assuming depth 8 is sufficient. Investigation and migration
 work are deferred; adding this batch does not start reanalysis or change ratings.
 
+Authoritative architecture correction, Jordi, 2026-10-14: **annotations are live**.
+The normal workflow analyses each position once in a shared pipeline, persists its
+results, and uses those results for the evaluation bar, per-move annotations and
+metrics while the game is in progress. The implemented finished-only annotation
+endpoint and separate post-game pass are legacy behavior to replace, not the target
+design. Finalization should consolidate existing analysis, not reanalyse the game.
+Historical backfills repair older missing/incompatible evidence; they are not a
+recurring requirement for new games. This correction supersedes earlier post-game
+acceptance language in this plan. Implementation remains deferred.
+
 Problem and evidence:
 
 - Completed Spectator currently requests `/api/games?status=finished&limit=100`.
@@ -447,13 +460,15 @@ Work:
   against a substantially stronger reference pass. Measure evaluation, label,
   Accuracy, and ranking changes alongside runtime, CPU/RAM, and queue age. Do not
   choose a new depth solely because it sounds stronger or promises a human Elo.
-- Define a reproducible analysis profile: engine binary/version/hash and network
+- Define one reproducible shared live-analysis profile: engine binary/version/hash and network
   identity where applicable, settings, threads/hash, search limits and actual depth/
   nodes/time, score perspective and mate handling, quality-formula version, and
-  annotation thresholds. Distinguish a quick provisional profile from authoritative
-  final analysis; keep the agents' play/observation contract free of analysis data.
-- Persist per-position/per-ply results once and reuse them for Accuracy, move labels,
-  replay evaluations, and reports. Evaluate reuse of adjacent/shared positions with
+  annotation thresholds. Clearly mark incomplete live results and finalize the same
+  stored evidence as searches complete; do not schedule an independent routine
+  whole-game pass. Keep the agents' play/observation contract free of analysis data.
+- Persist per-position/per-ply results from the live evaluator once and reuse them
+  immediately for the evaluation bar, annotations and metrics, and later for replay
+  and reports. Evaluate reuse of adjacent/shared positions with
   cache keys covering the complete position/history requirements and analysis profile.
   Record incomplete/failed searches honestly, rather than accepting partial analysis
   as a full authoritative game. Do not analyse again on every spectator request.
@@ -497,22 +512,28 @@ Done when:
 These additions belong to the final batch. Record and plan them now; do not change
 runtime behavior, annotation thresholds, worker counts, or website copy yet.
 
-- **Automatic annotations for future games:** final scored-game analysis already
-  calls `analyse_game(..., include_exceptional=True)` and saves move analysis.
-  Spectator currently loads annotation badges after the game ends, rather than
-  computing them live per move. Validate this end to end for every supported game
-  mode, including server activation, queue delays, failures and restarts. Make the
-  post-game transition reliable without manual backfills or page reloads; the
-  browser currently stops waiting after 40 quality polls. A failed or missing
-  annotation artifact must be recoverable even when quality fields already exist.
-  Keep analysis independent of whether anyone is watching. Decide explicitly if
-  live per-move badges are wanted later; do not accidentally expose analysis to
-  playing agents or turn spectator requests into engine jobs.
+- **Live annotations from shared analysis — required architecture:** show move
+  annotations as the game progresses, using the same position analysis that
+  supplies the evaluation bar. Persist per-ply scores, mate information, engine
+  preferences and required search-depth evidence when that analysis runs; derive
+  labels from that record without a separate annotation engine pass. The current
+  implementation snapshots only `last_eval_cp`, restricts the annotation endpoint
+  to finished games, and performs separate post-game analysis. Replace those
+  separations rather than treating them as the desired workflow. If stronger
+  searches or additional search information are needed for reliable `!`/`!!`,
+  incorporate them into the shared analysis profile/budget once and reuse them
+  across all consumers. Do not claim the current depth-8 scalar score alone proves
+  exceptional-move criteria. Validate live updates, ordering and persistence for
+  every game mode, whether or not anyone is watching. Game finish consolidates the
+  saved record; it does not launch a routine replay analysis. Recover only missing
+  or interrupted position work after failures/restarts. Make spectator polling
+  consume completed plies during ongoing play, and keep private playing-agent
+  observations separate without a blanket finished-game-only display restriction.
 - **Incremental work rather than repeated full-archive passes:** persist and reuse
   compatible evidence, regrade cached results when only thresholds change, and
   queue only new, missing, failed or incompatible analysis. Use a complete archive
-  rerun only when the changed analysis profile requires it. Distinguish automatic
-  generation for new games from deliberate historical migrations.
+  rerun only when the changed analysis profile requires it. Historical repair of
+  already-played games is distinct from continuous shared analysis of new games.
 - **More effective parallelism:** the completed refresh used four parallel workers;
   that fixed cap was conservative and not a measured optimum. Benchmark 2/4/6/8
   workers where supported, engine threads per worker, memory/hash allocation,
@@ -548,9 +569,11 @@ runtime behavior, annotation thresholds, worker counts, or website copy yet.
 
 Additional acceptance checks:
 
-- A newly finished scored game obtains and displays saved annotations automatically;
-  waiting spectators see completion reliably, and ordinary operation needs no
-  recurring full-history backfill. Interrupted/missing work has an explicit retry.
+- While a game is in progress, newly analysed plies acquire visible annotations
+  from the same saved position results as the evaluation bar and metrics. Multiple
+  viewers do not duplicate searches. Finishing and reopening the game reuse those
+  results without a second whole-game pass. Ordinary operation requires no manual
+  backfill; interrupted/missing position work has an explicit retry.
 - Worker sizing has measured throughput/resource evidence and a configurable limit.
 - A reviewed late-game sample demonstrates meaningful annotations at high positive
   and negative evaluations without reintroducing known false positives. Do not
