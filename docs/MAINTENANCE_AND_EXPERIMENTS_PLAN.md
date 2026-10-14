@@ -719,7 +719,23 @@ Done when:
 - A new late-choice guard excludes near-equivalent forced mates in both passes
   (mate-like scores at least 9,900 cp, within three mate moves). Substantially
   faster mates remain eligible. Targeted Python checks: 102 passed, one skip.
-- Historical counts and final verification are recorded after the archive refresh.
+- V8 annotation-only refresh completed **686/686** games without failures. Final
+  counts: **205 `!`, 37 `!!`, 1,127 `?!`, 3,916 `?`, 4,023 `??`**, and 30,579
+  unmarked plies. Agents account for **106 `!` and 25 `!!`**, versus 16/21 in v6.
+  The `!` increase is **6.625×**, below the requested approximate tenfold target;
+  near-tie thresholds were not reduced further to force a frequency.
+- All **159 publicly listed completed games** were individually checked through
+  the public annotation API: complete, v8, zero failures, 12,035 plies. All 369
+  local annotation endpoints also return complete. Every negative annotation has
+  a saved best move; all 39,887 saved evaluations/losses and all 742 protected
+  files remain unchanged. Largest saved artifact is 425,413 bytes, below the
+  reader's two-megabyte limit. Known ordinary-capture, check-block and pointless
+  sacrifice controls remain unmarked; the cited final draw claim retains `=`.
+- Restoring an archived game now copies its complete matching annotation sidecar
+  and preserves already-valid local analysis. Missing/mismatched sidecars do not
+  interrupt state/PGN/results restoration. Six focused restore checks passed.
+- Historical annotations are already served publicly without a backend restart.
+  Future-game classifier activation remains dependent on a backend restart.
 
 ### Repetition and draw claims — investigation, implementation deferred
 
