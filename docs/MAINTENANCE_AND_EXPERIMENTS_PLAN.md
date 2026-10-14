@@ -701,8 +701,25 @@ Done when:
   Stockfish binary hash and compatible search evidence before regrading; missing
   or insufficient evidence triggers fresh analysis. This reduces repeated engine
   work when calibrating thresholds.
-- Final thresholds, historical counts and verification are recorded after the
-  implementation and archive refresh below.
+- Quiet `!` needs two verified engine preferences plus either at least 0.5
+  percentage points and 8 centipawns over the alternative, or a cold shallow
+  discount of at least 15 centipawns followed by a stable depth-5-or-later choice
+  and at least 15 centipawns of improvement in both deep passes. Played winning
+  chance must remain at least 15%. Equal shallow choices alone do not qualify.
+- Public evidence remains compatible with the running server. Complete private
+  evidence can be regraded across policy revisions when the search profile,
+  Stockfish binary and position history match; incomplete rejection proofs need
+  the same policy. Targeted Python checks: 95 passed, one environment skip.
+- V8 keeps the last fully completed, same-depth, unbounded MultiPV pair instead
+  of rejecting a valid iteration when a deeper partial iteration times out. A
+  failed minimum-depth check gets one warm retry: +0.35 seconds for the first
+  pass and +0.5 seconds for the second, maximum budgets 0.70/1.50 seconds.
+  Minimum actual verification depths remain 14 and 18. Compatible valid v7
+  evidence and its unchanged early-rejection predicates are reused.
+- A new late-choice guard excludes near-equivalent forced mates in both passes
+  (mate-like scores at least 9,900 cp, within three mate moves). Substantially
+  faster mates remain eligible. Targeted Python checks: 102 passed, one skip.
+- Historical counts and final verification are recorded after the archive refresh.
 
 ## Delivery rules
 

@@ -29,7 +29,7 @@ class Engine:
 
     def analyse(self, board, limit, multipv):
         assert multipv == 2 and limit.time <= 1.0
-        depth = self.depths[self.calls]
+        depth = self.depths[min(self.calls, len(self.depths) - 1)]
         alternate = next(move for move in board.legal_moves if move != self.move)
         top = alternate if self.unstable and self.calls else self.move
         self.calls += 1
@@ -58,7 +58,7 @@ def test_sound_piece_offer_earns_brilliant_and_exchange_is_not_a_sacrifice():
 
 
 @pytest.mark.parametrize("options", [dict(best=-650,second=-900), dict(best=900,second=600),
-                                  dict(best=50,second=40), dict(depths=(13,22)),
+                                  dict(best=50,second=40), dict(depths=(13,13,17)),
                                   dict(depths=(18,17)), dict(unstable=True)])
 def test_no_positive_symbol_for_losing_easy_shallow_or_unstable_choices(options):
     move = chess.Move.from_uci("e2e4")
@@ -113,7 +113,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v7")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v8")
 
 
 def test_nearly_best_sound_sacrifice_can_be_brilliant():
@@ -198,12 +198,114 @@ def test_ineligible_positions_do_not_spend_a_cold_difficulty_search(best,second)
     move=chess.Move.from_uci("e2e4")
     engine=Engine(move,best=best,second=second)
     engine.options={"Clear Hash":None}
-    engine.analysis=lambda *args,**kwargs: pytest.fail("no cold trace needed")
+    engine.analysis=None
     engine.configure=lambda *args,**kwargs: pytest.fail("no hash reset needed")
     audit={}
     assert classify_exceptional(chess.Board(),move,engine,audit=audit) is None
     assert engine.calls==1
     assert audit["best_move_uci"]==move.uci()
+
+
+def _stream_line(board, move, depth, cp, *, multipv=1, bounded=False):
+    line = {"multipv": multipv, "depth": depth,
+            "score": chess.engine.PovScore(chess.engine.Cp(cp), board.turn), "pv": [move]}
+    if bounded:
+        line["upperbound"] = True
+    return line
+
+
+class StreamingEngine:
+    def __init__(self, batches):
+        from contextlib import contextmanager
+        self.engine = self
+        self.options = {}
+        self.batches = list(batches)
+        self.requests = []
+
+        @contextmanager
+        def analysis(board, limit, multipv):
+            self.requests.append((limit.depth, limit.time, multipv))
+            yield iter(self.batches.pop(0))
+        self.analysis = analysis
+
+
+def test_streaming_search_uses_deepest_complete_unbounded_multipv_pair():
+    from chess_harness.exceptional_moves import _search, _valid_single_pass, PROFILE
+    board = chess.Board()
+    move = chess.Move.from_uci("e2e4")
+    other = chess.Move.from_uci("d2d4")
+    engine = StreamingEngine([[
+        _stream_line(board, move, 13, 10), _stream_line(board, other, 13, 0, multipv=2),
+        _stream_line(board, move, 14, 20), _stream_line(board, other, 14, 0, multipv=2),
+        _stream_line(board, move, 15, 30, bounded=True),
+        _stream_line(board, other, 15, -10, multipv=2),
+    ]])
+    lines, _ = _search(engine, board, PROFILE["passes"][0])
+    assert [line["depth"] for line in lines] == [14, 14]
+    assert _valid_single_pass({"target_depth": 18, "minimum_depth": 14,
+                               "roots": [
+                                   {"uci": line["pv"][0].uci(), "cp": line["score"].pov(board.turn).score(),
+                                    "depth": line["depth"], "bounded": False}
+                                   for line in lines]}, PROFILE["passes"][0])
+    assert len(engine.requests) == 1
+
+
+def test_prior_complete_shallow_iteration_triggers_bounded_retry_then_recovers():
+    board = chess.Board()
+    move = chess.Move.from_uci("e2e4")
+    other = chess.Move.from_uci("d2d4")
+    batches = [
+        [_stream_line(board, move, 13, 50), _stream_line(board, other, 13, -100, multipv=2),
+         _stream_line(board, move, 15, 60, bounded=True),
+         _stream_line(board, other, 15, -80, multipv=2)],
+        [_stream_line(board, move, 18, 50), _stream_line(board, other, 18, -100, multipv=2)],
+        [_stream_line(board, move, 22, 50), _stream_line(board, other, 22, -100, multipv=2)],
+    ]
+    engine = StreamingEngine(batches)
+    audit = {}
+    result = classify_exceptional(board, move, engine, audit=audit)
+    assert result and result["label"] == "great"
+    verification = audit["verification"]
+    assert [p["roots"][0]["depth"] for p in verification["passes"]] == [18, 22]
+    assert verification["passes"][0]["retry_attempts"] == [{"seconds": .35}]
+    assert [attempt["valid"] for attempt in verification["passes"][0]["search_attempts"]] == [False, True]
+    assert verification["passes"][1]["retry_attempts"] == []
+    assert engine.requests == [(18, .35, 2), (18, .35, 2), (22, 1.0, 2)]
+
+
+def test_second_pass_uses_its_own_half_second_retry_budget():
+    board = chess.Board()
+    move = chess.Move.from_uci("e2e4")
+    other = chess.Move.from_uci("d2d4")
+    engine = StreamingEngine([
+        [_stream_line(board, move, 18, 50), _stream_line(board, other, 18, -100, multipv=2)],
+        [_stream_line(board, move, 17, 50), _stream_line(board, other, 17, -100, multipv=2),
+         _stream_line(board, move, 22, 60, bounded=True),
+         _stream_line(board, other, 22, -80, multipv=2)],
+        [_stream_line(board, move, 22, 50), _stream_line(board, other, 22, -100, multipv=2)],
+    ])
+    audit = {}
+    result = classify_exceptional(board, move, engine, audit=audit)
+    assert result and result["label"] == "great"
+    assert audit["verification"]["passes"][1]["retry_attempts"] == [{"seconds": .5}]
+    assert engine.requests == [(18, .35, 2), (22, 1.0, 2), (22, .5, 2)]
+
+
+def test_bounded_retry_that_still_has_no_valid_pair_fails_closed():
+    board = chess.Board()
+    move = chess.Move.from_uci("e2e4")
+    other = chess.Move.from_uci("d2d4")
+    engine = StreamingEngine([
+        [_stream_line(board, move, 13, 50), _stream_line(board, other, 13, -100, multipv=2)],
+        [_stream_line(board, move, 18, 50, bounded=True),
+         _stream_line(board, other, 18, -100, multipv=2)],
+    ])
+    audit = {}
+    assert classify_exceptional(board, move, engine, audit=audit) is None
+    verification = audit["verification"]
+    assert verification["complete"] is False
+    assert verification["passes"][0]["retry_attempts"] == [{"seconds": .35}]
+    assert len(engine.requests) == 2
 
 
 def _quiet_late_position():
@@ -366,7 +468,8 @@ def test_complete_cached_proof_can_be_regraded_after_policy_revision():
     from chess_harness import exceptional_moves as module
     board, move = _quiet_late_position()
     verification = _cached_verification(board, move, 0, -8)
-    verification["policy_version"] = "critical-discovery-sacrifice-policy-v6"
+    verification["policy_version"] = module.PREVIOUS_POLICY_VERSION
+    verification["search_profile"].pop("retry_budget")
     definitive, result = module.classify_cached(board, move, verification)
     assert definitive and result["label"] == "great"
     assert result["evidence"]["policy_version"] == module.POLICY_VERSION
@@ -389,6 +492,36 @@ def test_incomplete_cached_rejections_require_current_policy_and_valid_reason():
     assert module.classify_cached(board, move, inconsistent) == (False, None)
 
 
+def test_v7_incomplete_negative_proofs_are_reused_only_for_supported_reasons():
+    from chess_harness import exceptional_moves as module
+    board, move = _quiet_late_position()
+    not_top = _cached_verification(board, move, 0, -100)
+    not_top["passes"] = not_top["passes"][:1]
+    not_top["complete"] = False
+    not_top["policy_version"] = module.PREVIOUS_POLICY_VERSION
+    not_top["search_profile"].pop("retry_budget")
+    not_top["definitive_rejection"] = "played_not_top_no_offer"
+    not_top["passes"][0]["roots"][0]["uci"] = "a2a3"
+    not_top["passes"][0]["roots"][1]["uci"] = "b2b3"
+    assert module.classify_cached(board, move, not_top) == (True, None)
+
+    forged = _cached_verification(board, move, 0, -100)
+    forged["passes"] = forged["passes"][:1]
+    forged["complete"] = False
+    forged["policy_version"] = module.PREVIOUS_POLICY_VERSION
+    forged["search_profile"].pop("retry_budget")
+    forged["definitive_rejection"] = "played_not_top_no_offer"
+    assert module.classify_cached(board, move, forged) == (False, None)
+
+    no_route = _cached_verification(board, move, 0, -100)
+    no_route["passes"] = no_route["passes"][:1]
+    no_route["complete"] = False
+    no_route["policy_version"] = module.PREVIOUS_POLICY_VERSION
+    no_route["search_profile"].pop("retry_budget")
+    no_route["definitive_rejection"] = "noneligible_first_pass_no_route"
+    assert module.classify_cached(board, move, no_route) == (True, None)
+
+
 def test_new_quiet_routes_do_not_award_hopeless_moves():
     from chess_harness.exceptional_moves import classify_cached
     board, move = _quiet_late_position()
@@ -405,3 +538,30 @@ def test_new_quiet_routes_do_not_award_hopeless_moves():
     route_b["forced_shallow"]["cp"] = -620
     route_b["discovery"].update({"shallow_cp": -1000, "shallow_chance": .024})
     assert classify_cached(board, move, route_b)[1] is None
+
+
+def test_late_choice_does_not_reward_near_equal_forced_mates():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    # Both deep lines are forced mates with only a three-cp Stockfish
+    # distance. The sigmoid clips both to a win, so this is routine conversion.
+    routine_mate = _cached_verification(board, move, 9994, 9991,
+                                        shallow_cp=960, played_cp=9994)
+    routine_mate["discovery"].update({"shallow_cp": 961, "shallow_chance": .97176})
+    assert classify_cached(board, move, routine_mate) == (True, None)
+
+
+def test_late_choice_keeps_a_materially_faster_forced_mate():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    # A seven-cp mate-score separation can represent a materially shorter mate
+    # (for example mate in five versus mate in twelve), and remains eligible.
+    faster_mate = _cached_verification(board, move, 9995, 9988,
+                                       shallow_cp=1000, played_cp=9995)
+    faster_mate["discovery"].update({"shallow_cp": 1500})
+    faster_mate["quiet_probe"].update({"shallow_cp": 1500, "roots": [
+        {"uci": "a2a3", "cp": 1500, "depth": 4, "bounded": False},
+        {"uci": move.uci(), "cp": 1000, "depth": 4, "bounded": False}]})
+    definitive, result = classify_cached(board, move, faster_mate)
+    assert definitive and result["label"] == "great"
+    assert result["evidence"]["route"] == "quiet_late_choice"

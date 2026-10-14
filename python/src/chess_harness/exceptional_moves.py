@@ -15,9 +15,11 @@ import chess.engine
 VERSION = "critical-sound-sacrifice-v1"
 VERIFICATION_SCHEMA_VERSION = "exceptional-verification-v2"
 # VERSION identifies the evidence structure; policy revisions are separate.
-POLICY_VERSION = "critical-discovery-sacrifice-policy-v7"
+PREVIOUS_POLICY_VERSION = "critical-discovery-sacrifice-policy-v7"
+POLICY_VERSION = "critical-discovery-sacrifice-policy-v8"
 PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"depth": 18, "seconds": .35, "minimum_depth": 14},
                                            {"depth": 22, "seconds": 1.0, "minimum_depth": 18}],
+           "retry_budget": {"additional_seconds": [.35, .5], "max_seconds": [.70, 1.5]},
            "multipv": 2, "critical_gap_pp": 3.0, "critical_alternative_ceiling": .85,
            "minimum_chance": .15, "brilliant_minimum_chance": .30,
            "alternative_winning_chance": .90, "sacrifice_min_cp": 100, "near_best_loss_pp": 3.0,
@@ -30,7 +32,8 @@ PROFILE = {"version": POLICY_VERSION, "evidence_version": VERSION, "passes": [{"
                          "refresh_screen_loss_pp": 0.0},
            "quiet_great": {"minimum_ply": 9, "critical_gap_pp": 0.5, "critical_gap_cp": 8,
                            "late_choice_shallow_cp": 15, "late_choice_deep_gain_cp": 15,
-                           "late_choice_depth": 5, "late_choice_stable_depths": 3},
+                           "late_choice_depth": 5, "late_choice_stable_depths": 3,
+                           "mate_equivalent_cp": 9900, "mate_equivalent_gap_cp": 3},
            "routine_guard": {"minimum_gap_pp": 5.0, "great_depth": 6, "stable_depths": 3,
                              "great_gain_pp": 3.0, "refinement_great_gain_pp": 6.0}}
 VALUES = {chess.PAWN: 100, chess.KNIGHT: 300, chess.BISHOP: 300,
@@ -42,10 +45,40 @@ def _chance(score):
     return 1 / (1 + math.exp(-.00368208 * max(-1000, min(1000, cp))))
 
 
+def _complete_multipv_search(engine, board, settings):
+    """Return the deepest same-iteration, unbounded MultiPV pair if streamable."""
+    if not callable(getattr(engine, "analysis", None)):
+        return None
+    limit = chess.engine.Limit(depth=settings["depth"], time=settings["seconds"])
+    per_depth = {}
+    best_pair = None
+    try:
+        with engine.analysis(board, limit, multipv=2) as search:
+            for info in search:
+                index = info.get("multipv", 1)
+                depth = info.get("depth")
+                if (index not in (1, 2) or not isinstance(depth, int) or not info.get("score")
+                        or not info.get("pv") or info.get("upperbound") or info.get("lowerbound")):
+                    continue
+                per_depth.setdefault(depth, {})[index] = dict(info)
+                pair = per_depth[depth]
+                if 1 in pair and 2 in pair:
+                    first, second = pair[1], pair[2]
+                    if first["pv"][0] != second["pv"][0]:
+                        if best_pair is None or depth > best_pair[0]:
+                            best_pair = (depth, [first, second])
+    except (AttributeError, NotImplementedError, TypeError):
+        return None
+    return best_pair[1] if best_pair else []
+
+
 def _search(engine, board, settings, trace=False):
     limit = chess.engine.Limit(depth=settings["depth"], time=settings["seconds"])
     frames = {}
     if not trace:
+        streamed = _complete_multipv_search(engine, board, settings)
+        if streamed is not None:
+            return streamed, frames
         return engine.analyse(board, limit, multipv=2), frames
     with engine.analysis(board, limit, multipv=2) as search:
         for info in search:
@@ -155,7 +188,23 @@ def _search_profile():
                            "minimum_depth": PROFILE["passes"][0]["minimum_depth"],
                            "multipv": 2, "clear_hash": True},
         "forced_shallow": {"depth": 4, "seconds": None, "root_moves": "played-only", "clear_hash": True},
+        "retry_budget": {"additional_seconds": list(PROFILE["retry_budget"]["additional_seconds"]),
+                          "max_seconds": list(PROFILE["retry_budget"]["max_seconds"])},
     }
+
+
+def _search_profile_matches(saved, policy_version):
+    current = _search_profile()
+    if saved == current:
+        return True
+    # V7 complete proofs used the same depth/time caps and scoring rules;
+    # only V8's bounded retry budget changed the profile. Reuse those proofs
+    # for regrading and preserve only the explicitly supported early exits.
+    if policy_version == PREVIOUS_POLICY_VERSION:
+        legacy = dict(current)
+        legacy.pop("retry_budget", None)
+        return saved == legacy
+    return False
 
 
 def _position_key(board):
@@ -350,11 +399,25 @@ def _grade_verified(board, move, verification):
     # Route B: prove the played move was a real late choice, not engine ordering.
     forced = verification.get("forced_shallow") or {}
     cold = discovery or {}
+    # Stockfish encodes mate scores near +/-10000 cp. The sigmoid therefore
+    # clips many distinct forced mates to the same win chance, and a tiny cp
+    # ordering can otherwise turn routine mate conversion into a late-choice
+    # award. Keep this route for materially distinct alternatives (including
+    # a meaningfully faster mate), while suppressing effectively tied mates.
+    mate_settings = PROFILE["quiet_great"]
+    mate_equivalent = all(
+        root["cp"] >= mate_settings["mate_equivalent_cp"]
+        for roots in roots_by_pass for root in roots
+    ) and all(
+        roots[0]["cp"] - roots[1]["cp"] <= mate_settings["mate_equivalent_gap_cp"]
+        for roots in roots_by_pass
+    )
     if (verification.get("discovery_trace_complete") is True
             and (verification.get("quiet_probe") or {}).get("valid") is True
             and cold.get("root_changed") is True
             and cold.get("final_run_start_depth", 0) >= quiet_settings["late_choice_depth"]
             and cold.get("final_run_depths", 0) >= quiet_settings["late_choice_stable_depths"]
+            and not mate_equivalent
             and isinstance(cold.get("shallow_cp"), int)
             and forced.get("uci") == move.uci() and isinstance(forced.get("cp"), int)
             and forced.get("depth", 0) >= 4 and forced.get("bounded") is False
@@ -390,14 +453,14 @@ def classify_cached(board: chess.Board, move: chess.Move, verification: dict) ->
     if not isinstance(verification, dict):
         return False, None
     if (verification.get("schema_version") != VERIFICATION_SCHEMA_VERSION
-            or verification.get("search_profile") != _search_profile()
+            or not _search_profile_matches(verification.get("search_profile"), verification.get("policy_version"))
             or verification.get("played_uci") != move.uci()
             or verification.get("position_key") != _position_key(board)):
         return False, None
     if verification.get("definitive_rejection"):
         # An early stop did not save a complete proof, so its conclusion is
         # valid only under the exact policy that authorized the stop.
-        if verification.get("policy_version") != POLICY_VERSION:
+        if verification.get("policy_version") not in {POLICY_VERSION, PREVIOUS_POLICY_VERSION}:
             return False, None
         first = verification.get("passes", [])
         sacrifice = verification.get("sacrifice_cp")
@@ -508,7 +571,7 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=Non
         if forced_shallow is not None:
             verification["forced_shallow"] = forced_shallow
         discovery_frames = {}
-        for settings in PROFILE["passes"]:
+        for pass_index, settings in enumerate(PROFILE["passes"]):
             lines, frames = _search(native, board, settings)
             if frames:
                 discovery_frames.update(frames)
@@ -517,6 +580,34 @@ def classify_exceptional(board: chess.Board, move: chess.Move, engine, audit=Non
             roots = [_score_record(line, board) for line in lines[:2]]
             roots = [root for root in roots if root is not None]
             pass_record = {"target_depth": settings["depth"], "minimum_depth": settings["minimum_depth"], "roots": roots}
+            pass_record["retry_attempts"] = []
+            pass_record["search_attempts"] = [{"seconds": settings["seconds"],
+                                               "valid": _valid_single_pass(pass_record, settings),
+                                               "root_depths": [root["depth"] for root in roots],
+                                               "bounded": [root["bounded"] for root in roots]}]
+            if not _valid_single_pass(pass_record, settings):
+                retry_seconds = PROFILE["retry_budget"]["additional_seconds"][pass_index]
+                retry_settings = {**settings, "seconds": retry_seconds}
+                retry_lines, retry_frames = _search(native, board, retry_settings)
+                if retry_frames:
+                    discovery_frames.update(retry_frames)
+                if isinstance(retry_lines, dict):
+                    retry_lines = [retry_lines]
+                retry_roots = [_score_record(line, board) for line in retry_lines[:2]]
+                retry_roots = [root for root in retry_roots if root is not None]
+                retry_record = {"target_depth": settings["depth"], "minimum_depth": settings["minimum_depth"],
+                                "roots": retry_roots, "retry_attempts": [{"seconds": retry_seconds}],
+                                "search_attempts": pass_record["search_attempts"] + [{
+                                    "seconds": retry_seconds,
+                                    "valid": _valid_single_pass({"target_depth": settings["depth"],
+                                                                 "minimum_depth": settings["minimum_depth"],
+                                                                 "roots": retry_roots}, settings),
+                                    "root_depths": [root["depth"] for root in retry_roots],
+                                    "bounded": [root["bounded"] for root in retry_roots]}]}
+                # Keep the retry's evidence, even if it is still incomplete,
+                # so the private audit records what the bounded recovery found.
+                pass_record = retry_record
+                lines = retry_lines
             verification["passes"].append(pass_record)
             if audit is not None and lines and lines[0].get("pv") and lines[0].get("depth", 0) >= 8:
                 preference = lines[0]["pv"][0]
