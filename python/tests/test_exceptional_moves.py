@@ -113,7 +113,7 @@ def test_exceptional_searches_run_after_quality_and_do_not_change_its_values(mon
     annotated = game_quality.analyse_game(["e2e4","e7e5"],include_exceptional=True)
     assert calls == ["quality"] * 4 + ["exceptional"] * 2
     assert normal.white == annotated.white and normal.black == annotated.black
-    assert annotated.move_analysis["profile"]["label_version"].endswith("v6")
+    assert annotated.move_analysis["profile"]["label_version"].endswith("v7")
 
 
 def test_nearly_best_sound_sacrifice_can_be_brilliant():
@@ -204,3 +204,204 @@ def test_ineligible_positions_do_not_spend_a_cold_difficulty_search(best,second)
     assert classify_exceptional(chess.Board(),move,engine,audit=audit) is None
     assert engine.calls==1
     assert audit["best_move_uci"]==move.uci()
+
+
+def _quiet_late_position():
+    board = chess.Board()
+    for uci in ("e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6", "d2d3", "f8c5"):
+        board.push_uci(uci)
+    return board, chess.Move.from_uci("h2h3")
+
+
+def _cached_verification(board, move, best_cp, second_cp, *, shallow_cp=None, played_cp=None):
+    from chess_harness import exceptional_moves as module
+    verification = {"schema_version": module.VERIFICATION_SCHEMA_VERSION,
+                    "policy_version": module.POLICY_VERSION,
+                    "search_profile": module._search_profile(), "played_uci": move.uci(),
+                    "position_key": module._position_key(board), "sacrifice_cp": 0,
+                    "passes": [], "complete": True}
+    for settings in module.PROFILE["passes"]:
+        verification["passes"].append({
+            "target_depth": settings["depth"], "minimum_depth": settings["minimum_depth"],
+            "roots": [{"uci": move.uci(), "cp": best_cp, "depth": settings["minimum_depth"], "bounded": False},
+                      {"uci": "a2a3", "cp": second_cp, "depth": settings["minimum_depth"], "bounded": False}],
+            "played": {"uci": move.uci(), "cp": played_cp if played_cp is not None else best_cp,
+                       "depth": settings["minimum_depth"], "bounded": False}})
+    if shallow_cp is not None:
+        verification.update({
+            "quiet_probe": {"valid": True, "root_changed": True, "depth": 4, "shallow_cp": 0,
+                            "shallow_chance": .5, "bounded": False,
+                            "roots": [{"uci": "a2a3", "cp": 0, "depth": 4, "bounded": False},
+                                      {"uci": move.uci(), "cp": shallow_cp, "depth": 4, "bounded": False}]},
+            "forced_shallow": {"uci": move.uci(), "cp": shallow_cp, "chance": .48,
+                               "depth": 4, "bounded": False, "hash_cleared": True},
+            "discovery_trace_complete": True,
+            "discovery": {"shallow_depth": 4, "shallow_cp": 0,
+                          "shallow_chance": .5, "root_changed": True,
+                          "discovered_depth": 5, "final_run_start_depth": 5,
+                          "stable_through_depth": 7, "final_run_depths": 3,
+                          "shallow_root_uci": "a2a3"}})
+    return verification
+
+
+def test_quiet_critical_gap_uses_both_chance_and_cp_thresholds():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    # Eight raw centipawns around equality clear 0.5 percentage points while
+    # avoiding the older large-gap route.
+    verification = _cached_verification(board, move, 0, -8)
+    definitive, result = classify_cached(board, move, verification)
+    assert definitive and result["label"] == "great"
+    assert result["evidence"]["route"] == "quiet_critical_gap"
+    assert all(row["raw_cp_gap"] == 8 for row in result["evidence"]["passes"])
+
+    assert classify_cached(board, move, _cached_verification(board, move, 0, -7))[1] is None
+    # Far from equality, eight cp is too small to establish the chance gap.
+    assert classify_cached(board, move, _cached_verification(board, move, 700, 692))[1] is None
+
+
+def test_late_choice_has_independent_shallow_proof_without_global_gain():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    verification = _cached_verification(board, move, -5, -5, shallow_cp=-20, played_cp=-5)
+    verification["discovery"].update({"shallow_cp": 0, "shallow_chance": .5})
+    # Cold depth four preferred a different move at 0 cp; forced h3 was -20.
+    verification["quiet_probe"].update({"shallow_cp": 0})
+    definitive, result = classify_cached(board, move, verification)
+    assert definitive and result["label"] == "great"
+    assert result["evidence"]["route"] == "quiet_late_choice"
+    assert all(row["deep_gain_cp"] == 15 for row in result["evidence"]["passes"])
+    # Both deeper choices remain equal at -5 cp, so the label comes from the
+    # documented cold shallow-choice evidence rather than global gain.
+
+
+def test_late_choice_fresh_and_cached_grading_are_equivalent(monkeypatch):
+    from chess_harness import exceptional_moves as module
+    board, move = _quiet_late_position()
+    alternate = chess.Move.from_uci("a2a3")
+
+    class QuietEngine:
+        def __init__(self):
+            self.engine = self
+            self.options = {"Clear Hash": None}
+            self.analysis = object()
+
+        def configure(self, options):
+            assert options == {"Clear Hash": None}
+
+        def analyse(self, board, limit, multipv=None, root_moves=None):
+            if root_moves:
+                root = root_moves[0]
+                return {"pv": [root], "score": chess.engine.PovScore(chess.engine.Cp(-20), board.turn),
+                        "depth": 4}
+            assert limit.depth == 4 and multipv == 2
+            return [{"pv": [alternate], "score": chess.engine.PovScore(chess.engine.Cp(0), board.turn), "depth": 4},
+                    {"pv": [move], "score": chess.engine.PovScore(chess.engine.Cp(-20), board.turn), "depth": 4}]
+
+    def search(engine, position, settings, trace=False):
+        if trace:
+            frames = {4: {"move": alternate, "cp": 0, "chance": .5},
+                      5: {"move": move, "cp": -5, "chance": .495},
+                      6: {"move": move, "cp": -5, "chance": .495},
+                      7: {"move": move, "cp": -5, "chance": .495}}
+            return [], frames
+        depth = settings["depth"]
+        lines = [{"pv": [move], "score": chess.engine.PovScore(chess.engine.Cp(-5), position.turn), "depth": depth},
+                 {"pv": [alternate], "score": chess.engine.PovScore(chess.engine.Cp(-5), position.turn), "depth": depth}]
+        return lines, {}
+
+    monkeypatch.setattr(module, "_search", search)
+    audit = {}
+    fresh = classify_exceptional(board, move, QuietEngine(), audit=audit)
+    definitive, cached = module.classify_cached(board, move, audit["verification"])
+    assert definitive and fresh == cached, (audit, fresh, cached)
+    assert fresh["evidence"]["route"] == "quiet_late_choice"
+
+
+def test_shallow_equal_root_tie_does_not_claim_late_choice():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    verification = _cached_verification(board, move, -5, -5, shallow_cp=-5, played_cp=-5)
+    verification["quiet_probe"].update({"shallow_cp": -5, "roots": [
+        {"uci": "a2a3", "cp": -5, "depth": 4, "bounded": False},
+        {"uci": move.uci(), "cp": -5, "depth": 4, "bounded": False}]})
+    verification["discovery"].update({"shallow_cp": -5})
+    definitive, result = classify_cached(board, move, verification)
+    assert definitive and result is None
+
+
+def test_late_choice_requires_final_contiguous_stability_and_matching_cache_identity():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    verification = _cached_verification(board, move, -5, -5, shallow_cp=-20, played_cp=-5)
+    verification["discovery"].update({"final_run_depths": 2})
+    assert classify_cached(board, move, verification) == (True, None)
+
+    verification["discovery"]["final_run_depths"] = 3
+    stale = dict(verification, position_key="not-the-position")
+    assert classify_cached(board, move, stale) == (False, None)
+    stale = dict(verification, search_profile={"depth": 1})
+    assert classify_cached(board, move, stale) == (False, None)
+
+
+def test_discovery_records_final_run_start_for_auditable_regrading():
+    from chess_harness.exceptional_moves import discovery_evidence
+    move = chess.Move.from_uci("h2h3")
+    other = chess.Move.from_uci("a2a3")
+    frames = {4: {"move": other, "cp": 0, "chance": .5},
+              5: {"move": move, "cp": -5, "chance": .495},
+              6: {"move": move, "cp": -5, "chance": .495},
+              7: {"move": move, "cp": -5, "chance": .495}}
+    evidence = discovery_evidence(frames, move)
+    assert evidence["final_run_start_depth"] == evidence["discovered_depth"] == 5
+    assert evidence["final_run_depths"] == 3 and evidence["shallow_cp"] == 0
+
+
+def test_public_evidence_version_remains_compatible_with_running_server():
+    from chess_harness.exceptional_moves import VERSION
+    assert VERSION == "critical-sound-sacrifice-v1"
+
+
+def test_complete_cached_proof_can_be_regraded_after_policy_revision():
+    from chess_harness import exceptional_moves as module
+    board, move = _quiet_late_position()
+    verification = _cached_verification(board, move, 0, -8)
+    verification["policy_version"] = "critical-discovery-sacrifice-policy-v6"
+    definitive, result = module.classify_cached(board, move, verification)
+    assert definitive and result["label"] == "great"
+    assert result["evidence"]["policy_version"] == module.POLICY_VERSION
+
+
+def test_incomplete_cached_rejections_require_current_policy_and_valid_reason():
+    from chess_harness import exceptional_moves as module
+    board, move = _quiet_late_position()
+    stale = _cached_verification(board, move, 0, -100)
+    stale["passes"] = stale["passes"][:1]
+    stale["complete"] = False
+    stale["definitive_rejection"] = "noneligible_first_pass_no_route"
+    stale["policy_version"] = "critical-discovery-sacrifice-policy-v6"
+    assert module.classify_cached(board, move, stale) == (False, None)
+
+    inconsistent = _cached_verification(board, move, 0, -100)
+    inconsistent["passes"] = inconsistent["passes"][:1]
+    inconsistent["complete"] = False
+    inconsistent["definitive_rejection"] = "played_not_top_no_offer"
+    assert module.classify_cached(board, move, inconsistent) == (False, None)
+
+
+def test_new_quiet_routes_do_not_award_hopeless_moves():
+    from chess_harness.exceptional_moves import classify_cached
+    board, move = _quiet_late_position()
+    # At this score difference the chance gap clears 0.5pp, but the top move
+    # itself remains below the minimum chance for an exceptional label.
+    route_a = _cached_verification(board, move, -540, -555)
+    assert classify_cached(board, move, route_a)[1] is None
+
+    route_b = _cached_verification(board, move, -600, -600, shallow_cp=-620, played_cp=-600)
+    route_b["quiet_probe"].update({
+        "shallow_cp": -1000, "roots": [
+            {"uci": "a2a3", "cp": -1000, "depth": 4, "bounded": False},
+            {"uci": move.uci(), "cp": -1001, "depth": 4, "bounded": False}]})
+    route_b["forced_shallow"]["cp"] = -620
+    route_b["discovery"].update({"shallow_cp": -1000, "shallow_chance": .024})
+    assert classify_cached(board, move, route_b)[1] is None

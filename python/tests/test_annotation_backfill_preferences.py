@@ -4,7 +4,7 @@ import pytest
 
 from chess_harness import annotation_backfill as backfill
 from chess_harness.game_quality import analyse_game
-from chess_harness.move_annotations import save_analysis
+from chess_harness.move_annotations import _binary_hash, save_analysis
 
 
 def _state(moves=("e2e4",)):
@@ -26,6 +26,16 @@ def _artifact(state):
         row.update(loss_percent=8.0, label="inaccuracy")
         row.update(best_move_uci="d2d4", best_move_san="d4", best_move_depth=14)
     return artifact
+
+
+def _matching_engine_hash(tmp_path, monkeypatch, artifact):
+    binary = tmp_path / "stockfish-test"
+    binary.write_bytes(b"fake stockfish binary for cache test")
+    stat = binary.stat()
+    digest = _binary_hash(str(binary.resolve()), stat.st_size, stat.st_mtime_ns)
+    monkeypatch.setattr(backfill, "resolve_stockfish", lambda: str(binary))
+    artifact["profile"]["engine_sha256"] = digest
+    return binary
 
 
 def test_reuse_preferences_skips_only_safe_rows_and_records_scope(monkeypatch):
@@ -177,3 +187,118 @@ def test_backfill_game_passes_reuse_flag_and_keeps_history(tmp_path, monkeypatch
     assert refreshed["preference_reuse"]["skipped_rows"] == 1
     assert refreshed["plies"][0]["label"] == "inaccuracy"
     assert (tmp_path / "analysis-history/reuse-run/move-analysis.json").exists()
+
+
+def test_complete_cached_evidence_skips_engine_and_preserves_scores(tmp_path, monkeypatch):
+    state = _state()
+    artifact = _artifact(state)
+    row = artifact["plies"][0]
+    original_scores = {key: row[key] for key in ("before", "after", "loss_cp", "loss_percent")}
+    row["exceptional_audit"] = {"passes": [{"roots": [{"uci": "d2d4", "depth": 18}]},
+                                             {"roots": [{"uci": "d2d4", "depth": 22}]}]}
+    _matching_engine_hash(tmp_path, monkeypatch, artifact)
+
+    import chess_harness.exceptional_moves as exceptional
+    import chess_harness.engine as engine_module
+    cache_calls = []
+    def classify_cached(board, move, proof):
+        cache_calls.append(move.uci())
+        return True, None
+
+    monkeypatch.setattr(exceptional, "classify_cached", classify_cached, raising=False)
+    monkeypatch.setattr(exceptional, "classify_exceptional", lambda *a, **kw: pytest.fail("complete cache should skip engine classification"))
+    monkeypatch.setattr(engine_module, "EvalEngineAdapter", lambda: pytest.fail("complete cache should skip engine startup"))
+
+    refreshed = backfill.refresh_labels(state, artifact, reuse_evidence=True)
+
+    assert cache_calls == ["e2e4"]
+    assert refreshed["plies"][0]["label"] == "inaccuracy"
+    assert {key: refreshed["plies"][0][key] for key in original_scores} == original_scores
+    assert refreshed["plies"][0]["best_move_uci"] == "d2d4"
+    assert refreshed["plies"][0]["best_move_depth"] == 22
+    assert refreshed["plies"][0]["exceptional_audit"] == row["exceptional_audit"]
+    assert refreshed["evidence_reuse"] == {
+        "enabled": True,
+        "matches_binary": True,
+        "matching_rows": 1,
+        "skipped_rows": 1,
+        "scope": "Complete position- and profile-matched exceptional verification reused only when the saved Stockfish SHA-256 matches the current binary; all other rows use existing refresh logic",
+    }
+
+
+def test_cached_positive_result_updates_label_and_evidence(tmp_path, monkeypatch):
+    state = _state()
+    artifact = _artifact(state)
+    row = artifact["plies"][0]
+    row["exceptional_audit"] = {"passes": [{"roots": [{"uci": "e2e4", "depth": 18}]},
+                                             {"roots": [{"uci": "e2e4", "depth": 22}]}]}
+    _matching_engine_hash(tmp_path, monkeypatch, artifact)
+    expected = {"label": "brilliant", "evidence": {"version": "cached-v2", "passes": []}}
+
+    import chess_harness.exceptional_moves as exceptional
+    import chess_harness.engine as engine_module
+    monkeypatch.setattr(exceptional, "classify_cached", lambda board, move, proof: (True, expected), raising=False)
+    monkeypatch.setattr(exceptional, "classify_exceptional", lambda *a, **kw: pytest.fail("positive cache should skip engine classification"))
+    monkeypatch.setattr(engine_module, "EvalEngineAdapter", lambda: pytest.fail("positive cache should skip engine startup"))
+
+    refreshed = backfill.refresh_labels(state, artifact, reuse_evidence=True)
+    assert refreshed["plies"][0]["label"] == "brilliant"
+    assert refreshed["plies"][0]["exceptional"] == expected["evidence"]
+    assert refreshed["evidence_reuse"]["matching_rows"] == 1
+
+
+@pytest.mark.parametrize("cache_kind", ["missing", "incompatible"])
+def test_missing_or_incompatible_cached_evidence_uses_fresh_search(tmp_path, monkeypatch, cache_kind):
+    state = _state()
+    artifact = _artifact(state)
+    if cache_kind == "incompatible":
+        artifact["plies"][0]["exceptional_audit"] = {"old_schema": True}
+    _matching_engine_hash(tmp_path, monkeypatch, artifact)
+
+    import chess_harness.exceptional_moves as exceptional
+    import chess_harness.engine as engine_module
+
+    class FakeEngine:
+        def quit(self):
+            pass
+
+    calls = []
+    monkeypatch.setattr(exceptional, "classify_cached", lambda *a: (False, None), raising=False)
+    monkeypatch.setattr(engine_module, "EvalEngineAdapter", FakeEngine)
+    monkeypatch.setattr(exceptional, "classify_exceptional", lambda *a, **kw: calls.append(True))
+    refreshed = backfill.refresh_labels(state, artifact, reuse_evidence=True)
+    assert calls == [True]
+    assert refreshed["evidence_reuse"]["matches_binary"] is True
+    assert refreshed["evidence_reuse"]["matching_rows"] == 0
+    if cache_kind == "incompatible":
+        assert "exceptional_audit" not in refreshed["plies"][0]
+
+
+@pytest.mark.parametrize("binary_state", ["mismatch", "unknown"])
+def test_stockfish_hash_mismatch_or_unknown_uses_fresh_search(tmp_path, monkeypatch, binary_state):
+    state = _state()
+    artifact = _artifact(state)
+    artifact["profile"]["engine_sha256"] = "old-binary-hash"
+    artifact["plies"][0]["exceptional_audit"] = {"valid-looking": True}
+    if binary_state == "mismatch":
+        _matching_engine_hash(tmp_path, monkeypatch, artifact)
+        # Put back a hash from the old binary after setting up the current test binary.
+        artifact["profile"]["engine_sha256"] = "old-binary-hash"
+    else:
+        monkeypatch.setattr(backfill, "resolve_stockfish", lambda: str(tmp_path / "missing-stockfish"))
+
+    import chess_harness.exceptional_moves as exceptional
+    import chess_harness.engine as engine_module
+
+    class FakeEngine:
+        def quit(self):
+            pass
+
+    calls = []
+    monkeypatch.setattr(exceptional, "classify_cached", lambda *a: pytest.fail("hash mismatch must reject caches"), raising=False)
+    monkeypatch.setattr(engine_module, "EvalEngineAdapter", FakeEngine)
+    monkeypatch.setattr(exceptional, "classify_exceptional", lambda *a, **kw: calls.append(True))
+    refreshed = backfill.refresh_labels(state, artifact, reuse_evidence=True)
+    assert calls == [True]
+    assert refreshed["evidence_reuse"]["matches_binary"] is False
+    assert refreshed["evidence_reuse"]["matching_rows"] == 0

@@ -6,14 +6,15 @@ import json
 import os
 import tempfile
 import time
-from functools import lru_cache
+from copy import deepcopy
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import chess
 
 SCHEMA_VERSION = 1
-LABEL_VERSION = "win-chance-loss-exceptional-v6"
+LABEL_VERSION = "win-chance-loss-exceptional-v7"
 # Mover's win-chance loss, in percentage points; not centipawn thresholds.
 THRESHOLDS = {"inaccuracy": 8.0, "mistake": 10.0, "blunder": 30.0}
 
@@ -37,6 +38,9 @@ def move_label(loss: float) -> str:
 def apply_preference(row, audit):
     """Do not call a deeper engine's preferred move a shallow-search error."""
     row.update({key: value for key, value in audit.items() if key.startswith("best_move_")})
+    verification = audit.get("verification")
+    if isinstance(verification, dict):
+        row["exceptional_audit"] = deepcopy(verification)
     if (row.get("label") in {"inaccuracy", "mistake", "blunder"}
             and audit.get("best_move_uci") == row.get("uci")
             and (audit.get("best_move_depth", 0) >= 8 or audit.get("forced_choice"))):

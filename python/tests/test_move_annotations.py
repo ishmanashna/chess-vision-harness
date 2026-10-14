@@ -98,6 +98,32 @@ def test_saved_analysis_is_validated_and_projection_excludes_lines(tmp_path):
     assert annotations_payload(tmp_path, state())["status"] == "unavailable"
 
 
+def test_exceptional_audit_verification_survives_save_but_stays_private(tmp_path):
+    from chess_harness.move_annotations import apply_preference
+
+    analysis = fixture_analysis()
+    row = analysis["plies"][0]
+    unchanged = {key: row[key] for key in ("before", "after", "loss_cp", "loss_percent")}
+    verification = {"depth": 20, "candidate_scores": [{"uci": "e2e4", "score": 15}]}
+    apply_preference(row, {"verification": verification})
+    verification["candidate_scores"][0]["score"] = 999
+
+    assert row["exceptional_audit"] == {
+        "depth": 20,
+        "candidate_scores": [{"uci": "e2e4", "score": 15}],
+    }
+    assert {key: row[key] for key in unchanged} == unchanged
+
+    save_analysis(tmp_path, analysis)
+    saved = json.loads((tmp_path / "move-analysis.json").read_text())
+    assert saved["plies"][0]["exceptional_audit"] == row["exceptional_audit"]
+
+    payload = annotations_payload(tmp_path, state())
+    assert payload["status"] == "complete"
+    assert "exceptional_audit" not in payload["plies"][0]
+    assert "candidate_scores" not in json.dumps(payload)
+
+
 def test_positive_labels_need_saved_verification_and_never_publish_candidate_lines(tmp_path):
     from chess_harness.exceptional_moves import VERSION
     analysis = fixture_analysis()

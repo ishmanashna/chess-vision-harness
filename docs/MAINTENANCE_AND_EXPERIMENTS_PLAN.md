@@ -681,6 +681,29 @@ Done when:
   candidates so future threshold changes can reuse searches instead of repeating
   the archive pass. Continue excluding private variations from public responses.
 
+### Broader strong-move annotations (v7, 2026-10-14)
+
+- User requested roughly ten times the current 16 agent `!` labels, with `!!`
+  considered separately. This is a calibration target, not a quota. The definition
+  of `!` now includes strong practical quiet choices as well as exceptional moves.
+- A deterministic study covered all 16 agent `!` plus 700 of 933 eligible agent
+  quiet moves previously preferred by a deep engine. A separate hash-cleared,
+  forced depth-4 score exposed hidden choices that preserve the position's best
+  evaluation while improving the evaluation of the played move itself. Root
+  changes caused only by equal shallow choices are insufficient evidence.
+- New quiet routes exclude the first eight plies, captures, check evasions,
+  terminal positions and available draw claims. Both deep verification passes
+  must prefer the played move. Existing routine-capture and check-evasion guards
+  remain; `!!` uses the preceding v6 criteria.
+- Private numeric search audits are saved with the actual root scores, depths,
+  bounds, shallow search evidence and a digest of the position's full history.
+  They never publish engine variations. Optional `--reuse-evidence` checks the
+  Stockfish binary hash and compatible search evidence before regrading; missing
+  or insufficient evidence triggers fresh analysis. This reduces repeated engine
+  work when calibrating thresholds.
+- Final thresholds, historical counts and verification are recorded after the
+  implementation and archive refresh below.
+
 ## Delivery rules
 
 - Implement one batch at a time; split a batch further if it cannot be reviewed cleanly.
